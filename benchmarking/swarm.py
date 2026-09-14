@@ -45,8 +45,10 @@ def _resolve_plan(plan, *, session_factory, gateway_factory, toolchain_loader):
         if task.id in task_ids:
             raise ValueError("Duplicate task id in run plan")
         task_ids.add(task.id)
-        if task.evaluation is None or task.evaluation.mode != "post_layout":
-            raise ValueError("Batch tasks require post_layout evaluation")
+        if (task.evaluation is None or task.evaluation.mode != "post_layout"
+                or task.evaluation.scoring is None
+                or task.evaluation.scoring.method != "layout-v1"):
+            raise ValueError("Batch tasks require a scored post_layout evaluation")
         source = Asset(read_file(entry["config"].parent, entry["config"].name), "toml")
         if source.sha256 != task.digest:
             raise ValueError("Task configuration changed during preflight")
@@ -224,19 +226,38 @@ def execute_plan(plan, destination, *, runner=run_agent, session_factory=DockerS
                 "repetitions": plan.repetitions, "order": plan.order, "seed": plan.seed,
                 "max_infrastructure_retries": plan.max_infrastructure_retries,
                 "concurrency": concurrency,
-                "statistics": {"weighting": "family_equal_then_task_equal", "confidence": 0.95,
-                               "per_task_interval": "wilson", "aggregate_interval": None,
-                               "generalization_interval": None},
+                "statistics": {"schema_version": 1, "method": "bench-v1",
+                               "task_score_method": "layout-v1", "maximum": 100,
+                               "confidence": 0.95, "per_task_interval": "wilson",
+                               "aggregate_interval": None, "generalization_interval": None},
                 "tasks": {}, "agents": {}, "schedule": _schedule(plan, tasks, agents)}
     for entry in tasks:
         task = entry["task"]
         manifest["tasks"][task.id] = {
-            "task_sha256": task.digest, "family": task.family, "environment": task.environment,
+            "task_sha256": task.digest, "family": task.family, "coefficient": task.coefficient,
+            "score_method": task.evaluation.scoring.method,
+            "environment": task.environment,
+            "witnessed": task.witnessed,
             "environment_group": json_asset({"environment": task.environment, "backends": entry["identities"]}).sha256,
             "source": archive(entry["source"]), "description": archive(task.evaluation_inputs()["task"]),
             "inputs": {role: archive(asset) for role, asset in task.input_assets().items()},
             "toolchain": archive(entry["toolchain"]), "backends": entry["identities"],
             "operations": sorted({job.operation for job in task.evaluation.jobs})}
+    # The suite binding is a content digest over the scoring method and the
+    # complete task/coefficient set.  Keeping it in the frozen statistics
+    # record makes it part of admission conditions and prevents a later
+    # summary from silently pooling a different task collection.
+    suite_identity = {task_id: {"task_sha256": task["task_sha256"],
+                                "coefficient": task["coefficient"],
+                                "score_method": task["score_method"]}
+                      for task_id, task in sorted(manifest["tasks"].items())}
+    manifest["statistics"]["suite_sha256"] = json_asset({
+        "schema_version": manifest["statistics"]["schema_version"],
+        "method": manifest["statistics"]["method"],
+        "task_score_method": manifest["statistics"]["task_score_method"],
+        "maximum": manifest["statistics"]["maximum"],
+        "tasks": suite_identity,
+    }).sha256
     for entry in agents:
         config, profile = entry["config"], entry["profile"]
         manifest["agents"][entry["id"]] = {
@@ -300,6 +321,8 @@ def _validate_resolved_manifest(plan, tasks, agents, manifest, *, concurrency, g
         task = entry["task"]
         frozen = manifest["tasks"].get(task.id)
         if (frozen is None or frozen["task_sha256"] != task.digest
+                or frozen.get("coefficient") != task.coefficient
+                or frozen.get("score_method") != task.evaluation.scoring.method
                 or frozen["source"]["sha256"] != entry["source"].sha256
                 or frozen["toolchain"]["sha256"] != entry["toolchain"].sha256
                 or frozen["backends"] != entry["identities"]

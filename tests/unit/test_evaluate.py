@@ -14,6 +14,12 @@ pytestmark = pytest.mark.unit
 PLAN = b'''schema_version = 1
 mode = "post_layout"
 
+[scoring]
+method = "layout-v1"
+area_metric = "functional_area"
+area_target = 1.0
+area_zero = 2.0
+
 [[jobs]]
 id = "slow"
 stage = "simulate"
@@ -46,11 +52,19 @@ inputs = { layout = "candidate", schematic = "input:netlist" }
 requires = ["artifact"]
 
 [[jobs]]
+id = "geometry"
+stage = "check"
+operation = "check"
+gate = "constraint"
+inputs = { layout = "candidate" }
+requires = ["artifact", "drc", "lvs"]
+
+[[jobs]]
 id = "parasitics"
 stage = "extract"
 operation = "extract"
 inputs = { layout = "candidate" }
-requires = ["drc", "lvs"]
+requires = ["artifact", "drc", "lvs", "geometry"]
 outputs = { netlist = "spice" }
 
 [[jobs]]
@@ -69,13 +83,24 @@ unit = "s"
 direction = "minimize"
 aggregation = "max"
 upper = 4.0
+zero_upper = 6.0
+dimension = "response"
+
+[[metrics]]
+id = "functional_area"
+category = "physical"
+observations = ["geometry:area"]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
 '''
 
 
 class Checks:
     identity: ClassVar[dict] = {"adapter": "synthetic-checks", "version": "1"}
 
-    def __init__(self, reject=None, crash=None):
+    def __init__(self, reject=None, crash=None, area=1.5):
+        self.area = area
         self.reject = reject
         self.crash = crash
         self.calls = []
@@ -84,8 +109,10 @@ class Checks:
         self.calls.append(job.id)
         if job.id == self.crash:
             raise RuntimeError("Tool failed unexpectedly")
+        measurements = {"area": Measurement(self.area, "um2")} if job.id == "geometry" else {}
         return JobResult("failed" if job.id == self.reject else "passed",
                          "Synthetic rejection" if job.id == self.reject else "",
+                         measurements=measurements,
                          evidence={"log": Asset(job.id.encode(), "text")})
 
 
@@ -147,6 +174,12 @@ def test_dependencies_follow_extracted_candidate_and_archive_evidence(tmp_path, 
     assert report["jobs"]["slow"]["inputs"]["dut"]["sha256"] == output["sha256"]
     assert json.loads((tmp_path / "report/report.json").read_text()) == report
 
+def test_task_witnessed_defaults_to_unknown_and_records_the_declared_flag(tmp_path, inputs, bindings):
+    assert evaluate(tmp_path, inputs, bindings)["task_witnessed"] is None
+    report = run_evaluation(parse_evaluation(PLAN), inputs, bindings, tmp_path / "witnessed",
+                            task_witnessed=True)
+    assert report["task_witnessed"] is True
+
 
 def test_drc_lvs_success_is_not_performance_success(tmp_path, inputs, bindings):
     report = evaluate(tmp_path, inputs, bindings, PLAN.replace(b"upper = 4.0", b"upper = 2.0"))
@@ -158,7 +191,8 @@ def test_drc_lvs_success_is_not_performance_success(tmp_path, inputs, bindings):
 
 
 def test_summary_cannot_hide_a_failing_case(tmp_path, inputs, bindings):
-    report = evaluate(tmp_path, inputs, bindings, PLAN + b"lower = 2.0\n")
+    raw = PLAN.replace(b"upper = 4.0", b"lower = 2.0\nzero_lower = 0.0\nupper = 4.0")
+    report = evaluate(tmp_path, inputs, bindings, raw)
     assert report["metrics"]["delay"]["value"] == 3.0
     assert report["metrics"]["delay"]["status"] == "failed"
 
@@ -182,6 +216,45 @@ def test_failed_gate_blocks_dependent_work_but_preserves_independent_checks(tmp_
     assert report["jobs"]["lvs"]["status"] == "passed"
     assert report["jobs"]["parasitics"]["status"] == "blocked"
     assert report["metrics"]["delay"]["value"] is None
+
+
+def test_accepted_design_receives_partial_area_utility(tmp_path, inputs, bindings):
+    plan = parse_evaluation(PLAN)
+    report = run_evaluation(plan, inputs, bindings, tmp_path / "report")
+    score = report["score"]
+    assert score["method"] == "layout-v1"
+    assert score["maximum"] == 100
+    assert score["value"] == pytest.approx(90)
+    assert score["components"] == {"G": 1.0, "E": 1.0, "H": 1.0, "Q": 0.5}
+    assert score["dimensions"] == {"response": 1.0}
+    assert score["area"] == {
+        "metric": "functional_area", "value": 1.5, "target": 1.0, "zero": 2.0, "Q": 0.5}
+
+
+def test_failed_gate_scores_zero_even_when_another_gate_errors(tmp_path, inputs, bindings):
+    bindings["check"] = Checks(reject="drc", crash="lvs")
+    report = evaluate(tmp_path, inputs, bindings)
+    assert report["score"]["value"] == 0
+    assert report["score"]["components"]["G"] == 0
+
+
+def test_failed_observation_is_continuous_and_keeps_score_below_sixty(tmp_path, inputs, bindings):
+    raw = PLAN.replace(b"upper = 4.0", b"upper = 2.0")
+    report = evaluate(tmp_path, inputs, bindings, raw)
+    score = report["score"]
+    assert score["components"]["G"] == 1.0
+    assert score["components"]["H"] == 0.0
+    assert score["components"]["E"] == pytest.approx(0.75, rel=1e-12)
+    assert 0 < score["value"] < 60
+
+
+def test_unscored_post_layout_plan_has_no_legacy_score(tmp_path, inputs, bindings):
+    unscored = PLAN.replace(b'\n[scoring]\nmethod = "layout-v1"\narea_metric = "functional_area"\narea_target = 1.0\narea_zero = 2.0\n', b"")
+    unscored = unscored.replace(b'zero_upper = 6.0\n', b"").replace(
+        b'dimension = "response"\n', b"")
+    report = evaluate(tmp_path, inputs, bindings, unscored)
+    assert report["score"] is None
+    assert report["task_success"] is True
 
 
 def test_tool_error_is_not_a_circuit_failure(tmp_path, inputs, bindings):
@@ -218,6 +291,8 @@ unit = "s"
 direction = "minimize"
 aggregation = "max"
 upper = 2.0
+zero_upper = 6.0
+dimension = "response"
 '''
     bindings["response"] = MixedSimulator()
     report = evaluate(tmp_path, inputs, bindings, raw)
@@ -225,6 +300,7 @@ upper = 2.0
     assert report["metrics"]["delay"]["status"] == "blocked"
     assert report["outcome"] == "failed"
     assert report["task_success"] is False
+    assert report["score"]["value"] is None
 
 
 @pytest.mark.parametrize("simulator", [Simulator(unit="ms"), Simulator(missing=True), Simulator(factor=float("nan")), Simulator(factor=float("inf"))])
@@ -238,7 +314,11 @@ def test_missing_nonfinite_or_wrong_unit_never_passes(tmp_path, inputs, bindings
 
 @pytest.mark.parametrize("mode", ["physical", "characterization"])
 def test_partial_scope_does_not_claim_full_task_success(tmp_path, inputs, bindings, mode):
-    report = evaluate(tmp_path, inputs, bindings, PLAN.replace(b'"post_layout"', f'"{mode}"'.encode()))
+    raw = PLAN.replace(b'"post_layout"', f'"{mode}"'.encode())
+    raw = raw[:raw.index(b"\n[scoring]")] + raw[raw.index(b"\n[[jobs]]"):]
+    raw = raw.replace(b'zero_upper = 6.0\n', b"").replace(
+        b'dimension = "response"\n', b"")
+    report = evaluate(tmp_path, inputs, bindings, raw)
     assert report["outcome"] == "passed"
     assert report["task_success"] is None
     assert report["quality_eligible"] is False
@@ -246,15 +326,17 @@ def test_partial_scope_does_not_claim_full_task_success(tmp_path, inputs, bindin
 
 @pytest.mark.parametrize(("before", "after", "message"), [
     (b"job:parasitics:netlist", b"input:netlist", "consume candidate extraction"),
-    (b'inputs = { layout = "candidate" }\nrequires = ["drc", "lvs"]',
-     b'inputs = { layout = "input:netlist" }\nrequires = ["drc", "lvs"]', "consume candidate extraction"),
-    (b'requires = ["drc", "lvs"]', b'requires = ["artifact"]', "physical validity gates"),
+    (b'inputs = { layout = "candidate" }\nrequires = ["artifact", "drc", "lvs", "geometry"]',
+     b'inputs = { layout = "input:netlist" }\nrequires = ["artifact", "drc", "lvs", "geometry"]', "consume candidate extraction"),
+    (b'requires = ["artifact", "drc", "lvs", "geometry"]', b'requires = ["artifact"]', "physical validity gates"),
     (b'gate = "drc"', b'gate = "constraint"', "one drc gate"),
     (b'job:parasitics:netlist', b'job:parasitics:absent', "Unknown job output"),
-    (b'requires = ["drc", "lvs"]', b'requires = ["slow"]', "cycle"),
+    (b'requires = ["artifact", "drc", "lvs"]', b'requires = ["slow"]', "cycle"),
     (b'upper = 4.0', b'upper = nan', "finite numeric"),
     (b'upper = 4.0', b'lower = 5.0\nupper = 4.0', "Inverted bounds"),
     (b'aggregation = "max"', b'aggregation = "mean"', "aggregation"),
+    (b'method = "layout-v1"', b'method = "unknown"', "Unsupported scoring method"),
+    (b'id = "artifact"', b'id = "artifact"\nweight = 1', "unknown"),
 ])
 def test_invalid_plans_are_rejected(before, after, message):
     with pytest.raises(ValueError, match=message):
@@ -293,7 +375,9 @@ def test_plan_parameters_are_immutable():
 
 
 def test_physical_measurements_can_come_from_completed_checks():
-    raw = PLAN + b'''
+    raw = PLAN[:PLAN.index(b"\n[scoring]")] + PLAN[PLAN.index(b"\n[[jobs]]"):]
+    raw = raw.replace(b'zero_upper = 6.0\n', b"").replace(
+        b'dimension = "response"\n', b"") + b'''
 [[metrics]]
 id = "area"
 category = "physical"
@@ -305,3 +389,38 @@ aggregation = "max"
     assert parse_evaluation(raw).metrics[-1].id == "area"
     with pytest.raises(ValueError, match="measurement stage"):
         parse_evaluation(raw.replace(b'category = "physical"', b'category = "performance"'))
+
+
+@pytest.mark.parametrize('lower,upper,value,accepted', [
+    (None, 0.0, 0.0, True), (None, 0.0, 0.01, False),
+    (-2.0, None, -2.0, True), (-2.0, None, -2.01, False),
+    (-2.0, -1.0, -1.5, True), (-2.0, -1.0, -2.0, True),
+    (-2.0, -1.0, -1.0, True), (-2.0, -1.0, -2.01, False),
+    (-2.0, -1.0, -0.99, False),
+])
+def test_measurement_bounds_are_inclusive_for_signed_and_zero_values(
+        tmp_path, lower, upper, value, accepted):
+    # Independent interval examples exercise the common evaluator; they make
+    # no claim about any real circuit or simulator's physical behavior.
+    metric = {'id': 'voltage', 'category': 'performance', 'unit': 'V',
+              'direction': 'minimize', 'aggregation': 'max',
+              'observations': ['sample:voltage']}
+    metric.update({k: v for k, v in [('lower', lower), ('upper', upper)] if v is not None})
+    raw = {'schema_version': 1, 'mode': 'characterization',
+           'jobs': [{'id': 'sample', 'stage': 'simulate', 'operation': 'measure',
+                     'inputs': {'circuit': 'input:source'}}], 'metrics': [metric]}
+
+    class MeasurementTool:
+        identity: ClassVar[dict] = {'adapter': 'synthetic-voltage'}
+
+        def run(self, job, inputs):
+            return JobResult('passed', measurements={'voltage': Measurement(value, 'V')},
+                             evidence={'log': Asset(b'synthetic voltage observation', 'text')})
+
+    report = run_evaluation(parse_evaluation(json.dumps(raw).encode(), file_format='json'),
+                            {'input:source': Asset(b'synthetic circuit', 'spice')},
+                            {'measure': MeasurementTool()}, tmp_path / 'run')
+    assert report['jobs']['sample']['status'] == 'passed'
+    assert report['specs_pass'] is accepted
+    assert report['metrics']['voltage']['status'] == ('passed' if accepted else 'failed')
+    assert report['task_success'] is None

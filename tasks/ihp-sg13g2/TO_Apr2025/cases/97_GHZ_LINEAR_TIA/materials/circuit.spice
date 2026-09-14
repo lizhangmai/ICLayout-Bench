@@ -1,0 +1,24 @@
+* SPDX-License-Identifier: Apache-2.0
+* Case-owned simulator export of the maintained 97-derived linear TIA core.
+* SUBSTRATE is explicit: the physical witness includes XRSUB's p-tap tie to
+* VSS, so simulator bulk behavior cannot be supplied accidentally by a global
+* ngspice gnd alias.
+.subckt FMD_QNC_01_LIN_TIA RFIN RFOUT VCC1 VCC2 VCC3 VSS
+*.PININFO RFIN:B RFOUT:B VCC1:B VCC2:B VCC3:B VSS:B
+XQ1 net1 RFIN VSS SUBSTRATE npn13G2 Nx=5 mm_ok=0
+XQ2 VCC2 net1 net2 SUBSTRATE npn13G2 Nx=10 mm_ok=0
+XQ3 RFOUT net2 net3 SUBSTRATE npn13G2 Nx=10 mm_ok=0
+XQ4 VCC2 RFOUT netfb SUBSTRATE npn13G2 Nx=5 mm_ok=0
+XRE3 net3 VSS SUBSTRATE rsil w=4u l=3u m=1 mm_ok=0
+XRC3 VCC3 RFOUT SUBSTRATE rsil w=4u l=14.5u m=1 mm_ok=0
+XRC1 VCC1 net1 SUBSTRATE rppd w=8u l=4.5u m=1 b=0 mm_ok=0
+XRF RFIN net2 SUBSTRATE rppd w=2u l=6.5u m=1 b=0 mm_ok=0
+XRE2 net2 VSS SUBSTRATE rppd w=3u l=6u m=1 b=0 mm_ok=0
+XFB netfb net2 SUBSTRATE rppd w=2u l=6.5u m=1 b=0 mm_ok=0
+XC1 VCC1 VSS cap_cmim w=30u l=60u m=2 mm_ok=0
+XC2 VCC2 VSS cap_cmim w=30u l=60u m=2 mm_ok=0
+XC3 VCC3 VSS cap_cmim w=30u l=60u m=2 mm_ok=0
+* The pinned resistor model does not derive the tap value from CDL A/P.
+* This is the same p-tap area/perimeter converted to its finite equivalent.
+XRSUB VSS SUBSTRATE ptap1 A=4p P=8u R=81.6666667
+.ends FMD_QNC_01_LIN_TIA

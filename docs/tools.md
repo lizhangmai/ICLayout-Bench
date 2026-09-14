@@ -13,7 +13,36 @@ The host uses Linux x86-64, Git, uv, Python 3.12+, and accessible Docker/BuildKi
 | `prepare --output <new-directory>` | Prepare the selected case, Magic, simulation models, KLayout rules, and solver resource bundle from the pinned PDK; bind tools to the actual image ID |
 | `run --prepared <prepared-directory> --output <new-directory>` | Evaluate the prepared case witness through its complete declared plan and save raw evidence |
 
-`quickstart` chains host checks, image build, PDK initialization, preparation, and reference evaluation, and writes `prepared/` and `run/`. It defaults to comparator; `quickstart` and `prepare` accept `--case full_OTA` to select the OTA. The script uses each case's `[toolchain]`, constraints, evaluation plan, and published witness. Preparation changes only the image and resource paths in a host-side copy at `prepared/case/case.toml`. The solver loader still materializes only declared inputs, excluding the copied reference and source README. Comparator uses the MOS model bundle; full_OTA uses the analog model bundle for its MOS, MIM capacitor, and tap models.
+`quickstart` chains host checks, image build, PDK initialization, preparation, and reference evaluation, and writes `prepared/` and `run/`. It defaults to comparator; `quickstart` and `prepare` discover executable post-layout cases from the public SG13G2 catalogs and accept their directory names through `--case`. Use `--help` for the current choices. The script uses each case's `[toolchain]`, constraints, evaluation plan, and published witness. Preparation binds image/resource paths and shared inputs to local snapshots in a host-side copy at `prepared/case/case.toml`. The solver loader still materializes only declared inputs, excluding the copied reference and source README. Models and composite extraction resources are selected by explicit backend metadata rather than inferred from a circuit's name or source collection.
+
+Local preview accepts executable candidates and qualified cases with published
+references. Preparation prints the case status; a successful preview does not
+establish qualification or formal admission.
+
+Declare `support_profiles` alongside a backend's `type` and `settings` when
+automatic preparation needs model or composite support bundles. Each key names
+one support-path setting, and its value names a profile in `pdk.toml`. The
+mapping must cover all of that backend's `support` and `*_support` settings.
+For example, an HBT simulation backend uses:
+
+```toml
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+support_profiles = { support = "hbt-models" }
+
+[toolchain.backends.simulation.settings]
+image = "layout-bench-tools:local"
+support = "build/support/example-hbt-models"
+```
+
+The directory in this example is created by resource preparation; it is not
+shipped with the repository. Use `analog-models` for the reviewed CMOS/MIM/tap
+model closure. A composite backend can declare
+`support_profiles = { klayout_support = "klayout", magic_support = "magic" }`.
+The metadata is validated by the host toolchain loader and never passed to a
+backend constructor or delivered as a solver input. Legacy KLayout and Magic
+backends with a single support setting retain their unambiguous type-based
+preparation defaults. Direct evaluation may still use manually prepared bundles.
 
 `--skip-build` reuses the existing image and still binds its actual ID. Existing PDK files are reused and checked against reviewed digests; output directories must be new. Quick start makes no model calls and does not establish new qualification conditions. Case-specific tests cover calibration and rejection behavior; see [CONTRIBUTING](../CONTRIBUTING.md#verification).
 
@@ -47,7 +76,7 @@ The script preserves existing `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` variab
 
 ## Upstream and Process Resources
 
-The addresses in `third_party/` are declared by [.gitmodules](../.gitmodules), and versions are fixed by Git submodule references; nested dependencies use the commits recorded upstream. The public preview needs the PDK and its two KLayout Python dependencies used by the reviewed view. Digital, openEMS, Palace, course, and tapeout materials are optional sources for investigation. See the [task guide](tasks.md#asset-rights) for source, license, and distribution requirements; retain licenses with each upstream and component. Do not put a complete checkout in Agent mounts or the common image.
+The addresses in `third_party/` are declared by [.gitmodules](../.gitmodules), and versions are fixed by Git submodule references; nested dependencies use the commits recorded upstream. The public preview needs the PDK and its two KLayout Python dependencies used by the reviewed view. The top-level submodules contain evaluator PDK, model and rule resources. Circuit-source repositories are linked through case attribution. Digital, openEMS and Palace dependencies nested inside the PDK are optional. See the [task guide](tasks.md#asset-rights) for source, license, and distribution requirements; retain licenses with each upstream and component. Do not put a complete checkout in Agent mounts or the common image.
 
 ```bash
 git submodule update --init --depth 1 third_party/IHP-Open-PDK
@@ -65,13 +94,6 @@ After moving the PDK pin, regenerate the support profile digests from the clean 
 uv run --locked python -m benchmarking.refresh_support third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml
 ```
 
-The same command refreshes a circuit case after moving its source-collection pin, rewriting `origin.commit` and the digests of `sources`, `upstream_assets`, and case-owned `source_export` files in place (PDK-owned files stay with the referenced `pdk.toml` profile):
-
-```bash
-uv run --locked python -m benchmarking.refresh_support third_party/IHP-AnalogAcademy \
-  tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/comparator/case.toml
-```
-
 The refresh refuses a checkout with uncommitted tracked changes and fails on any listed file missing upstream, so a stale or renamed selection surfaces at refresh time rather than during evaluation.
 
 | Resource | Preparation and validation |
@@ -82,20 +104,148 @@ The refresh refuses a checkout with uncommitted tracked changes and fails on any
 
 Keep originals byte-for-byte as supplied upstream and register framework-generated startup settings separately in the manifest. Preserve the license notices for components such as PSP models, PyCell, and pypreprocessor. The PDK view currently validates only basic MOS/tap primitives; importing a tool or device does not qualify every parameter or process rule.
 
-<a id="source-preparation"></a>
+<a id="freepdk45"></a>
 
-### Prepare a Netlist from a Schematic
+### FreePDK45 resources and qualification
 
-`benchmarking.prepare` gives a network-isolated preparation container only the files explicitly listed by a case TOML's `[source_export]` section, invokes Xschem to export the raw LVS netlist, and saves source digests and diagnostic logs. The case lists its own files in `[source_export.files]`; reviewed PDK symbols come from the `pdk_profile` reference (for example `../../../pdk.toml#xschem-symbols`), so the PDK manifest remains their single digest declaration. Arguments include the case configuration, output directory, and `--checkout NAME=PATH` for each source. Use the unified image with `--image layout-bench-tools:local`. Any source export is preparation evidence, not a substitute for an upstream layout. See the [task guide](tasks.md) for source and input-semantics checks.
+Five public cases are `qualified` through input consistency and reference evaluation. Their
+references are evaluated at **1.0 V, 27 C**, using nominal predictive
+FreePDK45 BSIM4 models and candidate-derived Magic RC. Every case ships a passing
+reference, its source netlist and testbench, fixed `layout-v1` scoring, and
+reference results with reproduction commands. These are standalone transistor-level tasks.
 
-The Dockerfile builds a pinned Xschem release from checksum-verified source.
-Ubuntu's older Xschem package lacks the native `ev7` expression helper used by
-the current SG13G2 tap symbols and can silently export a tap as `?`. The image
-upgrade supplies that helper without changing PDK symbols or adding an exporter
-shim. The [input-pair source regression](../tests/integration/test_input_pair_source.py)
-exports the original schematic and checks its MOS connectivity and tap geometry
-against the schematic dimensions. Rebuild the tools image before using this
-export path; a process exit code of zero alone does not establish netlist validity.
+| Collection / case | Function | Coefficient | Area target / zero (um2) |
+| --- | --- | --- | --- |
+| [OpenRAM / cell_6t](../tasks/freepdk45/OpenRAM/cases/cell_6t/README.md) | Write, hold and nondestructive read | 3 | 1.4 / 2.8 |
+| [OpenRAM / sense_amp](../tasks/freepdk45/OpenRAM/cases/sense_amp/README.md) | Clocked differential decision | 3 | 3.8 / 7.6 |
+| [OpenRAM / write_driver](../tasks/freepdk45/OpenRAM/cases/write_driver/README.md) | Loaded complementary tri-state drive | 2 | 3.6 / 7.2 |
+| [nangate45-pdk / NAND2_X1](../tasks/freepdk45/nangate45-pdk/cases/NAND2_X1/README.md) | Two-input NAND truth table and transitions | 2 | 1.7 / 3.4 |
+| [nangate45-pdk / AOI21_X1](../tasks/freepdk45/nangate45-pdk/cases/AOI21_X1/README.md) | Compound AOI truth table and transitions | 2 | 2.1 / 4.2 |
+
+Each problem is self-contained. Its configuration owns the exact devices, loads,
+stimuli, observation times, bounds, dimensions and area anchors. References prove
+feasibility; they are not scoring denominators or standard solver inputs.
+
+#### Prepare resources
+
+From a Git checkout at the repository root:
+
+```bash
+git submodule update --init --depth 1 \
+  third_party/FreePDK45_for_KLayout third_party/FreePDK45 \
+  third_party/nangate45-pdk
+uv sync --locked --group eda
+docker build --network host -t layout-bench-tools:local .
+uv run --locked python -m benchmarking.prepare_support \
+  third_party/FreePDK45_for_KLayout tasks/freepdk45/pdk.toml#klayout \
+  build/support/freepdk45-klayout
+uv run --locked python -m benchmarking.prepare_support \
+  third_party/FreePDK45 tasks/freepdk45/pdk.toml#models \
+  build/support/freepdk45-models
+uv run --locked python -m benchmarking.prepare_support \
+  third_party/nangate45-pdk tasks/freepdk45/pdk.toml#magic-vtg \
+  build/support/freepdk45-magic-vtg
+uv run --locked python -m benchmarking.prepare_support \
+  third_party/nangate45-pdk tasks/freepdk45/pdk.toml#magic-vtl \
+  build/support/freepdk45-magic-vtl
+```
+
+Reuse a verified existing image and support bundle instead of overwriting them.
+The support commands create immutable snapshots in new directories. Distributed-reference regression uses the three evaluator checkouts above.
+Circuit-source repositories are not needed to prepare or evaluate these cases.
+
+Profiles in [pdk.toml](../tasks/freepdk45/pdk.toml) select their own source checkout and revision.
+Model sources come from the Apache FreePDK45 1.4 publication with SVRF files
+removed. The runtime bundles contain neither the full source libraries nor
+reference GDS. All EDA operations use the shared tools image.
+
+#### Physical and extraction scope
+
+The KLayout profile enables all implemented DRC, manufacturing-grid and antenna
+checks without waivers. The source deck explicitly lacks its different-potential
+well-spacing check, so a pass is not complete manufacturing signoff. Strict LVS
+flattens an isolated candidate copy with its labels, removes library-specific
+`cheat` blocks and implicit/global rail joins, and compares models, W/L, named
+ports and real well/tap connectivity. The upstream audit profile is separate and
+retains the original library assumptions; it is not the task judge.
+
+The functional footprint includes drawing layers 1/0 through 29/0, including all
+ten routing metals and nine vias. The same layer set supplies the hard 100 by
+100 um envelope and scored bounding-box area. Annotation and pin-purpose shapes
+are excluded; the contract requires functional routing on drawing layers.
+
+Magic imports the candidate on its exact DBU grid, filters electrical text to
+poly/metal drawing layers and aliases case-insensitive SPICE port names. It
+extracts resistances and capacitances from the GDS, with no schematic replacement.
+Independent LVS selects the applicable VTG or VTL model class first. The native
+RC topology is checked during qualification against the source after removing
+capacitors and collapsing parasitic resistors. Simulation always uses the full,
+unchanged extracted RC network.
+
+The predictive extraction model uses:
+
+- Nominal, unmodified VTG/VTL BSIM4 models at 27 C, with junction area/perimeter
+  from layout. Diffusion sheet resistance is 5 ohm/square from model `rsh`.
+- Poly/metal sheet and contact/via resistance from the
+  [NCSU FreePDK45 metal-layer specification](https://eda.ncsu.edu/freepdk/freepdk45/).
+  Poly is 7.8 ohm/square; M1 is 0.38, M2/M3 0.25, M4–M6 0.21,
+  M7/M8 0.075, and M9/M10 0.03. Contacts are 8 ohm; vias use
+  6, 5, 5, 3, 3, 3, 1, 1 and 0.5 ohm, respectively.
+- Isolated-wire area and edge fits to the pinned original
+  [ElCap PTF table](https://foss-eda-tools.googlesource.com/third_party/freepdk45/+/356e90646f5ef26ea09b1ed8ce4796871403a0c7/Cap_Tables/NCSU_FreePDK_45nm.ptf).
+  Fits reproduce the width endpoints and have at most 5.44% error at the other
+  published isolated-wire widths. This error describes those samples only.
+- Same-plane coupling anchored to the table's minimum-width/minimum-spacing
+  sample; wider spacings use Magic's native inverse-spacing approximation.
+  Cross-plane overlap uses the published dielectric stack and relative
+  permittivity 2.5, with Magic's shielding and native capacitance placement.
+  Some coupling remains lumped at original nets; not every capacitance is
+  distributed along a wire resistance.
+- Lumped wells and substrate connections. Well/substrate sheet resistance,
+  well-to-substrate capacitance, inductance, process variation and temperature
+  coefficients are outside this nominal scope. The four terminal MOS junction
+  model is retained. No substrate-noise or foundry field-solver claim is made.
+
+The original Nangate Magic file's estimated parasitic table is replaced by these
+reviewed coefficients. `lambda=2.5` expresses 25 nm in Magic's centimicron units;
+confusing it with microns would corrupt MOS dimensions. The shared image fixes
+Magic 8.3.678. Coefficient interpretation must be revalidated when changing the
+extraction implementation or tool version.
+
+#### Reference regression
+
+The case READMEs provide the reference evaluation commands and measured results.
+The shared regression discovers executable witnessed cases from public catalogs,
+prepares resources through their declared profiles, and checks the witness against
+its own acceptance conditions. It also rejects an empty candidate. It has no
+circuit-name branches, geometry recipes or expected score table.
+
+```bash
+uv run --locked --group eda pytest tests/integration/test_public_references.py
+```
+
+Use `-k freepdk45` to select this PDK. Native reports, extracted netlists and
+waveforms are generated in the test's temporary output directories. Direct
+`main.py evaluate` commands in each README write them to a selected `build/runs/`
+directory. This regression verifies ready-to-use references. Apply the
+[case and shared validation rules](tasks.md#qualification) when changing a circuit,
+judge or extraction model. Generic scoring, simulator error handling and analytical
+RC behavior have their own framework tests.
+
+#### Sources and distribution
+
+The source collections retain their own licenses and notices. The three OpenRAM
+cells retain their GPL source
+obligations and separate PDK notices, and NAND2/AOI21 use the original Nangate
+publication's Apache license and later Silvaco/Si2 NOTICE. Generated upstream
+copyright headers remain intact. Source revisions and file hashes are recorded
+in each case and collection catalog.
+
+FreePDK45 models, open rule decks, the Magic integration and derived coefficient
+records have separate reviewed provenance in the PDK manifest. SVRF/Calibre
+materials are not copied into task inputs or prepared evaluator resources.
+Qualification is limited to the published nominal conditions; it does not claim
+PVT, mismatch, SRAM-array abutment, manufacturing signoff or formal admission.
 
 ## EDA Backend Contract
 
@@ -107,6 +257,20 @@ ngspice writes an input role as `<role>.spice` and uses `deck.spice` as its entr
 
 Magic takes the top cell and ordered `ports` from trusted configuration; check the port list against the authoritative netlist. Later jobs must consume the exported netlist as-is. `magic-capacitance-docker` retains its capacitance-only behavior and records `wire_resistance=false`. `magic-rc-docker` adds distributed resistance and capacitance, and can be bound to `layout.extract_rc`.
 
+
+Magic import can be configured with `gds_readonly=false` when a technology must
+rescale its native import grid to represent the candidate DBU exactly. This does
+not permit writes to the submitted GDS: preprocessing and import still operate
+on isolated copies. The default remains `true`. Optional `label_layers` is a
+nonempty list of GDS layer/datatype pairs that may contain electrical text;
+text on other layers is removed from the extraction copy without removing any
+geometry. `case_insensitive_ports=true` aliases case variants to unique internal
+names before extraction, matching SPICE's port-name semantics. The defaults
+preserve all labels and use case-sensitive matching. Settings, alias mappings,
+ignored-label counts and the geometric flattening check are archived. The
+[FreePDK45 resources](#freepdk45) exercise these options and
+publish their predictive model, coefficient provenance and extraction controls.
+
 The RC adapter requires Magic 8.3.653 or newer. It uses a geometrically checked,
 flattened extraction copy, keeps devices separate, and sets resistance selection,
 minimum resistance, and delay thresholds to zero with network simplification
@@ -116,6 +280,16 @@ uses zero. These are the explicit controls documented by the
 The archived upstream `extresist tolerance 1` setting is deprecated in the
 installed Magic and is not used by this backend. Raw extraction, resistance,
 topology, feedback, and port/geometry checks are retained with the result.
+
+SG13G2 Magic extraction treats well/substrate ties as ideal connections;
+it does not preserve the finite `ntap1`/`ptap1` resistance cards used by the
+source simulator netlists. The pinned PDK's
+[tap connectivity rules](../third_party/IHP-Open-PDK/ihp-sg13g2/libs.tech/klayout/tech/lvs/rule_decks/tap_connections.lvs)
+document this interpretation for Magic and Netgen. Physical LVS can still
+check explicit tap geometry. Cases using this RC boundary must disclose the
+idealization and calibrate its effect on their declared nominal measurements.
+It does not establish distributed well/substrate resistance or substrate-noise
+accuracy.
 
 The shared image builds Magic 8.3.678 with one driver-selection correction in
 `ResProcessNode`: the W/L accumulator and maximum use floating point, matching
@@ -140,102 +314,22 @@ and commands are in its [case README](../tasks/ihp-sg13g2/IHP-AnalogAcademy/case
 
 `klayout-docker` implements the same Backend interface, with `check` selecting `artifact`, `drc`, or `lvs`. A task job supplies only `layout` and `task`; LVS additionally supplies the authoritative `netlist`. For standalone debugging, use `parameters.top_cell`, `max_bytes`, and the LVS `subcircuit`; when `task` is supplied, these must not conflict with it. Checks do not publish an extracted netlist for post-layout simulation. The LVS extraction result is diagnostic evidence; a separate PEX job re-extracts from the same GDS for post-layout simulation.
 
-The artifact check uses KLayout's native reader to validate the GDSII stream, the published file-size limit, the specified top cell, non-empty geometry, and unresolved hierarchy references. DRC/LVS configuration is a JSON file in the frozen support bundle that specifies `deck`, fixed `variables`, and explanatory `scope`; DRC also declares `required_categories`. The optional DRC `additional_decks` list contains `{deck, required_categories}` entries sharing the same variables. Every deck runs in its own KLayout process and must complete and produce its required categories. The gate sums their counts and fails if any deck fails; an execution or report error takes precedence. `report.db` and `report-1.db` (and corresponding logs/completion markers) remain separate native evidence, with per-deck results in `result.json`. Required categories guard against skipping rule groups but are not a complete rule list. Exact case-local `parameters.waivers` remain available to other reviewed tasks, but the AnalogAcademy upstream reproduction path supplies none. For LVS, native cross-reference data must confirm that comparison occurred, the reference circuit is non-empty, and the requested circuit participated. The `ignore_top_ports_mismatch` variable controls whether the upstream runset and adapter add named-port checks after comparison. The reader follows KLayout's [LVS database](https://www.klayout.de/doc/code/class_LayoutVsSchematic.html) and [comparison result](https://www.klayout.de/doc/code/class_NetlistCrossReference.html) documentation. A missing report, skipped run, crash, or timeout is `error`; a completed check with unwaived violations is `failed`.
+The artifact check uses KLayout's native reader to validate the GDSII stream, the published file-size limit, the specified top cell, non-empty geometry, and unresolved hierarchy references. DRC/LVS configuration is a JSON file in the frozen support bundle that specifies `deck`, fixed `variables`, and explanatory `scope`; DRC also declares `required_categories`. The optional DRC `additional_decks` list contains `{deck, required_categories}` entries sharing the same variables. Every deck runs in its own KLayout process and must complete and produce its required categories. The gate sums their counts and fails if any deck fails; an execution or report error takes precedence. `report.db` and `report-1.db` (and corresponding logs/completion markers) remain separate native evidence, with per-deck results in `result.json`. Required categories guard against skipping rule groups but are not a complete rule list. Exact case-local `parameters.waivers` are available when declared by a reviewed task. For LVS, native cross-reference data must confirm that comparison occurred, the reference circuit is non-empty, and the requested circuit participated. The `ignore_top_ports_mismatch` variable controls whether the upstream runset and adapter add named-port checks after comparison. The reader follows KLayout's [LVS database](https://www.klayout.de/doc/code/class_LayoutVsSchematic.html) and [comparison result](https://www.klayout.de/doc/code/class_NetlistCrossReference.html) documentation. A missing report, skipped run, crash, or timeout is `error`; a completed check with unwaived violations is `failed`.
 
-<a id="original-asset-evaluation"></a>
+### IHP physical-check profiles
 
-### Original-asset evaluation
+Prepare support from the `klayout` profile in `tasks/ihp-sg13g2/pdk.toml`.
+Frozen bundles are not updated in place; prepare a new bundle when the manifest
+changes. Cases select their check profiles through `[toolchain]`.
 
-Prepare support from the `klayout` profile in `tasks/ihp-sg13g2/pdk.toml`. Frozen bundles are not
-updated in place; prepare a new bundle when the manifest changes. The profiles
-declare their upstream scope explicitly:
-
-| Profile | Mapping and provenance |
+| Profile | Scope |
 |---|---|
-| `drc-upstream.json` | Current pinned PDK GUI defaults (`tech/macros/sg13g2_drc.lym` → `drc/run_drc.py`): main plus extra `sg13g2_maximal.drc`, deep mode, density and antenna off. This is not the historical minimal deck. |
-| `lvs-upstream.json` | Current pinned PDK GUI defaults (`tech/macros/sg13g2_lvs.lym`): explicit taps, native simplification, strict named ports. |
-| `lvs-analogacademy.json` | Course-era defaults mapped to the current PDK: explicit taps, native simplification, and comparison without the additional `flag_missing_ports` check. The historical [GUI options](https://github.com/IHP-GmbH/IHP-Open-PDK/blob/eb1b540c58346cf6259285a38d09b2a04feb344a/ihp-sg13g2/libs.tech/klayout/tech/macros/lvs_options.yml) and [LVS runset](https://github.com/IHP-GmbH/IHP-Open-PDK/blob/eb1b540c58346cf6259285a38d09b2a04feb344a/ihp-sg13g2/libs.tech/klayout/tech/lvs/sg13g2.lvs) establish these defaults, not the author's actual saved options. |
+| `drc-upstream.json` | Pinned PDK GUI defaults: main plus extra `sg13g2_maximal.drc`, deep mode, density and antenna off. |
+| `lvs-upstream.json` | Pinned PDK GUI defaults: explicit taps, native simplification and strict named ports. |
 
-`python -m benchmarking.upstream` evaluates cataloged cases through one API, one case per invocation. Each case's `[upstream_evaluation]` declares the original layout/netlist asset IDs, separate layout and reference circuit names, profile names, and selection basis. The entry point checks the upstream commit and selected asset hashes, invokes the existing evaluation API, and archives the exact case TOML alongside the report. It does not export or rewrite netlists, remove taps, tie bulk nodes, change device parameters, or supply waivers. Native runset simplification is part of upstream evaluation, not input preprocessing. The comparator task instead delivers the untouched Xschem export of its matched derivative schematic as the task netlist (see the case README). `tasks/ihp-sg13g2/IHP-AnalogAcademy/evaluate.py` is a thin compatibility entry point. The standalone file-size limit is 64 MiB and the per-job timeout defaults to 600 seconds (`--timeout-seconds`); these do not change executable task limits.
-
-```bash
-uv run --locked python -m benchmarking.prepare_support third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#klayout build/support/upstream-all
-uv run --locked python -m benchmarking.upstream \
-  tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/input_pair/case.toml \
-  --support build/support/upstream-all \
-  --output build/runs/upstream-input-pair
-```
-
-Run the same command with any case listed in a `tasks/*/*/catalog.toml`,
-using a fresh output directory. The metadata supplies the top cell;
-`--top-cell` is an optional assertion and rejects conflicts. `--root` specifies
-the checkout root (default: current working directory).
-
-The TO_Apr2025 `lvs-to-apr2025.json` profile maps native compare-only port
-semantics independently of the course profile. The archived 40 GHz LVS
-database records `Match` with zero layout pins and nine reference pins;
-adding strict named-port checks would change that evaluation policy. Other
-switches use current pinned defaults, since the historical options are not
-archived. DRC uses current main plus extra scope; archived minimal/maximal
-report names do not establish equality with today's rule coverage.
-
-| Case | Original evaluation GDS selection / top cell | Original reference circuit |
-|---|---|---|
-| AnalogAcademy full OTA | Declared reference / `two_stage_OTA_layout` | `two_stage_OTA_layout` |
-| AnalogAcademy input pair | Declared reference / `input_common_centroid` | `input_common_centroid` |
-| AnalogAcademy output stage | Declared reference / `output_stage` | `output_stage` |
-| AnalogAcademy comparator | Hierarchical reference / `DIFF_COMPARATOR` | `DIFF_COMPARATOR` |
-| TO 160 GHz LNA | `design_data/klayout/` variant / `TOP` | `TOP` |
-| TO 40 GHz TIA | `design_data/klayout/` variant / `FDM_QNC_00_LN_TIA` | `FDM_QNC_00_LN_TIA` |
-| TO 97 GHz TIA | `design_data/klayout/` variant / `FMD_QNC_01_LIN_TIA` | `FMD_QNC_01_LIN_TIA` |
-| TO DC–130 GHz TIA design 1 | Declared reference / `FMD_QNC_03a_TIA_1` | `TOP` in `LVS_Check_Netlist.cdl` |
-
-TO cases keep the final delivery GDS in their inventory but explicitly select
-the available KLayout evaluation variant. For 160 GHz, that variant's `TOP`
-name also agrees with the archived LVS database. DC–130 GHz uses the author's
-existing `LVS_Check_Netlist.cdl`, which identifies itself as the modified Qucs-s
-netlist for KLayout LVS; `TOP.cdl` remains inventoried as a source export.
-Layout-Bench performs neither that upstream modification nor cell renaming.
-The 40/97 GHz historical reports refer to `TOP`, unlike the available GDS/CDL
-names; their exact historical input pairing therefore remains unverified.
-
-With PDK commit `5e6d592e4002946a4616f798c357f0f3c06cf3b6` and KLayout
-0.30.11, the original assets produce the following native results without
-waivers. Reproduce each row with the command above and its catalog case:
-
-| Case | DRC items (main + extra) | LVS job |
-|---|---:|---|
-| full OTA | 1072 | `NoMatch` |
-| input pair | 63 | `NoMatch` |
-| output stage | 727 | `NoMatch` |
-| comparator | 7 | `Match` |
-| 160 GHz LNA | 3289 | Reader error: two-terminal poly resistor |
-| 40 GHz TIA | 1585 | Reader error: two-terminal poly resistor |
-| 97 GHz TIA | 544 | Reader error: two-terminal poly resistor |
-| DC–130 GHz TIA design 1 | 110 | Reader error: two-terminal poly resistor |
-
-All four TO source LVS netlists use legacy two-terminal poly-resistor cards:
-`rhigh` in the 160 GHz LNA, and `rppd` (also `rhigh` in the 97 GHz case)
-in the TIAs. The current
-PDK's `lvs/rule_decks/custom_reader.lvs:create_resistor` unconditionally
-requires three nodes for poly resistors and raises `Poly resistor should
-have 3 nodes, please recheck` before comparison. There is no exposed switch
-for accepting the old two-terminal form. This is a toolchain/input
-compatibility blocker, not `NoMatch` or a port-policy failure. The mapping
-retains the original bytes and records the error; it does not invent a bulk
-connection, replace the reference with extraction, or patch the runset.
-Use each job's status when interpreting the report: the evaluation API may
-return overall `failed` (exit 1) for a completed DRC rejection even when LVS
-has an execution `error`.
-
-These results establish physical status under the declared profiles, not task
-qualification. The input pair's LVS mismatch concerns tap parameters; its
-combined MOS devices and ports match. The comparator's seven DRC findings and
-their disposition are explained in its
-[case README](../tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/comparator/README.md#original-issues-and-modifications).
-The author's settings and exact historical run identity were not archived
-upstream, so the checks reconstruct documented defaults on the current
-toolchain. Keep the original source bytes when reproducing them.
+Evaluate the maintained circuit and candidate using the case's declared task
+plan. See the [evaluation command](tasks.md#evaluation) and each case README
+for reference results and reproduction instructions.
 
 <a id="geometry"></a>
 
@@ -270,10 +364,38 @@ PEX. Other source dialects require an explicitly validated adaptation.
 HBT, resistor and capacitor include closure, using native ngspice VBIC and
 OpenVAF-compiled R3_CMC and MoM models. It retains the R3_CMC license and
 NOTICE with the IHP adaptation. No compact-model source is patched.
-The [design 1 regression](../tests/integration/test_to_apr2025_schematic.py)
-checks nominal DC operation of the schematic-derived two-stage TIA core.
-This does not validate RF/EM extraction, PEX, noise or statistical corners;
-see the [case scope](../tasks/ihp-sg13g2/TO_Apr2025/cases/DC_to_130_GHz_TIA.design_1/README.md#core-operating-point-check).
+The `sg13g2-hbt-rc-docker` backend combines candidate-only KLayout native
+HBT extraction with Magic distributed interconnect R/C. Its `klayout_support`
+and `magic_support` settings use separately reviewed bundles; declare their
+profiles through `support_profiles` as shown above. Physical LVS remains a
+separate gate against the maintained circuit, including the named interface.
+
+For a declared ideal-body compact-model boundary, the optional boolean
+`disable_tap_extraction = true` setting enables the pinned KLayout PDK's
+standard tap-connection mode in the candidate extraction only. The default is
+`false`. The selected value is recorded in backend identity and the frozen
+extraction configuration; it does not change the separate physical LVS
+profile. A case using this mode must retain physical tap checks, disclose the
+omitted well/substrate/tap resistance and calibrate finite-tap versus ideal-body
+behavior under its declared testbench and models.
+
+The adapter preserves extracted HBT multiplicity and validates the drawn
+geometry against the compact-device interface. Fixed drawn emitter dimensions
+are not passed as effective model dimensions. It checks passive geometry and
+connectivity across KLayout, Magic topology and the final RC output, and retains
+Magic's external R/C network. Ambiguous mappings, unsupported cards or missing
+connectivity evidence fail extraction. An otherwise unreferenced HBT terminal
+may be assigned to its candidate-proven port at the compact-device boundary;
+this does not replace an external wire or bypass attached parasitics. The
+mapping and original extraction outputs are retained as evaluation evidence.
+
+The [design 1 functional regression](../tests/integration/test_tia130_postlayout.py)
+checks the same nominal AC/DC deck against the maintained source and extracted
+candidate, independently reads waveform voltages and currents, and exercises
+port rejection and repeated/translated candidates. This is a distributed-RC
+compact-model simulation boundary. RF/EM behavior, noise and statistical
+corners require their own declared extraction and validation scope; see the
+[case requirements](../tasks/ihp-sg13g2/TO_Apr2025/cases/DC_to_130_GHz_TIA.design_1/problem.md#physical-requirements).
 
 ### Qucs-S and Qucsator
 

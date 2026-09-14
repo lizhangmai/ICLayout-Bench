@@ -20,6 +20,12 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_prepared_pinned_cli_and_hidden_material_export_boundary(tmp_path):
     evaluation = '''schema_version = 1
 mode = "post_layout"
+
+[scoring]
+method = "layout-v1"
+area_metric = "functional_area"
+area_target = 1.0
+area_zero = 2.0
 '''
     for gate in ("artifact", "drc", "lvs"):
         evaluation += f'''[[jobs]]
@@ -30,6 +36,13 @@ gate = "{gate}"
 inputs = {{layout = "candidate"}}
 '''
     evaluation += '''[[jobs]]
+id = "constraint"
+stage = "check"
+operation = "check"
+gate = "constraint"
+inputs = {layout = "candidate"}
+requires = ["artifact", "drc", "lvs"]
+[[jobs]]
 id = "pex"
 stage = "extract"
 operation = "extract"
@@ -48,7 +61,16 @@ observations = ["sim:value"]
 unit = "s"
 direction = "minimize"
 aggregation = "max"
+dimension = "response"
 upper = 1.0
+zero_upper = 2.0
+[[metrics]]
+id = "functional_area"
+category = "physical"
+observations = ["constraint:area"]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
 '''
     # No submission: the fixture bindings are inspected but never used to judge layout.
     (tmp_path / "tools.toml").write_text('''schema_version = 1
@@ -152,7 +174,8 @@ sha256 = "{Asset(script, 'python').sha256}"
     released = cli("export", tmp_path / "run", "--policy-sha256", policy.source.sha256)
     assert released.returncode == 0, released.stderr
     group = json.loads(released.stdout)["groups"][0]
-    assert group["trials"] == 6 and group["success_rate"] == 0
+    assert group["trials"] == 6
+    assert group["score"] == {"method": "bench-v1", "value": 0, "maximum": 100}
     assert group["run_kind"] == "offline_cli_development"
     for excluded in (SECRET, "SYNTHETIC_CURRENT_INPUT_", "SYNTHETIC_PRIVATE_GENERATED", "synthetic-task-", "artifacts/", str(tmp_path)):
         assert excluded not in released.stdout

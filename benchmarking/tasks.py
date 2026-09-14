@@ -49,6 +49,8 @@ class Task:
     digest: str
     evaluation: EvaluationPlan | None = None
     inline_constraints: Asset | None = None
+    witnessed: bool = False
+    coefficient: int = 1
 
     def input_assets(self) -> dict[str, Asset]:
         """Frozen file and inline inputs for evaluation and evidence archival.
@@ -75,10 +77,12 @@ class Task:
             "id": self.id,
             "title": self.title,
             "family": self.family,
+            "coefficient": self.coefficient,
             "status": self.status,
             "task_sha256": self.digest,
             "environment": self.environment,
             "netlist_subcircuit": self.netlist_subcircuit,
+            "witnessed": self.witnessed,
             "input_root": "/task",
             "inputs": {item.role: f"/task/{item.path}" for item in self.inputs},
             "evaluation": self.evaluation.description() if self.evaluation else None,
@@ -115,9 +119,9 @@ class Task:
 
 
 def _validate_case(data: dict) -> None:
-    """Validate the inventory half of a unified circuit case."""
-    _keys(data, {"schema_version", "kind", "id", "title", "status", "origin", "sources"},
-          {"role", "task", "toolchain", "source_export", "assets", "upstream_assets", "upstream_evaluation", "qualification", "screening"}, "case")
+    """Validate maintained case metadata and source attribution."""
+    _keys(data, {"schema_version", "kind", "id", "title", "status", "origin"},
+          {"role", "task", "toolchain", "assets", "qualification", "screening"}, "case")
     if type(data["schema_version"]) is not int or data["schema_version"] != 2:
         raise ValueError("Unsupported case schema_version")
     if data["kind"] != "layout_case":
@@ -135,24 +139,8 @@ def _validate_case(data: dict) -> None:
             raise ValueError("Case screening decision is not recognized")
         _text(screening["reason"], "case.screening.reason")
     origin = data["origin"]
-    _keys(origin, {"checkout", "commit", "license"}, set(), "case.origin")
-    for field in ("checkout", "commit", "license"):
-        _text(origin[field], f"case.origin.{field}")
-    sources = data["sources"]
-    if not isinstance(sources, list) or not sources:
-        raise ValueError("Case needs at least one source")
-    seen = set()
-    for source in sources:
-        _keys(source, {"id", "path", "role", "format", "sha256"}, set(), "case.sources")
-        source_id = _text(source["id"], "case.sources.id")
-        if source_id in seen:
-            raise ValueError(f"Duplicate case source: {source_id}")
-        seen.add(source_id)
-        _relative(source["path"], "case.sources.path")
-        _text(source["role"], "case.sources.role")
-        _text(source["format"], "case.sources.format")
-        if not isinstance(source["sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", source["sha256"]):
-            raise ValueError("case.sources.sha256 must be a lowercase SHA-256")
+    _keys(origin, {"url"}, set(), "case.origin")
+    _text(origin["url"], "case.origin.url")
     assets = data.get("assets", [])
     if not isinstance(assets, list):
         raise TypeError("case.assets must be an array")
@@ -165,54 +153,29 @@ def _validate_case(data: dict) -> None:
         _text(asset["format"], "case.assets.format")
         if not isinstance(asset["sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", asset["sha256"]):
             raise ValueError("case.assets.sha256 must be a lowercase SHA-256")
-    upstream_assets = data.get("upstream_assets", [])
-    if not isinstance(upstream_assets, list):
-        raise TypeError("case.upstream_assets must be an array")
-    seen_upstream = set()
-    for asset in upstream_assets:
-        _keys(asset, {"id", "path", "role", "format", "sha256"}, set(),
-              "case.upstream_assets")
-        asset_id = _text(asset["id"], "case.upstream_assets.id")
-        if asset_id in seen_upstream:
-            raise ValueError(f"Duplicate upstream asset: {asset_id}")
-        seen_upstream.add(asset_id)
-        _relative(asset["path"], "case.upstream_assets.path")
-        _text(asset["role"], "case.upstream_assets.role")
-        _text(asset["format"], "case.upstream_assets.format")
-        if not isinstance(asset["sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", asset["sha256"]):
-            raise ValueError("case.upstream_assets.sha256 must be a lowercase SHA-256")
-    mapping = data.get("upstream_evaluation")
-    if mapping is not None:
-        _keys(mapping, {"layout", "netlist", "top_cell", "subcircuit", "drc_profile", "lvs_profile", "basis"},
-              set(), "case.upstream_evaluation")
-        for field, value in mapping.items():
-            _text(value, f"case.upstream_evaluation.{field}")
-        by_id = {asset["id"]: asset for asset in upstream_assets}
-        for field, roles, formats in (("layout", {"reference", "evaluation-layout", "reference-variant"}, {"gds"}),
-                                      ("netlist", {"source-netlist", "lvs-netlist"}, {"spice", "cdl"})):
-            asset = by_id.get(mapping[field])
-            if asset is None or asset["role"] not in roles or asset["format"] not in formats:
-                raise ValueError(f"Upstream evaluation {field} must select a declared original asset of the correct role and format")
-        for field in ("drc_profile", "lvs_profile"):
-            _relative(mapping[field], f"case.upstream_evaluation.{field}")
     qualification = data.get("qualification")
     if qualification is not None:
-        _keys(qualification, {"evidence", "reference"}, set(), "case.qualification")
+        _keys(qualification, {"evidence"}, {"reference"}, "case.qualification")
         _relative(qualification["evidence"], "case.qualification.evidence")
-        _relative(qualification["reference"], "case.qualification.reference")
+        if "reference" in qualification:
+            _relative(qualification["reference"], "case.qualification.reference")
 
 
 def _load_task_data(data: dict, config: Path, raw: bytes, *, label: str) -> Task:
     """Load the executable task section from either schema."""
     config = config.absolute()
     _keys(data, {"schema_version", "id", "title", "kind", "family", "status",
-                 "environment", "inputs", "output"}, {"provenance", "constraints", "evaluation"}, "task")
+                 "environment", "inputs", "output"},
+          {"provenance", "constraints", "evaluation", "_witnessed", "coefficient"}, "task")
     if type(data["schema_version"]) is not int or data["schema_version"] != 1:
         raise ValueError("Unsupported task schema_version")
     if data["kind"] != "netlist_to_gds":
         raise ValueError("Only netlist_to_gds tasks are supported")
     if data["status"] not in {"candidate", "qualified"}:
         raise ValueError("Task status must be candidate or qualified")
+    coefficient = data.get("coefficient", 1)
+    if type(coefficient) is not int or not 1 <= coefficient <= 5:
+        raise ValueError("Task coefficient must be an integer from 1 through 5")
     for field in ("id", "title", "family", "environment"):
         _text(data[field], field)
     if not isinstance(data["inputs"], dict):
@@ -232,9 +195,20 @@ def _load_task_data(data: dict, config: Path, raw: bytes, *, label: str) -> Task
     for role, entry in data["inputs"].items():
         identifier(role)
         required = {"path", "sha256", "subcircuit"} if role == "netlist" else {"path", "sha256"}
-        _keys(entry, required, {"format", "source"}, f"inputs.{role}")
+        _keys(entry, required, {"format", "source", "collection_source"}, f"inputs.{role}")
         relative = _relative(entry["path"], f"inputs.{role}.path")
-        source_relative = _relative(entry.get("source", relative), f"inputs.{role}.source")
+        source_root = config.parent
+        if "collection_source" in entry:
+            if "source" in entry:
+                raise ValueError("Declare at most one of source or collection_source")
+            if (label != "case.task" or config.name != "case.toml"
+                    or config.parent.parent.name != "cases"):
+                raise ValueError("collection_source requires <collection>/cases/<circuit>/case.toml")
+            source_root = config.parent.parent.parent
+            _read_file(source_root, "catalog.toml")
+            source_relative = _relative(entry["collection_source"], f"inputs.{role}.collection_source")
+        else:
+            source_relative = _relative(entry.get("source", relative), f"inputs.{role}.source")
         if any(relative == p or relative.startswith(p + "/") or p.startswith(relative + "/")
                for p in seen_paths):
             raise ValueError(f"Overlapping task input paths: {relative}")
@@ -242,7 +216,7 @@ def _load_task_data(data: dict, config: Path, raw: bytes, *, label: str) -> Task
         digest = entry["sha256"]
         if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
             raise ValueError(f"inputs.{role}.sha256 must be a lowercase SHA-256")
-        content = _read_file(config.parent, source_relative)
+        content = _read_file(source_root, source_relative)
         if hashlib.sha256(content).hexdigest() != digest:
             raise ValueError(f"Task input checksum mismatch: {relative}")
         inputs.append(InputFile(role, relative, digest, content,
@@ -281,6 +255,8 @@ def _load_task_data(data: dict, config: Path, raw: bytes, *, label: str) -> Task
         data["id"], data["title"], data["family"], data["status"], data["environment"], subcircuit,
         tuple(inputs), LayoutOutput(output_path, top_cell, output["max_bytes"]),
         hashlib.sha256(raw).hexdigest(), evaluation, inline_constraints,
+        witnessed=bool(data.get("_witnessed", False)),
+        coefficient=coefficient,
     )
 
 
@@ -301,5 +277,6 @@ def load_task(config: Path) -> Task:
         raise TypeError("case.task must be a table")
     task_data = dict(task_data)
     task_data.update({"schema_version": 1, "id": data["id"], "title": data["title"],
-                      "status": data["status"]})
+                      "status": data["status"],
+                      "_witnessed": (data.get("qualification") or {}).get("reference") is not None})
     return _load_task_data(task_data, config, raw, label="case.task")

@@ -1,32 +1,36 @@
-* Input-pair fixed-interface nominal admittance characterization.
+* Input-pair differential gm test at the pinned typical model corner.
+* The deck is used unchanged for source and extracted-netlist simulations.
+* DUT port order: v- v+ vdd dn3 dn4 tail.
 .lib /workspace/support/models/cornerMOSlv.lib mos_tt
 .lib /workspace/support/models/cornerRES.lib res_typ
 .include dut.spice
 .include parameters.spice
 .temp 27
-* Equal numerical shunts regularize floating nodes; DC leakage is not characterized.
+* Numerical conditioning for extracted floating nodes only.
 .option rshunt=1e12
 VDD vdd 0 DC 1.2
-VM vm 0 DC 0.6 AC {minus_ac}
-VP vp 0 DC 0.6 AC {plus_ac}
-VD3 dn3 0 DC 0.6
-VD4 dn4 0 DC 0.6
-XDUT vm vp vdd dn3 dn4 input_common_centroid
+ITAIL vdd tail DC {tail_current}
+VM vm 0 DC {common_mode} AC -0.5
+VP vp 0 DC {common_mode} AC 0.5
+RD3 dn3 0 {drain_load}
+RD4 dn4 0 {drain_load}
+XDUT vm vp vdd dn3 dn4 tail input_common_centroid
 .control
 set noaskquit
 set numdgt=12
 op
-write op.raw all
-ac dec 40 1k 1g
-let cap_p = -imag(i(VP))/(2*pi*frequency)
-let cap_m = -imag(i(VM))/(2*pi*frequency)
-let conductance_p = -real(i(VP))
-let conductance_m = -real(i(VM))
-meas ac input_p_cap find cap_p at=1meg
-meas ac input_m_cap find cap_m at=1meg
-meas ac input_p_conductance find conductance_p at=1meg
-meas ac input_m_conductance find conductance_m at=1meg
-write ac.raw all
+let tail_voltage = v(tail)
+let drain_balance = v(dn3)-v(dn4)
+let common_drain = (v(dn3)+v(dn4))/2
+let supply_power = -v(vdd)*i(VDD)
+print tail_voltage drain_balance common_drain supply_power
+write input-op.raw all
+ac dec 40 1 1g
+let differential_gain = (v(dn3)-v(dn4))/(v(vp)-v(vm))
+let differential_gain_abs = abs(differential_gain)
+meas ac differential_gain find differential_gain_abs at=1meg
+meas ac differential_gain_high find differential_gain_abs at=100meg
+write input-ac.raw all
 quit
 .endc
 .end

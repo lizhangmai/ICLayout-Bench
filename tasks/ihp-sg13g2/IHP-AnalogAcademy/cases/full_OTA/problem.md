@@ -1,135 +1,168 @@
-# Full OTA: SG13G2 Layout from a Netlist
+# Two-Stage CMOS OTA Layout Task
 
-Create an IHP SG13G2 layout for `two_stage_OTA_layout` in
-[materials/circuit.cdl](materials/circuit.cdl). Preserve the specified MOS
-and MIM devices, dimensions, connectivity, well/substrate nodes and tap devices.
-The layout must pass physical checks, fit the specified functional outline and
-meet nominal OTA performance limits after RC extraction from the submitted GDS.
+## Objective
 
-## Materials and Interface
+Create an IHP SG13G2 layout for the `two_stage_OTA_layout` two-stage CMOS
+operational transconductance amplifier. Preserve the MOS and MIM devices,
+dimensions, connectivity, well and substrate connections, and six-port
+interface in the authoritative materials. The submitted GDS must pass the
+physical checks, fit the functional outline, and meet the nominal DC-bias and
+AC-response limits after candidate-derived RC extraction.
+
+## Inputs and Interface
+
+In addition to this problem, the solver receives the following declared
+materials. The structured constraints
+and evaluation plan are also available at runtime through `/protocol/task.json`.
 
 | Input | Purpose |
 |---|---|
-| [materials/circuit.cdl](materials/circuit.cdl) | Authoritative LVS export of the matched schematic; preserves device multiplicity, tap area/perimeter and MIM dimensions |
-| [materials/circuit.spice](materials/circuit.spice) | Equivalent simulator export of the same schematic, for pre-layout simulation |
-| [materials/testbench.spice](materials/testbench.spice) | Nominal stimuli, PDK corner selection, operating point and AC measurements |
-| [materials/LICENSE](materials/LICENSE) | License for the delivered circuit materials |
-| `/protocol/task.json` | Published constraints, evaluation plan, input paths and submission contract |
+| [materials/circuit.cdl](materials/circuit.cdl) | Authoritative LVS netlist for `two_stage_OTA_layout` |
+| [materials/circuit.spice](materials/circuit.spice) | Pre-layout simulator netlist |
+| [materials/testbench.spice](materials/testbench.spice) | Nominal bias, feedback fixture, AC sweep, and measurements |
+| `materials/LICENSE` | License for the declared circuit materials |
 
-| Ordered port | Meaning | Nominal external connection |
+Use one external label on each distinct conductor. Internal nodes must not be
+declared as external ports.
+
+| Port | Function | Nominal connection |
 |---|---|---|
-| `v-` | Inverting voltage input | DC feedback from `vout`; AC grounded through the feedback fixture |
-| `v+` | Non-inverting voltage input | 0.6 V DC, unit AC excitation |
-| `vss` | Ground / substrate supply | 0 V |
+| `v-` | Inverting input | DC feedback from `vout`; AC feedback fixture return |
+| `v+` | Non-inverting input | 0.6 V DC and unit AC excitation |
+| `vss` | Ground and substrate supply | 0 V |
 | `vdd` | Positive supply | 1.2 V |
-| `iout` | Bias-current node | Ideal 80 µA current sink to ground |
-| `vout` | Single-ended voltage output | 500 fF load to ground |
+| `iout` | Bias-current node | Ideal 80 µA sink to ground |
+| `vout` | Single-ended output | 500 fF load to ground |
 
-Provide one external metal label for each port, on six distinct conductors.
-Internal circuit nodes must not be declared as external ports. Port order is
-`v- v+ vss vdd iout vout`; `iout` is the bias node, not the voltage output.
+The extraction port order is `v- v+ vss vdd iout vout`.
 
-## Tools and Use
+## Operating Conditions
 
-| Item | Use |
+The pre-layout and candidate-derived simulations use the supplied deck and the
+same nominal model and fixture.
+
+| Parameter | Setting |
 |---|---|
-| Environment | `ihp-sg13g2-full-ota-rc-tt`; tool and support identities are recorded in evaluation results |
-| PDK | SG13G2 commit `5e6d592e4002946a4616f798c357f0f3c06cf3b6` |
-| Resource discovery | `/protocol/resources.json` gives mounted resource paths, import checks and environment variables |
-| KLayout CLI / Python | Generate/read GDS and run native artifact, DRC and LVS checks |
-| Magic | Extract the simulation DUT from the candidate GDS using `ngspice()` style, zero capacitance threshold, distributed resistance and no device/network simplification |
-| ngspice | Simulate the authoritative circuit or extracted DUT with the supplied testbench and the reviewed MOS, capacitor and resistor model bundle |
-| Optional process feedback | If `/protocol/harness.json` declares `process-feedback.v1`, run `python -I /protocol/process_check.py` |
+| Process corner | `mos_tt`, `cap_typ`, `res_typ` |
+| Temperature | 27 °C |
+| Supply | `VDD = 1.2 V`, `VSS = 0 V` |
+| Input DC level | `V+ = 0.6 V` |
+| Bias and load | 80 µA sink at `iout`; 500 fF from `vout` to ground |
+| Feedback fixture | 4 GH inductor from `vout` to `v-`; 4 GF capacitor from `v-` to ground |
+| AC sweep | 100 points/decade from 1 Hz through 10 MHz |
+| Numerical conditioning | `rshunt = 1e12`: 1 TΩ from every analog node to ground, identical pre-layout and post-layout |
 
-For pre-layout simulation, copy `materials/circuit.spice` byte-for-byte to
-`dut.spice` beside the testbench. Use the reviewed analog model bundle and its
-`.spiceinit` startup settings. Model calls preserve each MOS `w`, `l`, `ng` and
-`m`; tap area/perimeter parameters also determine their simulation resistance.
-LVS reads `circuit.cdl` through the native PDK reader; the source regression
-checks that the two exports describe equivalent devices and connections.
-For scoring, the evaluator supplies candidate-derived PEX as `dut.spice` and
-includes it without edits. Solver-provided simulation results cannot replace
-independent extraction and measurement.
+The feedback fixture closes the DC loop while opening the AC loop for transfer
+measurement. Supply power is `-V(vdd) × I(VDD)` at the operating point and
+excludes external input and bias-source power.
 
-Use the shared Magic 8.3.678 build with the driver-selection fix for W/L below
-one. An unpatched build can omit internal-node resistance despite zero
-extraction thresholds. Native PDK LVS simplification defines parallel-device
-merging and source/drain equivalence; the candidate must match the source's
-total MOS widths, channel lengths, device classes and connections. Pre-layout
-calibration must retain source finger counts and multiplicities before that
-LVS simplification.
+## Physical Requirements
 
-## Submission
+Submit a readable GDSII file with a nonempty `two_stage_OTA_layout` top cell. The
+file must be at most 10 MiB (10,485,760 bytes) and must contain the complete
+hierarchy needed by the target cell.
 
-| Requirement | Value |
-|---|---|
-| Output | `/workspace/output/final.gds` |
-| Format / top cell | GDSII / `two_stage_OTA_layout` |
-| Maximum size | 10485760 bytes (10 MiB) |
-| Submit | Run `python -I /protocol/submit.py` and wait for the receipt |
-| Evaluated artifact | Last accepted, frozen GDS submission |
+The evaluator runs the pinned SG13G2 main and additional maximal DRC rules in
+deep mode, with density and antenna checks disabled and no waivers. LVS uses the
+current `lvs-upstream.json` profile and strict named-port matching against
+`materials/circuit.cdl`; every declared port must stay on its own conductor with
+the declared connectivity and device parameters. Port names are matched
+case-insensitively.
 
-Use runtime paths from `/protocol/task.json`. Evaluation uses trusted materials
-in an independent environment after the framework freezes the submission.
+The functional outline is the recursive bounding box of polygons on these
+SG13G2 datatype-0 layers, including child cells and the complete routing stack:
 
-## Evaluation
+`1, 3, 5, 6, 7, 8, 10, 11, 13, 14, 19, 24, 26, 28, 29, 30, 31, 32, 33, 35, 36, 40, 44, 46, 49, 50, 51, 52, 53, 55, 58, 66, 67, 90, 101, 111, 125, 126, 128, 129, 133, 134, 139, 152`.
 
-| Step | Requirement or action | Prerequisites |
-|---|---|---|
-| Artifact | Readable, nonempty target cell, complete hierarchy and declared file-size limit | Frozen GDS |
-| DRC | Zero violations, no waivers; pinned PDK main plus additional maximal rules, deep mode, density and antenna disabled | Frozen GDS |
-| LVS | Native match against the authoritative circuit, with explicit taps and native simplification; course compare-only port policy | Frozen GDS and circuit material |
-| Geometry | Functional bounding box at most 80 µm wide and 50 µm high in submitted coordinates | Artifact, DRC and LVS pass |
-| RC extraction | Extract from the same GDS; verify the six ordered ports and reject multiple ports on one conductor | Artifact, DRC, LVS and geometry pass |
-| Nominal simulation | DC operating point and AC transfer of the extracted circuit | Extraction succeeds |
+The maximum width is 80 µm and the maximum height is
+50 µm, measured along the submitted X and Y axes.
+Functional area is width multiplied by height. Text, annotation and filler
+layers are excluded. The area score below uses this same functional footprint.
 
-The physical profiles are `drc-upstream.json` and `lvs-analogacademy.json`.
-The latter does not add `flag_missing_ports`; the RC stage checks the declared
-interface. Failed or errored prerequisites block dependent jobs.
+After the physical and geometry gates pass, Magic extracts distributed wire
+resistance and layout capacitance from the submitted GDS. Device merging and
+resistor-network simplification are disabled. The compact-device extraction
+boundary represents MOS bodies at ideal model rails; explicit taps remain in the
+physical LVS netlist but are not emitted as extracted tap elements. Substrate
+sheet and tap resistance as extracted quantities, body coupling, and noise are
+outside the declared scope. The finite source tap elements are covered by the
+same-condition source calibration and are not treated as additional post-layout
+requirements.
 
-### Functional Outline
+## Electrical Requirements and Scoring
 
-Measure the bounding box of recursive polygons on these GDS layers. All listed
-layers use datatype 0; text, pin markers and nonfunctional annotations do not
-enlarge the outline. Port positions are free. Width and height refer to the
-submitted coordinate axes; a rotation must still meet both limits.
+All declared measurements must be finite and satisfy their limits.
 
-| Geometry | Layer numbers |
-|---|---|
-| Active, gates, contacts, implants and process blocks | 1, 5, 6, 7, 14, 28, 46 |
-| Wells and substrate recognition | 31, 32, 40 |
-| Metals and routing vias | 8, 10, 19, 29, 30, 49, 50, 67, 125, 126, 133, 134 |
-| MIM and capacitor vias | 36, 129 |
+| Metric | Measurement | Unit | Acceptance |
+|---|---|---|---|
+| Low-frequency gain | `20 log10(abs(V(vout)/(V(v+) − V(v-))))` at 1 Hz | dB | ≥60 |
+| Unity-gain bandwidth | First downward 0 dB crossing in the AC sweep | MHz | ≥3 |
+| Phase margin | 180° plus continuously unwrapped transfer phase at that crossing | ° | ≥55 |
+| Output bias | `V(vout)` at the closed-feedback DC operating point | V | 0.55–0.65 |
+| Quiescent supply power | `-V(vdd) × I(VDD)` at the DC operating point | µW | 0–220 |
 
-Report functional area as bounding-box width × height in µm², without an
-additional area limit. `/protocol/task.json` exposes this same layer selection
-and the executable geometry constraints.
+The evaluator runs artifact validation, DRC, strict LVS, geometry, candidate RC
+extraction, and nominal simulation in dependency order. A failed or errored
+prerequisite blocks dependent jobs; a completed violation, missing crossover,
+non-finite value, tool error, or timeout cannot establish success.
 
-### Operating Conditions and Measurements
+The single task score uses `layout-v1`:
 
-| Condition | Setting |
-|---|---|
-| Supply / input DC level | 1.2 V / 0.6 V |
-| Bias / load | 80 µA sink at `iout` / 500 fF at `vout` |
-| Numerical conditioning | `rshunt=1e12`: 1 TΩ from every analog node to ground; identical in pre/post analysis, with PEX bytes retained |
-| Process / temperature | `mos_tt`, `cap_typ`, `res_typ` / 27 °C |
-| DC feedback | 4 GH from `vout` to `v-`; 4 GF from `v-` to ground opens the AC loop |
-| AC sweep | 100 points/decade, 1 Hz through 10 MHz |
-| Differential transfer | `A(f) = V(vout) / (V(v+) - V(v-))` |
+```text
+S = G * (60 * E + 20 * H + 20 * H * Q)
+```
 
-| Metric | Measurement definition | Inclusive limit |
-|---|---|---|
-| Low-frequency gain | `20 log10(abs(A(1 Hz)))`, in dB | ≥60 dB |
-| Unity-gain bandwidth | First downward 0 dB crossing inside the sweep, in Hz | ≥3 MHz |
-| Phase margin | 180° plus continuously unwrapped phase of `A` at that crossing | ≥55° |
-| Quiescent supply power | `-V(vdd) * I(VDD)` at the DC operating point, in W; excludes external input/bias-source power | 0–220 µW |
-| Output bias | `V(vout)` at the closed-feedback DC operating point | 0.55–0.65 V |
+`G` requires valid artifact, DRC, strict LVS, hard geometry, candidate PEX and
+complete simulation measurements. A completed physical rejection scores 0;
+an evaluator error that prevents grading leaves the score pending (`null`).
+`H` is 1 only when every electrical requirement passes. `E` is the mean of the
+applicable `response`, `bias` and `supply` dimensions: take the worst observation
+of each metric, then the worst metric in each dimension. Successful candidates
+score 80–100; physically valid candidates with an electrical violation score
+below 60. There are no separate points for check jobs or individual cycles.
 
-All declared measurements must be present and finite. A missing crossover,
-model error, crash or timeout is an evaluation error. Raw AC and operating-point
-waveforms are retained for diagnosis. `task_success=true` requires all physical
-checks, the geometry constraint, extraction, simulation and every performance
-limit to pass. A completed violation is a failure; a tool error cannot establish
-success. Report the raw metrics individually, with no weighted or
-reference-normalized score. The declared nominal scope excludes CMRR, PSRR,
-large-signal settling/slew, noise, PVT and mismatch qualification.
+An observation earns attainment 1 throughout its inclusive acceptance range.
+Outside that range it declines linearly to the corresponding zero boundary in
+the table below, and remains 0 beyond it. A zero boundary equal to its acceptance
+boundary declares an immediate drop to 0 outside that side. A dash means that
+side has no bound. These are explicit grading anchors, not additional acceptance
+limits or alternate stimulus conditions.
+
+| Metric ID | Dimension | Lower-Side Zero | Upper-Side Zero | Unit |
+|---|---|---:|---:|---|
+| `low_frequency_gain` | `response` | 0 | — | dB |
+| `unity_gain_bandwidth` | `response` | 0 | — | MHz |
+| `phase_margin` | `response` | 0 | — | ° |
+| `supply_power` | `supply` | 0 | 300 | µW |
+| `output_bias` | `bias` | 0.4 | 0.8 | V |
+
+For a fully accepted candidate, area utility is
+`Q = clip((4,000 − area) / (4,000 − 2,800), 0, 1)`,
+with area in µm². The fixed full-score area target is
+2,800 µm²; the zero-area-utility boundary is 4,000 µm².
+Area earns no points until all electrical requirements pass.
+
+The task coefficient is `4`. A batch averages all scheduled independent
+attempts per task, then computes `sum(coefficient * task_mean) / sum(coefficient)`.
+Coefficients are fixed integers; adding tasks does not change existing ones.
+
+## Tools and Submission
+
+Runtime environment and support resources are declared in
+`/protocol/resources.json` and `/protocol/harness.json`; the working directory is
+`/workspace`. KLayout performs artifact, DRC, LVS, and geometry checks; Magic
+performs RC extraction; ngspice runs the supplied deck with the reviewed SG13G2
+models. The evaluator provides the tool and PDK resources named by the case
+toolchain.
+
+For pre-layout simulation, use `materials/circuit.spice` as `dut.spice` beside
+the supplied testbench, with the model paths and settings exposed by the runtime
+resource bundle. For the submitted layout, the evaluator supplies the
+candidate-derived extracted netlist. If the harness declares
+`process-feedback.v1`, the optional command is
+`python -I /protocol/process_check.py`; the final evaluation remains independent.
+
+Write the result to `/workspace/output/final.gds`, then run
+`python -I /protocol/submit.py` and wait for the submission receipt. Solver
+netlists, waveforms, and measurements are not accepted as substitutes for the
+independent evaluator inputs.

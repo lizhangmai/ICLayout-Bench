@@ -1,31 +1,184 @@
-# Task Authoring Conventions
+# Case Development Standard
 
-Applies to `tasks/`. The [task guide](../docs/tasks.md) owns protocol details; the [tools guide](../docs/tools.md) owns tool environments. A complete directory alone does not establish task readiness — use the task guide to distinguish candidate assets from executable benchmark tasks.
+Applies to creating, promoting, modifying, reorganizing, and removing public cases
+under `tasks/`, across all PDKs and source collections. This file owns authoring
+conventions; the [task guide](../docs/tasks.md) owns schemas, scoring semantics,
+documentation templates, and qualification requirements. The
+[tools guide](../docs/tools.md) owns resource preparation and backend contracts.
+Use the [add-case workflow](../.agents/skills/add-case/SKILL.md) to apply this
+standard. A schema-valid directory is not, by itself, a conforming or qualified case.
 
-## One Circuit per Directory
+## 1. Circuit Contract and Scope
 
-Cases are grouped by PDK, then by source collection: each case lives in `<pdk>/<collection>/cases/<circuit>/`, with `case.toml` as its single configuration entry and the collection's `catalog.toml` as index. The PDK directory's `pdk.toml` is the reviewed manifest of upstream tool and model files for that PDK, including the xschem export symbols referenced by case `source_export.pdk_profile`.
+Before creating files, establish the circuit's function, authoritative topology,
+models and device parameters, ordered ports, supply/body connections, permitted
+layout equivalences, operating conditions, and observable success criteria.
+Distinguish upstream facts, maintained design choices, and unverified assumptions.
+Source names, device counts, and upstream simulation claims do not establish the
+maintained task's requirements or difficulty.
 
-| Role | Location and requirements |
+Map each requirement to a supported physical check or electrical measurement.
+Declare extraction/model boundaries and unsupported conditions explicitly. Resolve
+routine choices within the user's scope; present a concrete proposal before an
+unauthorized change to circuit topology, DRC disposition, acceptance limits, or
+qualification scope. A missing capability remains a gap until implemented or
+explicitly excluded from the authorized contract.
+
+## 2. Ownership and Directory Layout
+
+Use one circuit per `tasks/<pdk>/<collection>/cases/<circuit>/`. Assign every file
+a role and owner before adding it. The same role has the same location across PDKs;
+process-specific implementation belongs in resources and backend configuration.
+
+| Owner | Maintained contents |
 |---|---|
-| Problem | `problem.md` in English, tables where practical: what to build, how to submit, how it is judged. |
-| Materials | Authoritative netlist, simulation testbench, and other required inputs in `materials/` (the testbench is a material); declare delivered files in `[task.inputs]`. |
-| Tools | Tool usage in `problem.md`; evaluator backend bindings in `[toolchain]` in `case.toml`. Reuse framework resources for shared tools and PDKs. |
-| Answer | GDS delivery contract in `[task.output]`; the framework freezes the model's explicit submission. Keep the maintainer's passing witness in `reference/` to demonstrate feasibility. |
-| Scoring | Disclose all evaluation steps, operating conditions, measurement methods, limits, and result decisions in `problem.md`; define them structurally in `[task.constraints]` and `[task.evaluation]`. |
-| Sources | Circuit source, upstream version and license, original asset issues, reasons and details of changes, validation results, and scope in `README.md`. |
+| PDK | `pdk.toml` defines reviewed tool/model preparation profiles; source collection directories hold the cases. Keep shared preparation instructions in the tools guide. |
+| Collection | `catalog.toml` indexes cases; `README.md` provides collection navigation and scope; retain required collection licenses/notices. |
+| Case | `case.toml`, `problem.md`, `README.md`, declared `materials/`, and optional `reference/` as defined below. |
+| Framework | Reusable preparation, evaluation, scoring, and backend mechanisms in `benchmarking/`; circuit-specific dispatch stays outside the runner, scoring core, and harness. |
+| Tests | Regression checks in `tests/`; shared test generators and analytical tool controls in `tests/fixtures/`. Circuit-specific witness assets and result documentation belong with the case; shared helpers may serve several cases. |
+| Local development | Fresh `build/runs/` outputs, prepared bundles under `build/support/`, and development history in Git. Generated reports, netlists, waveforms and their archives stay here; case READMEs publish results and commands to reproduce them. |
 
-Keep the directory compact: consolidate tool instructions, constraints, and scoring configuration in the files above — no separate `tools/README.md`, `tools/toolchain.toml`, `constraints.json`, `scoring/plan.toml`, or `maintenance/`. Keep development history in Git and temporary outputs under `build/`. Deliver a repaired reference layout as a ready-to-use GDS with its rationale in the README, without requiring a repair generator first.
+Keep case configuration consolidated: tool instructions belong in `problem.md`,
+backend bindings in `case.toml`, and constraints/scoring in its inline task tables.
+Do not introduce parallel `tools/`, `maintenance/`, standalone constraint files,
+or separate scoring plans for a new public case. Framework support for legacy
+layouts does not define the authoring convention.
 
-## Public Rules and Reference Isolation
+## 3. File Roles and Naming
 
-- Keep `problem.md` consistent with the structured definitions in `case.toml`; publish them through `/protocol/task.json` at runtime instead of maintaining another configuration copy.
-- A standard solve receives only declared inputs and approved tool resources; keep the full case directory, host tool bindings, source records, and reference answers outside delivered materials. Read the [input isolation and historical asset exclusion checklist](../docs/tasks.md#input-isolation) before source selection.
-- A reference witness demonstrates feasibility; it is not the only answer, an optimum, or a scoring denominator. Apply the declared success conditions and metrics; adding a weighted aggregate score requires an explicit scoring design decision.
+| File or directory | Contract |
+|---|---|
+| `case.toml` | Single configuration entry point: identity, task inputs/output, constraints, evaluation, toolchain, source attribution, and maintainer asset/qualification records. |
+| `problem.md` | Complete solver-facing circuit and acceptance contract; input role `description`. |
+| `README.md` | Maintainer/reader overview, file map, reference results, reproduction, and source attribution; excluded from solver inputs. |
+| `materials/circuit.<format>` | Authoritative circuit, using the actual format suffix (`.cdl` or `.spice`, for example); input role `netlist`. A separate simulator representation, when required, uses role `simulation` and must describe the same circuit. |
+| `materials/testbench.spice` | Main SPICE simulation testbench; input role `performance`. Supplies stimuli, bias, loads, analyses, measurements, and waveform export. |
+| Collection `LICENSE` / `NOTICE`; delivered as `materials/LICENSE` / `materials/NOTICE` | Store shared terms once at collection level and declare digest-bound `collection_source` inputs. Materialization and reference export attach copies. Preserve separate component terms and case-specific notices where required. |
+| `materials/` supporting files | Only required declared inputs, named by their function and format. Use configuration parameters for operating-point variants of one testbench; separate decks are justified by distinct analyses or tool requirements. |
+| `reference/` | Ready-to-use witness GDS when supplied. Record qualification results and reproduction in the README; generated run evidence stays under `build/runs/`. Name GDS files by circuit/top-cell identity and declare them in the case's asset records. |
 
-## Changes and Validation
+Use role-based names consistently; a new PDK or author preference is not a reason
+to invent another name for the same artifact. Keep public IDs, port/subcircuit
+names, and declared paths stable during unrelated edits. For additional artifact types,
+first check the existing role and format conventions; explain a necessary extension
+in the case README's Files section. Optional directories exist only when used.
 
-- When reorganizing files, update configuration paths, input digests, and documentation links, then verify task loading and delivered materials. Preserve circuit and scoring semantics during reorganization and translation.
-- Present a concrete proposal for user decision before making an unauthorized key choice about circuit repairs, DRC disposition, performance limits, or qualification scope; continue implementation that is already authorized.
-- Base qualification claims on recorded scope and real validation. DRC/LVS alone does not establish full task success; post-layout metrics must have explicit limits and come from PEX of the candidate GDS. Consult [qualification](../docs/tasks.md#qualification) for requirements and the comparator's approved scope; case-specific deferrals are not general exemptions.
-- Run affected checks from the [verification matrix](../CONTRIBUTING.md#verification); follow the [test conventions](../tests/AGENTS.md) when changing tests. Documentation cleanup does not require new directory snapshots or fixed file-count tests.
+## 4. Configuration and Input Isolation
+
+Follow the [configuration contract](../docs/tasks.md#task-configuration). Organize
+`case.toml` into identity, executable task, trusted toolchain, and maintainer metadata;
+keep related tables together and arrays readable. Use existing logical input roles,
+operation names, units, and scoring fields. Filename spelling is an authoring
+convention; runtime routing must use declared roles and paths.
+
+Every delivered file must have its path, format, and digest declared in
+`[task.inputs]`. Declare the target subcircuit, GDS top cell, output path and size
+bound explicitly. Materialize the task and inspect the delivered files: the solver
+receives only its declared inputs and reviewed resources. Host configuration,
+source checkouts, witnesses, generators, and qualification answers remain outside
+that input set. Read the [historical asset exclusion checklist](../docs/tasks.md#input-isolation)
+before inspecting source assets or earlier outputs.
+
+Use one frozen definition for executable requirements and evaluator inputs. The
+problem describes that same contract; the README reports measured results. Host
+paths, backend implementation details, and evidence archives cannot carry an
+otherwise undisclosed solver requirement.
+
+## 5. Sources, Licenses, and Reproducibility
+
+Keep case attribution to the upstream circuit URL under the
+[source and rights rules](../docs/tasks.md#task-design). Bind digests to maintained
+inputs and references; catalogs only index cases. Publish ready-to-use materials;
+keep authoring scripts, intermediate schematics and export logs in development
+history. Resource preparation only assembles PDK/tool bundles.
+Distinguish untouched upstream assets from case-owned derivatives; retain required
+copyright, license, and modification notices with the corresponding exported assets.
+Use [shared collection inputs](../docs/tasks.md#shared-collection-inputs) to store
+identical terms once and attach them during materialization; a collection NOTICE
+may retain labeled case-specific modification statements. Keep the framework
+license separate from upstream component terms.
+Public designs and PDK/EDA resources must meet the workspace's public-use boundary.
+
+An upstream layout/netlist mismatch does not invalidate an independently maintained
+circuit, but modifications must agree across its authoritative netlist, simulation,
+problem, and witness. Qualification consumes the maintained netlists and
+candidate-derived extraction.
+Resource versions and tool commands come from their owning manifests and guides.
+
+## 6. Evaluation and Scoring
+
+Follow the [evaluation plan](../docs/tasks.md#evaluation-plan) and
+[unified score](../docs/tasks.md#task-scoring) contracts. Each case must establish:
+
+- Artifact, DRC, named-interface LVS, and hard geometry checks on the submitted GDS;
+  any intentional waiver is explicit, justified, and bound to the case plan.
+- Candidate-derived parasitic extraction followed by simulation consuming that
+  extracted circuit. Source simulation provides pre-layout calibration only.
+- For every required observation: operating point, stimuli/load, measurement and
+  time/frequency window, unit, limits, scoring dimension, and zero-score boundary.
+  Evaluate every required condition; aggregation cannot hide a failure.
+- A complete functional footprint, including relevant device and routing layers,
+  with explicit exclusions; fixed absolute area anchors supported by feasible
+  layout evidence, independently of a changing witness or submitted layout area.
+- An explicit integer coefficient justified by the capability rubric, frozen before
+  model evaluation; physical rejection, electrical failure, full acceptance, and
+  evaluator error must retain the unified score's distinct meanings.
+
+Structural conventions are shared; model classes, layers, rule choices, supply,
+loads, tolerances, and limits must be derived for the actual circuit and process.
+Copying another case's numerical settings or waivers is not calibration.
+
+## 7. Qualification and Published Evidence
+
+Apply the [case and evaluator validation rules](../docs/tasks.md#qualification).
+Each case must have consistent, independently usable inputs and a passing actual
+evaluation of its supplied reference. Keep measured results, limitations and
+reproduction commands in the README; generated evidence belongs under `build/runs/`.
+
+Common rejection, scoring, error, transformation and repeatability checks belong
+in shared regression tests. Add case-specific tests for new devices, extraction
+methods or special judging rules. Calibrate when needed to establish limits or
+validate a new flow; reuse established coverage elsewhere. Per-case area variants
+and complete counterexample matrices are not status prerequisites.
+
+Set `qualified` after the applicable per-case checks pass; keep `candidate` for
+actual material, consistency, execution or capability gaps. Reference-free cases
+follow the guide's feasibility disclosures. Formal admission remains separate.
+
+## 8. Documentation
+
+Write in English using the exact [case documentation templates](../docs/tasks.md#case-documentation).
+The problem must be self-contained for a solver. The README must map maintained
+files to their roles and report reference measurements with units, conditions,
+scoring/calibration basis, limitations, and commands runnable from a clean checkout.
+Link shared setup instructions to their owning guide. Keep source attribution brief;
+keep experiment chronology and discarded results out of reader-facing documents.
+
+## 9. Changes and Completion
+
+Treat additions, promotions, renames, removals, and semantic changes as case changes:
+
+| Change | Required follow-through |
+|---|---|
+| New case or PDK | Assign file ownership, use the role conventions, register catalog/resources, and complete contract, materialization, and qualification checks. |
+| Rename or move | Update callers, configuration, docs, and affected digests; verify delivered inputs and preserve circuit/scoring semantics. Check task identity even when file contents are unchanged. |
+| Circuit, judge, resource, or scoring change | Rerun affected case checks and shared mechanism regressions; calibrate when the changed limits or flow require it. |
+| Removal | Update catalogs, navigation, selectors and regression dependencies; retain resources/controls still required by other cases under their correct owner. |
+
+Preserve previous evidence in development history. When a change invalidates its
+identity binding, generate evidence for the new task; do not relabel old reports as
+new executions. Pure documentation changes require only the affected checks from
+[CONTRIBUTING](../CONTRIBUTING.md#verification), plus any input/identity updates.
+
+Before handoff, verify all of the following against the actual files and results:
+
+1. Every maintained artifact has the correct owner, role, name, and declaration;
+   collection navigation and public membership agree with the task set.
+2. Configuration loads, materialization contains exactly the intended inputs,
+   links/commands resolve, and no stale paths or digests remain.
+3. Circuit, testbench, problem, executable checks, scoring, and README results
+   describe the same contract; evidence supports the current qualification status.
+4. Affected verification passes, with required tests following [test conventions](../tests/AGENTS.md).
+   Report actual scope, gaps, and Git status; preserve unrelated changes and follow
+   the session's commit/publication authorization.

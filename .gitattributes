@@ -1,0 +1,4 @@
+# Preserve upstream SPICE and notices byte-for-byte, including trailing whitespace.
+tasks/freepdk45/OpenRAM/cases/*/materials/circuit.spice whitespace=-blank-at-eol,-blank-at-eof
+tasks/freepdk45/nangate45-pdk/cases/*/materials/circuit.spice whitespace=-blank-at-eol,-blank-at-eof
+tasks/freepdk45/nangate45-pdk/NOTICE whitespace=-blank-at-eol,-blank-at-eof

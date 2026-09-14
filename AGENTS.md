@@ -21,7 +21,7 @@ Run `git status --short --branch` and preserve unrelated changes. Use the [READM
 - Keep common mechanisms in `benchmarking/`; task-specific preparation, reference solutions, and qualification evidence live in the corresponding task directory. Public installation and CI must not depend on Private.
 - A standard solve materializes only declared inputs and reviewed resource bundles. Public reference solutions may be downloaded for debugging but are never mounted for a standard solver Agent. Follow the [task guide](docs/tasks.md#asset-rights) for sources and distribution.
 - Evaluate frozen candidates independently with trusted materials, without Agent credentials or writable directories. DRC/LVS establishes physical validity; task success also requires the declared geometry and post-layout metrics.
-- Requalify affected witnesses, counterexamples, and calibration whenever the judge, rules, or task changes. Deterministic protocol tests are not model scores.
+- Rerun affected case validation and shared evaluator regressions when the judge, rules, or task changes; use the task guide to determine calibration scope. Deterministic protocol tests are not model scores.
 - Update the owning guide as the single source of truth when behavior changes; keep onboarding in the README and verification guidance in CONTRIBUTING. Do not create `CONTEXT.md` or duplicate protocol documents.
 
 When complete: run the [verification matrix](CONTRIBUTING.md#verification), check documentation links against the commands they describe, and report actual test scope and Git status. Verify and commit cross-repository changes separately; retain reviewable evidence for architecture and upstream-reference changes.

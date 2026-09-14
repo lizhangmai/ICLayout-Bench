@@ -1,143 +1,262 @@
 schema_version = 2
 kind = "layout_case"
 id = "TO_Apr2025.160GHz_LNA"
-title = "TO_Apr2025 160 GHz low-noise amplifier"
-role = "design"
-status = "candidate"
+title = "TO_Apr2025 160-derived four-stage LNA at 100 MHz"
+status = "qualified"
+
+[[assets]]
+path = "reference/lna160_four_stage_distinct_rsil_qualified.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "2f172d59e1ab2ddc0fc1895ae9b5d5a541cc5449b043c39df3cad8f01a7aa2f2"
+
+[task]
+coefficient = 3
+kind = "netlist_to_gds"
+family = "ihp_sg13g2_hbt_lna_four_stage"
+environment = "ihp-sg13g2-lna160-derived-functional"
+
+[task.inputs.description]
+path = "problem.md"
+sha256 = "9fd75cc42ae75b5bff5383a37d2beafbcbb7df75f151efb8b96b63056c6f21a0"
+format = "text"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+sha256 = "26b815aa103d0d81b54e21c661b28860304a5d23be900d17192cbb92100be3c6"
+format = "spice"
+subcircuit = "LNA160_FOUR_STAGE"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+sha256 = "ab1256da874a66cd7e70117d2e9758747cd99ba37c5fd0209180bcb558b1c379"
+format = "spice"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+sha256 = "73cd2486a28743b5e6f7b28533c3f4f8a30dc2794e732b30791612ecebed9dc8"
+format = "spice"
+
+[task.inputs.license]
+collection_source = "LICENSE"
+path = "materials/LICENSE"
+sha256 = "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+format = "text"
+
+[task.inputs.pex_scope]
+path = "materials/pex_scope.json"
+sha256 = "4861dcfa09519aa06fa89b7087ee3fd6ee3e28239200a600ba3d2004f4dda179"
+format = "json"
+
+[task.constraints]
+schema_version = 1
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+  [1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0],
+  [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0],
+  [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0],
+  [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0],
+  [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0],
+  [133, 0], [134, 0], [139, 0], [152, 0],
+]
+max_width_um = 160
+max_height_um = 90
+
+[[task.constraints.quality]]
+id = "area"
+type = "functional_bbox_area"
+layers_from = "outline"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "LNA160_FOUR_STAGE"
+max_bytes = 10485760
+
+[task.evaluation]
+schema_version = 1
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout-v1"
+area_metric = "functional_area"
+area_target = 13000
+area_zero = 14400
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+inputs = { layout = "candidate", task = "task" }
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+inputs = { layout = "candidate", task = "task" }
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+inputs = { layout = "candidate", task = "task", netlist = "input:netlist" }
+outputs = { database = "klayout-lvs", binding = "json" }
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = ["artifact", "drc", "lvs"]
+inputs = { layout = "candidate", task = "task", constraints = "input:constraints", database = "job:lvs:database", binding = "job:lvs:binding" }
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = ["geometry:area"]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.parasitics"
+requires = ["artifact", "drc", "lvs", "geometry"]
+inputs = { layout = "candidate", task = "task" }
+outputs = { netlist = "spice" }
+
+[task.evaluation.jobs.parameters]
+top_cell = "LNA160_FOUR_STAGE"
+ports = ["IN", "OUT", "VDD", "VSS", "VBIAS"]
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+inputs = { circuit = "job:parasitics:netlist", deck = "input:performance" }
+outputs = { op = "ngspice-raw", ac = "ngspice-raw" }
+
+[task.evaluation.jobs.parameters]
+values = { vin_dc = 0.8, vbias_dc = 0.76 }
+measurements = { vin_bias = "V", out_bias = "V", i_vdd = "A", i_vbias = "A", gain_db = "dB" }
+exports = { op = "operating_point.raw", ac = "frequency_response.raw" }
+
+[[task.evaluation.metrics]]
+id = "gain_db"
+category = "performance"
+observations = ["nominal:gain_db"]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+lower = 10
+upper = 60
+dimension = "response"
+zero_lower = 0
+zero_upper = 80
+
+[[task.evaluation.metrics]]
+id = "output_bias"
+category = "performance"
+observations = ["nominal:out_bias"]
+unit = "V"
+direction = "target"
+aggregation = "min"
+lower = 0.20
+upper = 1.10
+dimension = "bias"
+zero_lower = 0
+zero_upper = 1.2
+
+[[task.evaluation.metrics]]
+id = "supply_current"
+category = "performance"
+observations = ["nominal:i_vdd"]
+unit = "A"
+direction = "target"
+aggregation = "min"
+lower = 0.00001
+upper = 0.003
+dimension = "supply"
+zero_lower = 0
+zero_upper = 0.005
+
+[toolchain]
+schema_version = 1
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.parasitics" = "parasitics"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+[toolchain.backends.artifact.settings]
+image = "layout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 600
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+support_profiles = { support = "klayout" }
+[toolchain.backends.drc.settings]
+image = "layout-bench-tools:local"
+check = "drc"
+support = "build/support/lna160-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+support_profiles = { support = "klayout" }
+[toolchain.backends.lvs.settings]
+image = "layout-bench-tools:local"
+check = "lvs"
+support = "build/support/lna160-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+[toolchain.backends.geometry.settings]
+image = "layout-bench-tools:local"
+timeout_seconds = 600
+
+[toolchain.backends.parasitics]
+type = "sg13g2-hbt-rc-docker"
+support_profiles = { klayout_support = "klayout", magic_support = "magic" }
+[toolchain.backends.parasitics.settings]
+image = "layout-bench-tools:local"
+klayout_support = "build/support/lna160-klayout"
+klayout_profile = "lvs-upstream.json"
+magic_support = "build/support/lna160-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+disable_tap_extraction = true
+timeout_seconds = 600
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+support_profiles = { support = "hbt-models" }
+[toolchain.backends.simulation.settings]
+image = "layout-bench-tools:local"
+support = "build/support/lna160-hbt-models"
+timeout_seconds = 600
+
+[qualification]
+evidence = "README.md"
+reference = "reference/lna160_four_stage_distinct_rsil_qualified.gds"
 
 [origin]
-checkout = "third_party/TO_Apr2025"
-commit = "63e203a0eccfb6028a1a0a8364553e4e979b55b3"
-license = "Apache-2.0 upstream root; file-level notices, PDK, models, and tool licenses apply"
-
-[[sources]]
-id = "TO_Apr2025.160GHz_LNA.schematic"
-path = "160GHz_LNA/design_data/qucs-s/160GHz_LNA(MAIN).sch"
-role = "design"
-format = "qucs"
-sha256 = "5c638aa82acaca9630878ce72074ebe5a0713880a3566e3d851449fcc8a230c6"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.reference_gds"
-path = "160GHz_LNA/design_data/gds/FMD_QNC_04_160GHz_LNA.gds"
-role = "reference"
-format = "gds"
-sha256 = "9362ccf2dce10e94a5dd736ac06217076763bcc002c18fc04e5fb341c3438bff"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.lvs_netlist"
-path = "160GHz_LNA/design_data/klayout/lvs/160GHz_LNA.cdl"
-role = "lvs-netlist"
-format = "cdl"
-sha256 = "b46ce5ad9f6a5fe4772bf81a1d84a42319aaf1f46df558ec8f6d3cd98d116c57"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.extracted_netlist"
-path = "160GHz_LNA/design_data/klayout/TOP_extracted.cir"
-role = "extracted-netlist"
-format = "spice"
-sha256 = "37ef1585b702d4ffce3b103722b6da711c4c4ea25c1ef7b0cb304ee1726ac4c2"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.drc_minimal"
-path = "160GHz_LNA/design_data/klayout/drc/160GHz_LNA_minimal.lyrdb"
-role = "drc-evidence"
-format = "lyrdb"
-sha256 = "301e7232c3f98f065055a682e79bca0c5851fadec3d3cc44ac5d679587427cef"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.drc_maximal"
-path = "160GHz_LNA/design_data/klayout/drc/160GHz_LNA_maximal.lyrdb"
-role = "drc-evidence"
-format = "lyrdb"
-sha256 = "0a0cfa451a00e43e6b08076704b49ddfa4dfaf529f0389b38a304bf846f570e0"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.lvs_report"
-path = "160GHz_LNA/design_data/klayout/lvs/160GHz_LNA.lvsdb"
-role = "lvs-evidence"
-format = "lvsdb"
-sha256 = "0edc7684a76907b2a6ee47457d33e06554c69e658f35e12237baf0562ca33006"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.first_tl_s2p"
-path = "160GHz_LNA/design_data/openems/1st_TL.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "2d60d7d8f21a1b90b7761fe52f816b625a18d1466fba6c7b9a3b98331bfb5582"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.second_tl_s2p"
-path = "160GHz_LNA/design_data/openems/2nd_TL.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "aff785cab537caa681966ade882b78bf06e66b77882831d939c05ad09c6b94af"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.third_tl_s2p"
-path = "160GHz_LNA/design_data/openems/3rd_TL.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "aff785cab537caa681966ade882b78bf06e66b77882831d939c05ad09c6b94af"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.fourth_tl_s2p"
-path = "160GHz_LNA/design_data/openems/4th_TL.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "70311bdea806fbf33e060fa076dd901ec590abc715b2221fabb3b35f9e48fe5a"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.choke_s2p"
-path = "160GHz_LNA/design_data/openems/Choke.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "3e37b5018beb7c2a012d544bd2fa8415a4dcccb3585fe250cede51879e1c7e9d"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.dgen_s2p"
-path = "160GHz_LNA/design_data/openems/Dgen.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "869efd58e4dba33f51c7122f28781639f5b34862cd394a1458b1216065de9839"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.dgen_final_stage_s2p"
-path = "160GHz_LNA/design_data/openems/Dgen_final_stage.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "c38c38071e27297ad15a67cf2c682ecc8775e5e62050167f0a03bad5bbb46694"
-
-[screening]
-decision = "include"
-reason = "The pinned upstream design includes the documented Qucs schematic, GDS, LVS netlist/report, extracted netlist, minimal/maximal DRC reports, and seven OpenEMS S2P files for the 160 GHz LNA implementation."
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.evaluation_gds"
-path = "160GHz_LNA/design_data/klayout/FMD_QNC_04_160GHz_LNA.gds"
-role = "evaluation-layout"
-format = "gds"
-sha256 = "46a5da873d7da69721382953a2a8e7bd8798792e25c49ad463091a47f084d071"
-
-[upstream_evaluation]
-layout = "TO_Apr2025.160GHz_LNA.evaluation_gds"
-netlist = "TO_Apr2025.160GHz_LNA.lvs_netlist"
-top_cell = "TOP"
-subcircuit = "TOP"
-drc_profile = "drc-upstream.json"
-lvs_profile = "lvs-to-apr2025.json"
-basis = "Use original KLayout evaluation GDS and LVS CDL; archived minimal/maximal reports motivate current main plus extra scope. Archived LVS uses comparison without mandatory top-port agreement (40 GHz: 0 layout vs 9 reference pins, Match). Exact saved switches and historical runset identity are unavailable; current pinned defaults plus compare-only port policy are a reconstruction."
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.archived_simulation"
-path = "160GHz_LNA/design_data/qucs-s/160GHz_LNA_pi_model.dat.ngspice"
-role = "simulation-evidence"
-format = "qucs-dataset"
-sha256 = "024e23c61fe9a53a9137afaa159c7f211da084bdbc84f86e2882bc8b546bd4c7"
-
-[[upstream_assets]]
-id = "TO_Apr2025.160GHz_LNA.pi_schematic"
-path = "160GHz_LNA/design_data/qucs-s/160GHz_LNA_pi_model.sch"
-role = "supporting-source"
-format = "qucs"
-sha256 = "d96026df53cad8445aefee142b86677f9fc5c43702f69faab79286a863a8dbdd"
+url = "https://github.com/IHP-GmbH/TO_Apr2025/blob/63e203a0eccfb6028a1a0a8364553e4e979b55b3/160GHz_LNA/design_data/qucs-s/160GHz_LNA(MAIN).sch"

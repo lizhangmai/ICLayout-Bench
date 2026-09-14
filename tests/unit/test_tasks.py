@@ -65,6 +65,22 @@ def replace(config: Path, before: str, after: str):
     config.write_text(config.read_text().replace(before, after))
 
 
+def test_coefficient_is_frozen_and_published(package):
+    original = load_task(package)
+    replace(package, 'family = "synthetic"', 'family = "synthetic"\ncoefficient = 3')
+    weighted = load_task(package)
+    assert original.coefficient == 1
+    assert weighted.coefficient == weighted.description()["coefficient"] == 3
+    assert original.digest != weighted.digest
+
+
+@pytest.mark.parametrize("value", ["0", "6", "-1", "2.5", "true", '\"3\"'])
+def test_invalid_coefficient_is_rejected(package, value):
+    replace(package, 'family = "synthetic"', f'family = "synthetic"\ncoefficient = {value}')
+    with pytest.raises(ValueError, match="coefficient"):
+        load_task(package)
+
+
 @pytest.fixture
 def inline_package(package):
     content = package.read_text()
@@ -151,6 +167,61 @@ def test_inline_constraints_require_a_json_compatible_table(inline_package, valu
 def test_candidate_circuit_case_without_task_is_not_an_executable_task(circuit_case):
     with pytest.raises(ValueError, match="does not declare an executable task"):
         load_task(circuit_case)
+
+
+def test_case_attribution_does_not_supply_solver_inputs(executable_case, tmp_path):
+    task = load_task(executable_case)
+    # Attribution may point to a source that differs from the maintained circuit.
+    replace(executable_case, "https://example.invalid/synthetic-circuit",
+            "https://example.invalid/another-source")
+    updated = load_task(executable_case)
+    assert updated.digest != task.digest
+    assert updated.inputs == task.inputs
+    assert "origin" not in updated.description()
+    destination = tmp_path / "delivered"
+    updated.materialize(destination)
+    assert {p.relative_to(destination).as_posix(): p.read_bytes()
+            for p in destination.rglob("*") if p.is_file()} == {
+        item.path: item.content for item in task.inputs
+    }
+
+
+def test_case_attribution_requires_a_nonempty_location(executable_case):
+    replace(executable_case, "https://example.invalid/synthetic-circuit", "")
+    with pytest.raises(ValueError, match="case.origin.url"):
+        load_task(executable_case)
+
+
+def test_qualification_reference_is_optional(circuit_case):
+    circuit_case.write_text(circuit_case.read_text()
+                            + '\n[qualification]\nevidence = "README.md"\n')
+    with pytest.raises(ValueError, match="does not declare an executable task"):
+        load_task(circuit_case)
+
+
+def test_qualification_reference_cannot_escape_the_case(circuit_case):
+    circuit_case.write_text(circuit_case.read_text()
+                            + '\n[qualification]\nevidence = "README.md"\nreference = "../witness.gds"\n')
+    with pytest.raises(ValueError, match="relative POSIX"):
+        load_task(circuit_case)
+
+def test_witness_flag_follows_the_qualification_reference(executable_case, tmp_path):
+    case = executable_case
+    assert load_task(case).witnessed is False
+    description = load_task(case).description()
+    assert description["witnessed"] is False
+    case.write_text(case.read_text() + '\n[qualification]\nevidence = "README.md"\n')
+    assert load_task(case).witnessed is False
+    case.write_text(case.read_text() + 'reference = "reference.gds"\n')
+    assert load_task(case).witnessed is True
+    assert load_task(case).description()["witnessed"] is True
+
+
+def test_witness_flag_rejects_unknown_qualification_keys(executable_case):
+    executable_case.write_text(executable_case.read_text()
+                               + '\n[qualification]\nevidence = "README.md"\nrefrence = "reference.gds"\n')
+    with pytest.raises(ValueError, match="unknown"):
+        load_task(executable_case)
 
 
 def test_changed_input_is_rejected(package, tmp_path):

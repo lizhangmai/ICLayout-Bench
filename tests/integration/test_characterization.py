@@ -1,9 +1,12 @@
 """Real simulator qualification with analytical expectations, not layout scores."""
 
 import math
+import re
 from pathlib import Path
 
 import pytest
+from helpers.spice_raw import read_raw
+from helpers.stimuli import command, number
 
 from benchmarking.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
@@ -33,13 +36,21 @@ def test_rc_transient_and_ac_match_analytic_values_and_retain_waveforms(tmp_path
     report = run_evaluation(plan, rc_inputs(), backends, tmp_path / "rc")
     assert report["outcome"] == "passed", report["jobs"]
     assert report["task_success"] is None
-    for name, resistance in (("nominal", 1000), ("large_r", 2000)):
-        t50 = report["jobs"][f"step_{name}"]["measurements"]["t50"]["value"]
-        bandwidth = report["jobs"][f"ac_{name}"]["measurements"]["bandwidth"]["value"]
-        assert t50 == pytest.approx(math.log(2) * resistance * 1e-9 + 0.5e-9, rel=0.002)
-        assert bandwidth == pytest.approx(1 / (2 * math.pi * resistance * 1e-9), rel=0.002)
-    waveform = report["jobs"]["step_nominal"]["outputs"]["waveform"]
-    assert (tmp_path / "rc" / waveform["path"]).stat().st_size > 100
+    pulse = [number(token) for token in re.search(r'PULSE\(([^)]+)\)',
+             asset('rc_transient.spice').content.decode()).group(1).split()]
+    for job in plan.jobs:
+        values = job.parameters['values']
+        tau = values['r_series'] * values['c_load']
+        # A short linear input ramp adds half its rise time to the ideal
+        # step delay. Bound that approximation independently of ngspice.
+        assert pulse[3] / tau < 0.001
+        expected = {'t50': pulse[2] + pulse[3] / 2 + math.log(2) * tau,
+                    'bandwidth': 1 / (2 * math.pi * tau)}
+        for name, measurement in report['jobs'][job.id]['measurements'].items():
+            assert measurement['value'] == pytest.approx(expected[name], rel=0.002)
+    waveform = report['jobs']['step_nominal']['outputs']['waveform']
+    rows = read_raw((tmp_path / 'rc' / waveform['path']).read_bytes())
+    assert len(rows) > 1 and rows[0]['time'] < rows[-1]['time']
     assert report["backends"]["circuit.simulate"]["image_id"].startswith("sha256:")
 
 
@@ -48,8 +59,12 @@ def test_another_circuit_and_metric_set_uses_same_backend_and_core(tmp_path, bac
     report = run_evaluation(plan, {"input:dut": asset("divider.spice"), "input:dc": asset("divider_dc.spice")},
                             backends, tmp_path / "divider")
     assert report["outcome"] == "passed", report["jobs"]
-    assert report["metrics"]["voltage_ratio"]["value"] == pytest.approx(0.5)
-    assert report["metrics"]["dc_power"]["value"] == pytest.approx(0.0005)
+    circuit = asset('divider.spice').content.decode()
+    top = number(command(circuit, 'Rtop')[-1])
+    bottom = number(command(circuit, 'Rbottom')[-1])
+    voltage = number(command(asset('divider_dc.spice').content.decode(), 'Vdrive')[-1])
+    assert report['metrics']['voltage_ratio']['value'] == pytest.approx(bottom / (top + bottom))
+    assert report['metrics']['dc_power']['value'] == pytest.approx(voltage ** 2 / (top + bottom))
 
 
 def test_slower_rc_fails_specs_without_becoming_a_tool_error(tmp_path, backends):

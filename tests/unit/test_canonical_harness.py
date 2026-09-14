@@ -40,7 +40,7 @@ def test_response_validation_is_order_independent_and_rejects_unknown_tools():
 def test_adapter_process_uses_jsonl_without_shell_expansion(tmp_path, monkeypatch):
     module = _harness_module()
     monkeypatch.setattr(module, "WORKSPACE", tmp_path)
-    adapter = tmp_path / "adapter.py"
+    adapter = tmp_path / "adapter with spaces;literal.py"
     adapter.write_text(
         "import json, sys\n"
         "for line in sys.stdin:\n"
@@ -66,13 +66,15 @@ def test_workspace_tool_bounds_output_and_timeout(tmp_path, monkeypatch):
     monkeypatch.setattr(module, "WORKSPACE", tmp_path)
     success = module._tool_result("run_command", {"argv": [sys.executable, "-c", "print('hello')"]})
     assert success["ok"] and success["stdout"] == "hello\n"
-    limited = module._tool_result("run_command", {"argv": [sys.executable, "-c", "print('x' * 70000)"]})
+    limited = module._tool_result("run_command", {"argv": [sys.executable, "-c", f"print('x' * {module.MAX_TOOL_OUTPUT_BYTES + 1})"]})
     assert not limited["ok"] and limited["truncated"]
     timeout = module._tool_result("run_command", {
         "argv": [sys.executable, "-c", "import time; time.sleep(1)"], "timeout_seconds": .1,
     })
     assert not timeout["ok"] and timeout["timed_out"]
-    assert not module._tool_result("run_command", {"argv": ["true"], "timeout_seconds": 31})["ok"]
+    schema = next(tool for tool in module.TOOLS if tool["name"] == "run_command")["parameters"]
+    maximum = schema["properties"]["timeout_seconds"]["maximum"]
+    assert not module._tool_result("run_command", {"argv": ["true"], "timeout_seconds": maximum + 1})["ok"]
 
 
 def test_run_executes_tools_and_submits_through_the_fixed_loop(tmp_path, monkeypatch):

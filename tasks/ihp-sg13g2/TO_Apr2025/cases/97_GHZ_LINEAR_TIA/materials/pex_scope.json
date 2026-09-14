@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "scope": "The maintained case qualifies a three-stage HBT transimpedance core with active emitter-follower feedback from 1 MHz through 100 MHz. The extraction boundary includes candidate-derived HBT geometry and distributed interconnect R/C; no RF transmission-line or EM result is implied.",
+  "source_boundary": {
+    "substrate_node": "SUBSTRATE",
+    "source_tap": "XRSUB VSS SUBSTRATE ptap1 A=4e-12 P=8e-6 R=81.6666667",
+    "body_aliases": [],
+    "global_ground_alias_forbidden": true
+  },
+  "native_extraction": {
+    "klayout": "Strict KLayout LVS retains the physical ptap1 card, all four-terminal HBT bulk nodes, and the declared Nx values.",
+    "magic": "Magic supplies distributed interconnect resistance and capacitance. Its compact-device substrate boundary is reconciled only through the reviewed HBT merge; no internal Magic node name is used by the simulator deck.",
+    "approved_boundary": "The extractor may reconcile the PDK-approved internal HBT substrate boundary when matching KLayout devices to Magic cards. The finite source tap remains an explicit model element and is not replaced by a simulator global gnd alias."
+  },
+  "calibration": {
+    "method": "Run the same source testbench, pinned typical models, temperature and three input-current points after changing only XRSUB from its finite 81.6666667 ohm value to a 1e-6 ohm ideal rail connection.",
+    "declared_metrics_unchanged": true,
+    "maximum_relative_difference": 1e-9,
+    "maximum_relative_difference_metric": "supply3_current",
+    "finite_tap_output_bias_v": 2.068457712479,
+    "ideal_rail_output_bias_v": 2.068457712479,
+    "finite_tap_transimpedance_low_ohm": 518.3655,
+    "ideal_rail_transimpedance_low_ohm": 518.3655
+  },
+  "linearity": {
+    "current_range_a": [-5e-6, 5e-6],
+    "step_a": 5e-7,
+    "metric_id": "linearity_error_pct",
+    "metric_unit": "percent",
+    "limit_source": "task.evaluation.metrics.linearity_error_pct.upper",
+    "source_measured_max_error_percent": 1.4654353,
+    "source_output_span_v": 0.0057695311,
+    "method": "Use the independently exported VSENSE current and RFOUT voltage at every dense DC point; compare each output to the straight line through the two endpoint samples and normalize by endpoint output span."
+  },
+  "limitations": [
+    "This case does not claim 97 GHz bandwidth, RF matching, noise figure, S-parameters, EM accuracy, PVT or mismatch performance.",
+    "The declared linearity range is the measured nominal headroom window and is not a compression-point claim outside that window."
+  ]
+}

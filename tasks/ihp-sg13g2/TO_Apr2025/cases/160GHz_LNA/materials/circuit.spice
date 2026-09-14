@@ -1,0 +1,24 @@
+* SPDX-License-Identifier: Apache-2.0
+* Simulator wrapper for the maintained four-stage LNA derivative.
+* Drawn le/we stay in circuit.cdl for LVS.  The pinned SG13G2 model owns
+* effective le/we defaults (.96um/.12um), so this wrapper passes Nx only.
+.subckt LNA160_FOUR_STAGE IN OUT VDD VSS VBIAS
+XQ1 N1 IN E1 SUBSTRATE npn13G2 Nx=1
+XRCL1 VDD N1 SUBSTRATE rppd w=2u l=20u ps=0u b=0 m=1
+XREL1 E1 VSS SUBSTRATE rsil w=4u l=20.00u b=0 m=1
+XQ2 N2 N1 E2 SUBSTRATE npn13G2 Nx=1
+XRCL2 VDD N2 SUBSTRATE rppd w=2u l=20u ps=0u b=0 m=1
+XREL2 E2 VSS SUBSTRATE rsil w=4u l=20.01u b=0 m=1
+XRBIAS2 N1 VBIAS SUBSTRATE rppd w=1u l=4u ps=0u b=0 m=1
+XQ3 N3 N2 E3 SUBSTRATE npn13G2 Nx=1
+XRCL3 VDD N3 SUBSTRATE rppd w=2u l=20u ps=0u b=0 m=1
+XREL3 E3 VSS SUBSTRATE rsil w=4u l=20.02u b=0 m=1
+XRBIAS3 N2 VBIAS SUBSTRATE rppd w=1u l=4u ps=0u b=0 m=1
+XQ4 OUT N3 E4 SUBSTRATE npn13G2 Nx=1
+XRCL4 VDD OUT SUBSTRATE rppd w=2u l=20u ps=0u b=0 m=1
+XREL4 E4 VSS SUBSTRATE rsil w=4u l=20.03u b=0 m=1
+XRBIAS4 N3 VBIAS SUBSTRATE rppd w=1u l=4u ps=0u b=0 m=1
+* ngspice's ptap1 model does not derive R from CDL A/P.  This finite
+* source-side equivalent follows the PDK area/perimeter tap formula.
+XRSUB VSS SUBSTRATE ptap1 A=4e-12 P=8e-6 R=81.6666667
+.ends LNA160_FOUR_STAGE

@@ -29,7 +29,21 @@ class MagicCapacitanceDocker:
     wire_resistance = False
 
     def __init__(self, *, image: str, support: str, technology: str, tech_name: str,
-                 style: str, capacitance_threshold_ff: float = 0, timeout_seconds: float = 60):
+                 style: str, capacitance_threshold_ff: float = 0, timeout_seconds: float = 60,
+                 gds_readonly: bool = True, label_layers: list[list[int]] | None = None,
+                 case_insensitive_ports: bool = False):
+        if type(gds_readonly) is not bool:
+            raise TypeError("gds_readonly must be a boolean")
+        self.gds_readonly = gds_readonly
+        if type(case_insensitive_ports) is not bool:
+            raise TypeError("case_insensitive_ports must be a boolean")
+        self.case_insensitive_ports = case_insensitive_ports
+        if label_layers is not None and (not isinstance(label_layers, list) or not label_layers
+                or any(not isinstance(pair, list) or len(pair) != 2
+                       or any(type(n) is not int or not 0 <= n <= 65535 for n in pair)
+                       for pair in label_layers)):
+            raise ValueError("label_layers must contain GDS layer/datatype pairs")
+        self.label_layers = label_layers
         self.support = load_bundle(Path(support))
         self.technology = relative(technology, "Magic technology")
         if self.technology not in dict(self.support.files):
@@ -51,6 +65,9 @@ class MagicCapacitanceDocker:
                 "parasitics": "distributed_rc" if self.wire_resistance else "coupled_capacitance",
                 "wire_resistance": self.wire_resistance,
                 "capacitance_threshold_ff": self.threshold,
+                "gds_readonly": self.gds_readonly,
+                "label_layers": self.label_layers,
+                "case_insensitive_ports": self.case_insensitive_ports,
                 **({"flatten": True, "resistance_threshold_mohm": 0, "minimum_resistance_mohm": 0,
                     "minimum_delay_ps": 0, "simplify_resistance": False, "merge_devices": "none",
                     "same_conductor_ports": "rejected"}
@@ -78,17 +95,20 @@ class MagicCapacitanceDocker:
         # Magic trims ! (even in prefixes) and rewrites several other SPICE characters.
         # Alias only unsafe interface labels in an isolated GDS copy, never source text.
         aliases = {p: f"LBPORT_{inputs['layout'].sha256[:16]}_{i}" for i, p in enumerate(ports)
-                   if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", p)}
+                   if self.case_insensitive_ports or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", p)}
+        if self.case_insensitive_ports and len({p.casefold() for p in ports}) != len(ports):
+            raise ValueError("Case-insensitive ports must be unique")
         port_commands = []
         for index, port in enumerate(ports, 1):
             arg = _tcl_word(aliases.get(port, port))
             port_commands.extend([f'if {{[port {arg} index] eq ""}} {{port {arg} make {index}}} else {{port {arg} index {index}}}',
                                   f'if {{[port {arg} index] ne "{index}"}} {{error "Missing or ambiguous port"}}'])
-        prepare_layout = bool(aliases) or self.wire_resistance
+        prepare_layout = bool(aliases) or self.wire_resistance or self.label_layers is not None
         script = "\n".join([
             "if {[catch {", "drc off", f"tech load {_tcl_word('/workspace/support/' + self.technology)}",
             f'if {{[tech name] ne {_tcl_word(self.tech_name)}}} {{error "Wrong technology"}}',
-            "gds readonly true", "gds read extraction.gds" if prepare_layout else "gds read candidate.gds",
+            f"gds readonly {'true' if self.gds_readonly else 'false'}",
+            "gds read extraction.gds" if prepare_layout else "gds read candidate.gds",
             f'if {{[cellname list exists {_tcl_word(top)}] eq "0"}} {{error "Missing top cell"}}',
             f"load {_tcl_word(top)}", "select top cell", "expand",
             *port_commands, f"extract style {_tcl_word(self.style)}", "extract warn all", "extract all",
@@ -117,6 +137,8 @@ class MagicCapacitanceDocker:
         if prepare_layout:
             helper = Asset(Path(__file__).with_name("magic_ports.py").read_bytes(), "python")
             mapping = Asset(json.dumps({"aliases": aliases, "ports": [aliases.get(p, p) for p in ports],
+                                        "case_insensitive": self.case_insensitive_ports,
+                                        **({"label_layers": self.label_layers} if self.label_layers is not None else {}),
                                         **({"flatten_top": top} if self.wire_resistance else {})}).encode(), "json")
             prepared = self.tool.run(["python", "magic_ports.py"], {
                 "candidate.gds": inputs["layout"], "magic_ports.py": helper, "ports.json": mapping},

@@ -2,51 +2,286 @@ schema_version = 2
 kind = "layout_case"
 id = "module_1_bandgap_reference.part_3_layout.OTA_layout.output_stage"
 title = "IHP AnalogAcademy output_stage"
-role = "design"
-status = "candidate"
+status = "qualified"
+
+[task]
+coefficient = 2
+kind = "netlist_to_gds"
+family = "ihp_sg13g2_ota_output_stage"
+environment = "ihp-sg13g2-output-stage-rc-tt"
+
+[task.inputs.description]
+path = "problem.md"
+sha256 = "ef8c27240aeaad3629d256f1adc0e3f7e42dba71bde8ce9fe3ed1346e23a8fd9"
+format = "text"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+sha256 = "81620ebba529edccd1beddbcb1349c0e3e7ee58b9e3749d8235433610bd98ad5"
+format = "spice"
+subcircuit = "output_stage"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+sha256 = "d5c4009de00efbc07ad6c612fb371ef8cd7a837a49bec1a27f1d1729a2d8440d"
+format = "spice"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+sha256 = "b857814e44bf0b95d14cd69944cbbdbc5da3b756290f76d824b26b7f73990678"
+format = "spice"
+
+[task.inputs.license]
+collection_source = "LICENSE"
+path = "materials/LICENSE"
+sha256 = "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+format = "text"
+
+[task.inputs.pex_scope]
+path = "materials/pex_scope.json"
+sha256 = "1d13c08c17dd0b7e486672cead02e6b1834e844ee0effdd24a11f4c84a588654"
+format = "json"
+
+[task.constraints]
+schema_version = 1
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+  [1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0],
+  [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0],
+  [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0],
+  [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0],
+  [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0],
+  [133, 0], [134, 0], [139, 0], [152, 0],
+]
+max_width_um = 55
+max_height_um = 45
+
+[[task.constraints.quality]]
+id = "area"
+type = "functional_bbox_area"
+layers_from = "outline"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "output_stage"
+max_bytes = 10485760
+
+[task.evaluation]
+schema_version = 1
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout-v1"
+area_metric = "functional_area"
+area_target = 1750
+area_zero = 2475
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+inputs = { layout = "candidate", task = "task" }
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+inputs = { layout = "candidate", task = "task" }
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+inputs = { layout = "candidate", task = "task", netlist = "input:netlist" }
+outputs = { database = "klayout-lvs", binding = "json" }
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = ["artifact", "drc", "lvs"]
+inputs = { layout = "candidate", task = "task", constraints = "input:constraints", database = "job:lvs:database", binding = "job:lvs:binding" }
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = ["artifact", "drc", "lvs", "geometry"]
+inputs = { layout = "candidate" }
+outputs = { netlist = "spice" }
+parameters = { top_cell = "output_stage", ports = ["vdd", "iout", "vout", "vss", "dn4"] }
+
+[[task.evaluation.jobs]]
+id = "pre"
+stage = "simulate"
+operation = "circuit.simulate"
+inputs = { deck = "input:performance", dut = "input:simulation" }
+outputs = { ac = "ngspice-raw", op = "ngspice-raw" }
+[task.evaluation.jobs.parameters]
+values = { ibias = 2e-5, gate_dc = 0.33, rload = 100000, cload = 5e-13 }
+exports = { ac = "output-ac.raw", op = "output-op.raw" }
+[task.evaluation.jobs.parameters.measurements]
+output_bias = "V"
+supply_power = "W"
+output_gain = "V/V"
+output_gain_high = "V/V"
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+requires = ["parasitics"]
+inputs = { deck = "input:performance", dut = "job:parasitics:netlist" }
+outputs = { ac = "ngspice-raw", op = "ngspice-raw" }
+[task.evaluation.jobs.parameters]
+values = { ibias = 2e-5, gate_dc = 0.33, rload = 100000, cload = 5e-13 }
+exports = { ac = "output-ac.raw", op = "output-op.raw" }
+[task.evaluation.jobs.parameters.measurements]
+output_bias = "V"
+supply_power = "W"
+output_gain = "V/V"
+output_gain_high = "V/V"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = ["geometry:area"]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "output_gain"
+category = "performance"
+observations = ["nominal:output_gain"]
+unit = "V/V"
+direction = "maximize"
+aggregation = "min"
+lower = 8
+dimension = "response"
+zero_lower = 0
+
+[[task.evaluation.metrics]]
+id = "output_gain_high"
+category = "performance"
+observations = ["nominal:output_gain_high"]
+unit = "V/V"
+direction = "maximize"
+aggregation = "min"
+lower = 0.7
+dimension = "response"
+zero_lower = 0
+
+[[task.evaluation.metrics]]
+id = "output_bias"
+category = "performance"
+observations = ["nominal:output_bias"]
+unit = "V"
+direction = "target"
+aggregation = "min"
+lower = 0.60
+upper = 0.70
+dimension = "bias"
+zero_lower = 0.5
+zero_upper = 0.8
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = ["nominal:supply_power"]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+upper = 60e-6
+dimension = "supply"
+zero_lower = 0
+zero_upper = 0.0001
+
+[toolchain]
+schema_version = 1
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+[toolchain.backends.artifact.settings]
+image = "layout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 600
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+[toolchain.backends.drc.settings]
+image = "layout-bench-tools:local"
+check = "drc"
+support = "build/support/output-stage-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+[toolchain.backends.lvs.settings]
+image = "layout-bench-tools:local"
+check = "lvs"
+support = "build/support/output-stage-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+support_profiles = { support = "magic" }
+[toolchain.backends.rc.settings]
+image = "layout-bench-tools:local"
+support = "build/support/output-stage-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+capacitance_threshold_ff = 0
+timeout_seconds = 600
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+[toolchain.backends.geometry.settings]
+image = "layout-bench-tools:local"
+timeout_seconds = 120
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+support_profiles = { support = "analog-models" }
+[toolchain.backends.simulation.settings]
+image = "layout-bench-tools:local"
+support = "build/support/output-stage-models"
+timeout_seconds = 600
+
+[[assets]]
+path = "reference/output_stage_qualified.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "544da1bc51efdf1a755c7c4e6570b471debbeb125bb035a2904064f179a6a2e7"
+
+[qualification]
+evidence = "README.md"
+reference = "reference/output_stage_qualified.gds"
 
 [origin]
-checkout = "third_party/IHP-AnalogAcademy"
-commit = "133ecf657572e021b5921b5a1b7693abfb209623"
-license = "Apache-2.0 upstream root; file-level notices apply"
-
-[[sources]]
-id = "module_1_bandgap_reference.part_3_layout.OTA_layout.output_stage.schematic_mod.output_stage"
-path = "modules/module_1_bandgap_reference/part_3_layout/OTA_layout/output_stage/schematic_mod/output_stage.sch"
-role = "design"
-format = "xschem"
-sha256 = "4e05fb497d65fd5e47d110928ec8d442c74aa5b45cff6e4784f3a6c04854c4e6"
-
-[[upstream_assets]]
-id = "module_1_bandgap_reference.part_3_layout.OTA_layout.output_stage.reference_gds"
-path = "modules/module_1_bandgap_reference/part_3_layout/OTA_layout/output_stage/output_stage.gds"
-role = "reference"
-format = "gds"
-sha256 = "2bfd78a5d85a1465b5c04aee7c019ffe7b04b7a80225fc74b6c04171c6b05d8a"
-
-[[upstream_assets]]
-id = "module_1_bandgap_reference.part_3_layout.OTA_layout.output_stage.source_cdl"
-path = "modules/module_1_bandgap_reference/part_3_layout/OTA_layout/output_stage/schematic_mod/simulations/output_stage.cdl"
-role = "source-netlist"
-format = "cdl"
-sha256 = "22e1009cb94e85b1c35ffb14fb5728108077a61a06b39166aad9f46c3312425d"
-
-[[upstream_assets]]
-id = "module_1_bandgap_reference.part_3_layout.OTA_layout.output_stage.extracted_netlist"
-path = "modules/module_1_bandgap_reference/part_3_layout/OTA_layout/output_stage/output_stage_extracted.cir"
-role = "extracted-netlist"
-format = "spice"
-sha256 = "59bca36faf904c26ecd297aca07bd5f787f38454404a5819f93f83633290dac4"
-
-[screening]
-decision = "include"
-reason = "Upstream provides the output-stage schematic, CDL, GDS, and extracted netlist for the same physical block."
-
-[upstream_evaluation]
-layout = "module_1_bandgap_reference.part_3_layout.OTA_layout.output_stage.reference_gds"
-netlist = "module_1_bandgap_reference.part_3_layout.OTA_layout.output_stage.source_cdl"
-top_cell = "output_stage"
-subcircuit = "output_stage"
-drc_profile = "drc-upstream.json"
-lvs_profile = "lvs-analogacademy.json"
-basis = "Use original layout and source LVS netlist. Map current PDK GUI DRC scope and documented course-era LVS compare-only semantics; exact author switches were not archived. See docs/tools.md for option provenance."
+url = "https://github.com/IHP-GmbH/IHP-AnalogAcademy/blob/133ecf657572e021b5921b5a1b7693abfb209623/modules/module_1_bandgap_reference/part_3_layout/OTA_layout/output_stage/schematic_mod/output_stage.sch"

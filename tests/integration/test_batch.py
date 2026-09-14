@@ -1,4 +1,4 @@
-"""The public batch CLI creates fresh real containers; no model or layout score."""
+"""Fresh containers and zero-score no-submission attempts; no model or EDA calls."""
 
 import json
 import os
@@ -69,11 +69,15 @@ config = "agent.toml"
     group = batch["summary"]["groups"][0]
     assert batch["outcome"] == "complete" and group["success_rate"] == 0
     assert group["run_kind"] == "offline_cli_development"
+    cohort = batch["summary"]["bench_score"]["cohorts"][0]
+    assert cohort["method"] == "bench-v1" and cohort["value"] == 0
+    assert cohort["complete"] is True
     containers = set()
     for entry in batch["attempts"]:
         directory = tmp_path / "run" / entry["path"]
         report = json.loads((directory / "run.json").read_text())
         assert report["termination"] == "completed" and report["outcome"] == "no_submission"
+        assert report["score"]["method"] == "layout-v1" and report["score"]["value"] == 0
         for line in (directory / "events.jsonl").read_text().splitlines():
             event = json.loads(line)
             if event["kind"] == "session.created":

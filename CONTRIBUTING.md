@@ -58,7 +58,8 @@ Keep repository-local generated files under `build/`: use `build/runs/` for benc
 | Documentation only | Local link checker, `git diff --check`, and verify paths/commands against their consumers |
 | Framework logic | Ruff, unit tests and affected integration checks |
 | Images, sessions, harnesses or wire adapters | Build-context/tool checks and affected container regressions below |
-| Tasks, rules or evaluators | Real EDA positive/negative cases, task qualification and schematic/post-layout calibration |
+| Task materials or contracts | Input/contract consistency and real reference evaluation; calibration when limits or a new flow require it |
+| Rules or evaluators | Affected shared positive/negative regressions and real extraction/simulation controls |
 
 After the README quick start with `--output build/runs/preview`, choose the applicable commands:
 
@@ -79,25 +80,31 @@ The remaining low-level EDA regressions use the [unified tool image](docs/tools.
 ```bash
 uv run --locked python scripts/public_preview.py build --image layout-bench-tools:local
 bash tests/integration/test_pdk_view.sh
-bash tests/integration/test_task_preparation.sh
 uv run --locked pytest tests/integration/test_characterization.py \
   tests/integration/test_sg13g2.py \
   tests/integration/test_magic_rc.py tests/integration/test_comparator.py \
-  tests/integration/test_full_ota.py tests/integration/test_matched_schematic_exports.py \
+  tests/integration/test_full_ota.py tests/integration/test_maintained_netlists.py \
   tests/integration/test_sg13g2_model_calls.py \
-  tests/integration/test_input_pair_source.py tests/integration/test_input_pair_postlayout.py
+  tests/integration/test_input_pair_netlists.py tests/integration/test_input_pair_postlayout.py
 ```
 
-The EDA acceptance suite uses the published comparator and full_OTA witnesses, OTA pre/post calibration, geometry rejection, and tool-error checks. It needs the PDK and tools image but no course checkout. The original-asset regression tests additionally need the optional IHP-AnalogAcademy source submodule. Evaluator changes must satisfy the [qualification requirements](docs/tasks.md#qualification); protocol tests and synthetic hidden fixtures do not replace real circuit evidence. Public CI uses public or synthetic inputs; hidden qualification materials stay in the authorized environment. Run upstream PDK regressions in that submodule, separately from framework checks.
+The EDA acceptance suite selects tests marked `acceptance_eda`: published maintained-case witnesses, source/post-layout calibration, candidate rejection, and tool-error checks. It needs the PDK and tools image, without the original course or tapeout source checkouts. Evaluator changes must satisfy the [qualification requirements](docs/tasks.md#qualification); protocol tests and synthetic hidden fixtures do not replace real circuit evidence. Public CI uses public or synthetic inputs; hidden qualification materials stay in the authorized environment. Run upstream PDK regressions in that submodule, separately from framework checks.
 
-When changing public catalog source records, run `uv run --locked pytest tests/integration/test_catalog_assets.py` with the corresponding source submodules initialized. These checks compare pinned commits and original asset digests; they do not run EDA and are separate from the offline unit suite.
+When changing case attribution or catalog entries, run `uv run --locked pytest tests/unit/test_catalogs.py tests/unit/test_tasks.py`. These offline checks validate indexing, configuration and maintained input digests.
 
-For TO_Apr2025 design 1 source/physical diagnostics, run
-`uv run --locked pytest tests/integration/test_to_apr2025_source.py tests/integration/test_to_apr2025_schematic.py` with the
-TO/PDK checkouts and tools image. This verifies original-asset rejection,
-independent extraction discrepancies, Qucs export compatibility, derivative
-schematic exports and nominal HBT-model operation; it does
-not establish performance qualification.
+Public witness acceptance and empty-candidate rejection use the catalog-driven
+`uv run --locked --group eda pytest tests/integration/test_public_references.py`.
+The tests prepare each case's declared PDK profiles and compare results with the
+case's acceptance contract, without prescribing a reference score or modifying
+witness geometry. Select a process or circuit with `-k`; FreePDK45 resources are
+listed in the [tools guide](docs/tools.md#freepdk45). This regression covers reference execution. Input/contract consistency is also
+required; new backend capabilities need targeted shared validation.
+
+For TO_Apr2025 design 1 maintained circuit checks, run
+`uv run --locked pytest tests/integration/test_to_apr2025_schematic.py`
+with the PDK checkout and tools image. Maintained-case functional calibration,
+saved-waveform checks, port rejection and repeated extraction are covered by
+`tests/integration/test_tia130_postlayout.py`.
 
 Report the checks actually run and their limits. Documentation-only changes do not require rebuilding tools or rerunning EDA.
 
@@ -115,7 +122,7 @@ Before the first tagged release, allow GitHub Actions to write packages in the r
 
 | Contribution | Start here | Evidence to include |
 |---|---|---|
-| Public task | [Task design](docs/tasks.md#task-design), `tasks/ihp-sg13g2/IHP-AnalogAcademy/` | Source and license, explicit input list, executable constraints/metrics, passing witness and rejected counterexamples |
+| Public task | [Task design](docs/tasks.md#task-design), `tasks/ihp-sg13g2/IHP-AnalogAcademy/` | Source and license, explicit input list, consistent executable constraints/metrics, and a passing witness when the case ships one |
 | Harness or wire adapter | [Running guide](docs/running.md#offline-cli), `benchmarking/model_config.py`, `benchmarking/inference.py` | Frozen command/files, budgets, protocol metadata, and clear result labels |
 | EDA backend | [Architecture](docs/architecture.md#architecture), `benchmarking/toolchains.py` | Tool identity, isolated inputs, structured evidence and tests of passing/failing/error cases |
 | Runner or statistics | `benchmarking/session.py`, `swarm.py`, `report.py` | Relevant lifecycle, evidence-integrity or measurement tests |

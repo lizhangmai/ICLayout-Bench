@@ -29,8 +29,13 @@ max_bytes = 1048576
 [evaluation]
 schema_version = 1
 mode = "post_layout"
+[evaluation.scoring]
+method = "layout-v1"
+area_metric = "functional_area"
+area_target = 1
+area_zero = 2
 '''.replace("NETLIST_HASH", Asset(netlist, "spice").sha256)
-    for gate in ("artifact", "drc", "lvs"):
+    for gate in ("artifact", "drc", "lvs", "constraint"):
         config += f'''[[evaluation.jobs]]
 id = "{gate}"
 stage = "check"
@@ -51,6 +56,13 @@ stage = "simulate"
 operation = "simulate"
 inputs = {dut = "job:extract:netlist"}
 [[evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = ["constraint:area"]
+unit = "um^2"
+direction = "minimize"
+aggregation = "max"
+[[evaluation.metrics]]
 id = "response"
 category = "performance"
 observations = ["simulate:response"]
@@ -58,6 +70,8 @@ unit = "s"
 direction = "minimize"
 aggregation = "max"
 upper = 1
+dimension = "response"
+zero_upper = 2
 '''
     path = root / "task.toml"
     path.write_text(config)

@@ -53,6 +53,9 @@ class Metric:
     aggregation: str
     lower: float | None
     upper: float | None
+    dimension: str | None = None
+    zero_lower: float | None = None
+    zero_upper: float | None = None
 
     @property
     def is_requirement(self) -> bool:
@@ -66,6 +69,7 @@ class EvaluationPlan:
     metrics: tuple[Metric, ...]
     raw: bytes
     format: str = "toml"
+    scoring: "ScoringSpec | None" = None
 
     @property
     def sha256(self) -> str:
@@ -87,6 +91,26 @@ def _decode_evaluation(raw: bytes, file_format: str) -> dict:
     raise ValueError("Evaluation plan format must be toml or json")
 
 
+@dataclass(frozen=True)
+class ScoringSpec:
+    """Frozen configuration for the single public task score.
+
+    ``area_target`` and ``area_zero`` are absolute functional-area values in
+    the unit declared by ``area_metric``.  The latter is deliberately larger:
+    reaching the target earns the full area component and reaching the zero
+    boundary earns none of it.
+    """
+
+    method: str
+    area_metric: str
+    area_target: float
+    area_zero: float
+
+
+SCORING_METHOD = "layout-v1"
+SCORING_DIMENSIONS = frozenset({"response", "bias", "supply"})
+
+
 def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan:
     """Validate a declarative plan; return jobs in dependency order.
 
@@ -96,7 +120,7 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
     TOML files and JSON snapshots of inline plans share the same validation.
     """
     data = _decode_evaluation(raw, file_format)
-    keys(data, {"schema_version", "mode", "jobs", "metrics"}, set(), "evaluation")
+    keys(data, {"schema_version", "mode", "jobs", "metrics"}, {"scoring"}, "evaluation")
     if type(data["schema_version"]) is not int or data["schema_version"] != 1:
         raise ValueError("Unsupported evaluation schema_version")
     if data["mode"] not in {"physical", "post_layout", "characterization"}:
@@ -180,7 +204,7 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
         raise TypeError("Metrics must be a list")
     for entry in data["metrics"]:
         keys(entry, {"id", "category", "observations", "unit", "direction", "aggregation"},
-             {"lower", "upper"}, "metric")
+             {"lower", "upper", "dimension", "zero_lower", "zero_upper"}, "metric")
         name = identifier(entry["id"])
         if name in seen:
             raise ValueError(f"Duplicate metric: {name}")
@@ -208,8 +232,47 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
             raise ValueError(f"Inverted bounds: {name}")
         if entry["direction"] == "target" and (lower is None or upper is None):
             raise ValueError("Target metrics require lower and upper bounds")
+        dimension = entry.get("dimension")
+        if dimension is not None:
+            dimension = text(dimension, "metric dimension")
+            if entry["category"] != "performance":
+                raise ValueError(f"Only performance metrics may declare a dimension: {name}")
+            if dimension not in SCORING_DIMENSIONS:
+                raise ValueError(f"Unknown scoring dimension: {dimension}")
+            if lower is None and upper is None:
+                raise ValueError(f"Metric dimension requires an acceptance bound: {name}")
+        zero_lower = number(entry["zero_lower"]) if "zero_lower" in entry else None
+        zero_upper = number(entry["zero_upper"]) if "zero_upper" in entry else None
+        if entry["category"] != "performance" and (zero_lower is not None or zero_upper is not None):
+            raise ValueError(f"Only performance metrics may declare scoring boundaries: {name}")
+        if zero_lower is not None and lower is None:
+            raise ValueError(f"zero_lower requires a lower bound: {name}")
+        if zero_upper is not None and upper is None:
+            raise ValueError(f"zero_upper requires an upper bound: {name}")
+        if lower is not None and zero_lower is not None and zero_lower > lower:
+            raise ValueError(f"zero_lower must not exceed the lower bound: {name}")
+        if upper is not None and zero_upper is not None and zero_upper < upper:
+            raise ValueError(f"zero_upper must not be below the upper bound: {name}")
         metrics.append(Metric(name, entry["category"], tuple(refs), text(entry["unit"], "unit"),
-                              entry["direction"], entry["aggregation"], lower, upper))
+                              entry["direction"], entry["aggregation"], lower, upper,
+                              dimension, zero_lower, zero_upper))
+
+    scoring = None
+    scoring_data = data.get("scoring")
+    if scoring_data is not None:
+        keys(scoring_data, {"method", "area_metric", "area_target", "area_zero"}, set(),
+             "evaluation.scoring")
+        method = text(scoring_data["method"], "scoring method")
+        if method != SCORING_METHOD:
+            raise ValueError(f"Unsupported scoring method: {method}")
+        area_metric = identifier(scoring_data["area_metric"])
+        area_target = number(scoring_data["area_target"])
+        area_zero = number(scoring_data["area_zero"])
+        if area_target <= 0:
+            raise ValueError("scoring.area_target must be positive")
+        if area_zero <= area_target:
+            raise ValueError("scoring.area_zero must exceed area_target")
+        scoring = ScoringSpec(method, area_metric, area_target, area_zero)
 
     if data["mode"] != "characterization":
         for gate in ("artifact", "drc", "lvs"):
@@ -236,4 +299,44 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
                                   and j.stage == "extract"]
                     if not any("candidate" in dict(j.inputs).values() for j in extractors):
                         raise ValueError(f"Simulation must consume candidate extraction: {simulation.id}")
-    return EvaluationPlan(data["mode"], tuple(ordered), tuple(metrics), raw, file_format)
+
+    if scoring is None:
+        if any(metric.dimension is not None or metric.zero_lower is not None
+               or metric.zero_upper is not None for metric in metrics):
+            raise ValueError("Scoring metric metadata requires evaluation.scoring")
+    else:
+        if data["mode"] != "post_layout":
+            raise ValueError("layout-v1 scoring requires post_layout evaluation")
+        by_id = {metric.id: metric for metric in metrics}
+        area = by_id.get(scoring.area_metric)
+        if area is None:
+            raise ValueError(f"scoring.area_metric is unknown: {scoring.area_metric}")
+        if area.category != "physical":
+            raise ValueError("scoring.area_metric must name a physical metric")
+        if area.direction != "minimize":
+            raise ValueError("scoring.area_metric must minimize functional area")
+        if len(area.observations) != 1:
+            raise ValueError("scoring.area_metric must have exactly one observation")
+        area_job_id, _ = area.observations[0].split(":")
+        area_job = next(job for job in ordered if job.id == area_job_id)
+        if (area_job.stage != "check" or area_job.gate != "constraint"
+                or "candidate" not in dict(area_job.inputs).values()):
+            raise ValueError("scoring.area_metric must come from the candidate constraint check")
+        constraint_gates = [job for job in ordered
+                            if job.stage == "check" and job.gate == "constraint"
+                            and "candidate" in dict(job.inputs).values()]
+        if len(constraint_gates) != 1:
+            raise ValueError("Scored layout evaluation needs one candidate constraint gate")
+        required = [metric for metric in metrics
+                    if metric.category == "performance" and metric.is_requirement]
+        if not required:
+            raise ValueError("Scored layout evaluation needs a bounded performance metric")
+        for metric in required:
+            if metric.dimension not in SCORING_DIMENSIONS:
+                raise ValueError(f"Required performance metric needs a scoring dimension: {metric.id}")
+            if metric.lower is not None and metric.zero_lower is None:
+                raise ValueError(f"Required performance metric needs zero_lower: {metric.id}")
+            if metric.upper is not None and metric.zero_upper is None:
+                raise ValueError(f"Required performance metric needs zero_upper: {metric.id}")
+
+    return EvaluationPlan(data["mode"], tuple(ordered), tuple(metrics), raw, file_format, scoring)

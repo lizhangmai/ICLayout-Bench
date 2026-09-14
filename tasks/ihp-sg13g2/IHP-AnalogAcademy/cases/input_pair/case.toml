@@ -2,105 +2,249 @@ schema_version = 2
 kind = "layout_case"
 id = "module_1_bandgap_reference.part_3_layout.OTA_layout.input_pair"
 title = "IHP AnalogAcademy input_pair"
-role = "design"
-status = "candidate"
+status = "qualified"
 
-# Physically verified reference against the unchanged schematic export.
-# This is not a qualified post-layout performance task; see README.md.
-[[assets]]
+[task]
+coefficient = 1
+kind = "netlist_to_gds"
+family = "ihp_sg13g2_pmos_input_pair"
+environment = "ihp-sg13g2-input-pair-rc-tt"
+
+[task.inputs.description]
+path = "problem.md"
+sha256 = "47b21ff7ab5c7548d39cc8ae7f2c500b8aa3bbecfa7e1669ca1e78cc3656263c"
+format = "text"
+
+[task.inputs.netlist]
 path = "materials/circuit.cdl"
-role = "source-netlist"
-visibility = "maintainer"
-format = "cdl"
-sha256 = "b45f487caa8c330106828ceffec1a445f52ef4a5cff1e1999ce4b43c0b2e88c5"
-
-[[assets]]
-path = "reference/input_common_centroid.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "56656af05ed20de527cd8fd4636516c0069c150d42cf0c867e3a9a43a12bae4b"
-
-[origin]
-checkout = "third_party/IHP-AnalogAcademy"
-commit = "133ecf657572e021b5921b5a1b7693abfb209623"
-license = "Apache-2.0 upstream root; file-level notices apply"
-
-[[sources]]
-id = "module_1_bandgap_reference.part_3_layout.OTA_layout.input_pair.schematic_mod.input_common_centroid"
-path = "modules/module_1_bandgap_reference/part_3_layout/OTA_layout/input_pair/schematic_mod/input_common_centroid.sch"
-role = "design"
-format = "xschem"
-sha256 = "a378667699cf81eff1a49baa7a075836d5641b95836a4063810d06f11a303aef"
-
-[[upstream_assets]]
-id = "module_1_bandgap_reference.part_3_layout.OTA_layout.input_pair.reference_gds"
-path = "modules/module_1_bandgap_reference/part_3_layout/OTA_layout/input_pair/input_common_centroid.gds"
-role = "reference"
-format = "gds"
-sha256 = "72e3412c6f11b713088d9ce6f5e1b143e4485857368f5324be75f6862704e09e"
-
-[[upstream_assets]]
-id = "module_1_bandgap_reference.part_3_layout.OTA_layout.input_pair.source_cdl"
-path = "modules/module_1_bandgap_reference/part_3_layout/OTA_layout/input_pair/schematic_mod/simulations/input_common_centroid.cdl"
-role = "source-netlist"
-format = "cdl"
-sha256 = "329e60bdfd1b64087bd6b147911f508ce30132ecceaa5ff6da11606bc0eb3595"
-
-[[upstream_assets]]
-id = "module_1_bandgap_reference.part_3_layout.OTA_layout.input_pair.extracted_netlist"
-path = "modules/module_1_bandgap_reference/part_3_layout/OTA_layout/input_pair/input_common_centroid_extracted.cir"
-role = "extracted-netlist"
+sha256 = "25456f0316c22ee5586ad3e306f0d513fd35e48f32ee67ce9cb0dc373d306f3d"
 format = "spice"
-sha256 = "bda338b202c1d421ad1b0fd4745e97fe00ba7b9778fb6978b8fe08a2b2eb502c"
-
-[screening]
-decision = "include"
-reason = "Upstream provides the common-centroid schematic, CDL, GDS, and extracted netlist for the same input-pair layout block."
-
-[upstream_evaluation]
-layout = "module_1_bandgap_reference.part_3_layout.OTA_layout.input_pair.reference_gds"
-netlist = "module_1_bandgap_reference.part_3_layout.OTA_layout.input_pair.source_cdl"
-top_cell = "input_common_centroid"
 subcircuit = "input_common_centroid"
-drc_profile = "drc-upstream.json"
-lvs_profile = "lvs-analogacademy.json"
-basis = "Use original layout and source LVS netlist. Map current PDK GUI DRC scope and documented course-era LVS compare-only semantics; exact author switches were not archived. See docs/tools.md for option provenance."
 
-# Reproduce the source schematic export without layout-derived inputs.
-[source_export]
-tool = "xschem-lvs"
-pdk_profile = "../../../pdk.toml#xschem-symbols"
-schematic = "input_common_centroid.sch"
-netlist = "input_common_centroid.cdl"
-
-[[source_export.files]]
-checkout = "analogacademy"
-path = "modules/module_1_bandgap_reference/part_3_layout/OTA_layout/input_pair/schematic_mod/input_common_centroid.sch"
-target = "input_common_centroid.sch"
-sha256 = "a378667699cf81eff1a49baa7a075836d5641b95836a4063810d06f11a303aef"
-
-[[assets]]
+[task.inputs.simulation]
 path = "materials/circuit.spice"
-role = "simulation-netlist"
-visibility = "maintainer"
+sha256 = "cde9a2075fbac6afcf32fd02baf847398de1e9d179b3d3a87762534adfd8bd2b"
 format = "spice"
-sha256 = "01dd5d72306e1e548677f6e03480358006450c5af446f89ce298b5e644a482c7"
 
-[[assets]]
+[task.inputs.performance]
 path = "materials/testbench.spice"
-role = "testbench"
-visibility = "maintainer"
+sha256 = "0ce316136b95395971965c7760a711d8431e8c1d4294a074b658520442e11dde"
 format = "spice"
-sha256 = "faa01ed90ef29c67640372d21fd5f01f49808819c98451636a334691ee4fa2c3"
+
+[task.inputs.license]
+collection_source = "LICENSE"
+path = "materials/LICENSE"
+sha256 = "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+format = "text"
+
+[task.inputs.pex_scope]
+path = "materials/pex_scope.json"
+sha256 = "3a9017e0697982944935b64c72a6c97ca100324dca3569eec553db27a8bacce8"
+format = "json"
+
+[task.constraints]
+schema_version = 1
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+  [1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0],
+  [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0],
+  [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0],
+  [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0],
+  [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0],
+  [133, 0], [134, 0], [139, 0], [152, 0],
+]
+max_width_um = 45
+max_height_um = 40
+
+[[task.constraints.quality]]
+id = "area"
+type = "functional_bbox_area"
+layers_from = "outline"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "input_common_centroid"
+max_bytes = 10485760
+
+[task.evaluation]
+schema_version = 1
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout-v1"
+area_metric = "functional_area"
+area_target = 1300
+area_zero = 1800
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+inputs = { layout = "candidate", task = "task" }
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+inputs = { layout = "candidate", task = "task" }
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+inputs = { layout = "candidate", task = "task", netlist = "input:netlist" }
+outputs = { database = "klayout-lvs", binding = "json" }
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = ["artifact", "drc", "lvs"]
+inputs = { layout = "candidate", task = "task", constraints = "input:constraints", database = "job:lvs:database", binding = "job:lvs:binding" }
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = ["artifact", "drc", "lvs", "geometry"]
+inputs = { layout = "candidate" }
+outputs = { netlist = "spice" }
+parameters = { top_cell = "input_common_centroid", ports = ["v-", "v+", "vdd", "dn3", "dn4", "tail"] }
+
+[[task.evaluation.jobs]]
+id = "pre"
+stage = "simulate"
+operation = "circuit.simulate"
+inputs = { deck = "input:performance", dut = "input:simulation" }
+outputs = { ac = "ngspice-raw", op = "ngspice-raw" }
+[task.evaluation.jobs.parameters]
+values = { tail_current = 2e-5, common_mode = 0.5, drain_load = 50000 }
+exports = { ac = "input-ac.raw", op = "input-op.raw" }
+[task.evaluation.jobs.parameters.measurements]
+tail_voltage = "V"
+drain_balance = "V"
+common_drain = "V"
+supply_power = "W"
+differential_gain = "V/V"
+differential_gain_high = "V/V"
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+requires = ["parasitics"]
+inputs = { deck = "input:performance", dut = "job:parasitics:netlist" }
+outputs = { ac = "ngspice-raw", op = "ngspice-raw" }
+[task.evaluation.jobs.parameters]
+values = { tail_current = 2e-5, common_mode = 0.5, drain_load = 50000 }
+exports = { ac = "input-ac.raw", op = "input-op.raw" }
+[task.evaluation.jobs.parameters.measurements]
+tail_voltage = "V"
+drain_balance = "V"
+common_drain = "V"
+supply_power = "W"
+differential_gain = "V/V"
+differential_gain_high = "V/V"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = ["geometry:area"]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "differential_gain"
+category = "performance"
+observations = ["nominal:differential_gain"]
+unit = "V/V"
+direction = "maximize"
+aggregation = "min"
+lower = 1.5
+dimension = "response"
+zero_lower = 0
+
+[[task.evaluation.metrics]]
+id = "differential_gain_high"
+category = "performance"
+observations = ["nominal:differential_gain_high"]
+unit = "V/V"
+direction = "maximize"
+aggregation = "min"
+lower = 1.0
+dimension = "response"
+zero_lower = 0
+
+[[task.evaluation.metrics]]
+id = "tail_voltage"
+category = "performance"
+observations = ["nominal:tail_voltage"]
+unit = "V"
+direction = "target"
+aggregation = "min"
+lower = 1.15
+upper = 1.23
+dimension = "bias"
+zero_lower = 1.05
+zero_upper = 1.3
+
+[[task.evaluation.metrics]]
+id = "common_drain"
+category = "performance"
+observations = ["nominal:common_drain"]
+unit = "V"
+direction = "target"
+aggregation = "min"
+lower = 0.45
+upper = 0.55
+dimension = "bias"
+zero_lower = 0.25
+zero_upper = 0.75
+
+[[task.evaluation.metrics]]
+id = "drain_balance"
+category = "performance"
+observations = ["nominal:drain_balance"]
+unit = "V"
+direction = "target"
+aggregation = "min"
+lower = -0.02
+upper = 0.02
+dimension = "bias"
+zero_lower = -0.05
+zero_upper = 0.05
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = ["nominal:supply_power"]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+upper = 35e-6
+dimension = "supply"
+zero_lower = 0
+zero_upper = 4.8e-05
 
 [toolchain]
 schema_version = 1
+
 [toolchain.bindings]
 "layout.artifact" = "artifact"
 "layout.drc" = "drc"
 "layout.lvs" = "lvs"
-"layout.extract_rc" = "extract_rc"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
 "circuit.simulate" = "simulation"
 
 [toolchain.backends.artifact]
@@ -112,34 +256,62 @@ timeout_seconds = 600
 
 [toolchain.backends.drc]
 type = "klayout-docker"
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
 [toolchain.backends.drc.settings]
 image = "layout-bench-tools:local"
 check = "drc"
-timeout_seconds = 600
 support = "build/support/input-pair-klayout"
 profile = "drc-upstream.json"
+timeout_seconds = 600
 
 [toolchain.backends.lvs]
 type = "klayout-docker"
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
 [toolchain.backends.lvs.settings]
 image = "layout-bench-tools:local"
 check = "lvs"
-timeout_seconds = 600
 support = "build/support/input-pair-klayout"
-profile = "lvs-analogacademy.json"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
 
-[toolchain.backends.extract_rc]
+[toolchain.backends.rc]
 type = "magic-rc-docker"
-[toolchain.backends.extract_rc.settings]
+support_profiles = { support = "magic" }
+[toolchain.backends.rc.settings]
 image = "layout-bench-tools:local"
 support = "build/support/input-pair-magic"
 technology = "magic/ihp-sg13g2.tech"
 tech_name = "ihp-sg13g2"
 style = "ngspice()"
+capacitance_threshold_ff = 0
 timeout_seconds = 600
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+[toolchain.backends.geometry.settings]
+image = "layout-bench-tools:local"
+timeout_seconds = 120
 
 [toolchain.backends.simulation]
 type = "ngspice-docker"
+support_profiles = { support = "analog-models" }
 [toolchain.backends.simulation.settings]
 image = "layout-bench-tools:local"
 support = "build/support/input-pair-models"
+timeout_seconds = 600
+
+[[assets]]
+path = "reference/input_common_centroid_qualified.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "b28969621e1ec84dfe1ae5336ae5e85af0e1aa9b16068c430748ef105f122be2"
+
+[qualification]
+evidence = "README.md"
+reference = "reference/input_common_centroid_qualified.gds"
+
+[origin]
+url = "https://github.com/IHP-GmbH/IHP-AnalogAcademy/blob/133ecf657572e021b5921b5a1b7693abfb209623/modules/module_1_bandgap_reference/part_3_layout/OTA_layout/input_pair/schematic_mod/input_common_centroid.sch"

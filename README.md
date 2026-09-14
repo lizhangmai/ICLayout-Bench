@@ -23,7 +23,7 @@ Measure whether an agent can turn a circuit netlist, physical constraints, and p
 
 Layout-Bench runs an Agent in an isolated container, records an explicit GDS submission, and evaluates the frozen candidate with independent EDA tools. DRC/LVS establish physical validity; a complete task also checks the declared geometry and post-layout performance limits.
 
-> **Public preview.** Quick start evaluates the published [comparator](tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/comparator/README.md) witness, with [full_OTA](tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/full_OTA/README.md) also available. Other public circuits are indexed in [IHP AnalogAcademy](tasks/ihp-sg13g2/IHP-AnalogAcademy/catalog.toml) and [TO_Apr2025](tasks/ihp-sg13g2/TO_Apr2025/catalog.toml); consult each case's status and README for evaluation readiness and qualification scope.
+> **Public preview.** Quick start evaluates the published [comparator](tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/comparator/README.md) witness by default. Use `--case` to select another executable post-layout case from the [IHP AnalogAcademy](tasks/ihp-sg13g2/IHP-AnalogAcademy/catalog.toml) or [TO_Apr2025](tasks/ihp-sg13g2/TO_Apr2025/catalog.toml) catalogs; `--help` lists the available choices. Each case documents its maintained circuit, modifications and qualification scope.
 
 ## Why Layout-Bench?
 
@@ -33,7 +33,7 @@ Layout-Bench runs an Agent in an isolated container, records an explicit GDS sub
 | **Reproducible conditions** | Pinned inputs, configuration digests, image IDs, budgets, event logs, and durable submissions. |
 | **Independent judgment** | A trusted evaluator rechecks the candidate after the Agent stops; self-reported checks do not decide the score. |
 | **Open integration surface** | Any executable harness and configurable EDA backend can use the same frozen session and evaluation contracts. |
-| **Qualification-first evaluation** | Reference witnesses, counterexamples, extraction checks, and schematic/post-layout calibration expose judge failures before release. |
+| **Validated cases and evaluators** | Each case checks input consistency and reference execution; shared regressions cover rejection, scoring, and tool behavior. |
 
 ## Prerequisites:
 
@@ -80,7 +80,7 @@ uv run --locked python scripts/public_preview.py quickstart --case full_OTA \
   --skip-build --output build/runs/ota-preview
 ```
 
-IHP and TO_Apr2025 reference and qualification assets are published only for cases that pass the upstream-complete screening gate. Standard Agent runs receive only the declared task inputs and never a reference solution.
+Public cases qualify against their own documented circuit, physical rules and functional pre/post-layout measurements. Upstream designs provide provenance, not a requirement to reproduce an inconsistent original implementation; case READMEs identify sources and modifications. Standard Agent runs receive only the declared task inputs and never a reference solution.
 
 <a id="run-your-agent"></a>
 
@@ -133,6 +133,7 @@ DRC/LVS are physical-validity gates. Task success additionally requires every ha
 | Reproduce the no-key public preview | [Quick Start](#quick-start) |
 | Connect a custom harness | [Running guide](docs/running.md#offline-cli) |
 | Add a task and qualify its judge | [Tasks and evaluation](docs/tasks.md) |
+| Run the five qualified FreePDK45 tasks and inspect their scope | [FreePDK45 tasks](docs/tools.md#freepdk45) |
 | Understand run plans, inference limits, and scoring | [Running](docs/running.md) |
 | Prepare PDK/EDA resources or troubleshoot tools | [Tools](docs/tools.md) |
 | Apply operator admission and restricted export | [Admission](docs/admission.md) |
@@ -167,7 +168,7 @@ Yes. Any executable that follows the session protocol can be configured with its
 <details>
 <summary><strong>Does a standard Agent receive the reference solution?</strong></summary>
 
-No. Reference GDS and qualification evidence are public for debugging when a task has passed admission, but standard runs materialize only the task inputs declared by the case TOML's `[task]` section.
+No. When a task ships one, its reference GDS and qualification evidence are public for debugging after admission, but standard runs materialize only the task inputs declared by the case TOML's `[task]` section.
 
 </details>
 
@@ -189,7 +190,7 @@ The default is comparator; select `--case full_OTA` for the OTA. Both use the ru
 
 This package includes the common executable-harness session protocol, a provider-neutral canonical harness example, a host-owned model gateway, configurable EDA backends, public circuit cases, and local batch statistics. It does not include hosted evaluation, identity authentication, or an official leaderboard.
 
-The framework is licensed under [MIT](LICENSE). IHP AnalogAcademy and TO_Apr2025 source records retain their upstream licenses and per-file notices; any later derived task assets must retain the corresponding upstream notices. Submodules, tools, and dependencies retain their own licenses and notices; source and resource preparation are described in the [tool guide](docs/tools.md#external-sources).
+The framework is licensed under [MIT](LICENSE). Task materials derived from IHP AnalogAcademy and TO_Apr2025 retain their upstream licenses and per-file notices. Submodules, tools, and dependencies retain their own licenses and notices; source and resource preparation are described in the [tool guide](docs/tools.md#external-sources).
 
 <p align="center">
 <a href="README_CN.md">Read in Chinese →</a>

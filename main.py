@@ -35,6 +35,8 @@ def _run_summary(report, output):
     summary = {"report": str(output / "run.json"),
                **{key: report[key] for key in
                   ("termination", "reason", "outcome", "task_success", "candidate")}}
+    if "score" in report:
+        summary["score"] = report["score"]
     if report.get("inference") is not None:
         summary["inference_requests"] = len(report["inference"].get("requests", []))
     evaluation_path = output / "evaluation/report.json"
@@ -216,12 +218,19 @@ def main() -> None:
                 source = Path(path).absolute()
                 inputs[ref] = Asset(read_file(source.parent, source.name), file_format)
         report = run_evaluation(plan, inputs, load_toolchain(toolchain_path), args.output,
-                                task_sha256=task_digest)
+                                task_sha256=task_digest,
+                                task_witnessed=task.witnessed if args.command == "evaluate" else None)
     except (TypeError, ValueError, OSError, subprocess.SubprocessError) as error:
         parser.exit(2, f"Layout-Bench command failed: {error}\n")
-    print(json.dumps({"report": str(args.output / "report.json"), **{
+    summary = {"report": str(args.output / "report.json"), **{
         key: report[key] for key in ("mode", "outcome", "physical_valid", "specs_pass", "task_success", "metrics")
-    }}, indent=2, allow_nan=False))
+    }}
+    if args.command == "evaluate":
+        summary["task_witnessed"] = report["task_witnessed"]
+    if report.get("score") is not None:
+        summary["score"] = {key: report["score"][key]
+                            for key in ("method", "value", "maximum", "components")}
+    print(json.dumps(summary, indent=2, allow_nan=False))
     if report["outcome"] != "passed":
         parser.exit(1 if report["outcome"] == "failed" else 2)
 

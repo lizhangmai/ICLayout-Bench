@@ -1033,33 +1033,3 @@ output = "osdi/psp103_nqs.osdi"
 defines = [
     "__NGSPICE__",
 ]
-
-[profiles.xschem-symbols.files."sg13g2_pr/sg13_lv_nmos.sym"]
-path = "ihp-sg13g2/libs.tech/xschem/sg13g2_pr/sg13_lv_nmos.sym"
-sha256 = "4c65869259c7aea7ff30d8612c5017419423d55e27dbb0aea28323e7da49ba7d"
-format = "xschem"
-
-[profiles.xschem-symbols.files."sg13g2_pr/sg13_lv_pmos.sym"]
-path = "ihp-sg13g2/libs.tech/xschem/sg13g2_pr/sg13_lv_pmos.sym"
-sha256 = "bc03331b71de250641ba1eb34c3b13bd3bb21a53ed7c329ecf6b0b1a7c53a6c1"
-format = "xschem"
-
-[profiles.xschem-symbols.files."sg13g2_pr/annotate_fet_params.sym"]
-path = "ihp-sg13g2/libs.tech/xschem/sg13g2_pr/annotate_fet_params.sym"
-sha256 = "abcebfdd0ffda54f9e1ef4d8b1f50a4523975cb6da64bf48b37a046c73f930aa"
-format = "xschem"
-
-[profiles.xschem-symbols.files."sg13g2_pr/cap_cmim.sym"]
-path = "ihp-sg13g2/libs.tech/xschem/sg13g2_pr/cap_cmim.sym"
-sha256 = "b11c811ee178d260c4b7afcaa8c123f8a6c8c108dde1a119c91aa4386d24e20b"
-format = "xschem"
-
-[profiles.xschem-symbols.files."sg13g2_pr/ntap1.sym"]
-path = "ihp-sg13g2/libs.tech/xschem/sg13g2_pr/ntap1.sym"
-sha256 = "4793bb1189cb3a44307745c35d7ff8b6fdae3c7b9a36fb62fc549041eb307281"
-format = "xschem"
-
-[profiles.xschem-symbols.files."sg13g2_pr/npn13G2.sym"]
-path = "ihp-sg13g2/libs.tech/xschem/sg13g2_pr/npn13G2.sym"
-sha256 = "9b2c1998f402c78f4088f8ba1f1088706fe7794ee7d477cd7e5c74a4c87cd83e"
-format = "xschem"

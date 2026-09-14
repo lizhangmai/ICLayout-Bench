@@ -14,7 +14,13 @@ from .admission import restore_policy
 from .evaluation import parse_evaluation
 from .files import Asset, read_file
 from .harnesses import PROCESS_FEEDBACK_CAPABILITY
+from .provenance import json_asset
 from .recorder import recover_submissions
+from .scoring import recompute_score
+
+_BENCH_SCORE_METHOD = "bench-v1"
+_TASK_SCORE_METHOD = "layout-v1"
+_SCORE_MAXIMUM = 100
 
 
 def wilson(successes, count):
@@ -125,7 +131,8 @@ def _verify_evaluation_inputs(root, run_root, evaluation, report, task):
     if evaluated_plan != frozen_plan:
         raise ValueError("Evaluation plan differs from the frozen task plan")
     try:
-        external_inputs = parse_evaluation(frozen_plan, file_format=frozen_plan_ref["format"]).external_inputs()
+        parsed_plan = parse_evaluation(frozen_plan, file_format=frozen_plan_ref["format"])
+        external_inputs = parsed_plan.external_inputs()
     except (TypeError, ValueError) as error:
         raise ValueError("Frozen evaluation plan is invalid") from error
 
@@ -147,7 +154,7 @@ def _verify_evaluation_inputs(root, run_root, evaluation, report, task):
         raise ValueError("Evaluation inputs differ from the frozen task inputs")
     for reference, archive in actual.items():
         _read_archived_asset(run_root, archive, f"evaluation input {reference}")
-    return evaluated_plan
+    return parsed_plan
 
 
 def _verify_process_feedback(root, run_root, report, manifest, task):
@@ -338,11 +345,173 @@ def verify_run(root, entry, manifest, execution_sha):
             if digest != manifest["framework"]["files"]["benchmarking/" + name]["sha256"]:
                 raise ValueError("Evaluation implementation differs from frozen framework")
         expected_backends = {op: task["backends"][op] for op in task["operations"]}
-        if (evaluation.get("task_sha256") != task["task_sha256"] or evaluation["backends"] != expected_backends):
+        if (evaluation.get("task_sha256") != task["task_sha256"] or evaluation["backends"] != expected_backends
+                or evaluation.get("task_witnessed") != task["witnessed"]):
             raise ValueError("Evaluation does not match its task, candidate or toolchain")
-        _verify_evaluation_inputs(root, run_root, evaluation, report, task)
+        evaluation["_frozen_plan"] = _verify_evaluation_inputs(root, run_root, evaluation, report, task)
     _verify_process_feedback(root, run_root, report, manifest, task)
     return report, evaluation
+
+
+def _score_statistics(manifest):
+    """Validate and return the one scoring binding frozen for this batch."""
+    statistics = manifest.get("statistics")
+    if (not isinstance(statistics, dict)
+            or statistics.get("schema_version") != 1
+            or statistics.get("method") != _BENCH_SCORE_METHOD
+            or statistics.get("task_score_method") != _TASK_SCORE_METHOD
+            or statistics.get("maximum") != _SCORE_MAXIMUM):
+        raise ValueError("Execution manifest has no supported BenchScore binding")
+    task_identity = {
+        task_id: {"task_sha256": task["task_sha256"], "coefficient": task.get("coefficient"),
+                  "score_method": task.get("score_method")}
+        for task_id, task in sorted(manifest.get("tasks", {}).items())
+    }
+    if (not task_identity or any(type(item["coefficient"]) is not int
+                                 or not 1 <= item["coefficient"] <= 5
+                                 or item["score_method"] != _TASK_SCORE_METHOD
+                                 for item in task_identity.values())):
+        raise ValueError("Execution manifest has invalid task score coefficients")
+    expected = json_asset({
+        "schema_version": statistics["schema_version"],
+        "method": statistics["method"],
+        "task_score_method": statistics["task_score_method"],
+        "maximum": statistics["maximum"],
+        "tasks": task_identity,
+    }).sha256
+    if statistics.get("suite_sha256") != expected:
+        raise ValueError("Execution manifest has an invalid score suite binding")
+    return statistics
+
+
+def _validate_score_record(score, label):
+    """Validate the stable score identity shared by evaluator and batch."""
+    if not isinstance(score, dict):
+        raise TypeError(f"{label} is missing")
+    if (score.get("method") != _TASK_SCORE_METHOD
+            or score.get("maximum") != _SCORE_MAXIMUM):
+        raise ValueError(f"{label} has an unsupported method or maximum")
+    value = score.get("value")
+    if (value is not None
+            and (type(value) not in {int, float} or not math.isfinite(value)
+                 or not 0 <= value <= _SCORE_MAXIMUM)):
+        raise ValueError(f"{label} has an invalid value")
+    return value
+
+
+def _recompute_evaluation_score(evaluation):
+    """Ask the scoring core to recompute from jobs and metric observations."""
+    plan = evaluation.get("_frozen_plan") if isinstance(evaluation, dict) else None
+    if plan is None:
+        return None
+    return recompute_score(plan, evaluation)
+
+
+def _score_observation(report, evaluation, statistics):
+    """Return one frozen repetition's score, or ``None`` when it is unknown."""
+    # A candidate produced before an Agent error or budget stop is not a
+    # completed solve. The public BenchScore contract therefore gives the
+    # scheduled repetition zero, while infrastructure termination remains
+    # unknown and is excluded from measured results by the caller.
+    if report.get("termination") in {"agent_error", "budget_exhausted"}:
+        return 0.0
+    # A measured run without a candidate is a conclusive model failure.  It
+    # has no evaluator report from which to reconstruct a score, but the
+    # layout-v1 contract gives such a run zero points.
+    if report.get("outcome") == "no_submission":
+        if report.get("candidate") is None:
+            return 0.0
+        raise ValueError("No-submission report contains a candidate")
+    if evaluation is None:
+        return None
+    recomputed = _recompute_evaluation_score(evaluation)
+    if recomputed is None:
+        return None
+    recomputed_value = _validate_score_record(recomputed, "Recomputed task score")
+    declared = evaluation.get("score")
+    if declared is None:
+        if isinstance(recomputed, dict):
+            raise ValueError("Evaluation task score is missing")
+        return None
+    declared_value = _validate_score_record(declared, "Evaluation task score")
+    if ((recomputed_value is None) != (declared_value is None)
+            or recomputed_value is not None
+            and not math.isclose(recomputed_value, declared_value, rel_tol=1e-12, abs_tol=1e-12)):
+        raise ValueError("Evaluation task score differs from recomputation")
+    # run_agent copies the evaluator score into run.json for convenience. It
+    # remains untrusted evidence, so verify it when present and use only the
+    # independently recomputed value below.
+    reported = report.get("score")
+    if reported is not None:
+        reported_value = _validate_score_record(reported, "Run task score")
+        if ((recomputed_value is None) != (reported_value is None)
+                or recomputed_value is not None
+                and not math.isclose(recomputed_value, reported_value, rel_tol=1e-12, abs_tol=1e-12)):
+            raise ValueError("Run task score differs from recomputation")
+    elif isinstance(recomputed, dict):
+        raise ValueError("Run task score is missing")
+    return recomputed_value
+
+
+def _bench_score_cohort(manifest, slots, score_observations, score_results,
+                        configuration_id, run_kind, statistics):
+    """Aggregate all task environments for one compatible model cohort."""
+    task_rows = {}
+    complete = True
+    coefficient_total = 0
+    unknown = 0
+    missing = 0
+    environment_groups = set()
+    for task_id, task in sorted(manifest["tasks"].items()):
+        environment_groups.add(task["environment_group"])
+        selected = [slot for slot in slots.values()
+                    if slot["task_id"] == task_id and slot["configuration_id"] == configuration_id]
+        matching = []
+        for slot in selected:
+            observed = score_observations.get(slot["slot_id"])
+            if observed is None:
+                continue
+            report, _ = observed
+            if report.get("run_kind") == run_kind:
+                matching.append((slot, score_results[slot["slot_id"]]))
+        values = [value for _, value in matching if value is not None]
+        task_missing = len(selected) - len(matching)
+        task_unknown = len(matching) - len(values)
+        task_complete = task_missing == 0 and task_unknown == 0
+        if not task_complete:
+            complete = False
+        missing += task_missing
+        unknown += task_unknown
+        coefficient = task["coefficient"]
+        coefficient_total += coefficient
+        task_rows[task_id] = {
+            "coefficient": coefficient,
+            "scheduled": len(selected),
+            "measured": len(matching),
+            "missing": task_missing,
+            "unknown": task_unknown,
+            "value": sum(values) / len(selected) if task_complete else None,
+            "maximum": statistics["maximum"],
+        }
+    value = (sum(row["coefficient"] * row["value"] for row in task_rows.values()) / coefficient_total
+             if complete and coefficient_total else None)
+    return {
+        "method": _BENCH_SCORE_METHOD,
+        "task_score_method": statistics["task_score_method"],
+        "maximum": statistics["maximum"],
+        "value": value,
+        "suite_sha256": statistics["suite_sha256"],
+        "configuration_id": configuration_id,
+        "run_kind": run_kind,
+        "complete": complete,
+        "task_count": len(task_rows),
+        "family_count": len({manifest["tasks"][task_id]["family"] for task_id in task_rows}),
+        "coefficient_total": coefficient_total,
+        "missing": missing,
+        "unknown": unknown,
+        "environment_groups": sorted(environment_groups),
+        "tasks": task_rows,
+    }
 
 
 def summarize_batch(destination, *, allow_in_progress=False):
@@ -368,6 +537,21 @@ def summarize_batch(destination, *, allow_in_progress=False):
     manifest = _read_json(root, batch["execution"])
     if manifest.get("schema_version") != 1 or manifest.get("run_kind") != "local_batch_development":
         raise ValueError("Unsupported execution manifest")
+    statistics = _score_statistics(manifest)
+    for task_id, task in manifest["tasks"].items():
+        description = _read_archived_asset(root, task["description"], f"task {task_id} description")
+        try:
+            description = json.loads(description)
+        except (TypeError, ValueError) as error:
+            raise ValueError(f"Task {task_id} description is not JSON") from error
+        scoring = description.get("evaluation", {}).get("scoring") if isinstance(
+            description.get("evaluation"), dict) else None
+        if (description.get("id") != task_id
+                or description.get("task_sha256") != task["task_sha256"]
+                or description.get("coefficient") != task["coefficient"]
+                or not isinstance(scoring, dict)
+                or scoring.get("method") != task["score_method"]):
+            raise ValueError(f"Task {task_id} score binding differs from its description")
     if "admission" in manifest:
         policy = restore_policy(root, manifest, manifest["admission"]["policy"]["sha256"])
         reservation = batch.get("admission_reservation", {})
@@ -382,7 +566,7 @@ def summarize_batch(destination, *, allow_in_progress=False):
     points = [(s["task_id"], s["configuration_id"], s["repeat"]) for s in slots.values()]
     if not expected_points or len(points) != len(set(points)) or set(points) != expected_points:
         raise ValueError("Schedule is not the declared task/configuration/repetition product")
-    results, attempts = {}, defaultdict(list)
+    results, score_observations, attempts = {}, {}, defaultdict(list)
     for entry in batch["attempts"]:
         slot = slots.get(entry["slot_id"])
         if (slot is None or any(entry[key] != value for key, value in slot.items())
@@ -415,7 +599,24 @@ def summarize_batch(destination, *, allow_in_progress=False):
             elif report["outcome"] != "no_submission":
                 raise ValueError("Missing candidate is not a successful measurement")
             results[entry["slot_id"]] = (report, evaluation)
+            score_observations[entry["slot_id"]] = (report, evaluation)
+        elif state == "evaluation_error" and report is not None:
+            # A completed non-infrastructure attempt still occupies its
+            # planned repetition for BenchScore. The scorer turns an
+            # evaluator error into ``None`` while an Agent timeout/error keeps
+            # its conclusive zero, even when the attempted candidate could not
+            # be evaluated.
+            score_observations[entry["slot_id"]] = (report, evaluation)
         attempts[entry["slot_id"]].append((entry, report, evaluation))
+
+    # Recompute every completed non-infrastructure task score from the
+    # archived evaluation jobs and observations. The run/evaluation scalar is
+    # checked against that result but is never used as the source of the
+    # aggregate.
+    score_results = {
+        slot_id: _score_observation(report, evaluation, statistics)
+        for slot_id, (report, evaluation) in score_observations.items()
+    }
 
     groups = []
     for config_id, agent in manifest["agents"].items():
@@ -434,6 +635,13 @@ def summarize_batch(destination, *, allow_in_progress=False):
                 successes = sum(r["task_success"] for r, _ in observed)
                 physical = sum(e["physical_valid"] is True for _, e in observed if e)
                 missing = len(selected)-len(observed)
+                score_values = [score_results[s["slot_id"]] for s in selected
+                                if s["slot_id"] in score_results
+                                and score_results[s["slot_id"]] is not None]
+                score_observed = [score_results[s["slot_id"]] for s in selected
+                                  if s["slot_id"] in score_results]
+                score_unknown = len(score_observed) - len(score_values)
+                score_missing = len(selected) - len(score_observed)
                 observed_metrics = defaultdict(list)
                 successful_metrics = defaultdict(list)
                 failure_modes = Counter()
@@ -448,14 +656,22 @@ def summarize_batch(destination, *, allow_in_progress=False):
                                     successful_metrics[name].append(value)
                 replacements = max(0, len(task_attempts) - len(selected))
                 per_task[task_id] = {
-                    "family": manifest["tasks"][task_id]["family"], "scheduled": len(selected),
+                    "family": manifest["tasks"][task_id]["family"],
+                    "coefficient": manifest["tasks"][task_id]["coefficient"],
+                    "scheduled": len(selected),
+                    "witnessed": manifest["tasks"][task_id]["witnessed"],
                     "measured": len(observed), "missing": missing, "replacements": replacements,
                     "successes": successes,
                     "physical_valid": physical,
                     "success_rate": successes/len(selected) if not missing else None,
                     "observed_success_rate": successes/len(observed) if observed else None,
                     "observed_wilson95": wilson(successes, len(observed)),
-                    "weight": 1/(len(families)*families[manifest["tasks"][task_id]["family"]]),
+                    "score_values": score_values,
+                    "score_known": len(score_values),
+                    "score_unknown": score_unknown,
+                    "score_missing": score_missing,
+                    "score_mean": (sum(score_values) / len(selected)
+                                   if len(score_values) == len(selected) else None),
                     "observed_metrics": dict(observed_metrics),
                     "successful_metrics": dict(successful_metrics),
                     "failure_modes": dict(failure_modes)}
@@ -478,9 +694,10 @@ def summarize_batch(destination, *, allow_in_progress=False):
                 "harness": agent["harness"], "environment_group": environment,
                 "environment": manifest["tasks"][task_ids[0]]["environment"],
                 "complete": complete, "tasks": per_task, "family_count": len(families),
-                "success_rate": sum(t["weight"]*t["success_rate"] for t in per_task.values()) if complete else None,
-                "task_equal_success_rate": sum(t["success_rate"] for t in per_task.values())/len(per_task) if complete else None,
-                "physical_valid_rate": sum(t["weight"]*t["physical_valid"]/t["scheduled"] for t in per_task.values()) if complete else None,
+                "success_rate": sum(t["successes"] for t in per_task.values())
+                / sum(t["scheduled"] for t in per_task.values()) if complete else None,
+                "physical_valid_rate": sum(t["physical_valid"] for t in per_task.values())
+                / sum(t["scheduled"] for t in per_task.values()) if complete else None,
                 "attempts": len(all_attempts), "attempts_finished": finished_attempts,
                 "replacements": sum(task["replacements"] for task in per_task.values()),
                 "infrastructure_errors": sum(e["state"] == "infrastructure_error" for e, _, _ in all_attempts),
@@ -503,10 +720,33 @@ def summarize_batch(destination, *, allow_in_progress=False):
                               "measured": _resources([r for r, _ in measured]),
                               "successful": _resources([r for r, _ in measured if r["task_success"]]),
                               "unsuccessful": _resources([r for r, _ in measured if not r["task_success"]])}})
+    # A BenchScore cohort spans all declared task environments. It is formed
+    # only for one configuration and one *actual* run kind, with the frozen
+    # suite/judge binding above. This lets legitimate per-task EDA environments
+    # participate without pooling an offline probe with a real model run.
+    bench_scores = []
+    for config_id, agent in manifest["agents"].items():
+        actual_run_kinds = {
+            report.get("run_kind") for slot_id, (report, _) in score_observations.items()
+            if slots[slot_id]["configuration_id"] == config_id and report.get("run_kind")
+        }
+        run_kinds = sorted(actual_run_kinds or {agent["run_kind"]})
+        bench_scores.extend(
+            _bench_score_cohort(manifest, slots, score_observations, score_results,
+                                config_id, run_kind, statistics)
+            for run_kind in run_kinds
+        )
     summary = {"schema_version": 1, "scope": manifest["scope"], "run_kind": "local_batch_development",
             "execution_sha256": batch["execution"]["sha256"], "statistics": manifest["statistics"],
             "statistics_implementation_sha256": Asset(Path(__file__).read_bytes(), "python").sha256,
-            "complete": all(group["complete"] for group in groups), "groups": groups}
+            "complete": all(group["complete"] for group in groups), "groups": groups,
+            "bench_score": {
+                "schema_version": 1, "method": _BENCH_SCORE_METHOD,
+                "task_score_method": statistics["task_score_method"],
+                "maximum": statistics["maximum"], "suite_sha256": statistics["suite_sha256"],
+                "complete": all(cohort["complete"] for cohort in bench_scores),
+                "cohorts": bench_scores,
+            }}
     if batch.get("phase") != "finished" and summary["complete"] and not allow_in_progress:
         raise ValueError("Batch is not finished")
     return summary

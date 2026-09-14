@@ -5,6 +5,7 @@ configuration. Attestations record human review; they do not prove their claims.
 """
 
 import json
+import math
 import os
 import re
 from dataclasses import dataclass
@@ -20,7 +21,15 @@ QUALIFICATION_CHECKS = {
     "witness", "invalid_physical", "invalid_geometry", "invalid_performance",
     "calibration", "repeated_stability", "input_semantics",
 }
-EXPORT_FIELDS = {"success_rate", "physical_valid_rate", "infrastructure_error_rate"}
+BENCH_SCORE_METHOD = "bench-v1"
+TASK_SCORE_METHOD = "layout-v1"
+# The policy freezes the suite-level result. ``TASK_SCORE_METHOD`` is kept
+# beside it so a task score cannot be substituted for the BenchScore export.
+SCORE_METHOD = BENCH_SCORE_METHOD
+SCORE_MAXIMUM = 100
+# ``score`` is the only ranked result.  Infrastructure errors remain an
+# explicitly approved diagnostic and never become a second ranking metric.
+EXPORT_FIELDS = {"score", "infrastructure_error_rate"}
 
 
 def conditions(manifest):
@@ -48,6 +57,15 @@ def _deadline(data):
     if deadline.tzinfo is None:
         raise ValueError("Admission expiry requires an explicit timezone")
     return deadline
+
+
+def _rounded_rate(value, decimals):
+    """Validate and round an allowlisted rate from trusted summary evidence."""
+    if value is None:
+        return None
+    if type(value) not in {int, float} or not math.isfinite(value) or not 0 <= value <= 1:
+        raise ValueError("Export evidence has an invalid infrastructure error rate")
+    return round(value, decimals)
 
 
 @dataclass(frozen=True)
@@ -110,11 +128,17 @@ def _parse_policy(source):
                 raise ValueError("Endpoint requires reviewed no-training and zero-retention arrangements")
             references.append(endpoint["authorization"])
     export = data["export"]
-    keys(export, {"fields", "min_tasks", "min_families", "min_trials", "decimals", "groups"}, set(), "export policy")
+    keys(export, {"score", "fields", "min_tasks", "min_families", "min_trials", "decimals", "groups"}, set(), "export policy")
+    score = export["score"]
+    keys(score, {"method", "task_score_method", "maximum"}, set(), "export score")
+    if (score["method"] != SCORE_METHOD or score["task_score_method"] != TASK_SCORE_METHOD
+            or score["maximum"] != SCORE_MAXIMUM):
+        raise ValueError("Export score must use the approved BenchScore contract")
     if (not isinstance(export["fields"], list) or not export["fields"]
             or any(field not in EXPORT_FIELDS for field in export["fields"])
+            or "score" not in export["fields"]
             or len(set(export["fields"])) != len(export["fields"])):
-        raise ValueError("Export fields must be a unique nonempty aggregate whitelist")
+        raise ValueError("Export fields must uniquely include the layout-v1 score")
     for name, minimum, maximum in (("min_tasks", 2, None), ("min_families", 2, None),
                                    ("min_trials", 2, None), ("decimals", 0, 3)):
         value = export[name]
@@ -124,11 +148,11 @@ def _parse_policy(source):
         raise ValueError("Export needs predetermined groups")
     labels, pairs = set(), set()
     for group in export["groups"]:
-        keys(group, {"configuration_id", "environment_group", "label"}, set(), "export group")
+        keys(group, {"configuration_id", "run_kind", "label"}, set(), "export group")
         identifier(group["configuration_id"])
-        _digest(group["environment_group"])
+        identifier(group["run_kind"])
         _label(group["label"])
-        pair = (group["configuration_id"], group["environment_group"])
+        pair = (group["configuration_id"], group["run_kind"])
         if group["label"] in labels or pair in pairs:
             raise ValueError("Duplicate export group or label")
         labels.add(group["label"])
@@ -194,8 +218,14 @@ def validate_policy(policy, manifest):
                 raise ValueError("Actual endpoint/model is outside authorization")
             if data["dataset"] == "hidden" and agent["run_kind"] == "model_protocol_test":
                 raise ValueError("Protocol test transport cannot access a hidden dataset")
-    available = {(a, t["environment_group"]) for a in manifest["agents"] for t in manifest["tasks"].values()}
-    if any((g["configuration_id"], g["environment_group"]) not in available for g in data["export"]["groups"]):
+    available = set()
+    for agent_id, agent in manifest["agents"].items():
+        available.add((agent_id, agent["run_kind"]))
+        # A configured inference endpoint can be unused. The run recorder
+        # then truthfully labels the resulting offline cohort separately.
+        if agent["inference"] is not None:
+            available.add((agent_id, "offline_cli_development"))
+    if any((g["configuration_id"], g["run_kind"]) not in available for g in data["export"]["groups"]):
         raise ValueError("Export group is outside the approved execution")
 
 
@@ -259,27 +289,126 @@ def export_batch(destination, expected_policy_sha256):
     manifest = _read_json(root, batch["execution"])
     policy = restore_policy(root, manifest, expected_policy_sha256)
     summary = summarize_batch(root)
-    if not summary["complete"]:
-        raise ValueError("Incomplete batches are not eligible for this aggregate export")
     # Publication uses the same statistical implementation reviewed before execution.
     if summary["statistics_implementation_sha256"] != manifest["framework"]["files"]["benchmarking/report.py"]["sha256"]:
         raise ValueError("Export requires the approved statistics implementation")
     if Asset(Path(__file__).read_bytes(), "python").sha256 != manifest["framework"]["files"]["benchmarking/admission.py"]["sha256"]:
         raise ValueError("Export requires the approved admission implementation")
     rules = policy.data["export"]
-    groups = {(g["configuration_id"], g["environment_group"]): g for g in summary["groups"]}
+    bench_score = summary.get("bench_score")
+    if (not isinstance(bench_score, dict)
+            or bench_score.get("method") != rules["score"]["method"]
+            or bench_score.get("task_score_method") != rules["score"]["task_score_method"]
+            or bench_score.get("maximum") != rules["score"]["maximum"]
+            or bench_score.get("suite_sha256") != manifest["statistics"].get("suite_sha256")
+            or type(bench_score.get("complete")) is not bool
+            or not isinstance(bench_score.get("cohorts"), list)):
+        raise ValueError("BenchScore evidence is missing or does not match the frozen policy")
+    groups = {(g["configuration_id"], g["run_kind"]): g for g in bench_score["cohorts"]
+              if isinstance(g, dict) and "configuration_id" in g and "run_kind" in g}
+    if len(groups) != len(bench_score["cohorts"]):
+        raise ValueError("BenchScore cohort evidence is malformed")
+
+    # Coverage and gradability are separate properties. An evaluator error is
+    # a terminal report for its scheduled slot, so it may leave a cohort's
+    # score unknown while still allowing a complete schedule to be exported.
+    # A slot with no terminal report remains ``missing`` and must never pass
+    # this gate. The report implementation owns the classification; admission
+    # only checks the resulting, recomputed evidence.
+    for group in groups.values():
+        tasks = group.get("tasks")
+        if (group.get("method") != rules["score"]["method"]
+                or group.get("task_score_method") != rules["score"]["task_score_method"]
+                or group.get("maximum") != rules["score"]["maximum"]
+                or group.get("suite_sha256") != bench_score["suite_sha256"]
+                or not isinstance(tasks, dict)
+                or type(group.get("task_count")) is not int or group["task_count"] < 0
+                or group.get("task_count") != len(tasks)
+                or set(tasks) != set(manifest["tasks"])):
+            raise ValueError("BenchScore cohort evidence does not match the frozen policy")
+        group_missing = group.get("missing")
+        group_unknown = group.get("unknown")
+        if (type(group_missing) is not int or group_missing < 0
+                or type(group_unknown) is not int or group_unknown < 0):
+            raise ValueError("BenchScore cohort coverage evidence is malformed")
+        task_missing, task_unknown = 0, 0
+        for task_id, task in tasks.items():
+            if (not isinstance(task, dict)
+                    or task.get("coefficient") != manifest["tasks"][task_id]["coefficient"]
+                    or task.get("maximum") != rules["score"]["maximum"]
+                    or type(task.get("scheduled")) is not int or task["scheduled"] < 0
+                    or task["scheduled"] != manifest["repetitions"]
+                    or type(task.get("measured")) is not int or task["measured"] < 0
+                    or type(task.get("missing")) is not int or task["missing"] < 0
+                    or type(task.get("unknown")) is not int or task["unknown"] < 0
+                    or task["measured"] + task["missing"] != task["scheduled"]
+                    or task["unknown"] > task["measured"]):
+                raise ValueError("BenchScore cohort task evidence is malformed")
+            task_missing += task["missing"]
+            task_unknown += task["unknown"]
+        if group_missing != task_missing or group_unknown != task_unknown:
+            raise ValueError("BenchScore cohort coverage evidence is inconsistent")
+        expected_complete = group_missing == 0 and group_unknown == 0
+        if type(group.get("complete")) is not bool or group["complete"] != expected_complete:
+            raise ValueError("BenchScore cohort completeness evidence is inconsistent")
+        if group_missing:
+            raise ValueError("Incomplete batches are not eligible for this aggregate export")
+        if "value" not in group:
+            raise ValueError("BenchScore evidence is missing its value")
+        value = group["value"]
+        if (value is not None
+                and (type(value) not in {int, float} or not math.isfinite(value)
+                     or not 0 <= value <= rules["score"]["maximum"])):
+            raise ValueError("Score evidence has an invalid value")
+        if (group_unknown and value is not None) or (not group_unknown and value is None):
+            raise ValueError("BenchScore value does not match its coverage evidence")
+
+    # ``bench_score.complete`` means every covered slot has a usable score;
+    # it is allowed to be false only when the scorer has explicitly left one
+    # or more covered slots unknown. Coverage itself was checked above.
+    any_unknown = any(group["unknown"] for group in groups.values())
+    if bench_score["complete"] != (not any_unknown):
+        raise ValueError("BenchScore completeness evidence is inconsistent")
     released = []
     for approved in rules["groups"]:
-        group = groups[(approved["configuration_id"], approved["environment_group"])]
+        group = groups.get((approved["configuration_id"], approved["run_kind"]))
+        if group is None:
+            raise ValueError("BenchScore cohort is missing from the approved export")
+        if (group.get("method") != rules["score"]["method"]
+                or group.get("task_score_method") != rules["score"]["task_score_method"]
+                or group.get("maximum") != rules["score"]["maximum"]
+                or group.get("suite_sha256") != bench_score["suite_sha256"]
+                or not isinstance(group.get("tasks"), dict)
+                or group.get("task_count") != len(group["tasks"])
+                or set(group.get("tasks", {})) != set(manifest["tasks"])):
+            raise ValueError("BenchScore cohort evidence does not match the frozen policy")
         trials = sum(task["measured"] for task in group["tasks"].values())
-        if (len(group["tasks"]) < rules["min_tasks"] or group["family_count"] < rules["min_families"]
-                or trials < rules["min_trials"]):
+        family_count = len({manifest["tasks"][task_id]["family"] for task_id in group["tasks"]})
+        if (group.get("task_count") < rules["min_tasks"]
+                or family_count < rules["min_families"] or trials < rules["min_trials"]):
             continue  # No suppressed labels, task hashes, counts or partial subgroup results.
+        score = group
+        value = score["value"]
+        if value is not None:
+            if group["unknown"]:
+                raise ValueError("Unknown BenchScore evidence must be exported as null")
+            value = round(value, rules["decimals"])
+        diagnostic_groups = [item for item in summary["groups"]
+                             if item["configuration_id"] == approved["configuration_id"]
+                             and item["run_kind"] == approved["run_kind"]]
+        finished_attempts = sum(item["attempts_finished"] for item in diagnostic_groups)
+        infrastructure_errors = sum(item["infrastructure_errors"] for item in diagnostic_groups)
+        infrastructure_rate = (infrastructure_errors / finished_attempts
+                                if finished_attempts else None)
+        values = {
+            "score": {"method": score["method"], "value": value, "maximum": score["maximum"]},
+            # The diagnostic belongs to the regular group summary. It is
+            # deliberately copied only when the operator listed it in fields.
+            "infrastructure_error_rate": _rounded_rate(infrastructure_rate, rules["decimals"]),
+        }
         released.append({"label": approved["label"], "run_kind": group["run_kind"],
-                         "task_count": len(group["tasks"]), "family_count": group["family_count"],
-                         "trials": trials, **{field: round(group[field], rules["decimals"])
-                                               if group[field] is not None else None for field in rules["fields"]}})
+                         "task_count": len(group["tasks"]), "family_count": family_count,
+                         "trials": trials, **{field: values[field] for field in rules["fields"]}})
     return {"schema_version": 1, "run_kind": "policy_checked_development_export",
             "release_id": policy.data["id"], "dataset": policy.data["dataset"],
-            "exposure_mode": policy.data["exposure_mode"],
-            "weighting": "family_equal_then_task_equal", "aggregate_interval": None, "groups": released}
+            "exposure_mode": policy.data["exposure_mode"], "groups": released}

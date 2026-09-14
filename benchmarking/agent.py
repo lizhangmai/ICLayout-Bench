@@ -12,6 +12,12 @@ from .recorder import RecordingError, RunRecorder
 from .session import DockerSession, task_message
 
 
+def _zero_attempt_score():
+    """Return the layout-v1 envelope for a conclusive incomplete solve."""
+    return {"method": "layout-v1", "value": 0.0, "maximum": 100,
+            "components": {"G": 0.0, "E": None, "H": None, "Q": None}}
+
+
 def run_agent(task, config, resources, backends, destination: Path, *, inference=None, session=None, execution=None):
     if task.evaluation is None or task.evaluation.mode != "post_layout":
         raise ValueError("Agent runs require a post_layout task plan")
@@ -29,6 +35,7 @@ def run_agent(task, config, resources, backends, destination: Path, *, inference
     archive = recorder.archive
     message = task_message(task, config)
     report = {"schema_version": 2, "events": {"path": "events.jsonl", "schema_version": 1}, "run_kind": "offline_cli_development", "task_sha256": task.digest,
+              "task_witnessed": task.witnessed,
               "agent_id": config.id, "harness": config.harness.identity(),
               "configuration": archive(config.source), "execution": execution,
               "command": list(config.command), "public_environment": config.environment,
@@ -42,6 +49,11 @@ def run_agent(task, config, resources, backends, destination: Path, *, inference
                                               "model_config.py", "harnesses.py", "recorder.py", "recording.py")},
               "usage": {field: None for field in USAGE_FIELDS},
               "phase": "running", "outcome": None, "task_success": None, "evaluation": None}
+    if (task.evaluation.scoring is not None
+            and task.evaluation.scoring.method == "layout-v1"):
+        # Keep evaluator or infrastructure failures visibly pending for a
+        # scored task. Unscored standalone runs do not claim an official score.
+        report["score"] = None
     def save():
         recorder.save(report)
 
@@ -63,6 +75,7 @@ def run_agent(task, config, resources, backends, destination: Path, *, inference
             backends,
             feedback_root,
             task_sha256=task.digest,
+            task_witnessed=task.witnessed,
         )
         raw = (feedback_root / "report.json").read_bytes()
         return {
@@ -102,11 +115,14 @@ def run_agent(task, config, resources, backends, destination: Path, *, inference
         started = time.monotonic()
         try:
             evaluated = run_evaluation(task.evaluation,
-                                      {**task.evaluation_inputs(), "candidate": result.candidate},
-                                      backends, destination / "evaluation", task_sha256=task.digest)
+                                       {**task.evaluation_inputs(), "candidate": result.candidate},
+                                       backends, destination / "evaluation", task_sha256=task.digest,
+                                       task_witnessed=task.witnessed)
             report.update(evaluation={"path": "evaluation/report.json",
                                      "sha256": Asset((destination/"evaluation/report.json").read_bytes(), "json").sha256},
                           outcome=evaluated["outcome"], task_success=evaluated["task_success"])
+            if evaluated.get("score") is not None:
+                report["score"] = evaluated["score"]
         except Exception as error:  # noqa: BLE001 -- retain the accepted snapshot on infrastructure failure
             report.update(outcome="error", task_success=None, evaluation_error=str(error))
         report["evaluation_seconds"] = time.monotonic() - started
@@ -114,5 +130,15 @@ def run_agent(task, config, resources, backends, destination: Path, *, inference
         report.update(outcome="no_submission", task_success=False)
     if result.termination == "infrastructure_error":
         report.update(outcome="error", task_success=None)
+        report["score"] = None
+    elif (task.evaluation.scoring is not None
+          and task.evaluation.scoring.method == "layout-v1"
+          and (result.termination in {"agent_error", "budget_exhausted"}
+               or report["outcome"] == "no_submission")):
+        # A timed-out or otherwise incomplete Agent attempt is a conclusive
+        # zero for the planned repetition, even when it left a candidate that
+        # the evaluator could inspect. A no-submission attempt has the same
+        # model outcome and needs an explicit score envelope for scored tasks.
+        report["score"] = _zero_attempt_score()
     recorder.finish(report)
     return report

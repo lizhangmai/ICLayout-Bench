@@ -1,0 +1,43 @@
+* SPDX-License-Identifier: Apache-2.0
+* Functional pre/post-layout check of the Layout-Bench LN-TIA core derivative.
+* Three independent supplies at the source values (1.7 V, 2.1 V, 2.1 V),
+* 26.85 C, nominal upstream model corners.
+* The input is a current excitation and the output has a 50 fF load.  The
+* maintained qualification boundary is the low-frequency band from 1 MHz
+* through 100 MHz; the upstream 40 GHz/noise claim is outside this deck.
+.lib /workspace/support/models/cornerHBT.lib hbt_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.include circuit.spice
+.param input_current=100u
+.include parameters.spice
+.option rshunt=1e12 reltol=1e-6 vntol=1e-8 abstol=1e-12
+.temp 26.85
+VSS VSS 0 0
+VCC1 vcc1 VSS 1.7
+VCC2 vcc2 VSS 2.1
+VCC3 vcc3 VSS 2.1
+XDUT RFin RFout VSS vcc1 vcc2 vcc3 FDM_QNC_00_LN_TIA
+IIN VSS INJECTED DC {input_current} AC 1
+VSENSE INJECTED RFin 0
+CLOAD RFout VSS 50f
+.control
+set numdgt=12
+op
+let input_bias = v(RFin)
+let output_bias = v(RFout)
+let supply1_current = -i(VCC1)
+let supply2_current = -i(VCC2)
+let supply3_current = -i(VCC3)
+let supply_power = -v(vcc1)*i(VCC1)-v(vcc2)*i(VCC2)-v(vcc3)*i(VCC3)
+print input_bias output_bias supply1_current supply2_current supply3_current supply_power
+write operating_point.raw all
+ac dec 40 1meg 100meg
+let signed_transimpedance = real(v(RFout)/i(VSENSE))
+let magnitude_transimpedance = mag(v(RFout)/i(VSENSE))
+meas ac transimpedance_low find signed_transimpedance at=1meg
+meas ac transimpedance_high find magnitude_transimpedance at=100meg
+write frequency_response.raw all
+quit
+.endc
+.end

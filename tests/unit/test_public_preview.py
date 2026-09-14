@@ -1,12 +1,15 @@
 """Preview configuration stays usable with just one arbitrarily named image."""
 
+import hashlib
 import importlib.util
 import json
 import re
+import shutil
 import tomllib
 from pathlib import Path
 
 import pytest
+import tomli_w
 from helpers.protocol import write_protocol_task
 
 from benchmarking import environment, prepare_support
@@ -53,9 +56,11 @@ schema_version = 1
 [toolchain.backends.rules]
 type = "klayout-docker"
 settings = {image = "synthetic-image", support = "source-rules", check = "drc", profile = "reviewed.json"}
+support_profiles = {support = "klayout"}
 [toolchain.backends.simulation]
 type = "ngspice-docker"
 settings = {image = "synthetic-image", support = "source-models"}
+support_profiles = {support = "analog-models"}
 [toolchain.bindings]
 check = "rules"
 simulate = "simulation"
@@ -63,14 +68,24 @@ simulate = "simulation"
     (source / "case.toml").write_text(config)
     (source / "reference.gds").write_bytes(b"Maintainer-only witness")
     (source / "README.md").write_text("Maintainer-only provenance")
+    (root / "tasks/ihp-sg13g2/IHP-AnalogAcademy/catalog.toml").write_text(
+        'schema_version = 3\n\n[[cases]]\n'
+        'id = "synthetic-circuit"\nconfig_path = "cases/synthetic/case.toml"\n')
     (root / "third_party/IHP-Open-PDK/ihp-sg13g2").mkdir(parents=True)
     monkeypatch.setattr(preview, "ROOT", root)
-    monkeypatch.setattr(preview, "CASE_MODELS", {"synthetic": "models"})
     return root, source
 
 
-def test_preparation_binds_image_and_support_without_delivering_reference(preview, preview_case, monkeypatch):
+@pytest.mark.parametrize("shared_license", [False, True])
+def test_preparation_binds_image_and_support_without_delivering_reference(preview, preview_case, monkeypatch, shared_license):
     root, source = preview_case
+    if shared_license:
+        terms = b"Synthetic collection license\n"
+        (source.parent.parent / "LICENSE").write_bytes(terms)
+        config = source / "case.toml"
+        config.write_text(config.read_text() + '\n[task.inputs.license]\n'
+                          'path = "materials/LICENSE"\ncollection_source = "LICENSE"\n'
+                          f'sha256 = "{hashlib.sha256(terms).hexdigest()}"\n')
     monkeypatch.setattr(environment, "prepare_pdk_bundle", lambda source, output: output.mkdir())
     inspected, compilers = [], []
     identity = "sha256:" + "a" * 64
@@ -103,7 +118,107 @@ def test_preparation_binds_image_and_support_without_delivering_reference(previe
     assert not (root / "solver/reference.gds").exists()
     assert not (root / "solver/README.md").exists()
     assert not (root / "solver/case.toml").exists()
+    if shared_license:
+        (source.parent.parent / "LICENSE").unlink()
+        assert load_task(bound_case).input_assets()["license"].content == terms
+        assert (root / "solver/materials/LICENSE").read_bytes() == terms
     assert (bound_case.parent / "reference.gds").read_bytes() == b"Maintainer-only witness"
+
+
+def test_discovery_reads_digest_bound_collection_plan(preview, preview_case):
+    _, source = preview_case
+    path = source / "case.toml"
+    data = tomllib.loads(path.read_text())
+    plan = data["task"].pop("evaluation")
+    content = tomli_w.dumps(plan).encode()
+    shared = source.parent.parent / "plan.toml"
+    shared.write_bytes(content)
+    data["task"]["inputs"]["evaluation"] = {
+        "path": "evaluation.toml", "collection_source": shared.name,
+        "sha256": hashlib.sha256(content).hexdigest(), "format": "toml",
+    }
+    path.write_text(tomli_w.dumps(data))
+    assert preview._evaluation_mode(path, data) == plan["mode"]
+    shared.write_bytes(content + b"\n# changed source\n")
+    assert preview._evaluation_mode(path, data) is None
+
+
+def test_discovery_spans_collections_and_selects_hbt_support(preview, preview_case, monkeypatch):
+    root, source = preview_case
+    hbt = root / "tasks/ihp-sg13g2/TO_Apr2025/cases/hbt_synthetic"
+    hbt.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(source, hbt)
+    config = (hbt / "case.toml").read_text().replace(
+        'id = "synthetic-circuit"', 'id = "hbt-synthetic"')
+    config = config.replace('support_profiles = {support = "analog-models"}',
+                            'support_profiles = {support = "hbt-models"}')
+    config += '''
+[toolchain.backends.extraction]
+type = "sg13g2-hbt-rc-docker"
+support_profiles = {klayout_support = "klayout", magic_support = "magic"}
+[toolchain.backends.extraction.settings]
+image = "synthetic-image"
+klayout_support = "source-klayout"
+klayout_profile = "reviewed.json"
+magic_support = "source-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+'''
+    (hbt / "case.toml").write_text(config)
+
+    candidate = root / "tasks/ihp-sg13g2/TO_Apr2025/cases/candidate_synthetic"
+    shutil.copytree(source, candidate)
+    config = (candidate / "case.toml").read_text().replace(
+        'id = "synthetic-circuit"', 'id = "candidate-synthetic"')
+    (candidate / "case.toml").write_text(config.replace(
+        'status = "qualified"', 'status = "candidate"'))
+
+    for collection, entries in {
+        "IHP-AnalogAcademy": [("synthetic-circuit", "cases/synthetic/case.toml")],
+        "TO_Apr2025": [("hbt-synthetic", "cases/hbt_synthetic/case.toml"),
+                       ("candidate-synthetic", "cases/candidate_synthetic/case.toml")],
+    }.items():
+        catalog = root / "tasks/ihp-sg13g2" / collection / "catalog.toml"
+        catalog.parent.mkdir(parents=True, exist_ok=True)
+        body = "schema_version = 3\n\n" + "\n".join(
+            f'[[cases]]\nid = "{case_id}"\nconfig_path = "{config_path}"\n'
+            for case_id, config_path in entries)
+        catalog.write_text(body)
+
+    cases = preview.discover_cases()
+    assert set(cases) == {"synthetic", "hbt_synthetic", "candidate_synthetic"}
+    hbt_backend = cases["hbt_synthetic"]["data"]["toolchain"]["backends"]["simulation"]
+    assert preview._support_bindings("simulation", hbt_backend) == [("support", "hbt-models")]
+    unbound_hbt = {**hbt_backend}
+    unbound_hbt.pop("support_profiles")
+    with pytest.raises(ValueError, match="support_profiles metadata"):
+        preview._support_bindings("simulation", unbound_hbt)
+    assert preview._case_choices() == ("candidate_synthetic", "hbt_synthetic", "synthetic")
+
+    monkeypatch.setattr(environment, "prepare_pdk_bundle", lambda source, output: output.mkdir())
+    identity = "sha256:" + "b" * 64
+    monkeypatch.setattr(preview.subprocess, "check_output", lambda *args, **kwargs: identity + "\n")
+    profiles = []
+
+    def support(source, profile, output, *, compiler_image):
+        profiles.append(profile)
+        output.mkdir()
+
+    monkeypatch.setattr(prepare_support, "prepare_support", support)
+    preview.prepare(root / "candidate-prepared", "synthetic-tools:local", "candidate_synthetic")
+    assert load_task(root / "candidate-prepared/case/case.toml").status == "candidate"
+    profiles.clear()
+    preview.prepare(root / "hbt-prepared", "synthetic-tools:local", "hbt_synthetic")
+    assert {profile.rsplit("#", 1)[-1] for profile in profiles} == {"klayout", "magic", "hbt-models"}
+
+
+def test_preview_requires_a_published_witness(preview, preview_case):
+    root, source = preview_case
+    config = (source / "case.toml").read_text()
+    (source / "case.toml").write_text(config.replace('reference = "reference.gds"\n', ""))
+    with pytest.raises(ValueError, match="published witness"):
+        preview.prepare(root / "prepared", "my-unified-image:reviewed", "synthetic")
 
 
 @pytest.mark.parametrize("success", [True, False])

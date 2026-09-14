@@ -1,0 +1,21 @@
+* sense_amp nominal characterization
+.include /workspace/support/models.spice
+.include dut.spice
+.temp 27
+Vdd vdd 0 1
+Xdut BL BR Dout SCLK vdd gnd sense_amp
+Vbl bl 0 PWL(0 .8 1n .8 1.01n 1)
+Vbr br 0 PWL(0 1 1n 1 1.01n .8)
+Vs sclk 0 PULSE(0 1 500p 10p 10p 480p 1n)
+Cl dout 0 .5f
+.tran 0.5p 2n
+.meas tran low find v(dout) at=610p
+.meas tran high find v(dout) at=1610p
+.meas tran supply avg par('-v(vdd)*i(Vdd)') from=0 to=2n
+
+.control
+run
+write waveform.raw v(bl) v(br) v(dout) v(sclk) v(vdd) i(Vdd)
+quit
+.endc
+.end

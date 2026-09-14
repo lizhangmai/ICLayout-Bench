@@ -28,8 +28,8 @@ flowchart LR
 | Run orchestration | `agent.py`, `swarm.py` | One execution and independent batch repetitions; invoke evaluation after stopping |
 | Session and submission | `session.py`, `snapshot.py`, `submit.py` | Isolation, budgets, and the last valid submission; do not judge layout correctness |
 | Harness and model gateway | `harnesses.py`, `session.py`, `inference.py` | Common session protocol, optional harness profiles, registered wire-family adapters, and host credentials; no EDA dependency |
-| Evaluation | `evaluation.py`, `evaluate.py`, `toolchains.py` | Execute each task's dependency graph, call backends, and decide metrics |
-| EDA and materials | `klayout.py`, `geometry.py`, `magic.py`, `ngspice.py`; `prepare.py`, `environment.py`, `prepare_support.py` | Tool execution, format interpretation, resource preparation, and validation |
+| Evaluation | `evaluation.py`, `evaluate.py`, `scoring.py`, `toolchains.py` | Execute each task's dependency graph, call backends, decide metrics and compute the unified task score |
+| EDA and materials | `klayout.py`, `geometry.py`, `magic.py`, `ngspice.py`; `environment.py`, `prepare_support.py` | Tool execution, format interpretation, resource preparation, and validation |
 | Evidence and statistics | `recording.py`, `recorder.py`, `report.py`, `admission.py` | Durable events and artifacts, evidence binding, statistics, and optional admission/export |
 
 These modules live under `benchmarking/` and are assembled by the root `main.py`. A harness owns its provider conversation and tool orchestration unless it opts into a declared managed/native semantic; the runner enforces the external session contract and budgets, and the evaluator rejudges frozen candidates. Generated scripts, self-reported check results, and process logs cannot replace the final judge.
@@ -44,7 +44,28 @@ These modules live under `benchmarking/` and are assembled by the root `main.py`
 - **New EDA backend**: implement `identity` and `run(job, inputs) -> JobResult`, returning measured values with units, declared artifacts, and diagnostic evidence. The backend owns execution isolation and format interpretation and may use a container, a native library, or a controlled remote tool.
 - **New process or environment**: configure support bundles, device mappings, rules, and parameters, then validate the supported range using the [tools guide](tools.md). Individual tools being usable does not mean their combination has passed task qualification.
 
+Case attribution is a single `origin.url` pointing to the upstream circuit.
+Catalogs index cases; maintained inputs, reference assets and PDK
+resources carry the digests used by the framework. Updating a source
+checkout does not rewrite or redefine a maintained case. Cases ship ready-to-use
+materials; schematic export and material generation belong to development.
+
 `evaluation.py` and `evaluate.py` do not import concrete tools; `tasks.py` depends only on evaluation data definitions. It freezes inline task constraints and evaluation plans, and exposes the same requirements to the solver description and evaluator inputs. `Task.inputs` controls solver file materialization; `Task.input_assets()` also includes generated inline snapshots for execution and evidence archival. Evaluation validates both TOML file plans and JSON snapshots through the same schema. `toolchains.py` assembles backends at the entry point from a standalone toolchain or the host-only `[toolchain]` table in a circuit case: `backends.<id>` declares `type` and `settings`, while `bindings` maps logical operations to backend IDs. Python callers may also inject a backend instance or factory. Task files cannot trigger dynamic Python imports; decks and file formats for different EDAs must be adapted explicitly.
+
+Case loading can resolve explicitly declared `collection_source` inputs inside a
+case's enclosing source collection. The loader validates the collection boundary,
+source path and digest, then freezes bytes in `Task.inputs`; materialization,
+sessions and evaluators consume those snapshots without mounting the collection.
+See [shared collection inputs](tasks.md#shared-collection-inputs) for the declaration
+and standalone preparation rules.
+
+Optional backend-level `support_profiles` maps support-path setting names to
+reviewed PDK preparation profiles. It is host assembly metadata, validated but
+not forwarded to backend constructors. Public preview discovers executable
+executable cases through their catalogs and uses these mappings to prepare and
+bind model or composite extraction resources; circuit names and source
+collections do not select semiconductor models. See the
+[tool guide](tools.md#stepwise-preparation-and-reuse) for declaration examples.
 
 A unified image serves preparation, solving, and judging, while each role runs in its own container. The session runner controls mounts, the optional model gateway, budgets, and trusted materials; the evaluator never sees Agent credentials or a writable workspace. A public development host may be controlled by the user; confidentiality for hidden data depends on a host controlled by the evaluator and cannot be provided by containers on the user's machine. See [admission and export](admission.md) for optional mechanisms and trust seams.
 
@@ -124,4 +145,4 @@ The references below explain design choices; they are not execution rules or run
 | [SWE-bench harness](https://github.com/SWE-bench/SWE-bench/blob/02e7a74ffd0b707aab73d203fe87bdc7c76afc8e/docs/reference/harness.md) | Independent environments, execution limits, and machine-readable evidence are useful; caches still need to bind this project's candidate and judge inputs. |
 | [VerilogEval](https://github.com/NVlabs/verilog-eval/blob/c498220d0a52248f8e3fdffe279075215bde2da6/README.md) | Fixed tools, sampling parameters, and result identity are useful; successful RTL simulation does not imply task success for layout. |
 
-Use [tasks and evaluation](tasks.md) for actual decisions and the [running guide](running.md#scoring) for statistics. DRC/LVS are physical-validity gates; a complete task must also meet its declared geometry and post-layout requirements.
+Use [tasks and evaluation](tasks.md#task-scoring) for the unified task score and the [running guide](running.md#scoring) for coefficient-weighted batch statistics. DRC/LVS are physical-validity gates; a complete task must also meet its declared geometry and post-layout requirements.

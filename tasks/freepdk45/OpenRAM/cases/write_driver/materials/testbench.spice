@@ -1,0 +1,28 @@
+* write_driver nominal characterization
+.include /workspace/support/models.spice
+.include dut.spice
+.temp 27
+Vdd vdd 0 1
+Xdut din BL BR wen vdd gnd write_driver
+Vdin din 0 PULSE(0 1 500p 10p 10p 490p 1n)
+Ven wen 0 PWL(0 1 2n 1 2.01n 0)
+Cl bl 0 10f
+Cr br 0 10f
+Vmid mid 0 .5
+Rl bl mid 100k
+Rr br mid 100k
+.tran 1p 12n
+.meas tran bl_low find v(bl) at=300p
+.meas tran br_high find v(br) at=300p
+.meas tran bl_high find v(bl) at=710p
+.meas tran br_low find v(br) at=710p
+.meas tran z_bl find v(bl) at=11.9n
+.meas tran z_br find v(br) at=11.9n
+.meas tran supply avg par('-v(vdd)*i(Vdd)') from=0 to=2n
+
+.control
+run
+write waveform.raw v(din) v(bl) v(br) v(wen) v(vdd) i(Vdd)
+quit
+.endc
+.end

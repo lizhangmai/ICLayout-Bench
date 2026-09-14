@@ -22,8 +22,12 @@ from benchmarking.swarm import execute_plan, load_plan, resume_plan
 pytestmark = [pytest.mark.unit, pytest.mark.acceptance, pytest.mark.acceptance_fast]
 
 
-def make_plan(root, *, repetitions=2, retries=0, tasks=3, agents=2, inline=False):
+def make_plan(root, *, repetitions=2, retries=0, tasks=3, agents=2, inline=False,
+              coefficients=None, environments=None):
     root.mkdir(exist_ok=True)
+    coefficients = coefficients or [1] * tasks
+    environments = environments or ["synthetic"] * tasks
+    assert len(coefficients) == tasks and len(environments) == tasks
     for index in range(tasks):
         directory = root / f"task-{index}"
         directory.mkdir()
@@ -36,7 +40,8 @@ title = "Synthetic batch fixture"
 kind = "netlist_to_gds"
 family = "{'a' if index < 2 else 'b'}"
 status = "candidate"
-environment = "synthetic"
+coefficient = {coefficients[index]}
+environment = "{environments[index]}"
 [output]
 path = "output/final.gds"
 format = "gds"
@@ -105,15 +110,23 @@ def execute(path, destination, **kwargs):
 
 
 @pytest.mark.parametrize("inline", [False, True], ids=["file", "inline"])
-def test_cross_product_family_weights_and_recomputed_evidence(tmp_path, inline):
+def test_cross_product_task_coefficients_and_recomputed_evidence(tmp_path, inline):
     path = make_plan(tmp_path / "input", inline=inline)
     batch = execute(path, tmp_path / "run")
     assert batch["phase"] == "finished" and batch["outcome"] == "complete"
     assert len(batch["attempts"]) == 12
     groups = batch["summary"]["groups"]
-    assert groups[0]["success_rate"] == .5  # Family a has two tasks; family b has one.
-    assert groups[0]["task_equal_success_rate"] == pytest.approx(2/3)
+    assert groups[0]["success_rate"] == pytest.approx(2/3)
+    assert "score" not in groups[0]
+    assert "task_equal_success_rate" not in groups[0]
+    assert all("weight" not in task for task in groups[0]["tasks"].values())
     assert groups[1]["success_rate"] == 0
+    bench_score = batch["summary"]["bench_score"]
+    assert bench_score["method"] == "bench-v1"
+    assert bench_score["task_score_method"] == "layout-v1"
+    assert bench_score["maximum"] == 100
+    assert bench_score["complete"] is True
+    assert [cohort["value"] for cohort in bench_score["cohorts"]] == [pytest.approx(60), 0]
     assert groups[0]["tasks"]["t0"]["successful_metrics"]["delay"] == [{"value": 3, "unit": "s"}]*2
     assert groups[0]["tasks"]["t2"]["failure_modes"] == {"no_submission": 2}
     assert groups[1]["failure_modes"] == {"no_submission": 6}
@@ -121,11 +134,51 @@ def test_cross_product_family_weights_and_recomputed_evidence(tmp_path, inline):
     assert groups[0]["resources"]["measured"]["wall_seconds"]["sum"] == 6
     assert summarize_batch(tmp_path / "run") == batch["summary"]
     assert (tmp_path / "run").stat().st_mode & 0o777 == 0o700
-    run = json.loads((tmp_path / "run" / batch["attempts"][0]["report"]["path"]).read_text())
+    run_path = tmp_path / "run" / batch["attempts"][0]["report"]["path"]
+    run = json.loads(run_path.read_text())
     assert run["execution"]["execution_sha256"] == batch["execution"]["sha256"]
+    manifest = json.loads((tmp_path / "run" / "execution.json").read_text())
+    assert manifest["tasks"]["t0"]["witnessed"] is False
+    assert run["task_witnessed"] is False
+    evaluated = next(entry for entry in batch["attempts"] if entry["report"]
+                     and json.loads((tmp_path / "run" / entry["report"]["path"]).read_text())
+                     .get("evaluation"))
+    evaluation = json.loads((tmp_path / "run" / evaluated["report"]["path"]).parent
+                            .joinpath("evaluation/report.json").read_text())
+    assert evaluation["task_witnessed"] is False
+    assert groups[0]["tasks"]["t0"]["witnessed"] is False
     assert run["environment"]["image_id"] == "sha256:frozen-image"
     with pytest.raises(FileExistsError):
         execute(path, tmp_path / "run")
+
+
+def test_bench_score_spans_task_environments_with_frozen_coefficients(tmp_path):
+    path = make_plan(tmp_path / "input", tasks=3, agents=1,
+                     coefficients=[1, 3, 5], environments=["env-a", "env-b", "env-a"])
+    batch = execute(path, tmp_path / "run")
+    summary = batch["summary"]
+    assert len(summary["groups"]) == 2
+    cohort = summary["bench_score"]["cohorts"][0]
+    assert cohort["configuration_id"] == "c0"
+    assert cohort["run_kind"] == "offline_cli_development"
+    assert cohort["coefficient_total"] == 9
+    assert cohort["environment_groups"] and len(cohort["environment_groups"]) == 2
+    assert cohort["tasks"]["t0"]["coefficient"] == 1
+    assert cohort["tasks"]["t1"]["coefficient"] == 3
+    assert cohort["tasks"]["t2"]["coefficient"] == 5
+    assert cohort["value"] == pytest.approx(40)
+
+
+def test_batch_score_rejects_a_mutated_evaluation_scalar(tmp_path):
+    path = make_plan(tmp_path / "input", tasks=1, agents=1)
+    batch = execute(path, tmp_path / "run")
+
+    def mutate(evaluation, _evaluation_root):
+        evaluation["score"]["value"] += 1
+
+    _replace_evaluation_report(tmp_path / "run", batch, mutate)
+    with pytest.raises(ValueError, match="recomputation"):
+        summarize_batch(tmp_path / "run")
 
 
 def test_concurrent_slots_use_fresh_sessions_and_keep_frozen_schedule(tmp_path):
@@ -184,6 +237,44 @@ def test_scheduling_is_frozen_and_failures_are_not_extra_samples(tmp_path):
     assert group["resources"]["all_attempts"]["wall_seconds"]["sum"] is None
     assert all('secret' not in p.read_text() for p in (tmp_path/"run").glob("*.json"))
     assert [c["attempt"] for c in calls] == [1, 2, 1, 2]
+
+
+def test_budget_stopped_candidate_is_a_zero_scored_attempt(tmp_path):
+    class TimedSession(FakeSession):
+        def run(self, *args, **kwargs):
+            return replace(super().run(*args, **kwargs), termination="budget_exhausted")
+
+    path = make_plan(tmp_path / "input", tasks=1, agents=1)
+    batch = execute_plan(load_plan(path), tmp_path / "run", session_factory=TimedSession,
+                         toolchain_loader=backends)
+    attempt = next(item for item in batch["attempts"] if item["state"] == "measured")
+    report = json.loads((tmp_path / "run" / attempt["report"]["path"]).read_text())
+    assert report["termination"] == "budget_exhausted"
+    assert report["score"]["method"] == "layout-v1"
+    assert report["score"]["value"] == 0
+    assert batch["summary"]["bench_score"]["cohorts"][0]["value"] == 0
+
+
+def test_budget_stop_remains_zero_when_candidate_evaluation_errors(tmp_path):
+    class TimedSession(FakeSession):
+        def run(self, *args, **kwargs):
+            return replace(super().run(*args, **kwargs), termination="budget_exhausted")
+
+    def failing_backend(_):
+        return {**backends(None), "check": Checks(crash="artifact")}
+
+    path = make_plan(tmp_path / "input", tasks=1, agents=1)
+    batch = execute_plan(load_plan(path), tmp_path / "run", session_factory=TimedSession,
+                         toolchain_loader=failing_backend)
+    attempt = next(item for item in batch["attempts"] if item["report"])
+    assert attempt["state"] == "evaluation_error"
+    cohort = batch["summary"]["bench_score"]["cohorts"][0]
+    assert cohort["complete"] is True
+    assert cohort["value"] == 0
+    assert cohort["tasks"]["t0"]["unknown"] == 0
+    diagnostic = batch["summary"]["groups"][0]["tasks"]["t0"]
+    assert diagnostic["score_values"] == [0, 0]
+    assert diagnostic["score_unknown"] == 0 and diagnostic["score_missing"] == 0
 
 
 @pytest.mark.parametrize("inline", [False, True], ids=["file", "inline"])
@@ -357,11 +448,27 @@ def test_replaced_evaluation_input_is_not_silently_counted(tmp_path):
         summarize_batch(tmp_path / "run")
 
 
-def test_wilson_intervals_include_extreme_outcome_uncertainty():
+@pytest.mark.parametrize('successes,count', [(0, 3), (3, 3), (5, 10), (2, 7)])
+def test_wilson_endpoints_satisfy_the_binomial_score_equation(successes, count):
+    from statistics import NormalDist
+
+    low, high = wilson(successes, count)
+    observed = successes / count
+    z = NormalDist().inv_cdf(0.975)
+    assert 0 <= low <= observed <= high <= 1
+    # Wilson inverts the binomial score test. This checks the defining
+    # equation, independently of the implementation's quadratic formula.
+    for endpoint in (low, high):
+        assert (observed - endpoint) ** 2 == pytest.approx(
+            z ** 2 * endpoint * (1 - endpoint) / count, abs=1e-12)
+    if successes == 0:
+        assert low == 0
+    if successes == count:
+        assert high == 1
+
+
+def test_wilson_requires_observations_and_consistent_counts():
     assert wilson(0, 0) is None
-    assert wilson(0, 3)[1] == pytest.approx(.5614970317550454)
-    assert wilson(3, 3)[0] == pytest.approx(.4385029682449546)
-    assert wilson(5, 10) == pytest.approx([.236593090512564, .763406909487436])
     with pytest.raises(ValueError):
         wilson(4, 3)
 

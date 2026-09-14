@@ -24,7 +24,7 @@
 
 Layout-Bench 在隔离容器中运行 Agent，记录明确提交的 GDS，并使用独立的 EDA 工具评估冻结后的候选版图。DRC/LVS 用于建立物理有效性；完整任务还会检查声明的几何约束和后仿性能限值。
 
-> **公开预览版。** 快速开始直接评估 [comparator](tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/comparator/README.md) 的参考版图，也可选择 [full_OTA](tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/full_OTA/README.md)。其余公开电路见 [IHP AnalogAcademy](tasks/ihp-sg13g2/IHP-AnalogAcademy/catalog.toml) 和 [TO_Apr2025](tasks/ihp-sg13g2/TO_Apr2025/catalog.toml) 清单；是否具备可执行评测和通过见证，以各 case 的状态和说明为准。
+> **公开预览版。** 快速开始默认评估 [comparator](tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/comparator/README.md) 的参考版图。可通过 `--case` 选择 [IHP AnalogAcademy](tasks/ihp-sg13g2/IHP-AnalogAcademy/catalog.toml) 或 [TO_Apr2025](tasks/ihp-sg13g2/TO_Apr2025/catalog.toml) 清单中其他可执行的后仿任务，`--help` 会列出可选项。各 case 分别说明维护电路、修改内容及资格验证范围。
 
 ## 为什么选择 Layout-Bench？
 
@@ -34,7 +34,7 @@ Layout-Bench 在隔离容器中运行 Agent，记录明确提交的 GDS，并使
 | **可复现的运行条件** | 固定输入、配置摘要、镜像 ID、预算、事件日志和持久提交记录。 |
 | **独立裁判** | Agent 停止后由可信评估器重新检查候选；自报检查结果不决定分数。 |
 | **开放的接入接口** | 任意可执行 harness 和可配置 EDA 后端都能使用统一的会话与评估契约。 |
-| **资格验证优先** | 通过参考 witness、反例、提取检查及原理图/后仿校准，在发布前暴露裁判问题。 |
+| **任务与评测分别验证** | 每个 case 检查输入一致性和参考版图执行；共享回归覆盖拒绝、评分与工具行为。 |
 
 ## 前置条件
 
@@ -81,7 +81,7 @@ uv run --locked python scripts/public_preview.py quickstart --case full_OTA \
   --skip-build --output build/runs/ota-preview
 ```
 
-IHP 和 TO_Apr2025 的参考解和 qualification 资产只会随通过“上游已有完整实现”门槛的电路公开。标准 Agent 运行只接收 case TOML 的 `[task]` 段声明的输入，永远不会挂载参考解。
+公开 case 按本仓库定义的电路、物理规则和功能前后仿结果进行 qualification。上游设计用于记录来源，不要求复现有矛盾的原始实现；各 case 的 README 说明参考来源及修改。标准 Agent 运行只接收 case TOML 的 `[task]` 段声明的输入，永远不会挂载参考解。
 
 ## 如何使用
 

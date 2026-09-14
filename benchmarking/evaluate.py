@@ -12,6 +12,7 @@ from typing import Protocol
 
 from .evaluation import EvaluationPlan, Job, number
 from .files import Asset
+from .scoring import score_layout_v1
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,7 @@ def _validate_result(job: Job, result: JobResult) -> None:
 
 def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
                    backends: dict[str, Backend], destination: Path, *,
-                   task_sha256: str | None = None) -> dict:
+                   task_sha256: str | None = None, task_witnessed: bool | None = None) -> dict:
     """Execute all independent jobs; block dependents of failed/error jobs.
 
     inputs is keyed by candidate, task or input:<role>. Backends are keyed by logical
@@ -110,8 +111,9 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
 
     report = {
         "schema_version": 1, "mode": plan.mode, "task_sha256": task_sha256,
+        "task_witnessed": task_witnessed,
         "engine_sha256": {name: Asset(Path(__file__).with_name(name).read_bytes(), "python").sha256
-                          for name in ("evaluate.py", "evaluation.py", "files.py")},
+                          for name in ("evaluate.py", "evaluation.py", "files.py", "scoring.py")},
         "plan": archive(Asset(plan.raw, plan.format)), "backends": identities,
         "inputs": {ref: archive(asset) for ref, asset in sorted(assets.items())},
         "jobs": {}, "metrics": {},
@@ -172,10 +174,13 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
         report["metrics"][metric.id] = {
             "category": metric.category, "unit": metric.unit, "direction": metric.direction,
             "lower": metric.lower, "upper": metric.upper, "aggregation": metric.aggregation,
+            "dimension": metric.dimension, "zero_lower": metric.zero_lower,
+            "zero_upper": metric.zero_upper,
             "value": value, "status": status, "observations": observations,
         }
 
-    gate_status = [results[j.id].status for j in plan.jobs if j.gate in {"artifact", "drc", "lvs"}]
+    gate_status = [results[j.id].status for j in plan.jobs
+                   if j.gate in {"artifact", "drc", "lvs", "constraint"}]
     physical_valid = (None if plan.mode == "characterization"
                       else False if "failed" in gate_status
                       else True if all(s == "passed" for s in gate_status) else None)
@@ -197,6 +202,13 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
     report.update(outcome=outcome, physical_valid=physical_valid, specs_pass=specs_pass,
                   task_success=task_success,
                   quality_eligible=task_success is True)
+    if plan.scoring is not None and plan.mode == "post_layout":
+        report["score"] = score_layout_v1(plan, report["jobs"], report["metrics"], physical_valid)
+    elif plan.mode == "post_layout":
+        # Explicitly distinguish an unscored layout evaluation from the old
+        # optional weighted score. Characterization and physical-only reports
+        # remain diagnostics and do not carry a task score field.
+        report["score"] = None
     report_path = destination / "report.json"
     report_path.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
     report_path.chmod(0o600)

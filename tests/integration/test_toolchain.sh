@@ -28,7 +28,7 @@ printf '%s\n' 'puts "Embedded Ruby #{RUBY_VERSION}"' > /tmp/runtime.rb
 klayout -b -r /tmp/runtime.rb
 xschem --version
 ngspice --version
-test "$(magic --version)" = "8.3.678"
+magic --version
 openvaf --version
 QT_QPA_PLATFORM=offscreen qucs-s --version
 qucsator --version

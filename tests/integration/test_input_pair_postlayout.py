@@ -1,135 +1,383 @@
-"""Fixed-interface input admittance from real, physically checked candidate RC."""
+"""Qualification witness and post-layout sensitivity checks for the input pair."""
 
+import copy
 import json
 import math
 import os
-import re
-import struct
 import tomllib
 from pathlib import Path
 
 import pytest
+from helpers.case_config import standalone_config
+from helpers.scoring import (
+    assert_characterization_unscored,
+    assert_layout_score,
+    assert_same_layout_score,
+    unscore_characterization,
+)
+from helpers.spice_raw import output_rows
 
 from benchmarking.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
-from benchmarking.files import Asset
+from benchmarking.files import Asset, read_file
 from benchmarking.prepare_support import prepare_support
+from benchmarking.tasks import load_task
 from benchmarking.toolchains import load_toolchain
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
 CASE = ROOT / "tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/input_pair"
+IMAGE = os.environ.get("LAYOUT_BENCH_TEST_IMAGE", "layout-bench-tools:local")
 
 
-def _ac_rows(path):
-    """Read ngspice Linux binary complex vectors, independently of .meas."""
-    header, binary = path.read_bytes().split(b"Binary:\n", 1)
-    fields, variables = header.decode().split("Variables:\n", 1)
-    metadata = dict(line.split(":", 1) for line in fields.splitlines())
-    assert "complex" in metadata["Flags"]
-    names = [line.split()[1] for line in variables.splitlines() if line.strip()]
-    values = [value[0] for value in struct.iter_unpack("<d", binary)]
-    values = [complex(r, i) for r, i in zip(values[::2], values[1::2], strict=True)]
-    assert len(values) == int(metadata["No. Points"]) * len(names)
-    return [dict(zip(names, values[i:i + len(names)], strict=True))
-            for i in range(0, len(values), len(names))]
+def declared_asset(config, role):
+    entry = next(asset for asset in config["assets"] if asset["role"] == role)
+    asset = Asset(read_file(CASE, entry["path"]), entry["format"])
+    assert asset.sha256 == entry["sha256"], entry["path"]
+    return asset
 
 
-def _characterization_plan(config):
-    # Candidate cases have no task contract or performance limits. Build the
-    # calibration plan here, using the case's declared physical scope.
-    mapping = config["upstream_evaluation"]
-    jobs = []
-    for check in ("artifact", "drc", "lvs"):
-        parameters = {"top_cell": mapping["top_cell"], "max_bytes": 67108864}
-        inputs = {"layout": "candidate"}
-        if check == "lvs":
-            parameters["subcircuit"] = mapping["subcircuit"]
-            inputs["netlist"] = "input:source-netlist"
-        jobs.append({"id": check, "stage": "check", "operation": f"layout.{check}",
-                     "gate": check, "inputs": inputs, "parameters": parameters})
-    jobs.append({"id": "rc", "stage": "extract", "operation": "layout.extract_rc",
-                 "requires": ["artifact", "drc", "lvs"], "inputs": {"layout": "candidate"},
-                 "outputs": {"netlist": "spice"}, "parameters": {
-                     "top_cell": mapping["top_cell"], "ports": ["v-", "v+", "vdd", "dn3", "dn4"]}})
-    for phase in ("pre", "post"):
-        for excitation in ("plus", "minus"):
-            dut = "input:simulation-netlist" if phase == "pre" else "job:rc:netlist"
-            jobs.append({"id": f"{phase}_{excitation}", "stage": "simulate", "operation": "circuit.simulate",
-                         "inputs": {"deck": "input:testbench", "dut": dut},
-                         "outputs": {"op": "ngspice-raw", "ac": "ngspice-raw"}, "parameters": {
-                             "values": {"plus_ac": int(excitation == "plus"), "minus_ac": int(excitation == "minus")},
-                             "exports": {"op": "op.raw", "ac": "ac.raw"}, "measurements": {
-                                 "input_p_cap": "F", "input_m_cap": "F",
-                                 "input_p_conductance": "S", "input_m_conductance": "S"}}})
-    return parse_evaluation(json.dumps({"schema_version": 1, "mode": "characterization",
-                                       "metrics": [], "jobs": jobs}).encode(), file_format="json")
+@pytest.fixture(scope="module")
+def environment(tmp_path_factory):
+    root = tmp_path_factory.mktemp("input-pair-support")
+    config_text = (CASE / "case.toml").read_text()
+    load_task(CASE / "case.toml").materialize(root / "case")
+    for profile, name in (
+        ("klayout", "klayout"),
+        ("magic", "magic"),
+        ("analog-models", "models"),
+    ):
+        support = root / name
+        prepare_support(
+            ROOT / "third_party/IHP-Open-PDK",
+            f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}",
+            support,
+        )
+        config_text = config_text.replace(
+            f"build/support/input-pair-{name}", str(support)
+        )
+    config_text = config_text.replace("layout-bench-tools:local", IMAGE)
+    path = root / "case/case.toml"
+    config_text = standalone_config(config_text)
+    path.write_text(config_text)
+    return path, load_task(path), load_toolchain(path), tomllib.loads(config_text)
 
 
-def test_reference_rc_and_input_admittance_use_the_fixed_schematic_interface(tmp_path):
-    text = (CASE / "case.toml").read_text()
-    for profile, name in [("klayout", "klayout"), ("magic", "magic"), ("analog-models", "models")]:
-        support = tmp_path / name
-        prepare_support(ROOT / "third_party/IHP-Open-PDK", f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}", support)
-        text = text.replace(f"build/support/input-pair-{name}", str(support))
-    text = text.replace("layout-bench-tools:local",
-                        os.environ.get("LAYOUT_BENCH_TEST_IMAGE", "layout-bench-tools:local"))
-    config_path = tmp_path / "case.toml"
-    config_path.write_text(text)
-    config = tomllib.loads(text)
-    inputs = {}
-    for entry in config["assets"]:
-        asset = Asset((CASE / entry["path"]).read_bytes(),
-                      "spice" if entry["format"] == "cdl" else entry["format"])
-        assert asset.sha256 == entry["sha256"]
-        key = "candidate" if entry["role"] == "physical-witness" else "input:" + entry["role"]
-        inputs[key] = asset
-    destination = tmp_path / "characterization"
-    report = run_evaluation(
-        _characterization_plan(config),
-        inputs, load_toolchain(config_path), destination,
+def evaluate(candidate, environment, destination, backends=None):
+    _, task, configured_backends, _ = environment
+    return run_evaluation(
+        task.evaluation,
+        {"candidate": candidate, **task.evaluation_inputs()},
+        configured_backends if backends is None else backends,
+        destination,
+        task_sha256=task.digest,
+        task_witnessed=task.witnessed,
     )
-    assert all(job["status"] == "passed" for job in report["jobs"].values()), report
-    # Characterization reports intentionally leave aggregate task verdicts unset.
-    assert report["physical_valid"] is None
-    # This catches the former v- pin marker's off-wire extraction failure.
-    extracted = report["jobs"]["rc"]["outputs"]["netlist"]
-    netlist = (destination / extracted["path"]).read_text()
-    # Magic escapes punctuation in local node names; positional port identity
-    # is preserved through its recorded alias map, including continuation lines.
-    alias_file = report["jobs"]["rc"]["evidence"]["port_aliases"]
-    aliases = json.loads((destination / alias_file["path"]).read_text())["aliases"]
-    original_names = {alias: name for name, alias in aliases.items()}
-    logical_lines = re.sub(r"\n\+\s*", " ", netlist).splitlines()
-    interface = next(line.split() for line in logical_lines if line.lower().startswith(".subckt"))
-    assert [original_names.get(name, name) for name in interface] == [
-        ".subckt", "input_common_centroid", "v-", "v+", "vdd", "dn3", "dn4",
-    ]
-    diagonal = {}
-    for phase in ("pre", "post"):
-        for excitation in ("plus", "minus"):
-            job = report["jobs"][f"{phase}_{excitation}"]
-            rows = _ac_rows(destination / job["outputs"]["ac"]["path"])
-            assert rows[0]["frequency"].real == pytest.approx(1e3)
-            assert rows[-1]["frequency"].real == pytest.approx(1e9)
-            assert all(math.isfinite(v.real) and math.isfinite(v.imag) for row in rows for v in row.values())
-            row = min(rows, key=lambda r: abs(r["frequency"].real - 1e6))
-            assert row["frequency"].real == pytest.approx(1e6)
-            for pin, node in (("p", "vp"), ("m", "vm")):
-                driven = pin == ("p" if excitation == "plus" else "m")
-                assert row[f"v({node})"] == pytest.approx(1 if driven else 0, abs=1e-12)
-                # The source current points out of the DUT. The excitation is 1 V.
-                admittance = -row[f"i({node})"]
-                cap = admittance.imag / (2 * math.pi * row["frequency"].real)
-                assert job["measurements"][f"input_{pin}_cap"]["value"] == pytest.approx(cap, rel=1e-6, abs=1e-21)
-                assert job["measurements"][f"input_{pin}_conductance"]["value"] == pytest.approx(
-                    admittance.real, rel=1e-6, abs=1e-20)
-                if driven:
-                    assert cap > 0
-                    diagonal[phase, pin] = cap
-    # The symmetric schematic has identical input loading; extracted metal
-    # adds shunt/coupling capacitance. These are regression observations,
-    # not performance limits for prospective benchmark submissions.
-    assert diagonal["pre", "p"] == pytest.approx(diagonal["pre", "m"], rel=1e-5)
-    for pin in ("p", "m"):
-        assert diagonal["post", pin] > diagonal["pre", pin]
+
+
+def characterize_source(task, backends, values, destination, source=None):
+    """Run one source-netlist point through the declared simulator backend."""
+    data = copy.deepcopy(task.evaluation.description())
+    job = next(job for job in data["jobs"] if job["id"] == "pre")
+    job["parameters"]["values"].update(values)
+    data.update(mode="characterization", jobs=[job], metrics=[])
+    unscore_characterization(data)
+    plan = parse_evaluation(json.dumps(data).encode(), file_format="json")
+    inputs = task.evaluation_inputs()
+    if source is not None:
+        inputs["input:simulation"] = source
+    report = run_evaluation(
+        plan,
+        inputs,
+        backends,
+        destination,
+        task_sha256=task.digest,
+        task_witnessed=task.witnessed,
+    )
+    assert_characterization_unscored(report)
+    return report
+
+
+def assert_same_decision(reference, candidate):
+    assert candidate["outcome"] == reference["outcome"] == "passed"
+    assert candidate["physical_valid"] is reference["physical_valid"] is True
+    assert candidate["specs_pass"] is reference["specs_pass"] is True
+    assert candidate["task_success"] is reference["task_success"] is True
+    assert_layout_score(reference)
+    assert_layout_score(candidate)
+    assert_same_layout_score(reference, candidate)
+    assert candidate["jobs"].keys() == reference["jobs"].keys()
+    assert {name: job["status"] for name, job in candidate["jobs"].items()} == {
+        name: job["status"] for name, job in reference["jobs"].items()
+    }
+    assert candidate["metrics"].keys() == reference["metrics"].keys()
+    for name, metric in reference["metrics"].items():
+        assert candidate["metrics"][name]["status"] == metric["status"] == "passed"
+        assert candidate["metrics"][name]["value"] == pytest.approx(
+            metric["value"], rel=1e-4, abs=1e-12
+        )
+
+
+def ideal_body_netlist(source):
+    """Replace the finite source tap with the ideal rail PEX boundary."""
+    lines = []
+    for raw in source.content.decode().splitlines():
+        if raw.startswith("XR"):
+            continue
+        if raw.startswith("XM"):
+            fields = raw.split()
+            fields[4] = "vdd"
+            raw = " ".join(fields)
+        lines.append(raw)
+    return Asset(("\n".join(lines) + "\n").encode(), "spice")
+
+
+def at_frequency(rows, frequency):
+    row = min(rows, key=lambda item: abs(item["frequency"].real - frequency))
+    assert row["frequency"].real == pytest.approx(frequency, rel=1e-10)
+    return row
+
+
+def independent_input_checks(report, directory, job_name):
+    ac = output_rows(report, directory, job_name, "ac")
+    op = output_rows(report, directory, job_name, "op")[0]
+    assert all(
+        math.isfinite(value.real) and math.isfinite(value.imag)
+        for row in ac
+        for value in row.values()
+    )
+    one_megahertz = at_frequency(ac, 1e6)
+    one_hundred_megahertz = at_frequency(ac, 1e8)
+
+    def differential_gain(row):
+        return abs((row["v(dn3)"] - row["v(dn4)"]) / (row["v(vp)"] - row["v(vm)"]))
+
+    gain = {
+        "differential_gain": differential_gain(one_megahertz),
+        "differential_gain_high": differential_gain(one_hundred_megahertz),
+    }
+    assert all(math.isfinite(value) and value > 0 for value in gain.values())
+    measurements = report["jobs"][job_name]["measurements"]
+    for name, value in gain.items():
+        assert measurements[name]["value"] == pytest.approx(value, rel=2e-5, abs=1e-8)
+
+    operating = {
+        "tail_voltage": op["v(tail)"],
+        "common_drain": (op["v(dn3)"] + op["v(dn4)"]) / 2,
+        "drain_balance": op["v(dn3)"] - op["v(dn4)"],
+        "supply_power": -op["v(vdd)"] * op["i(vdd)"],
+    }
+    for name, value in operating.items():
+        assert math.isfinite(value)
+        assert measurements[name]["value"] == pytest.approx(value, rel=2e-5, abs=1e-12)
+    return gain, operating
+
+
+@pytest.mark.acceptance_eda
+def test_qualified_witness_passes_with_same_source_and_pex_conditions(
+    environment, tmp_path
+):
+    _, task, _, config = environment
+    reference = declared_asset(config, "physical-witness")
+    report = evaluate(reference, environment, tmp_path / "witness")
+
+    assert report["outcome"] == "passed"
+    assert (
+        report["physical_valid"]
+        is report["specs_pass"]
+        is report["task_success"]
+        is True
+    )
+    assert_layout_score(report)
+    assert all(job["status"] == "passed" for job in report["jobs"].values())
+    pre = report["jobs"]["pre"]
+    nominal = report["jobs"]["nominal"]
+    parasitics = report["jobs"]["parasitics"]
+    source = task.evaluation_inputs()["input:simulation"]
+    scope = json.loads(task.evaluation_inputs()["input:pex_scope"].content)
+    assert scope["body_and_tap_connection"].startswith("ideal")
+    assert scope["included"] and scope["excluded"]
+    assert scope["calibration"]["declared_metrics_unchanged"] is True
+    assert scope["calibration"]["maximum_relative_difference"] > 0
+
+    # Source and PEX are calibrated by the same declared deck and values.  The
+    # only DUT change is the RC netlist extracted from this candidate GDS.
+    assert pre["inputs"]["deck"] == nominal["inputs"]["deck"]
+    assert pre["parameters"] == nominal["parameters"]
+    assert pre["inputs"]["dut"]["sha256"] == source.sha256
+    assert (
+        nominal["inputs"]["dut"]["sha256"] == parasitics["outputs"]["netlist"]["sha256"]
+    )
+    assert parasitics["outputs"]["netlist"]["sha256"] != source.sha256
+
+    source_gain, source_operating = independent_input_checks(
+        report, tmp_path / "witness", "pre"
+    )
+    pex_gain, pex_operating = independent_input_checks(
+        report, tmp_path / "witness", "nominal"
+    )
+    assert source_operating["tail_voltage"] == pytest.approx(
+        pex_operating["tail_voltage"], abs=5e-3
+    )
+    assert source_operating["common_drain"] == pytest.approx(
+        pex_operating["common_drain"], abs=5e-3
+    )
+    assert pex_gain["differential_gain"] == pytest.approx(
+        source_gain["differential_gain"], rel=0.03
+    )
+    # Distributed RC must reach the high-frequency behavior, rather than being
+    # silently discarded before the nominal simulation.
+    assert pex_gain["differential_gain_high"] != pytest.approx(
+        source_gain["differential_gain_high"], rel=1e-2
+    )
+    assert (
+        report["jobs"]["pre"]["outputs"]["ac"]["sha256"]
+        != report["jobs"]["nominal"]["outputs"]["ac"]["sha256"]
+    )
+
+
+@pytest.mark.acceptance_eda
+def test_finite_tap_is_negligible_at_the_declared_ideal_body_boundary(
+    environment, tmp_path
+):
+    _, task, backends, _ = environment
+    source = task.evaluation_inputs()["input:simulation"]
+    finite = characterize_source(task, backends, {}, tmp_path / "finite-tap")
+    ideal = characterize_source(
+        task,
+        backends,
+        {},
+        tmp_path / "ideal-body",
+        ideal_body_netlist(source),
+    )
+    assert finite["outcome"] == ideal["outcome"] == "passed"
+    assert finite["task_success"] is ideal["task_success"] is None
+    scope = json.loads(task.evaluation_inputs()["input:pex_scope"].content)
+    limit = scope["calibration"]["maximum_relative_difference"]
+    finite_measurements = finite["jobs"]["pre"]["measurements"]
+    ideal_measurements = ideal["jobs"]["pre"]["measurements"]
+    for name, measurement in finite_measurements.items():
+        denominator = max(
+            abs(measurement["value"]), abs(ideal_measurements[name]["value"]), 1e-9
+        )
+        difference = abs(ideal_measurements[name]["value"] - measurement["value"])
+        assert difference / denominator <= limit, (
+            name,
+            measurement,
+            ideal_measurements[name],
+        )
+
+
+_MISSING_TAIL = b"""from klayout import db
+layout = db.Layout()
+layout.read("original.gds")
+top = layout.top_cell()
+removed = 0
+for shape in list(top.shapes(layout.layer(8, 25)).each()):
+    if shape.is_text() and shape.text.string == "tail":
+        shape.delete()
+        removed += 1
+assert removed == 1
+layout.write("mutated.gds")
+"""
+
+_TRANSLATE = b"""from klayout import db
+layout = db.Layout()
+layout.read("original.gds")
+top = next(cell for cell in layout.top_cells() if cell.name == "input_common_centroid")
+top.transform(db.Trans(500, 700))
+layout.write("translated.gds")
+"""
+
+
+def translated_witness(backends, config):
+    mutation = backends["layout.artifact"].tool.run(
+        ["python", "translate.py"],
+        {
+            "translate.py": Asset(_TRANSLATE, "python"),
+            "original.gds": declared_asset(config, "physical-witness"),
+        },
+        {"translated.gds": "gds"},
+    )
+    assert mutation.returncode == 0 and not mutation.reason, mutation.evidence
+    return mutation.files["translated.gds"]
+
+
+@pytest.mark.acceptance_eda
+def test_repeat_translation_and_source_sensitivity_are_exercised(environment, tmp_path):
+    case_path, task, backends, config = environment
+    reference = declared_asset(config, "physical-witness")
+    first = evaluate(reference, environment, tmp_path / "repeat-first")
+    second = evaluate(
+        reference,
+        environment,
+        tmp_path / "repeat-second",
+        load_toolchain(case_path),
+    )
+    translated = evaluate(
+        translated_witness(backends, config), environment, tmp_path / "translated"
+    )
+    assert_same_decision(first, second)
+    assert_same_decision(first, translated)
+
+    pre = next(
+        job for job in task.evaluation.description()["jobs"] if job["id"] == "pre"
+    )
+    values = pre["parameters"]["values"]
+    source = characterize_source(task, backends, {}, tmp_path / "sensitivity-base")
+    loaded = characterize_source(
+        task,
+        backends,
+        {"drain_load": values["drain_load"] * 2},
+        tmp_path / "sensitivity-load",
+    )
+    biased = characterize_source(
+        task,
+        backends,
+        {"tail_current": values["tail_current"] * 0.75},
+        tmp_path / "sensitivity-bias",
+    )
+    assert all(report["outcome"] == "passed" for report in (source, loaded, biased))
+    source_gain, source_operating = independent_input_checks(
+        source, tmp_path / "sensitivity-base", "pre"
+    )
+    loaded_gain, loaded_operating = independent_input_checks(
+        loaded, tmp_path / "sensitivity-load", "pre"
+    )
+    _, biased_operating = independent_input_checks(
+        biased, tmp_path / "sensitivity-bias", "pre"
+    )
+    assert loaded_operating["common_drain"] != pytest.approx(
+        source_operating["common_drain"], rel=1e-3
+    )
+    assert loaded_gain["differential_gain"] != pytest.approx(
+        source_gain["differential_gain"], rel=1e-3
+    )
+    assert biased_operating["tail_voltage"] != pytest.approx(
+        source_operating["tail_voltage"], rel=1e-3
+    )
+
+
+@pytest.mark.acceptance_eda
+def test_missing_tail_port_cannot_qualify(environment, tmp_path):
+    _, _task, backends, config = environment
+    mutation = backends["layout.artifact"].tool.run(
+        ["python", "remove_tail.py"],
+        {
+            "remove_tail.py": Asset(_MISSING_TAIL, "python"),
+            "original.gds": declared_asset(config, "physical-witness"),
+        },
+        {"mutated.gds": "gds"},
+    )
+    assert mutation.returncode == 0 and not mutation.reason, mutation.evidence
+    report = evaluate(
+        mutation.files["mutated.gds"], environment, tmp_path / "missing-tail"
+    )
+
+    assert report["outcome"] == "failed"
+    assert report["physical_valid"] is report["task_success"] is False
+    assert report["jobs"]["lvs"]["status"] == "failed"
+    assert report["jobs"]["parasitics"]["status"] == "blocked"
+    assert report["jobs"]["nominal"]["status"] == "blocked"
+    assert_layout_score(report)
+    assert report["score"]["value"] == 0

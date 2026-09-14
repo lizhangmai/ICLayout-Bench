@@ -36,12 +36,12 @@ def approve(root, manifest, **export_options):
             "agents": {key: {"conditions_sha256": json_asset(agent).sha256,
                               "resource_review": authorization, "endpoint": None}
                        for key, agent in manifest["agents"].items()},
-            "export": {"fields": ["success_rate", "physical_valid_rate", "infrastructure_error_rate"],
+            "export": {"score": {"method": "bench-v1", "task_score_method": "layout-v1", "maximum": 100},
+                       "fields": ["score", "infrastructure_error_rate"],
                        "min_tasks": 3, "min_families": 2, "min_trials": 6, "decimals": 2,
-                       "groups": [{"configuration_id": key, "environment_group": group,
-                                   "label": f"system-{i}-environment-{j}"}
-                                  for i, key in enumerate(manifest["agents"])
-                                  for j, group in enumerate(sorted({t["environment_group"] for t in manifest["tasks"].values()}))],
+                       "groups": [{"configuration_id": key, "run_kind": manifest["agents"][key]["run_kind"],
+                                   "label": f"system-{i}"}
+                                  for i, key in enumerate(manifest["agents"])],
                        **export_options}}
     return data
 

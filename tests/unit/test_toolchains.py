@@ -53,6 +53,67 @@ response = "absent"
         load_toolchain(config, factories={"custom": factory})
 
 
+def test_support_profile_metadata_stays_out_of_backend_settings(toolchain_config):
+    config = toolchain_config('''schema_version = 1
+[backends.a]
+type = "custom"
+settings = { image = "tools", support = "build/support/models" }
+support_profiles = { support = "hbt-models" }
+[bindings]
+response = "a"
+''')
+    created = []
+
+    def factory(**settings):
+        created.append(settings)
+        return object()
+
+    load_toolchain(config, factories={"custom": factory})
+    assert created == [{"image": "tools", "support": "build/support/models"}]
+
+
+def test_composite_support_profile_metadata_covers_each_support_setting(toolchain_config):
+    config = toolchain_config('''schema_version = 1
+[backends.a]
+type = "custom"
+settings = { image = "tools", klayout_support = "build/support/klayout", magic_support = "build/support/magic" }
+support_profiles = { klayout_support = "klayout", magic_support = "magic" }
+[bindings]
+response = "a"
+''')
+    created = []
+
+    def factory(**settings):
+        created.append(settings)
+        return object()
+
+    load_toolchain(config, factories={"custom": factory})
+    assert created == [{"image": "tools", "klayout_support": "build/support/klayout",
+                       "magic_support": "build/support/magic"}]
+
+
+@pytest.mark.parametrize("metadata, message", [
+    ('support_profiles = { klayout_support = "klayout" }', "missing"),
+    ('support_profiles = { profile = "hbt-models" }', "non-support"),
+    ('support_profiles = {}', "nonempty"),
+])
+def test_invalid_support_profile_metadata_fails_before_backend_creation(toolchain_config, metadata, message):
+    config = toolchain_config(f'''schema_version = 1
+[backends.a]
+type = "custom"
+settings = {{ image = "tools", klayout_support = "build/support/klayout", magic_support = "build/support/magic" }}
+{metadata}
+[bindings]
+response = "a"
+''')
+
+    def factory(**settings):
+        pytest.fail("Invalid support metadata must not initialize a tool")
+
+    with pytest.raises(ValueError, match=message):
+        load_toolchain(config, factories={"custom": factory})
+
+
 @pytest.mark.parametrize("content, message", [
     ('schema_version = 2\nkind = "layout_case"\n', "does not declare a toolchain"),
     ('schema_version = 1\nkind = "netlist_to_gds"\n', "schema-2 layout_case"),

@@ -33,7 +33,7 @@ For each session, the Runner prepares separate read-only `/task`, `/agent`, `/re
 
 ### Submission and Durable Records
 
-The CLI reads the common first message from `/protocol/prompt.txt` and obtains paths and output requirements, sourced from the task configuration, from `/protocol/task.json`. When constraints are embedded in the task configuration, this JSON also contains their structured definition in `constraints`; no separate constraints file is materialized. The submission action is `python -I /protocol/submit.py`: the client sends only a `submit` request to the Unix socket for this run and supplies no candidate bytes, file path, or success assertion. The host runs a read-only helper against the container, clears the CLI's custom environment, isolates Python imports, and opens each directory and ordinary file along the configured output path with `O_NOFOLLOW`. It rejects links, FIFOs, oversized files, and changes made during copying. The host recomputes the digest, accepts only after the copy completes before the deadline, and returns the sequence number, receipt time, format, size, and digest to the client.
+The CLI reads the common first message from `/protocol/prompt.txt` and obtains paths and output requirements, sourced from the task configuration, from `/protocol/task.json`. The descriptor also carries `witnessed`: `true` when the case declares a qualification reference, `false` otherwise — a solver may treat `false` as "no feasibility witness is published" but must not read anything into the task's difficulty. When constraints are embedded in the task configuration, this JSON also contains their structured definition in `constraints`; no separate constraints file is materialized. The submission action is `python -I /protocol/submit.py`: the client sends only a `submit` request to the Unix socket for this run and supplies no candidate bytes, file path, or success assertion. The host runs a read-only helper against the container, clears the CLI's custom environment, isolates Python imports, and opens each directory and ordinary file along the configured output path with `O_NOFOLLOW`. It rejects any symlink, special file, or missing path so the snapshot rule stays explicit.
 
 The host first writes the candidate by content address and `fsync`s the file and directories, then checks the deadline and decides whether to accept it. It appends a `submission` event containing the receipt and artifact reference and `fsync`s successfully before returning `accepted=true`. The receipt time is the decision time after the candidate is durable; event commit and receipt delivery may be slightly later. Reject a request whose candidate reaches durable storage only after the deadline. Writes to the workspace after acceptance do not modify the archived immutable candidate. No explicit submission is `no_submission`, and a submission after the deadline is rejected. Normal exit, non-zero exit, and timeout all use the last successfully received snapshot. A submission receipt confirms delivery; it cannot self-report DRC/LVS or performance success. After the session stops, remove the entire container and pass the frozen candidate and independent trusted task materials to the existing evaluator.
 
@@ -146,6 +146,10 @@ Classify an evaluation anomaly as an artifact failure only after confirming a vi
 
 ## 3. Freeze a Batch Run Plan
 
+Batch entries require a `post_layout` evaluation with a `layout-v1` scoring
+declaration. Use standalone `evaluate` or `characterize` for measurement
+workflows without a benchmark score.
+
 Create a run-plan TOML for your selected case and harness. After quick start, both `tasks[].config` and `tasks[].toolchain` can point to the generated `prepared/case/case.toml`; `agents[].resources` can point to `prepared/agent-resources`. Resolve these paths relative to the plan file. Run and recompute its report with:
 
 ```bash
@@ -182,25 +186,62 @@ Replace infrastructure errors according to the [failure classifications](#failur
 
 `summary.json` and `main.py summarize` recompute internal statistics from durable records and record the source digest of the statistics implementation used. Recomputing after changing that implementation does not overwrite original run evidence. A summary validates the digests for the execution manifest, individual records, event logs, and evaluation reports, together with task and CLI inputs, budgets, images, inference configuration, source, and candidate/judge bindings. It rejects duplicate counts, unplanned replacements, corrupt records, and inconsistent conditions. Slots that have not run, were interrupted, exhausted replacement attempts, or await evaluation recheck remain `missing`. `complete` means that the planned measurement sample is fully covered; it does not mean that all runs succeeded or that formal admission was granted. The batch CLI returns 0 when all scheduled measurements finish and 2 when samples are missing, while per-task failures remain in the statistics.
 
-Group statistics by configuration, task environment, and actual evaluation backend. Within a group, weight families equally and then tasks within each family equally; also report task-equal weighting. If samples are missing, the primary success rate is `null`; retain per-task observed counts, success rates, `missing`, and `replacements` rather than shrinking the planned denominator to make coverage appear complete. For every task, provide raw success counts and a [95% Wilson interval](https://www.itl.nist.gov/div898/handbook/prc/section2/prc241.htm), with non-zero uncertainty even for all-success or all-failure results. With missing samples, an observed interval describes only the observed portion. Weighted summary intervals, family-level generalization intervals, and intervals for differences between configurations are not implemented; those fields are `null`, so they cannot support claims of broad generalization or significant superiority.
+The single ranked result is `BenchScore`, using the task score defined in the
+[task guide](tasks.md#task-scoring). Freeze the task set, each task's integer
+coefficient, repetitions, budgets and actual evaluation bindings before running.
+A model configuration is evaluated across this fixed suite even when individual
+tasks require different declared tool environments; evidence still binds and
+validates each task's own environment. Different model configurations, execution
+kinds or unplanned judge identities cannot be pooled into the same score.
 
-Batch groups also expose `inference_forwarded_requests`, `inference_denied_requests`, `inference_failed_requests`, `inference_truncated_requests`, `inference_content_filtered_requests`, `inference_cancelled_requests`, `inference_wall_seconds`, and `inference_usage`. The latter keeps known/missing counts and nullable totals for each observable usage field. These are resource diagnostics; they do not enter the success score or imply that two providers' token counts represent equal work.
+Within `bench_score.cohorts`, `missing` counts slots without a completed
+non-infrastructure attempt, and `unknown` counts completed attempts without a
+valid grade. A score cohort is `complete` only when both counts are zero.
+
+Average all scheduled independent repetitions within each task, then take the
+coefficient-weighted mean across tasks. No submission, an Agent error or a
+budget stop scores zero. A normally completed candidate receives its
+`layout-v1` grade, including partial credit for an electrical violation after
+physical validation. `run.json.score` is the official attempt score; the
+evaluation report records the inspected candidate's grade, even if the attempt
+ended early. Infrastructure failures may use only the predeclared replacement
+allowance; evaluator errors without a valid grade remain pending. If any
+scheduled result is missing or unknown, the formal score is `null`; do not
+drop tasks, shrink denominators or select the best repetition. Per-task rows
+retain observed counts, raw outcomes and attempt scores; evaluation reports
+retain the component breakdown.
+
+Task-success and physical-validity counts are diagnostics, not alternative
+family-weighted or task-equal ranking systems. A task's `witnessed` flag stays
+bound to its frozen identity so readers can distinguish demonstrated feasibility
+from a witness-less specification. Reports must disclose the exact suite identity;
+adding cases, changing coefficients or changing scoring calibration creates a
+new benchmark version whose bare score is not directly comparable with old ones.
+
+Batch groups also expose `inference_forwarded_requests`, `inference_denied_requests`, `inference_failed_requests`, `inference_truncated_requests`, `inference_content_filtered_requests`, `inference_cancelled_requests`, `inference_wall_seconds`, and `inference_usage`. The latter keeps known/missing counts and nullable totals for each observable usage field. These are resource diagnostics; they do not enter BenchScore or imply that two providers' token counts represent equal work.
 
 Store physical-validity and task-success rates separately. Retain raw metric values and units by task for every measured candidate whose evaluator produced a numeric value in `observed_metrics`; `successful_metrics` is the success-only view kept for compatibility. Do not average quality measurements with different scales across tasks. Resource statistics distinguish all attempts (including replacements), valid measurements, and success/failure subsets. Failure causes are retained in per-task and group `failure_modes` counters, while evaluator errors remain diagnostics rather than model failures. When usage is missing, the total is `null`, with known/missing counts and a distribution for the known portion. Keep offline programs and deterministic endpoints labeled `offline_cli_development` and `model_protocol_test`; do not combine them into real model scores.
 
-For task `t`, schedule `n_t` independent repetitions in advance and, after infrastructure replacements are complete, calculate:
+For task `t`, schedule `n_t` independent repetitions in advance:
 
 ```text
-p_t = successful trials / n_t
-SuccessRate = Σ_t w_t · p_t
-w_t = 1 / (number of families × number of tasks in t's family)
+TaskMean_t = sum(score_t,r for each scheduled repetition r) / n_t
+BenchScore = sum(coefficient_t * TaskMean_t) / sum(coefficient_t)
 ```
 
-Multiple modifications within one run are still one solve. Independent repetitions estimate success rate; do not replace it with “succeeded at least once.” Fix repetition count, budget, and order before execution and do not change them based on intermediate results. Group different processes and actual judge configurations separately; report public development, protocol tests, and hidden scopes separately.
+Coefficients are absolute integers, not stored percentages. Adding a task only
+adds its coefficient and mean to this formula; existing coefficients stay fixed.
+Repeated operating points inside one candidate evaluation contribute through the
+worst-observation rule, not as additional independent attempts.
 
-Correctness, quality, and efficiency answer different questions. Do not combine DRC/LVS, area, tokens, and cost into a weighted total score. Two configurations with different successful subsets cannot be ranked directly by their respective mean area; comparisons on common successful tasks must disclose coverage and selection bias. Tokens from different providers do not inherently represent equal compute, and missing usage or unpriced cost must not be filled with 0.
+Multiple modifications within one run are still one solve. Independent repetitions estimate expected task score; do not replace it with “succeeded at least once.” Fix repetition count, budget, and order before execution and do not change them based on intermediate results. Group different processes and actual judge configurations separately; report public development, protocol tests, and hidden scopes separately.
 
-A per-task Wilson interval describes repetition variation on that fixed task. It does not establish generalization to a broader circuit family, and overlap of two intervals is not a substitute for a difference test.
+Correctness, quality, and efficiency answer different questions. The unified task formula uses physical validity, electrical attainment and qualified area utility. Tokens, cost and time remain separate resource diagnostics. Two configurations with different successful subsets cannot be ranked directly by their respective mean area; comparisons on common successful tasks must disclose coverage and selection bias. Tokens from different providers do not inherently represent equal compute, and missing usage or unpriced cost must not be filled with 0.
+
+A per-task Wilson interval describes variation in binary task success on that
+fixed task; it is not a confidence interval for the continuous task score.
+It does not establish generalization to a broader circuit family, and overlap
+of two intervals is not a substitute for a difference test.
 
 `recover` retrieves a submission, `evaluate` re-evaluates a candidate, and `summarize` recomputes statistics; none restores a model session. An evaluation fix should create a related new record for the same frozen candidate and retain old evidence. Rerunning an Agent can reproduce conditions and the statistics process, but cannot guarantee the same GDS.
 

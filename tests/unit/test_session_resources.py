@@ -6,7 +6,6 @@ import pytest
 
 from benchmarking.files import Asset
 from benchmarking.session import (
-    PDK_RESOURCE_ENVIRONMENT,
     resource_environment,
     resource_preflight,
 )
@@ -28,12 +27,24 @@ def pdk_resources(*, manifest=True, missing=()):
     return resources
 
 
-def test_reviewed_pdk_bundle_gets_container_local_import_environment():
-    assert resource_environment(pdk_resources()) == PDK_RESOURCE_ENVIRONMENT
+@pytest.mark.parametrize('manifest', [False, True])
+def test_resource_paths_resolve_the_pdk_packages(tmp_path, manifest):
+    from importlib.machinery import PathFinder
+    from pathlib import PurePosixPath
 
-
-def test_file_only_pdk_bundle_is_supported_for_loaded_bundle_callers():
-    assert resource_environment(pdk_resources(manifest=False)) == PDK_RESOURCE_ENVIRONMENT
+    resources = pdk_resources(manifest=manifest)
+    for name in resources:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('# synthetic importable module\n')
+    environment = resource_environment(resources)
+    assert environment['KLAYOUT'] == '1'
+    paths = [str(tmp_path / PurePosixPath(path).relative_to('/resources'))
+             for path in environment['PYTHONPATH'].split(':')]
+    for module in ['sg13g2_pycell_lib', 'cni']:
+        spec = PathFinder.find_spec(module, paths)
+        assert spec is not None, (module, paths)
+        assert all(str(tmp_path) in str(path) for path in spec.submodule_search_locations)
 
 
 def test_incomplete_pdk_bundle_fails_before_container_start():
@@ -54,6 +65,6 @@ def test_generic_resources_do_not_get_pdk_environment_or_reference_material():
 def test_preflight_describes_only_reviewed_resource_imports():
     info = resource_preflight(pdk_resources())
     assert info["mount"] == "/resources"
-    assert info["environment"] == PDK_RESOURCE_ENVIRONMENT
+    assert info["environment"] == resource_environment(pdk_resources())
     assert info["python_imports"] == ["klayout", "pya", "sg13g2_pycell_lib"]
     assert "reference" not in json.dumps(info).lower()

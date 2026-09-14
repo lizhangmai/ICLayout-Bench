@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add Case"
+  short_description: "Add benchmark cases under shared qualification rules"
+  default_prompt: "Use $add-case to add a case to Layout-Bench under the repository task, scoring, documentation, and qualification standards."

@@ -170,8 +170,25 @@ def lvs(config):
     # mismatches.  Keep the adapter's fallback check aligned with that setting;
     # otherwise the profile's ignore_top_ports_mismatch switch would be inert.
     ignore_top_ports = config.get("variables", {}).get("ignore_top_ports_mismatch") == "true"
-    if not ignore_top_ports and not report.flag_missing_ports(reference):
-        return "failed", "LVS top-level ports are missing or mislabeled", details
+    if not ignore_top_ports:
+        # KLayout's flag_missing_ports is case-sensitive while SPICE port names
+        # are not.  Compare the actual cross-reference pin pairs case
+        # insensitively so maintained lowercase labels remain valid, while a
+        # label moved to another conductor is still rejected.
+        port_pairs = list(xref.each_pin_pair(target[0]))
+        details["ports"] = [{
+            "layout": pair.first().name() if pair.first() else None,
+            "reference": pair.second().name() if pair.second() else None,
+            "status": str(pair.status()),
+        } for pair in port_pairs]
+        valid_ports = len(port_pairs) == len(list(reference.each_pin())) and all(
+            pair.first() and pair.second()
+            and pair.first().name().casefold() == pair.second().name().casefold()
+            and pair.status() == db.NetlistCrossReference.Match
+            for pair in port_pairs
+        )
+        if not valid_ports:
+            return "failed", "LVS top-level ports are missing or mislabeled", details
     return "passed", "", details
 
 

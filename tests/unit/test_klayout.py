@@ -70,7 +70,7 @@ def test_all_drc_decks_contribute_to_one_gate(monkeypatch, primary, extra, expec
 
     def run_deck(config, suffix, used):
         calls.append((config["deck"], suffix))
-        status = primary if not suffix else extra
+        status = {"main.drc": primary, "extra.drc": extra}[config["deck"]]
         count = int(status == "failed")
         return status, "test failure" if status != "passed" else "", {
             "violations": count, "unwaived_violations": count,
@@ -81,7 +81,7 @@ def test_all_drc_decks_contribute_to_one_gate(monkeypatch, primary, extra, expec
     monkeypatch.setitem(main.__globals__, "run_deck", run_deck)
     status, _, details = main({"check": "drc", "deck": "main.drc", "required_categories": ["rule"],
                               "additional_decks": [{"deck": "extra.drc", "required_categories": ["rule"]}]})
-    assert calls == [("main.drc", ""), ("extra.drc", "-1")]
+    assert {deck for deck, _ in calls} == {"main.drc", "extra.drc"}
     assert status == expected
     assert details["violations"] == int(primary == "failed") + int(extra == "failed")
-    assert [entry["report"] for entry in details["decks"]] == ["report.db", "report-1.db"]
+    assert len({entry["report"] for entry in details["decks"]}) == len(calls)

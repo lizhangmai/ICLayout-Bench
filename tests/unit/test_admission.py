@@ -45,11 +45,14 @@ def test_pinned_admission_complete_run_and_whitelist_export(tmp_path):
     assert len(seen) == 12 and result["outcome"] == "complete"
     assert summarize_batch(tmp_path / "run") == result["summary"]
     released = export_batch(tmp_path / "run", policy.source.sha256)
-    assert [g["success_rate"] for g in released["groups"]] == [.5, 0]
+    assert [g["score"]["value"] for g in released["groups"]] == [60.0, 0.0]
+    assert all(g["score"]["method"] == "bench-v1" and g["score"]["maximum"] == 100
+               for g in released["groups"])
     assert released["dataset"] == "synthetic_hidden"
     assert all(g["run_kind"] == "offline_cli_development" for g in released["groups"])
     assert all(set(g) == {"label", "run_kind", "task_count", "family_count", "trials", *data["export"]["fields"]}
                for g in released["groups"])
+    assert "weighting" not in released
     raw = json.dumps(released)
     assert SECRET not in raw and '"t0"' not in raw and "successful_metrics" not in raw
     assert "environment_group" not in raw and "sha256" not in raw and "resources" not in raw
@@ -140,11 +143,26 @@ def test_small_groups_suppressed_and_repetitions_do_not_replace_diversity(tmp_pa
     assert export_batch(tmp_path / "run", policy.source.sha256)["groups"] == []
 
 
-@pytest.mark.parametrize("field", ["tasks", "successful_metrics", "resources", "environment_group", "prompt"])
+@pytest.mark.parametrize("field", ["success_rate", "physical_valid_rate", "tasks", "successful_metrics", "resources", "environment_group", "prompt"])
 def test_unknown_export_fields_rejected_before_execution(tmp_path, field):
     _, root, data, _ = setup(tmp_path)
     data["export"]["fields"].append(field)
-    with pytest.raises(ValueError, match="whitelist"):
+    with pytest.raises(ValueError, match="Export fields"):
+        save_policy(root, data)
+
+
+@pytest.mark.parametrize("change", ["missing", "method", "maximum", "extra"])
+def test_export_policy_freezes_the_single_layout_score_contract(tmp_path, change):
+    _, root, data, _ = setup(tmp_path)
+    if change == "missing":
+        del data["export"]["score"]
+    elif change == "method":
+        data["export"]["score"]["method"] = "legacy-family-rate"
+    elif change == "maximum":
+        data["export"]["score"]["maximum"] = 1
+    else:
+        data["export"]["score"]["breakdown"] = True
+    with pytest.raises(ValueError, match="score|layout-v1"):
         save_policy(root, data)
 
 
@@ -159,6 +177,31 @@ def test_incomplete_or_unapproved_runs_cannot_be_exported(tmp_path):
     execute(path, tmp_path / "development")
     with pytest.raises(ValueError, match="no frozen admission"):
         export_batch(tmp_path / "development", policy.source.sha256)
+
+
+def test_terminal_evaluator_error_exports_an_unknown_score(tmp_path):
+    """A finished schedule may publish a null score for a failed evaluator."""
+    path, root, data, _ = setup(tmp_path, agents=1)
+    policy = save_policy(root, data)
+
+    from test_evaluate import Checks
+
+    def failing_backend(_):
+        return {**backends(None), "check": Checks(crash="artifact")}
+
+    batch = execute_plan(load_plan(path), tmp_path / "run", policy=policy,
+                         session_factory=FakeSession, toolchain_loader=failing_backend)
+    assert batch["phase"] == "finished"
+    bench_score = batch["summary"]["bench_score"]
+    cohort = bench_score["cohorts"][0]
+    assert cohort["missing"] == 0 and cohort["unknown"] > 0
+    assert bench_score["complete"] is False
+
+    released = export_batch(tmp_path / "run", policy.source.sha256)
+    assert len(released["groups"]) == 1
+    assert released["groups"][0]["score"] == {
+        "method": "bench-v1", "value": None, "maximum": 100,
+    }
 
 
 def test_export_uses_original_frozen_policy_not_posthoc_looser_rules(tmp_path):

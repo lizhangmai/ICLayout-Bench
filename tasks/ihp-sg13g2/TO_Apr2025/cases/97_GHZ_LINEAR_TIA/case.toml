@@ -1,143 +1,372 @@
 schema_version = 2
 kind = "layout_case"
 id = "TO_Apr2025.97_GHZ_LINEAR_TIA"
-title = "TO_Apr2025 97 GHz low-noise linear TIA"
-role = "design"
-status = "candidate"
+title = "TO_Apr2025 97-derived multi-stage linear TIA"
+status = "qualified"
+
+[task]
+coefficient = 4
+kind = "netlist_to_gds"
+family = "ihp_sg13g2_hbt_tia_physical"
+environment = "ihp-sg13g2-to-97-derived-linear-tia"
+
+[task.inputs.description]
+path = "problem.md"
+sha256 = "879563b94e675001ca7dbffc73def08d3a71137cbfb7d4ad232cf6583e0a3bff"
+format = "text"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+sha256 = "150ab19522eecccf2889ed62c07b14e15e29e97a75ce12563fcd95d846be9112"
+format = "spice"
+subcircuit = "FMD_QNC_01_LIN_TIA"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+sha256 = "fc6c9d1a6ea884f20e7cbddee9c30b4feff18e4a70fbf729789101955a87c334"
+format = "spice"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+sha256 = "759a7548f5ea81399322a73a10b58207d3ff28b2a5ed0ef7d55850b1a6b3959e"
+format = "spice"
+
+[task.inputs.license]
+collection_source = "LICENSE"
+path = "materials/LICENSE"
+sha256 = "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+format = "text"
+
+[task.inputs.pex_scope]
+path = "materials/pex_scope.json"
+sha256 = "84f58f488f94a74ffed9299d43fd9f70c53fb721dc2f747a4672fcb5410ae338"
+format = "json"
+
+[task.constraints]
+schema_version = 1
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+  [1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0],
+  [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0],
+  [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0],
+  [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0],
+  [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0],
+  [133, 0], [134, 0], [139, 0], [152, 0],
+]
+max_width_um = 720
+max_height_um = 620
+
+[[task.constraints.quality]]
+id = "area"
+type = "functional_bbox_area"
+layers_from = "outline"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "FMD_QNC_01_LIN_TIA"
+max_bytes = 33554432
+
+[task.evaluation]
+schema_version = 1
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout-v1"
+area_metric = "functional_area"
+area_target = 420000
+area_zero = 446400
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+inputs = { layout = "candidate", task = "task" }
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+inputs = { layout = "candidate", task = "task" }
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+inputs = { layout = "candidate", task = "task", netlist = "input:netlist" }
+outputs = { database = "klayout-lvs", binding = "json" }
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = ["artifact", "drc", "lvs"]
+inputs = { layout = "candidate", task = "task", constraints = "input:constraints", database = "job:lvs:database", binding = "job:lvs:binding" }
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = ["geometry:area"]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.parasitics"
+requires = ["artifact", "drc", "lvs", "geometry"]
+inputs = { layout = "candidate", task = "task" }
+outputs = { netlist = "spice" }
+
+[task.evaluation.jobs.parameters]
+ports = ["RFIN", "RFOUT", "VCC1", "VCC2", "VCC3", "VSS"]
+
+[[task.evaluation.jobs]]
+id = "negative"
+stage = "simulate"
+operation = "circuit.simulate"
+inputs = { circuit = "job:parasitics:netlist", deck = "input:performance" }
+outputs = { op = "ngspice-raw", ac = "ngspice-raw", dc = "ngspice-raw" }
+
+[task.evaluation.jobs.parameters.values]
+input_current = -0.000005
+
+[task.evaluation.jobs.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+supply3_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+linearity_error_pct = "percent"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+dc = "dc_transfer.raw"
+
+[[task.evaluation.jobs]]
+id = "zero"
+stage = "simulate"
+operation = "circuit.simulate"
+inputs = { circuit = "job:parasitics:netlist", deck = "input:performance" }
+outputs = { op = "ngspice-raw", ac = "ngspice-raw", dc = "ngspice-raw" }
+
+[task.evaluation.jobs.parameters.values]
+input_current = 0
+
+[task.evaluation.jobs.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+supply3_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+linearity_error_pct = "percent"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+dc = "dc_transfer.raw"
+
+[[task.evaluation.jobs]]
+id = "positive"
+stage = "simulate"
+operation = "circuit.simulate"
+inputs = { circuit = "job:parasitics:netlist", deck = "input:performance" }
+outputs = { op = "ngspice-raw", ac = "ngspice-raw", dc = "ngspice-raw" }
+
+[task.evaluation.jobs.parameters.values]
+input_current = 0.000005
+
+[task.evaluation.jobs.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+supply3_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+linearity_error_pct = "percent"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+dc = "dc_transfer.raw"
+
+[[task.evaluation.metrics]]
+id = "transimpedance_low"
+category = "performance"
+observations = ["negative:transimpedance_low", "zero:transimpedance_low", "positive:transimpedance_low"]
+unit = "ohm"
+direction = "target"
+aggregation = "min"
+lower = 300
+upper = 700
+dimension = "response"
+zero_lower = 0
+zero_upper = 1000
+
+[[task.evaluation.metrics]]
+id = "transimpedance_high"
+category = "performance"
+observations = ["negative:transimpedance_high", "zero:transimpedance_high", "positive:transimpedance_high"]
+unit = "ohm"
+direction = "target"
+aggregation = "min"
+lower = 300
+upper = 700
+dimension = "response"
+zero_lower = 0
+zero_upper = 1000
+
+[[task.evaluation.metrics]]
+id = "linearity_error_pct"
+category = "performance"
+observations = ["negative:linearity_error_pct", "zero:linearity_error_pct", "positive:linearity_error_pct"]
+unit = "percent"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 2
+dimension = "response"
+zero_lower = 0
+zero_upper = 4
+
+[[task.evaluation.metrics]]
+id = "input_bias"
+category = "performance"
+observations = ["negative:input_bias", "zero:input_bias", "positive:input_bias"]
+unit = "V"
+direction = "target"
+aggregation = "min"
+lower = 0.55
+upper = 1.05
+dimension = "bias"
+zero_lower = 0.3
+zero_upper = 1.3
+
+[[task.evaluation.metrics]]
+id = "output_bias"
+category = "performance"
+observations = ["negative:output_bias", "zero:output_bias", "positive:output_bias"]
+unit = "V"
+direction = "target"
+aggregation = "min"
+lower = 1.4
+upper = 2.7
+dimension = "bias"
+zero_lower = 1.1
+zero_upper = 3.0
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = ["negative:supply_power", "zero:supply_power", "positive:supply_power"]
+unit = "W"
+direction = "target"
+aggregation = "max"
+lower = 0.001
+upper = 0.02
+dimension = "supply"
+zero_lower = 0.0005
+zero_upper = 0.03
+
+[[assets]]
+path = "reference/FMD_QNC_01_LIN_TIA.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "4c8f7d25a2255922054056f8fb69c8b9980b3b1857d9762a9b05365437a9d028"
+
+[qualification]
+evidence = "README.md"
+reference = "reference/FMD_QNC_01_LIN_TIA.gds"
+
+[toolchain]
+schema_version = 1
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.parasitics" = "parasitics"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "layout-bench-tools:local"
+timeout_seconds = 120
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+support_profiles = { support = "klayout" }
+
+[toolchain.backends.drc.settings]
+image = "layout-bench-tools:local"
+check = "drc"
+support = "build/support/tia97-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+support_profiles = { support = "klayout" }
+
+[toolchain.backends.lvs.settings]
+image = "layout-bench-tools:local"
+check = "lvs"
+support = "build/support/tia97-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "layout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 60
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+support_profiles = { support = "hbt-models" }
+
+[toolchain.backends.simulation.settings]
+image = "layout-bench-tools:local"
+support = "build/support/tia97-hbt-models"
+timeout_seconds = 600
+
+[toolchain.backends.parasitics]
+type = "sg13g2-hbt-rc-docker"
+support_profiles = { klayout_support = "klayout", magic_support = "magic" }
+
+[toolchain.backends.parasitics.settings]
+image = "layout-bench-tools:local"
+klayout_support = "build/support/tia97-klayout"
+klayout_profile = "lvs-upstream.json"
+magic_support = "build/support/tia97-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+timeout_seconds = 600
+disable_tap_extraction = true
 
 [origin]
-checkout = "third_party/TO_Apr2025"
-commit = "63e203a0eccfb6028a1a0a8364553e4e979b55b3"
-license = "Apache-2.0 upstream root; file-level notices, PDK, models, and tool licenses apply"
-
-[[sources]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.schematic"
-path = "97_GHZ_LINEAR_TIA/design_data/qucs-s/97_GHZ_LINEAR_TIA.sch"
-role = "design"
-format = "qucs"
-sha256 = "888bf18885d41187f15c08e11e3a560593e40b12f8e9f6c4132cf7954fa2a1b3"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.reference_gds"
-path = "97_GHZ_LINEAR_TIA/design_data/gds/FMD_QNC_01_97_GHZ_LINEAR_TIA.gds"
-role = "reference"
-format = "gds"
-sha256 = "4412a8cb23f44989b4c626e6095ef10a1b2b407b72128e607fae50a2c103e211"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.lvs_netlist"
-path = "97_GHZ_LINEAR_TIA/design_data/klayout/lvs/97_GHZ_LINEAR_TIA.cdl"
-role = "lvs-netlist"
-format = "cdl"
-sha256 = "544a8502228d40e1cd48610d40fd925bd69ad2bc8c6fbadfbcd51acb2ed824b6"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.extracted_netlist"
-path = "97_GHZ_LINEAR_TIA/design_data/klayout/FMD_QNC_01_LIN_TIA_extracted.cir"
-role = "extracted-netlist"
-format = "spice"
-sha256 = "3b6bb7be8cc8d247a3ff113006e07dbbff80219062dc40bd64f419e59915568c"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.drc_minimal"
-path = "97_GHZ_LINEAR_TIA/design_data/klayout/drc/97_GHZ_LINEAR_TIA_minimal.lyrdb"
-role = "drc-evidence"
-format = "lyrdb"
-sha256 = "8092d21cd61aa77a1c4f20fbf4a6f96bed462d0aa52789a6c104862ba612d3e1"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.drc_maximal"
-path = "97_GHZ_LINEAR_TIA/design_data/klayout/drc/97_GHZ_LINEAR_TIA_maximal.lyrdb"
-role = "drc-evidence"
-format = "lyrdb"
-sha256 = "09250425353fe8c7850d532b44ee427290a19de2a099ce7875d470bfeb517c86"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.lvs_report"
-path = "97_GHZ_LINEAR_TIA/design_data/klayout/lvs/97_GHZ_LINEAR_TIA_lvs.lvsdb"
-role = "lvs-evidence"
-format = "lvsdb"
-sha256 = "988f900ee9adcbf28bb410f9b95abe58ae7ee91dd6f10e0c2c20f8951b3439d8"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.choke_1_s2p"
-path = "97_GHZ_LINEAR_TIA/design_data/openEMS/choke_1_em_data/choke_1_em.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "e1ec15b48495044e2cfc193b2c9b3b558ea6f79a0fbce0df2d6a8e12b58290a1"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.choke_2_s2p"
-path = "97_GHZ_LINEAR_TIA/design_data/openEMS/choke_2_em_data/choke_2_em.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "7ca263ff6ff1b4a34e7e85df8e60dfc38f18c6754314c7bcf40815b1f6f56e5c"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.choke_3_s2p"
-path = "97_GHZ_LINEAR_TIA/design_data/openEMS/choke_3_em_data/choke_3_em.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "79d6b12d45e42ffce73a7d5a3e21b39feb970cca259ded414d6721befcfd9c1b"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.choke_4_s2p"
-path = "97_GHZ_LINEAR_TIA/design_data/openEMS/choke_4_em_data/choke_4_em.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "812c349aab8b38a2faa69c63639fb463d802273815935fe3a8c1cbe766d0a78f"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.deg_1_s2p"
-path = "97_GHZ_LINEAR_TIA/design_data/openEMS/deg_1_em_data/deg_1_em.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "0cf172233045b91e145311915769b1afe4571a00d429c2dfb9d03fd883fd4705"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.deg_4_s2p"
-path = "97_GHZ_LINEAR_TIA/design_data/openEMS/deg_4_em_data/deg_4_em.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "ad39a2615c5b48b83eac7f7b1c245dae05fef015348fe81dc5bb5475a7036a70"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.input_s2p"
-path = "97_GHZ_LINEAR_TIA/design_data/openEMS/input_em_data/input_em.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "28a4dd1e07b9463f59f0687ee5522215381ab24266b0acbb504f237731833153"
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.output_s2p"
-path = "97_GHZ_LINEAR_TIA/design_data/openEMS/output_em_data/output_em.s2p"
-role = "rf-evidence"
-format = "s2p"
-sha256 = "5d80418943c303511c6689949b3b96a97748c855befebc8f626a9ddb2c9daad9"
-
-[screening]
-decision = "include"
-reason = "The pinned upstream design includes the documented Qucs schematic, GDS, LVS netlist/report, extracted netlist, minimal/maximal DRC reports, and eight OpenEMS S2P files for the 97 GHz linear TIA implementation."
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.evaluation_gds"
-path = "97_GHZ_LINEAR_TIA/design_data/klayout/FMD_QNC_01_97_GHZ_LINEAR_TIA.gds"
-role = "evaluation-layout"
-format = "gds"
-sha256 = "f24f7825410b86229e91299864efc13636f70be68151a89514f8e6a0fb229e26"
-
-[upstream_evaluation]
-layout = "TO_Apr2025.97_GHZ_LINEAR_TIA.evaluation_gds"
-netlist = "TO_Apr2025.97_GHZ_LINEAR_TIA.lvs_netlist"
-top_cell = "FMD_QNC_01_LIN_TIA"
-subcircuit = "FMD_QNC_01_LIN_TIA"
-drc_profile = "drc-upstream.json"
-lvs_profile = "lvs-to-apr2025.json"
-basis = "Use original KLayout evaluation GDS and LVS CDL; archived minimal/maximal reports motivate current main plus extra scope. Archived LVS uses comparison without mandatory top-port agreement (40 GHz: 0 layout vs 9 reference pins, Match). Exact saved switches and historical runset identity are unavailable; current pinned defaults plus compare-only port policy are a reconstruction."
-
-[[upstream_assets]]
-id = "TO_Apr2025.97_GHZ_LINEAR_TIA.archived_simulation"
-path = "97_GHZ_LINEAR_TIA/design_data/qucs-s/97_GHZ_LINEAR_TIA.dat.ngspice"
-role = "simulation-evidence"
-format = "qucs-dataset"
-sha256 = "ff122a34bb4e4444ea70ac1d78b5c086f4074fcf9f695fff4447f11d962a5d9a"
+url = "https://github.com/IHP-GmbH/TO_Apr2025/blob/63e203a0eccfb6028a1a0a8364553e4e979b55b3/97_GHZ_LINEAR_TIA/design_data/qucs-s/97_GHZ_LINEAR_TIA.sch"

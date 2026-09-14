@@ -5,18 +5,25 @@ import ipaddress
 import json
 import os
 import platform
+import re
 import shlex
 import subprocess
 import sys
 import tomllib
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
-# These public cases have ready-to-use witnesses and nominal RC evaluation.
-# The case owns all rule bindings; this table selects its simulation resources.
-CASE_MODELS = {"comparator": "analog-models", "full_OTA": "analog-models"}
+# These defaults cover the legacy KLayout and Magic settings already present
+# in published cases.  Model and composite extraction support must be named by
+# the case's explicit ``support_profiles`` metadata below.
+BACKEND_SUPPORT_PROFILES = {
+    "klayout-docker": "klayout",
+    "magic-capacitance-docker": "magic",
+    "magic-rc-docker": "magic",
+}
 IMAGE = "layout-bench-tools:local"
 RUNS = "build/runs"
 PDK_PATH = Path("third_party/IHP-Open-PDK")
@@ -161,19 +168,156 @@ def ensure_pdk():
         raise ValueError(f"Required PDK files are still missing: {', '.join(incomplete)}. Run: {command}")
 
 
+def _catalog_paths():
+    """Return public SG13G2 catalogs in stable order."""
+    return sorted((ROOT / "tasks" / "ihp-sg13g2").glob("*/catalog.toml"))
+
+
+def _evaluation_mode(case_path, case):
+    """Read a task's mode without requiring candidate cases to be executable."""
+    task = case.get("task")
+    if not isinstance(task, dict):
+        return None
+    evaluation = task.get("evaluation")
+    if isinstance(evaluation, dict):
+        return evaluation.get("mode")
+    inputs = task.get("inputs")
+    entry = inputs.get("evaluation") if isinstance(inputs, dict) else None
+    if not isinstance(entry, dict):
+        return None
+    if "collection_source" in entry:
+        from benchmarking.tasks import load_task
+
+        try:
+            plan = load_task(case_path).evaluation
+            return plan.mode if plan else None
+        except (OSError, ValueError, TypeError):
+            return None
+    relative = entry.get("source", entry.get("path"))
+    if not isinstance(relative, str):
+        return None
+    plan_path = case_path.parent / relative
+    try:
+        raw = plan_path.read_bytes()
+        if entry.get("format", "text") == "json":
+            return json.loads(raw).get("mode")
+        return tomllib.loads(raw.decode("utf-8")).get("mode")
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError, json.JSONDecodeError):
+        return None
+
+
+def _case_records():
+    """Read catalog case metadata, including records still under development."""
+    records = []
+    for catalog_path in _catalog_paths():
+        catalog = tomllib.loads(catalog_path.read_text())
+        for entry in catalog.get("cases", []):
+            case_path = catalog_path.parent / entry["config_path"]
+            case = tomllib.loads(case_path.read_text())
+            records.append({
+                "id": entry["id"],
+                "key": case_path.parent.name,
+                "collection": catalog_path.parent.name,
+                "catalog": catalog_path,
+                "config": case_path,
+                "path": case_path.parent,
+                "data": case,
+            })
+    return records
+
+
+def discover_cases():
+    """Return executable post-layout public cases suitable for local preview.
+
+    Inventory candidates without a task or post-layout plan stay discoverable
+    through the catalogs but are intentionally absent from the preview CLI.
+    Local preview does not establish qualification or formal admission.
+    """
+    all_records = _case_records()
+    records = [record for record in all_records
+               if record["data"].get("status") in {"candidate", "qualified"}
+               and isinstance(record["data"].get("task"), dict)
+               and _evaluation_mode(record["config"], record["data"]) == "post_layout"]
+    # Include candidates in the collision count so a later promotion cannot
+    # change the meaning of an already published CLI key.
+    counts = Counter(record["key"] for record in all_records)
+    result = {}
+    for record in records:
+        key = record["key"] if counts[record["key"]] == 1 else f'{record["collection"]}/{record["key"]}'
+        result[key] = {**record, "preview_key": key}
+    return result
+
+
+def _resolve_case(case):
+    """Resolve a preview case by its CLI key, case ID, or unique directory name."""
+    case = str(case)
+    records = _case_records()
+    counts = Counter(record["key"] for record in records)
+    for record in records:
+        aliases = {record["id"], str(record["config"]), str(record["path"])}
+        if counts[record["key"]] == 1:
+            aliases.add(record["key"])
+        aliases.add(f'{record["collection"]}/{record["key"]}')
+        if case in aliases:
+            return {**record, "preview_key": case}
+    choices = ", ".join(sorted(discover_cases()))
+    raise ValueError(f"Unknown public case {case!r}; available post-layout cases: {choices or 'none'}")
+
+
+def _support_bindings(backend_name, backend):
+    """Return ``(settings_key, pdk_profile)`` bindings for one backend.
+
+    ``support`` and ``*_support`` settings are host-side paths.  A case may
+    declare the reviewed manifest profile for each such setting in the
+    backend-level ``support_profiles`` table.  The small type map remains for
+    the historical KLayout/Magic cases, while model and composite backends
+    must carry explicit metadata.
+    """
+    settings = backend["settings"]
+    support_settings = tuple(sorted(name for name in settings
+                                    if name == "support" or name.endswith("_support")))
+    declared = backend.get("support_profiles")
+    if declared is not None:
+        if not isinstance(declared, dict) or not declared:
+            raise ValueError(f"Backend {backend_name!r} support_profiles must be a nonempty table")
+        if set(declared) != set(support_settings):
+            missing = sorted(set(support_settings) - set(declared))
+            extra = sorted(set(declared) - set(support_settings))
+            detail = []
+            if missing:
+                detail.append(f"missing {missing}")
+            if extra:
+                detail.append(f"unknown {extra}")
+            raise ValueError(f"Backend {backend_name!r} support_profiles does not match support settings ({'; '.join(detail)})")
+        if any(not isinstance(profile, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", profile)
+               for profile in declared.values()):
+            raise ValueError(f"Backend {backend_name!r} support_profiles values must be profile names")
+        return [(name, declared[name]) for name in support_settings]
+    if not support_settings:
+        return []
+    profile = BACKEND_SUPPORT_PROFILES.get(backend["type"])
+    if profile is None:
+        raise ValueError(f"Backend {backend_name!r} ({backend['type']}) declares support settings but no support_profiles metadata")
+    return [(name, profile) for name in support_settings]
+
+
 def prepare(destination, image=IMAGE, case="comparator"):
     from benchmarking.environment import prepare_pdk_bundle
     from benchmarking.files import Asset, read_file
     from benchmarking.prepare_support import prepare_support
     from benchmarking.tasks import load_task
 
-    source = ROOT / "tasks/ihp-sg13g2/IHP-AnalogAcademy/cases" / case
+    record = _resolve_case(case)
+    source = record["path"]
     config = read_file(source, "case.toml").decode()
     data = tomllib.loads(config)
     task = load_task(source / "case.toml")
-    if data["status"] != "qualified" or task.evaluation.mode != "post_layout":
-        raise ValueError("The preview requires a qualified case with post-layout evaluation")
-    reference = data["qualification"]["reference"]
+    if data["status"] not in {"candidate", "qualified"} or task.evaluation.mode != "post_layout":
+        raise ValueError("The preview requires an executable case with post-layout evaluation")
+    reference = data.get("qualification", {}).get("reference")
+    if reference is None:
+        raise ValueError("The preview requires an executable case with a published witness; "
+                         "this case declares none")
     witness = Asset(read_file(source, reference), "gds")
     for asset in data.get("assets", []):
         if asset["path"] == reference and witness.sha256 != asset["sha256"]:
@@ -185,23 +329,29 @@ def prepare(destination, image=IMAGE, case="comparator"):
     image_id = subprocess.check_output(["docker", "image", "inspect", "--format", "{{.Id}}", image], text=True).strip()
     destination = new_directory(destination)
     prepare_pdk_bundle(pdk, destination / "agent-resources")
-    profiles = {"klayout-docker": "klayout", "magic-rc-docker": "magic",
-                "ngspice-docker": CASE_MODELS[case]}
     prepared = set()
-    for backend in data["toolchain"]["backends"].values():
+    for backend_name, backend in data["toolchain"]["backends"].items():
         settings = backend["settings"]
         config = config.replace(json.dumps(settings["image"]), json.dumps(image_id))
-        if "support" not in settings:
-            continue
-        profile = profiles[backend["type"]]
-        if profile not in prepared:
-            print(f"Preparing {profile} from the reviewed PDK files", flush=True)
-            prepare_support(pdk, f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}", destination / profile,
-                            compiler_image=image_id)
-            prepared.add(profile)
-        config = config.replace(json.dumps(settings["support"]), json.dumps(str(destination / profile)))
+        for setting, profile in _support_bindings(backend_name, backend):
+            if profile not in prepared:
+                print(f"Preparing {profile} from the reviewed PDK files", flush=True)
+                prepare_support(pdk, f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}", destination / profile,
+                                compiler_image=image_id)
+                prepared.add(profile)
+            config = config.replace(json.dumps(settings[setting]), json.dumps(str(destination / profile)))
     # Host-side assembly: the solver loader still delivers only task.inputs.
     task.materialize(destination / "case")
+    # The prepared case reads the materialized snapshots, not the source collection.
+    prepared_data = tomllib.loads(config)
+    if any("source" in entry or "collection_source" in entry
+           for entry in prepared_data["task"]["inputs"].values()):
+        import tomli_w
+
+        for entry in prepared_data["task"]["inputs"].values():
+            entry.pop("source", None)
+            entry.pop("collection_source", None)
+        config = tomli_w.dumps(prepared_data)
     bound_case = destination / "case/case.toml"
     bound_case.write_text(config)
     target = bound_case.parent / reference
@@ -211,7 +361,7 @@ def prepare(destination, image=IMAGE, case="comparator"):
     target = bound_case.parent / evidence
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(read_file(source, evidence))
-    print(f"Prepared case: {bound_case}", flush=True)
+    print(f"Prepared case ({task.status}): {bound_case}", flush=True)
 
 
 def run(prepared, output):
@@ -249,10 +399,17 @@ def quickstart(output, image, network, skip_build, case="comparator"):
           f"Prepared case: {output / 'prepared/case/case.toml'}", flush=True)
 
 
+def _case_choices():
+    """Return CLI choices without making inventory-only cases executable."""
+    return tuple(sorted(discover_cases()))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("doctor", help="Check the supported host and Docker access")
+    choices = _case_choices()
+    default_case = "comparator" if "comparator" in choices else choices[0] if choices else None
     for name, help_text in (("quickstart", "Build one image, fetch the pinned PDK, prepare resources and run no-key checks"),
                             ("build", "Build the unified public tool image; downloads required")):
         command = commands.add_parser(name, help=help_text)
@@ -260,12 +417,12 @@ def main():
         command.add_argument("--network", choices=("default", "host"), default="default", help="Build network; host can reach local proxy services")
         if name == "quickstart":
             command.add_argument("--output", type=Path, help=f"New directory; default is a timestamped directory under {RUNS}")
-            command.add_argument("--case", choices=CASE_MODELS, default="comparator")
+            command.add_argument("--case", choices=choices, default=default_case)
             command.add_argument("--skip-build", action="store_true", help="Use an already available --image; still prepare and verify fresh resources")
     preparation = commands.add_parser("prepare", help="Create reviewed PDK/tool bundles in a new directory")
     preparation.add_argument("--output", type=Path, default=ROOT / RUNS / "preview/prepared")
     preparation.add_argument("--image", default=IMAGE)
-    preparation.add_argument("--case", choices=CASE_MODELS, default="comparator")
+    preparation.add_argument("--case", choices=choices, default=default_case)
     command = commands.add_parser("run", help="Evaluate the prepared case witness with its complete declared plan")
     command.add_argument("--prepared", type=Path, default=ROOT / RUNS / "preview/prepared")
     command.add_argument("--output", type=Path, required=True, help="New directory for reports; existing evidence is never overwritten")

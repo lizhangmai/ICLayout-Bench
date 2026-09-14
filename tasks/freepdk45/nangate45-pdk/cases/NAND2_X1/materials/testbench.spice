@@ -1,0 +1,27 @@
+* NAND2_X1: exhaustive Gray sequence and reversed sequence
+.include /workspace/support/models.spice
+.include dut.spice
+.temp 27
+Vdd vdd 0 1
+Vss vss 0 0
+Xdut A1 A2 ZN VDD VSS NAND2_X1
+Cl ZN 0 5f
+VA1 A1 0 PWL(0 0 0.500n 0 0.510n 0 1.000n 0 1.010n 1 1.500n 1 1.510n 1 2.000n 1 2.010n 0 2.500n 0 2.510n 1 3.000n 1 3.010n 1 3.500n 1 3.510n 0 4.000n 0 4.010n 0)
+VA2 A2 0 PWL(0 0 0.500n 0 0.510n 1 1.000n 1 1.010n 1 1.500n 1 1.510n 0 2.000n 0 2.010n 0 2.500n 0 2.510n 0 3.000n 0 3.010n 1 3.500n 1 3.510n 1 4.000n 1 4.010n 0)
+.tran 0.5p 4.500n
+.meas tran state_0 find v(ZN) at=0.110n
+.meas tran state_1 find v(ZN) at=0.610n
+.meas tran state_2 find v(ZN) at=1.110n
+.meas tran state_3 find v(ZN) at=1.610n
+.meas tran state_4 find v(ZN) at=2.110n
+.meas tran state_5 find v(ZN) at=2.610n
+.meas tran state_6 find v(ZN) at=3.110n
+.meas tran state_7 find v(ZN) at=3.610n
+.meas tran state_8 find v(ZN) at=4.110n
+.meas tran supply avg par('-v(vdd)*i(Vdd)') from=0 to=4.400n
+.control
+run
+write waveform.raw v(A1) v(A2) v(ZN) v(VDD) i(Vdd)
+quit
+.endc
+.end

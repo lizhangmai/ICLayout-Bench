@@ -1,6 +1,5 @@
 """Small command-line summaries remain useful without replacing durable reports."""
 
-import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -74,52 +73,20 @@ def test_inference_preflight_never_reports_a_model_call():
     }
 
 
-@pytest.fixture
-def executable_case(circuit_case):
-    root = circuit_case.parent
-    plan = 'schema_version = 1\nmode = "physical"\nmetrics = []\n'
-    for gate in ("artifact", "drc", "lvs"):
-        plan += f'''[[jobs]]
-id = "{gate}"
-stage = "check"
-operation = "layout.{gate}"
-gate = "{gate}"
-inputs = {{ layout = "candidate" }}
-'''
-    (root / "checks.toml").write_text(plan)
-    circuit_case.write_text(circuit_case.read_text() + f'''
-[task]
-kind = "netlist_to_gds"
-family = "synthetic"
-environment = "synthetic-tools"
-[task.inputs.netlist]
-path = "synthetic-source/circuit.spice"
-sha256 = "{hashlib.sha256((root / 'synthetic-source/circuit.spice').read_bytes()).hexdigest()}"
-subcircuit = "CIRCUIT_REF"
-[task.inputs.evaluation]
-path = "checks.toml"
-sha256 = "{hashlib.sha256(plan.encode()).hexdigest()}"
-[task.constraints]
-schema_version = 1
-hard = []
-[task.output]
-path = "answer.gds"
-format = "gds"
-top_cell = "LAYOUT_TOP"
-max_bytes = 1024
-[toolchain]
-schema_version = 1
-[toolchain.backends.fixture]
-type = "synthetic"
-[toolchain.bindings]
-"layout.artifact" = "fixture"
-''')
-    return circuit_case
+@pytest.mark.parametrize("score", [None, {"method": "layout-v1", "value": 0, "maximum": 100}])
+def test_run_summary_preserves_official_attempt_score_without_evaluation(tmp_path, score):
+    summary = _run_summary({
+        "termination": "budget_exhausted", "reason": "time limit", "outcome": "no_submission",
+        "task_success": False, "candidate": None, "score": score,
+    }, tmp_path)
+    assert "score" in summary
+    assert summary["score"] == score
 
 
 @pytest.mark.parametrize("command", ["run", "evaluate"])
 @pytest.mark.parametrize("override", [False, True], ids=["case-default", "explicit-toolchain"])
-def test_case_toolchain_default_and_explicit_override(executable_case, tmp_path, monkeypatch, command, override):
+def test_case_toolchain_default_and_explicit_override(executable_case, tmp_path, monkeypatch, capsys,
+                                                     command, override):
     case = executable_case
     output = tmp_path / "result"
     argv = ["main.py", command, str(case), "--output", str(output)]
@@ -153,9 +120,13 @@ def test_case_toolchain_default_and_explicit_override(executable_case, tmp_path,
             assert backends is bindings
             assert plan.mode == "physical"
             assert inputs["candidate"].content == b"CLI routing fixture; no EDA invocation"
+            assert kwargs["task_witnessed"] is False
             invoked.append(destination)
             return {"mode": "physical", "outcome": "passed", "physical_valid": True,
-                    "specs_pass": None, "task_success": None, "metrics": {}}
+                    "specs_pass": None, "task_success": None, "metrics": {},
+                    "task_witnessed": False,
+                    "score": {"method": "layout-v1", "value": 90.0, "maximum": 100,
+                              "components": {"G": 1, "E": 1, "H": 1, "Q": 0.5}}}
 
         monkeypatch.setattr(_MODULE, "run_evaluation", evaluate)
     if override:
@@ -164,3 +135,8 @@ def test_case_toolchain_default_and_explicit_override(executable_case, tmp_path,
     _MODULE.main()
     assert selected == [tmp_path / "override.toml" if override else case]
     assert invoked == [output]
+    if command == "evaluate":
+        assert json.loads(capsys.readouterr().out)["score"] == {
+            "method": "layout-v1", "value": 90.0, "maximum": 100,
+            "components": {"G": 1, "E": 1, "H": 1, "Q": 0.5},
+        }

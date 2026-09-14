@@ -24,8 +24,10 @@ jobs:
           python-version: '3.12'
       - run: uv sync --locked
       - run: uv run --locked python scripts/public_preview.py quickstart --network host --output build/runs/preview
+      - name: Initialize FreePDK45 evaluator resources
+        run: git submodule update --init --depth 1 third_party/FreePDK45 third_party/FreePDK45_for_KLayout third_party/nangate45-pdk
       - name: Run repeatable EDA acceptance suite
-        run: uv run --locked python scripts/acceptance.py eda --image layout-bench-tools:local
+        run: uv run --locked --group eda python scripts/acceptance.py eda --image layout-bench-tools:local
       - run: bash tests/integration/test_toolchain.sh tools
       - run: bash tests/integration/test_build_context.sh
       - run: uv run --locked pytest tests/integration/test_batch.py tests/integration/test_admission_cli.py tests/integration/test_session.py

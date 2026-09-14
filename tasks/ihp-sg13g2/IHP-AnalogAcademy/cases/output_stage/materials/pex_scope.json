@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "scope": "compact_rc_functional",
+  "boundary": "The qualified post-layout result covers distributed interconnect resistance and layout parasitic capacitance at the compact-device model boundary.",
+  "extractor_behavior": "The pinned Magic extraction has no explicit ptap1/ntap1 model cards and presents MOS body terminals at the ideal model rails.",
+  "body_and_tap_connection": "ideal_model_rails",
+  "source_model_behavior": "The source simulator dialect retains the finite ptap1 and ntap1 tap resistances declared by the maintained SPICE wrapper.",
+  "included": [
+    "candidate-GDS interconnect resistance",
+    "candidate-GDS interconnect and device parasitic capacitance",
+    "compact-device model behavior and declared source tap resistance"
+  ],
+  "excluded": [
+    "well and substrate sheet resistance",
+    "layout-extracted ptap1/ntap1 resistance",
+    "well or substrate noise",
+    "body coupling and body noise"
+  ],
+  "calibration": {
+    "method": "Run the same source testbench, models, temperature, and nominal values after replacing both finite tap elements with 1e-6-ohm ideal rail connections.",
+    "declared_metrics_unchanged": true,
+    "maximum_relative_difference": 1.6e-5,
+    "maximum_relative_difference_metric": "output_gain_high",
+    "finite_tap_output_bias_v": 0.6474679382968,
+    "ideal_rail_output_bias_v": 0.6474679392507,
+    "finite_tap_output_gain_high_v_per_v": 1.122446,
+    "ideal_rail_output_gain_high_v_per_v": 1.122463
+  }
+}
