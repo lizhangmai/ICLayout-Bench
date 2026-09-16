@@ -19,7 +19,7 @@ differential-input settings in [problem.md](problem.md).
 | [materials/circuit.cdl](materials/circuit.cdl) | Authoritative LVS netlist |
 | [materials/circuit.spice](materials/circuit.spice) | Pre-layout simulator netlist |
 | [materials/testbench.spice](materials/testbench.spice) | Clock stimulus and measurements |
-| [Collection LICENSE](../../LICENSE) | Shared terms, delivered as `materials/LICENSE` |
+| [Collection LICENSE](../../LICENSE) | Collection distribution terms; excluded from solver inputs |
 | [reference/DIFF_COMPARATOR.gds](reference/DIFF_COMPARATOR.gds) | Passing feasibility witness, excluded from standard solver inputs |
 
 ## Reference Results
@@ -61,18 +61,25 @@ against independently chosen synthetic values. Input consistency and actual
 reference acceptance support this case’s `qualified` status. A separate area
 variant is not required for each case.
 
+Coefficient 6 reflects clocked input sensing and regenerative decision stages,
+whose interconnect parasitics affect loaded decision delay and margin.
+
 ## Reproduce
+
+These operator commands require the installed `ICLayout-Bench-Private` package.
+Run preparation from the Public checkout; run any `tests/integration/` commands
+from the Private checkout using that environment.
 
 Prepare the image and PDK resources using the shared
 [tools guide](../../../../../docs/tools.md#manual-tools). Run from the repository
 root and choose a fresh output directory for each reproduction:
 
 ```bash
-uv run --locked python scripts/public_preview.py prepare \
+python -m layout_eval.preview prepare \
   --case comparator \
   --output build/runs/public-preview-comparator-01/prepared \
-  --image layout-bench-tools:local
-uv run --locked python scripts/public_preview.py run \
+  --image iclayout-bench-tools:local
+python -m layout_eval.preview run \
   --prepared build/runs/public-preview-comparator-01/prepared \
   --output build/runs/public-preview-comparator-01/run
 ```
@@ -83,7 +90,7 @@ To reproduce pre-layout/post-layout calibration and the reference acceptance
 regressions, run:
 
 ```bash
-uv run --locked pytest -m acceptance_eda \
+python -m pytest -m acceptance_eda \
   tests/integration/test_comparator.py
 ```
 

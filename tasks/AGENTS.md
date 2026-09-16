@@ -30,13 +30,19 @@ Use one circuit per `tasks/<pdk>/<collection>/cases/<circuit>/`. Assign every fi
 a role and owner before adding it. The same role has the same location across PDKs;
 process-specific implementation belongs in resources and backend configuration.
 
+Before creating files, inspect an existing collection and its cases, plus relevant
+cleanup commits. Establish what is shared, what is case-local, and what is generated
+only at runtime. Use the current standard to resolve differences with older cases.
+Each added file needs a concrete consumer and a reason existing files cannot serve
+that purpose; a template or generator producing it is not such a reason.
+
 | Owner | Maintained contents |
 |---|---|
 | PDK | `pdk.toml` defines reviewed tool/model preparation profiles; source collection directories hold the cases. Keep shared preparation instructions in the tools guide. |
 | Collection | `catalog.toml` indexes cases; `README.md` provides collection navigation and scope; retain required collection licenses/notices. |
 | Case | `case.toml`, `problem.md`, `README.md`, declared `materials/`, and optional `reference/` as defined below. |
-| Framework | Reusable preparation, evaluation, scoring, and backend mechanisms in `benchmarking/`; circuit-specific dispatch stays outside the runner, scoring core, and harness. |
-| Tests | Regression checks in `tests/`; shared test generators and analytical tool controls in `tests/fixtures/`. Circuit-specific witness assets and result documentation belong with the case; shared helpers may serve several cases. |
+| Framework | Public task/schema/scoring definitions in `benchmarking/`; shared preparation, evaluation and EDA backends in Public `layout_eval/`. Circuit-specific dispatch stays outside the runner, scoring core, and harness. |
+| Tests | Regressions and fixtures admitted under the [test conventions](../tests/AGENTS.md#before-adding-a-regression). Circuit-specific witness assets and results belong with the case; exploratory circuits and generators remain local development materials. |
 | Local development | Fresh `build/runs/` outputs, prepared bundles under `build/support/`, and development history in Git. Generated reports, netlists, waveforms and their archives stay here; case READMEs publish results and commands to reproduce them. |
 
 Keep case configuration consolidated: tool instructions belong in `problem.md`,
@@ -54,7 +60,7 @@ layouts does not define the authoring convention.
 | `README.md` | Maintainer/reader overview, file map, reference results, reproduction, and source attribution; excluded from solver inputs. |
 | `materials/circuit.<format>` | Authoritative circuit, using the actual format suffix (`.cdl` or `.spice`, for example); input role `netlist`. A separate simulator representation, when required, uses role `simulation` and must describe the same circuit. |
 | `materials/testbench.spice` | Main SPICE simulation testbench; input role `performance`. Supplies stimuli, bias, loads, analyses, measurements, and waveform export. |
-| Collection `LICENSE` / `NOTICE`; delivered as `materials/LICENSE` / `materials/NOTICE` | Store shared terms once at collection level and declare digest-bound `collection_source` inputs. Materialization and reference export attach copies. Preserve separate component terms and case-specific notices where required. |
+| Collection `LICENSE` and required upstream notices | Store shared terms once at collection level, outside solver inputs. Preserve applicable terms with repository distributions and material exports; retain separate component attribution where required. |
 | `materials/` supporting files | Only required declared inputs, named by their function and format. Use configuration parameters for operating-point variants of one testbench; separate decks are justified by distinct analyses or tool requirements. |
 | `reference/` | Ready-to-use witness GDS when supplied. Record qualification results and reproduction in the README; generated run evidence stays under `build/runs/`. Name GDS files by circuit/top-cell identity and declare them in the case's asset records. |
 
@@ -72,9 +78,11 @@ keep related tables together and arrays readable. Use existing logical input rol
 operation names, units, and scoring fields. Filename spelling is an authoring
 convention; runtime routing must use declared roles and paths.
 
-Every delivered file must have its path, format, and digest declared in
-`[task.inputs]`. Declare the target subcircuit, GDS top cell, output path and size
-bound explicitly. Materialize the task and inspect the delivered files: the solver
+Every solver input must have its path, format, and digest declared in
+`[task.inputs]`, with an identified use in solving the circuit task. Repository
+membership and redistribution obligations do not make a file a solver input.
+Declare the target subcircuit, GDS top cell, output path and size
+bound explicitly. Materialize the task and inspect the resulting files: the solver
 receives only its declared inputs and reviewed resources. Host configuration,
 source checkouts, witnesses, generators, and qualification answers remain outside
 that input set. Read the [historical asset exclusion checklist](../docs/tasks.md#input-isolation)
@@ -94,10 +102,25 @@ keep authoring scripts, intermediate schematics and export logs in development
 history. Resource preparation only assembles PDK/tool bundles.
 Distinguish untouched upstream assets from case-owned derivatives; retain required
 copyright, license, and modification notices with the corresponding exported assets.
-Use [shared collection inputs](../docs/tasks.md#shared-collection-inputs) to store
-identical terms once and attach them during materialization; a collection NOTICE
-may retain labeled case-specific modification statements. Keep the framework
-license separate from upstream component terms.
+Store shared terms once per collection and keep the framework license separate
+from upstream component terms. Collection scope follows source provenance;
+identical license names alone do not merge unrelated source collections.
+
+`task.inputs` contains files needed to solve the task. License and attribution
+files belong to distribution metadata, not the default Agent input set. Keep
+them with the collection and preserve them when exporting its materials;
+`Task.materialize()` creates solver inputs, not a redistribution package.
+
+Before adding license-related files, inspect the actual upstream declarations
+and existing collections. Use a collection `LICENSE` by default; `NOTICE` is
+optional, not a template companion. Retain an upstream NOTICE when applicable;
+create a separate notice only for an identified attribution requirement that
+the existing files cannot satisfy. Keep copied component terms attributable in
+LICENSE and dependency-only terms with the resource that distributes them.
+Describe current circuit/layout modifications in the case README and appropriate
+source-file headers. Qualification status, pending calibration and development
+history do not belong in license or notice files. Removing an unnecessary file
+also removes its input declaration and links and refreshes affected digests.
 Public designs and PDK/EDA resources must meet the workspace's public-use boundary.
 
 An upstream layout/netlist mismatch does not invalidate an independently maintained
@@ -137,8 +160,10 @@ evaluation of its supplied reference. Keep measured results, limitations and
 reproduction commands in the README; generated evidence belongs under `build/runs/`.
 
 Common rejection, scoring, error, transformation and repeatability checks belong
-in shared regression tests. Add case-specific tests for new devices, extraction
-methods or special judging rules. Calibrate when needed to establish limits or
+in shared regression tests. For new devices, extraction methods or special judging
+rules, identify the coverage gap and apply the
+[regression gate](../tests/AGENTS.md#before-adding-a-regression) before adding tests
+or fixtures. Calibrate when needed to establish limits or
 validate a new flow; reuse established coverage elsewhere. Per-case area variants
 and complete counterexample matrices are not status prerequisites.
 
@@ -173,10 +198,14 @@ new executions. Pure documentation changes require only the affected checks from
 
 Before handoff, verify all of the following against the actual files and results:
 
-1. Every maintained artifact has the correct owner, role, name, and declaration;
-   collection navigation and public membership agree with the task set.
+1. Every maintained artifact, including untracked files, has a justified consumer
+   and the correct owner, role, name, and declaration. Collection files are not
+   duplicated under individual cases; optional files have an identified need.
+   Collection navigation and public membership agree with the task set.
 2. Configuration loads, materialization contains exactly the intended inputs,
-   links/commands resolve, and no stale paths or digests remain.
+   and every input serves the solve. Distribution terms remain with their assets
+   outside the default input set. Links/commands resolve, and no stale paths or
+   digests remain.
 3. Circuit, testbench, problem, executable checks, scoring, and README results
    describe the same contract; evidence supports the current qualification status.
 4. Affected verification passes, with required tests following [test conventions](../tests/AGENTS.md).

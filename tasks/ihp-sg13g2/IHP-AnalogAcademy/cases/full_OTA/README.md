@@ -57,18 +57,25 @@ are explicit grading choices, with the acceptance limits checked separately.
 The fixed absolute area target is a feasible envelope demonstrated by the
 reference layout, rather than a ratio to the reference or a claim of optimality.
 
+Coefficient 6 reflects the coupled two-stage gain path and compensation,
+with feedback, stability and loaded response requirements.
+
 ## Reproduce
+
+These operator commands require the installed `ICLayout-Bench-Private` package.
+Run preparation from the Public checkout; run any `tests/integration/` commands
+from the Private checkout using that environment.
 
 Prepare the image and PDK resources using the shared
 [tools guide](../../../../../docs/tools.md#manual-tools). Run from the repository
 root and choose a fresh output directory for each reproduction:
 
 ```bash
-uv run --locked python scripts/public_preview.py prepare \
+python -m layout_eval.preview prepare \
   --case full_OTA \
   --output build/runs/public-preview-full_OTA-01/prepared \
-  --image layout-bench-tools:local
-uv run --locked python scripts/public_preview.py run \
+  --image iclayout-bench-tools:local
+python -m layout_eval.preview run \
   --prepared build/runs/public-preview-full_OTA-01/prepared \
   --output build/runs/public-preview-full_OTA-01/run
 ```
@@ -79,7 +86,7 @@ To reproduce pre-layout/post-layout calibration and the reference acceptance
 regressions, run:
 
 ```bash
-uv run --locked pytest -m acceptance_eda \
+python -m pytest -m acceptance_eda \
   tests/integration/test_full_ota.py
 ```
 

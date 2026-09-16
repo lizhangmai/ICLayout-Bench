@@ -28,8 +28,9 @@ design 1 also declares Apache-2.0 in its project README. No separate LICENSE,
 NOTICE or COPYING file was found inside these four selected project trees.
 Retain per-file author notices and review any newly selected dependency's own
 license. PDK symbols, compact models and tools remain separately licensed.
-The collection license is declared through `collection_source` and copied into
-each materialized case as `materials/LICENSE`.
+Retain the collection license with distributions and material exports. Solver
+materialization and local prepared runs are not redistribution packages; the
+license remains outside solver inputs.
 Each case records its upstream circuit link in `origin.url`; the maintained
 materials define the current task.
 

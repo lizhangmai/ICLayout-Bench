@@ -1,0 +1,11 @@
+# syntax=docker/dockerfile:1.7
+# Local Python-dependency iteration only; Dockerfile remains the release recipe.
+# Supply a compatible, existing ICLayout-Bench tools image tag or registry digest.
+ARG BASE_IMAGE=iclayout-bench-tools:local
+FROM ${BASE_IMAGE}
+USER root
+COPY pyproject.toml uv.lock /opt/iclayout-bench-build/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    cd /opt/iclayout-bench-build \
+    && uv sync --locked --only-group eda --no-install-project --python /usr/bin/python3
+USER ubuntu

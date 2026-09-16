@@ -1,5 +1,29 @@
 schema_version = 1
 
+[agent]
+schema_version = 1
+id = "freepdk45"
+support_profiles = ["models", "klayout", "magic-vtg", "magic-vtl"]
+checks = [
+  ["python", "-c", "import pya; t=pya.Technology(); t.load('/resources/pdks/klayout/FreePDK45.lyt'); assert t.name; print('FreePDK45 technology loaded:', t.name)"],
+  ["python", "/resources/pdk-check.py", "models", "NMOS_VTL", "models.spice", "--length", "50n", "--width", "200n"],
+]
+
+[agent.sources.freepdk45]
+checkout = "third_party/FreePDK45"
+
+# This mixed technology/design repository also publishes completed SRAMs.
+# Export its process files, not its example circuit answers.
+[agent.sources.klayout]
+checkout = "third_party/FreePDK45_for_KLayout"
+include = ["LICENSE", "README.md", "FreePDK45.lyt", "FreePDK45.lyp", "drc", "lvs"]
+
+[agent.environment]
+ICLAYOUT_BENCH_PDK = "freepdk45"
+PDK_ROOT = "/resources/pdks"
+PDK_PATH = "/resources/pdks/freepdk45"
+KLAYOUT_PATH = "/resources/pdks/klayout"
+
 [source]
 checkout = "third_party/FreePDK45_for_KLayout"
 commit = "d15da945559773854ca04aeb9bc2c150d55a1e6c"
@@ -32,7 +56,7 @@ format = "text"
 
 [profiles.klayout.generated."freepdk45.drc"]
 content = """
-# Layout-Bench CLI adapter; original rules and switches are unchanged.
+# ICLayout-Bench CLI adapter; original rules and switches are unchanged.
 $output = $report
 eval(RBA::Macro.new(\"/workspace/support/upstream/drc.lydrc\").text, binding)
 """
@@ -40,7 +64,7 @@ format = "text"
 
 [profiles.klayout.generated."upstream.lvs"]
 content = """
-# Layout-Bench CLI adapter for the pinned BSD-3-Clause KLayout macro.
+# ICLayout-Bench CLI adapter for the pinned BSD-3-Clause KLayout macro.
 code = RBA::Macro.new(\"/workspace/support/upstream/lvs.lylvs\").text
 code = code.sub(\"source($input)\", \"source($input, $topcell)\")
 code = code.sub(\"report($report)\", \"report_lvs($report)\")
@@ -50,7 +74,7 @@ format = "text"
 
 [profiles.klayout.generated."strict.lvs"]
 content = """
-# Layout-Bench strict candidate LVS; modified from the pinned BSD-3-Clause macro.
+# ICLayout-Bench strict candidate LVS; modified from the pinned BSD-3-Clause macro.
 # Preserve device extraction and physical connectivity. Require real body taps,
 # exact model/width/length and named ports; no cell-name shortcuts or pin swaps.
 code = RBA::Macro.new(\"/workspace/support/upstream/lvs.lylvs\").text
@@ -327,7 +351,7 @@ format = "text"
 [profiles.magic-vtg.generated."freepdk45.tech"]
 format = "magic-tech"
 content = """
-# Layout-Bench predictive VTG extraction; see rc-calibration.json.
+# ICLayout-Bench predictive VTG extraction; see rc-calibration.json.
 #----------------------------------------------------------
 # Copyright (c) 2017 R. Timothy Edwards
 # Open Circuit Desgin
@@ -1905,7 +1929,7 @@ format = "text"
 [profiles.magic-vtl.generated."freepdk45.tech"]
 format = "magic-tech"
 content = """
-# Layout-Bench predictive VTL extraction; see rc-calibration.json.
+# ICLayout-Bench predictive VTL extraction; see rc-calibration.json.
 #----------------------------------------------------------
 # Copyright (c) 2017 R. Timothy Edwards
 # Open Circuit Desgin

@@ -18,5 +18,6 @@ for reference evaluation and qualification reproduction. References and raw
 evidence are excluded from standard solver inputs.
 
 The [LICENSE](LICENSE) and [NOTICE](NOTICE) are stored once for this collection.
-Each case declares the shared files as inputs; materialization and reference
-export include copies with the selected circuit materials.
+Retain these terms when distributing the collection or exporting its materials.
+Solver materialization and local prepared runs are not redistribution packages;
+licenses and notices remain outside the default solver inputs.

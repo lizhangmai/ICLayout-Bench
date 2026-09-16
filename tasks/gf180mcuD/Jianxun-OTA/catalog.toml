@@ -1,0 +1,4 @@
+schema_version = 3
+cases = [
+    { id = "gf180mcuD.Jianxun-OTA.ota_5t", config_path = "cases/ota_5t/case.toml" },
+]

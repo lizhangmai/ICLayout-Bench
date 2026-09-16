@@ -6,34 +6,35 @@ from pathlib import Path
 
 import pytest
 
-from benchmarking.docker import DockerTool
-from benchmarking.environment import prepare_pdk
-from benchmarking.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
-from benchmarking.magic import MagicCapacitanceDocker
-from benchmarking.ngspice import NgspiceDocker
-from benchmarking.prepare_support import prepare_support
+from layout_eval.docker import DockerTool
+from layout_eval.environment import prepare_pdk
+from layout_eval.evaluate import run_evaluation
+from layout_eval.magic import MagicCapacitanceDocker
+from layout_eval.ngspice import NgspiceDocker
+from layout_eval.prepare_support import prepare_support
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
+PUBLIC_ROOT = ROOT
 FIXTURES = ROOT / "tests/fixtures/sg13g2"
 
 
 @pytest.fixture(scope="module")
 def context(tmp_path_factory):
     root = tmp_path_factory.mktemp("sg13g2")
-    pdk = ROOT / "third_party/IHP-Open-PDK"
-    prepare_support(pdk, f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#magic", root / "magic")
-    prepare_support(pdk, f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#mos-models", root / "models")
+    pdk = PUBLIC_ROOT / "third_party/IHP-Open-PDK"
+    prepare_support(pdk, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#magic", root / "magic")
+    prepare_support(pdk, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#mos-models", root / "models")
     prepare_pdk(pdk, root / "view")
     generate = runpy.run_path(str(FIXTURES / "generate.py"))["generate_fixtures"]
     fixtures = generate(root / "view", root / "fixtures")
     backends = {
         "layout.extract_capacitance": MagicCapacitanceDocker(
-            image="layout-bench-tools:local", support=str(root / "magic"),
+            image="iclayout-bench-tools:local", support=str(root / "magic"),
             technology="magic/ihp-sg13g2.tech", tech_name="ihp-sg13g2", style="ngspice()"),
-        "circuit.simulate": NgspiceDocker(image="layout-bench-tools:local", support=str(root / "models")),
+        "circuit.simulate": NgspiceDocker(image="iclayout-bench-tools:local", support=str(root / "models")),
     }
     return fixtures, backends
 
@@ -91,7 +92,7 @@ assert len(devices) == 1
 x = devices[0]
 assert {p.name(): x.net_for_pin(p.id()).name for p in x.circuit_ref().each_pin()} == {p: p for p in ("D", "G", "S", "B")}
 '''
-        check = DockerTool("layout-bench-tools:local", ["magic", "--version"], 30).run(
+        check = DockerTool("iclayout-bench-tools:local", ["magic", "--version"], 30).run(
             ["python", "inspect.py"], {"inspect.py": Asset(inspect, "python"),
                                        "circuit.spice": Asset(stub + extracted, "spice")}, {})
         assert check.returncode == 0 and not check.reason, check.evidence

@@ -1,0 +1,22 @@
+* Maintained Layout-Bench testbench. SPDX-License-Identifier: MIT
+* Dropout at 5 mA: upward input sweep and a fixed 1.75 V output threshold.
+.include support/models.spice
+.include dut.spice
+.temp 27
+VDD vdd 0 2.2
+VREF vref 0 0.9
+ITAIL ibias 0 200u
+ILOAD vout 0 5m
+COUT vout 0 1u
+XDUT vdd vout vref ibias 0 ldo_004_basic_pmos
+.control
+set noaskquit
+set numdgt=12
+dc VDD 1.6 2.4 0.005
+meas dc dropout_supply_v when v(vout)=1.75 rise=1
+let dropout_v=dropout_supply_v-1.75
+print dropout_v
+write ldo-dropout.raw v(vdd) v(vout) v(ibias)
+quit
+.endc
+.end

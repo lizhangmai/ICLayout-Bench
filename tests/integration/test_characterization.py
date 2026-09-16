@@ -8,10 +8,10 @@ import pytest
 from helpers.spice_raw import read_raw
 from helpers.stimuli import command, number
 
-from benchmarking.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
-from benchmarking.toolchains import load_toolchain
+from layout_eval.evaluate import run_evaluation
+from layout_eval.toolchains import load_toolchain
 
 pytestmark = pytest.mark.integration
 FIXTURES = Path(__file__).resolve().parents[2] / "tests/fixtures/characterization"

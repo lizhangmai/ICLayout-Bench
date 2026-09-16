@@ -6,14 +6,14 @@ status = "qualified"
 
 # Solver inputs, answer contract and functional post-layout evaluation.
 [task]
-coefficient = 2
+coefficient = 4
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_hbt_tia"
 environment = "ihp-sg13g2-to-design1-functional"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "db43d87e416ab49109681b55e7f194706de314c705d270a2bc95f79208f702a3"
+sha256 = "6f2f5b8a2c537a9efe4dd3077a304620cfaf7a61f4814be3ad0d5078eac4426f"
 format = "text"
 
 [task.inputs.netlist]
@@ -31,12 +31,6 @@ format = "spice"
 path = "materials/testbench.spice"
 sha256 = "cf9a8f31c266d199966ba4ab102fb9f73b26bc74044d0ed0704fbc1120a01742"
 format = "spice"
-
-[task.inputs.license]
-collection_source = "LICENSE"
-path = "materials/LICENSE"
-sha256 = "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-format = "text"
 
 [task.constraints]
 schema_version = 1
@@ -363,14 +357,13 @@ schema_version = 1
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
 [toolchain.backends.geometry.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 timeout_seconds = 120
-
 
 [toolchain.backends.lvs]
 type = "klayout-docker"
 [toolchain.backends.lvs.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "lvs"
 support = "build/support/to-design1-klayout"
 profile = "lvs-upstream.json"
@@ -380,21 +373,21 @@ timeout_seconds = 180
 type = "ngspice-docker"
 support_profiles = { support = "hbt-models" }
 [toolchain.backends.simulation.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/to-design1-models"
 timeout_seconds = 60
 
 [toolchain.backends.artifact]
 type = "klayout-docker"
 [toolchain.backends.artifact.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "artifact"
 timeout_seconds = 60
 
 [toolchain.backends.drc]
 type = "klayout-docker"
 [toolchain.backends.drc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "drc"
 support = "build/support/to-design1-klayout"
 profile = "drc-upstream.json"
@@ -404,7 +397,7 @@ timeout_seconds = 600
 type = "sg13g2-hbt-rc-docker"
 support_profiles = { klayout_support = "klayout", magic_support = "magic" }
 [toolchain.backends.parasitics.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 klayout_support = "build/support/to-design1-klayout"
 klayout_profile = "lvs-to-apr2025.json"
 magic_support = "build/support/to-design1-magic"

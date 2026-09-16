@@ -1,0 +1,34 @@
+* Derived from analog-db amp_003_fan_smc, fixed snapshot
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Modified: process-grid dimensions, physical passives, explicit bias and separate body taps.
+.subckt amp_003_fan_smc vss vdd vinn vinp vout net013
+MM12 vb4 vb3 net54 sub sg13_lv_nmos w=1u l=1u m=16
+MM13 dm_1 vb3 net56 sub sg13_lv_nmos w=1u l=1u m=16
+MM14 vb3 vb3 vss sub sg13_lv_nmos w=1u l=1u m=4
+MM15 voutn vb3 dm_2 sub sg13_lv_nmos w=1u l=1u m=16
+MM16 net050 vb3 net063 sub sg13_lv_nmos w=1u l=1u m=16
+MM17 net54 vb4 vss sub sg13_lv_nmos w=1u l=1u m=16
+MM18 net56 vb4 vss sub sg13_lv_nmos w=1u l=1u m=16
+MM19 dm_2 vb4 vss sub sg13_lv_nmos w=1u l=1u m=32
+MM20 net063 vb4 vss sub sg13_lv_nmos w=1u l=1u m=32
+MM21 net043 net043 vss sub sg13_lv_nmos w=1u l=1u m=4
+MM22 net049 net043 vss sub sg13_lv_nmos w=1u l=1u m=4
+MM23 vout net049 vss sub sg13_lv_nmos w=1u l=1u m=16
+MM8 dm_2 vinn net31 well_net31 sg13_lv_pmos w=1u l=1u m=4
+MM9 net063 vinp net31 well_net31 sg13_lv_pmos w=1u l=1u m=4
+RRtap_net31 net31 well_net31 ntap1 A=108e-12 P=112e-6
+MM0 net013 net013 vdd well_vdd sg13_lv_pmos w=1u l=1u m=16
+MM1 vb4 net013 vdd well_vdd sg13_lv_pmos w=1u l=1u m=16
+MM10 net043 net050 vdd well_vdd sg13_lv_pmos w=1u l=1u m=8
+MM11 vout net050 vdd well_vdd sg13_lv_pmos w=1u l=1u m=32
+MM2 dm_1 net013 vdd well_vdd sg13_lv_pmos w=1u l=1u m=16
+MM3 vb3 net013 vdd well_vdd sg13_lv_pmos w=1u l=1u m=16
+MM4 net31 net013 vdd well_vdd sg13_lv_pmos w=1u l=1u m=64
+MM5 voutn voutn vdd well_vdd sg13_lv_pmos w=1u l=1u m=16
+MM6 net050 voutn vdd well_vdd sg13_lv_pmos w=1u l=1u m=16
+MM7 net049 net013 vdd well_vdd sg13_lv_pmos w=1u l=1u m=16
+RRtap_vdd vdd well_vdd ntap1 A=2652e-12 P=2656e-6
+RRptap vss sub ptap1 A=5160e-12 P=5164e-6
+CC0_0 net050 vout cap_cmim w=40.825u l=40.825u m=1
+CC0_1 net050 vout cap_cmim w=40.825u l=40.825u m=1
+.ends amp_003_fan_smc

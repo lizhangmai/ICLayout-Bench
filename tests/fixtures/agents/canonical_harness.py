@@ -1,4 +1,4 @@
-"""Provider-neutral model/tool loop for the Layout-Bench session protocol.
+"""Provider-neutral model/tool loop for the ICLayout-Bench session protocol.
 
 The harness owns the conversation and the two reviewed tools.  A model
 adapter is an executable that reads one JSON request per line on stdin and
@@ -12,7 +12,9 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import select
+import signal
 import subprocess
 import sys
 import time
@@ -64,10 +66,25 @@ def _bounded_text(data):
     return data[:MAX_TOOL_OUTPUT_BYTES].decode("utf-8", errors="replace"), truncated
 
 
+def _kill_process_tree(process):
+    """Terminate a process and descendants started in its private process group."""
+    try:
+        if os.name == "posix":
+            os.killpg(process.pid, signal.SIGKILL)
+        else:
+            process.kill()
+    except OSError:
+        try:
+            process.kill()
+        except OSError:
+            pass
+
+
 def _run_process(argv, timeout):
     """Run a command with bounded stdout/stderr and a hard local timeout."""
     process = subprocess.Popen(argv, cwd=WORKSPACE, stdin=subprocess.DEVNULL,
-                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               start_new_session=os.name == "posix")
     buffers = {process.stdout: bytearray(), process.stderr: bytearray()}
     streams = set(buffers)
     timed_out = output_limited = False
@@ -76,8 +93,7 @@ def _run_process(argv, timeout):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             timed_out = True
-            if process.poll() is None:
-                process.kill()
+            _kill_process_tree(process)
             break
         ready, _, _ = select.select(list(streams), [], [], remaining)
         if not ready:
@@ -92,17 +108,14 @@ def _run_process(argv, timeout):
             buffer.extend(chunk[:room])
             if len(chunk) > room:
                 output_limited = True
-                if process.poll() is None:
-                    process.kill()
+                _kill_process_tree(process)
     if timed_out or output_limited:
-        try:
-            process.kill()
-        except OSError:
-            pass
+        _kill_process_tree(process)
     try:
-        process.wait(timeout=5)
+        process.wait(timeout=max(0, deadline - time.monotonic()))
     except subprocess.TimeoutExpired:
-        process.kill()
+        timed_out = True
+        _kill_process_tree(process)
         process.wait(timeout=5)
     stdout = _bounded_text(bytes(buffers[process.stdout]))
     stderr = _bounded_text(bytes(buffers[process.stderr]))
@@ -195,25 +208,60 @@ class AdapterProcess:
         if not isinstance(command, (list, tuple)) or not command or any(
                 not isinstance(value, str) or not value for value in command):
             raise ValueError("Adapter command must be a nonempty argument list")
+        if (isinstance(timeout, bool) or type(timeout) not in {int, float}
+                or not math.isfinite(timeout) or timeout <= 0):
+            raise ValueError("Adapter timeout must be a positive finite number")
         self.timeout = timeout
+        self._stdout_buffer = bytearray()
         self.process = subprocess.Popen(list(command), cwd=WORKSPACE, stdin=subprocess.PIPE,
-                                        stdout=subprocess.PIPE, stderr=None)
+                                        stdout=subprocess.PIPE, stderr=None,
+                                        start_new_session=os.name == "posix")
+        self._stdin_fd = self.process.stdin.fileno()
+        self._stdout_fd = self.process.stdout.fileno()
+        if os.name == "posix":
+            os.set_blocking(self._stdin_fd, False)
+            os.set_blocking(self._stdout_fd, False)
 
     def request(self, value):
         encoded = _json_bytes(value) + b"\n"
         if len(encoded) > MAX_ADAPTER_LINE_BYTES:
             raise ValueError("Adapter request exceeds the size limit")
-        try:
-            self.process.stdin.write(encoded)
-            self.process.stdin.flush()
-        except OSError as error:
-            raise RuntimeError("Adapter stopped before receiving a request") from error
-        ready, _, _ = select.select([self.process.stdout], [], [], self.timeout)
-        if not ready:
-            raise TimeoutError("Adapter response timed out")
-        line = self.process.stdout.readline(MAX_ADAPTER_LINE_BYTES + 1)
-        if not line:
-            raise RuntimeError("Adapter stopped without a response")
+        deadline = time.monotonic() + self.timeout
+        offset = 0
+        while offset < len(encoded):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("Adapter request timed out")
+            _, writable, _ = select.select([], [self._stdin_fd], [], remaining)
+            if not writable:
+                raise TimeoutError("Adapter request timed out")
+            try:
+                offset += os.write(self._stdin_fd, encoded[offset:])
+            except BlockingIOError:
+                continue
+            except OSError as error:
+                raise RuntimeError("Adapter stopped before receiving a request") from error
+        while True:
+            newline = self._stdout_buffer.find(b"\n")
+            if newline >= 0:
+                line = bytes(self._stdout_buffer[:newline + 1])
+                del self._stdout_buffer[:newline + 1]
+                break
+            if len(self._stdout_buffer) > MAX_ADAPTER_LINE_BYTES:
+                raise ValueError("Adapter response line exceeds the size limit")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("Adapter response timed out")
+            ready, _, _ = select.select([self._stdout_fd], [], [], remaining)
+            if not ready:
+                raise TimeoutError("Adapter response timed out")
+            try:
+                chunk = os.read(self._stdout_fd, min(65536, MAX_ADAPTER_LINE_BYTES + 1 - len(self._stdout_buffer)))
+            except BlockingIOError:
+                continue
+            if not chunk:
+                raise RuntimeError("Adapter stopped without a response")
+            self._stdout_buffer.extend(chunk)
         if not line.endswith(b"\n") or len(line) > MAX_ADAPTER_LINE_BYTES:
             raise ValueError("Adapter response line exceeds the size limit")
         try:
@@ -230,8 +278,13 @@ class AdapterProcess:
             try:
                 self.process.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                self.process.kill()
+                _kill_process_tree(self.process)
                 self.process.wait(timeout=5)
+        for stream in (self.process.stdin, self.process.stdout):
+            try:
+                stream.close()
+            except OSError:
+                pass
 
     def __enter__(self):
         return self
@@ -291,7 +344,9 @@ def main():
             or args.adapter_timeout <= 0):
         parser.error("--adapter-timeout must be a positive finite number")
     try:
-        run(args.adapter, max_turns=args.max_turns, adapter_timeout=args.adapter_timeout)
+        reason = run(args.adapter, max_turns=args.max_turns, adapter_timeout=args.adapter_timeout)
+        if reason != "stop":
+            raise RuntimeError(f"Adapter stopped with {reason}")
     except (OSError, TypeError, ValueError, RuntimeError, TimeoutError, subprocess.SubprocessError) as error:
         print(f"Canonical harness stopped: {error}", file=sys.stderr)
         raise SystemExit(1) from error

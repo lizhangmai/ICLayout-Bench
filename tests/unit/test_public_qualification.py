@@ -19,11 +19,12 @@ from benchmarking.tasks import load_task
 
 pytestmark = pytest.mark.unit
 ROOT = Path(__file__).resolve().parents[2]
+PUBLIC_ROOT = ROOT
 
 
 def _executable_cases():
     """Yield qualified records and executable candidates without skipping either."""
-    for catalog_path in sorted((ROOT / "tasks").glob("*/*/catalog.toml")):
+    for catalog_path in sorted((PUBLIC_ROOT / "tasks").glob("*/*/catalog.toml")):
         catalog = tomllib.loads(catalog_path.read_text())
         for entry in catalog["cases"]:
             case_path = catalog_path.parent / entry["config_path"]
@@ -197,7 +198,7 @@ def test_public_simulation_decks_match_authoritative_subcircuits():
 
 def test_public_resource_bindings_resolve_declared_profiles():
     """Directory aliases cannot masquerade as PDK profile identifiers."""
-    from benchmarking.prepare_support import load_profile
+    from layout_eval.prepare_support import load_profile
 
     for case_path, case in _executable_cases():
         for backend in case['toolchain']['backends'].values():

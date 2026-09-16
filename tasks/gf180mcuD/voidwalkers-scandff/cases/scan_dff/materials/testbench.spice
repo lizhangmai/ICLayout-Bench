@@ -1,0 +1,30 @@
+* GF180MCU nominal characterization: 3.3 V, 27 C, typical models.
+.include "support/models.spice"
+.include "dut.spice"
+.include "parameters.spice"
+.temp 27
+VDD vdd 0 3.3
+VCLK clk 0 PULSE(0 3.3 10n .1n .1n 10n 20n)
+VRN rn 0 PWL(0 0 5n 0 5.1n 3.3 85n 3.3 85.1n 0 95n 0 95.1n 3.3)
+VS s 0 PWL(0 0 40n 0 40.1n 3.3 80n 3.3 80.1n 0)
+VA a 0 PWL(0 0 20n 0 20.1n 3.3 60n 3.3 60.1n 0 100n 0 100.1n 3.3 120n 3.3 120.1n 0)
+VB b 0 PWL(0 0 60n 0 60.1n 3.3)
+CLOAD q 0 50f
+XDUT s vdd q b clk a rn 0 gf180mcu_voidwalkers_sc_sdffrnq_4
+.control
+tran .01n 140n
+meas tran low19 find v(q) at=19n
+meas tran high39 find v(q) at=39n
+meas tran low59 find v(q) at=59n
+meas tran high79 find v(q) at=79n
+meas tran reset89 find v(q) at=89n
+meas tran reset99 find v(q) at=99n
+meas tran high119 find v(q) at=119n
+meas tran low139 find v(q) at=139n
+meas tran delay_s trig v(clk) val=1.65 rise=1 td=100n targ v(q) val=2.97 rise=1 td=100n
+let pwr=-3.3*i(vdd)
+meas tran power_w avg pwr from=20n to=140n
+write waveform.raw
+quit
+.endc
+.end

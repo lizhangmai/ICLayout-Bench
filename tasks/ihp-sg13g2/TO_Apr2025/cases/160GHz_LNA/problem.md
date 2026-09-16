@@ -18,8 +18,6 @@ inputs:
 | [materials/circuit.cdl](materials/circuit.cdl) | Authoritative LVS netlist and drawn device geometry |
 | [materials/circuit.spice](materials/circuit.spice) | Authoritative simulator export |
 | [materials/testbench.spice](materials/testbench.spice) | Nominal operating-point and AC testbench |
-| [materials/pex_scope.json](materials/pex_scope.json) | Candidate-extraction and substrate-boundary contract |
-| `materials/LICENSE` | License notice for the delivered case materials |
 
 The circuit is a four-stage direct-coupled common-emitter amplifier. Four
 `npn13G2` devices (`Nx=1`) form the gain chain. Each collector has an `rppd`
@@ -90,8 +88,10 @@ export, the ordinary `npn13G2` model supplies its effective device dimensions
 while `Nx=1` and all terminal connections are preserved; the drawn LVS
 dimensions are not silently used as behavioral dimensions. The candidate path
 reconciles the approved SG13G2 substrate body boundary to `VSS` with tap
-extraction disabled. The finite source tap remains in calibration. Details
-are in [materials/pex_scope.json](materials/pex_scope.json).
+extraction disabled. The finite source tap remains in calibration. Only the internal HBT body domain, identified through its physical tap
+return, may be reconciled to VSS. Collector, base, emitter, resistor terminals
+and geometry, and top-level ports remain candidate-derived. No other
+internal-node aliases or simulator global-ground substitutions are permitted.
 
 ## Electrical Requirements and Scoring
 
@@ -144,7 +144,7 @@ with area in µm². The fixed full-score area target is
 13,000 µm²; the zero-area-utility boundary is 14,400 µm².
 Area earns no points until all electrical requirements pass.
 
-The task coefficient is `3`. A batch averages all scheduled independent
+The task coefficient is `5`. A batch averages all scheduled independent
 attempts per task, then computes `sum(coefficient * task_mean) / sum(coefficient)`.
 Coefficients are fixed integers; adding tasks does not change existing ones.
 

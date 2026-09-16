@@ -6,12 +6,13 @@ from pathlib import Path
 import pytest
 
 from benchmarking.bundles import load_bundle
-from benchmarking.docker import DockerTool
 from benchmarking.files import Asset
-from benchmarking.prepare_support import prepare_support
+from layout_eval.docker import DockerTool
+from layout_eval.prepare_support import prepare_support
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
+PUBLIC_ROOT = ROOT
 
 
 def test_model_calls_preserve_geometry_multiplicity_terminals_and_hierarchy(tmp_path):
@@ -59,9 +60,9 @@ netlist.each_circuit do |c|
 end
 File.write('devices.json', JSON.generate(circuits))
 """
-    prepare_support(ROOT / "third_party/IHP-Open-PDK", f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#klayout", tmp_path / "support")
+    prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK", f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#klayout", tmp_path / "support")
     support = load_bundle(tmp_path / "support")
-    result = DockerTool("layout-bench-tools:local", ["klayout", "-v"], 120).run(
+    result = DockerTool("iclayout-bench-tools:local", ["klayout", "-v"], 120).run(
         ["klayout", "-b", "-r", "probe.rb"],
         {"probe.rb": Asset(script.encode(), "ruby"), "source.spice": Asset(source.encode(), "spice"),
          **support.mounted_files()}, {"devices.json": "json"})

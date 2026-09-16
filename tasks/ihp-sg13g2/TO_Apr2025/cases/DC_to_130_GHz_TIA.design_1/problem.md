@@ -18,7 +18,6 @@ inputs:
 | [materials/circuit.cdl](materials/circuit.cdl) | Authoritative LVS netlist and device geometry |
 | [materials/circuit.spice](materials/circuit.spice) | Authoritative simulator export |
 | [materials/testbench.spice](materials/testbench.spice) | Nominal operating-point and AC testbench |
-| `materials/LICENSE` | License notice for the delivered case materials |
 
 The circuit is a two-stage SiGe HBT transimpedance core. Q1 is the first
 common-emitter stage (`Nx=5`) and drives Q2, the second common-emitter stage
@@ -148,7 +147,7 @@ with area in µm². The fixed full-score area target is
 590,000 µm²; the zero-area-utility boundary is 619,200 µm².
 Area earns no points until all electrical requirements pass.
 
-The task coefficient is `2`. A batch averages all scheduled independent
+The task coefficient is `4`. A batch averages all scheduled independent
 attempts per task, then computes `sum(coefficient * task_mean) / sum(coefficient)`.
 Coefficients are fixed integers; adding tasks does not change existing ones.
 

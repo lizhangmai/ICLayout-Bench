@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 from benchmarking.files import Asset
-from benchmarking.recorder import (
+from layout_eval.recorder import (
     BatchLease,
     BatchLeaseError,
     RecordingError,
@@ -25,7 +25,7 @@ def test_process_exit_keeps_committed_submission_but_not_orphan(tmp_path):
     code = '''
 import os, sys
 from benchmarking.files import Asset
-from benchmarking.recorder import RunRecorder
+from layout_eval.recorder import RunRecorder
 r = RunRecorder(sys.argv[1])
 a = Asset(b"accepted", "gds")
 ref = r.archive(a)
@@ -116,7 +116,7 @@ def test_batch_lease_is_exclusive_across_processes(tmp_path):
     RunRecorder(root)
     holder = subprocess.Popen(
         [sys.executable, "-c", """
-from benchmarking.recorder import BatchLease
+from layout_eval.recorder import BatchLease
 import sys
 with BatchLease(sys.argv[1]):
     print('ready', flush=True)
@@ -126,7 +126,7 @@ with BatchLease(sys.argv[1]):
         assert holder.stdout.readline().strip() == "ready"
         attempt = subprocess.run(
             [sys.executable, "-c", """
-from benchmarking.recorder import BatchLease
+from layout_eval.recorder import BatchLease
 import sys
 try:
     with BatchLease(sys.argv[1]):

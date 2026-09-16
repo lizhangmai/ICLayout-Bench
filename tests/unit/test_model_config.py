@@ -2,7 +2,7 @@
 
 import pytest
 
-from benchmarking.model_config import load_run_config
+from layout_eval.model_config import load_run_config
 
 pytestmark = pytest.mark.unit
 
@@ -54,3 +54,31 @@ def test_tool_environment_names_remain_supported(tmp_path):
         "PYTHONPATH": "/workspace/lib",
         "PDK_ROOT": "/workspace/pdk",
     }
+
+
+def test_external_configuration_parent_path_preserves_declared_file_checks(tmp_path, monkeypatch):
+    # User-owned sibling projects are documented CLI inputs. Existing fixtures
+    # only use canonical absolute roots; this protects normal ../ usage while
+    # retaining the independent digest and no-symlink asset requirements.
+    import hashlib
+    from pathlib import Path
+
+    agent = tmp_path / 'my-agent'
+    agent.mkdir()
+    bench = tmp_path / 'benchmark'
+    bench.mkdir()
+    source = _config(agent, {})
+    payload = b'print("participant")\n'
+    harness = agent / 'harness.py'
+    harness.write_bytes(payload)
+    source.write_text(source.read_text() + '\n[[files]]\npath = "harness.py"\ntarget = "harness.py"\n'
+                      + f'sha256 = "{hashlib.sha256(payload).hexdigest()}"\n')
+    monkeypatch.chdir(bench)
+    config_path = Path('../my-agent/agent.toml')
+    assert load_run_config(config_path).files['harness.py'].content == payload
+    outside = tmp_path / 'outside.py'
+    outside.write_bytes(payload)
+    harness.unlink()
+    harness.symlink_to(outside)
+    with pytest.raises(ValueError, match='non-symlink'):
+        load_run_config(config_path)

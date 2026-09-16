@@ -1,0 +1,77 @@
+* GF180MCU nominal characterization: 3.3 V, 27 C, typical models.
+.include "support/models.spice"
+.include "dut.spice"
+.include "parameters.spice"
+.temp 27
+VDD_LO vdd_lo 0 PWL(0 0 1n 3.3)
+VDD_HI vdd_hi 0 PWL(0 0 1n 3.3)
+Vlo ctrl_lo 0 1.65
+XDUT_lo 0 vdd_lo ctrl_lo o0_lo o90_lo o180_lo o270_lo vco
+C0_lo o0_lo 0 50f
+C90_lo o90_lo 0 50f
+C180_lo o180_lo 0 50f
+C270_lo o270_lo 0 50f
+Vhi ctrl_hi 0 2.1
+XDUT_hi 0 vdd_hi ctrl_hi o0_hi o90_hi o180_hi o270_hi vco
+C0_hi o0_hi 0 50f
+C90_hi o90_hi 0 50f
+C180_hi o180_hi 0 50f
+C270_hi o270_hi 0 50f
+.control
+tran .02n 600n
+meas tran period_lo trig v(o0_lo) val=1.65 rise=1 td=400n targ v(o0_lo) val=1.65 rise=2 td=400n
+let frequency_lo=1/period_lo
+print frequency_lo
+meas tran delta90_lo trig v(o0_lo) val=1.65 rise=1 td=400n targ v(o90_lo) val=1.65 rise=1 td=400n
+let phase90_lo=delta90_lo/period_lo
+let phase90_lo=phase90_lo-floor(phase90_lo)
+print phase90_lo
+meas tran delta180_lo trig v(o0_lo) val=1.65 rise=1 td=400n targ v(o180_lo) val=1.65 rise=1 td=400n
+let phase180_lo=delta180_lo/period_lo
+let phase180_lo=phase180_lo-floor(phase180_lo)
+print phase180_lo
+meas tran delta270_lo trig v(o0_lo) val=1.65 rise=1 td=400n targ v(o270_lo) val=1.65 rise=1 td=400n
+let phase270_lo=delta270_lo/period_lo
+let phase270_lo=phase270_lo-floor(phase270_lo)
+print phase270_lo
+meas tran min0_lo min v(o0_lo) from=400n to=600n
+meas tran max0_lo max v(o0_lo) from=400n to=600n
+meas tran min90_lo min v(o90_lo) from=400n to=600n
+meas tran max90_lo max v(o90_lo) from=400n to=600n
+meas tran min180_lo min v(o180_lo) from=400n to=600n
+meas tran max180_lo max v(o180_lo) from=400n to=600n
+meas tran min270_lo min v(o270_lo) from=400n to=600n
+meas tran max270_lo max v(o270_lo) from=400n to=600n
+meas tran period_hi trig v(o0_hi) val=1.65 rise=1 td=400n targ v(o0_hi) val=1.65 rise=2 td=400n
+let frequency_hi=1/period_hi
+print frequency_hi
+meas tran delta90_hi trig v(o0_hi) val=1.65 rise=1 td=400n targ v(o90_hi) val=1.65 rise=1 td=400n
+let phase90_hi=delta90_hi/period_hi
+let phase90_hi=phase90_hi-floor(phase90_hi)
+print phase90_hi
+meas tran delta180_hi trig v(o0_hi) val=1.65 rise=1 td=400n targ v(o180_hi) val=1.65 rise=1 td=400n
+let phase180_hi=delta180_hi/period_hi
+let phase180_hi=phase180_hi-floor(phase180_hi)
+print phase180_hi
+meas tran delta270_hi trig v(o0_hi) val=1.65 rise=1 td=400n targ v(o270_hi) val=1.65 rise=1 td=400n
+let phase270_hi=delta270_hi/period_hi
+let phase270_hi=phase270_hi-floor(phase270_hi)
+print phase270_hi
+meas tran min0_hi min v(o0_hi) from=400n to=600n
+meas tran max0_hi max v(o0_hi) from=400n to=600n
+meas tran min90_hi min v(o90_hi) from=400n to=600n
+meas tran max90_hi max v(o90_hi) from=400n to=600n
+meas tran min180_hi min v(o180_hi) from=400n to=600n
+meas tran max180_hi max v(o180_hi) from=400n to=600n
+meas tran min270_hi min v(o270_hi) from=400n to=600n
+meas tran max270_hi max v(o270_hi) from=400n to=600n
+let tuning_ratio=frequency_hi/frequency_lo
+print tuning_ratio
+let pwr_lo=-3.3*i(vdd_lo)
+let pwr_hi=-3.3*i(vdd_hi)
+meas tran power_lo avg pwr_lo from=400n to=600n
+meas tran power_hi avg pwr_hi from=400n to=600n
+write waveform.raw
+quit
+.endc
+.end

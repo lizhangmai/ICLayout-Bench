@@ -1,0 +1,8 @@
+* Derived from analog-db smp_001_nmos_th, fixed snapshot
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Remove unused VDD; physical storage and tap.
+.subckt smp_001_nmos_th vin clk vout vss
+XM0 vin clk vout sub sg13_lv_nmos w=2u l=0.13u m=1
+XC0 vout vss cap_cmim w=18.2u l=18.2u m=1
+XRPTAP vss sub ptap1 A=16e-12 P=20e-6
+.ends smp_001_nmos_th

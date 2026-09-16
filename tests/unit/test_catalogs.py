@@ -30,23 +30,25 @@ def test_catalog_and_case_declarations_are_consistent(path):
 
 @pytest.mark.parametrize("path", CATALOGS, ids=lambda path: path.parent.name)
 def test_public_case_files_have_declared_owners_and_standalone_inputs(path, tmp_path):
-    """Catch orphan materials/references and lost shared terms after export."""
+    """Catch orphan materials/references and non-standalone solve inputs."""
     import hashlib
 
     import tomli_w
     from helpers.case_config import standalone_config
 
     assert (path.parent / "README.md").is_file()
+    assert (path.parent / "LICENSE").read_bytes(), "Collection distributions retain their terms"
     for index, (config, data) in enumerate(read_catalog(path)[1]):
         if "task" not in data:
             continue
         inputs = data["task"]["inputs"]
+        # Distribution metadata must not enter the isolated solve directory.
+        assert not {"license", "notice", "pex_scope"} & inputs.keys(), config
+        assert not any(entry["path"].rsplit("/", 1)[-1] in {"LICENSE", "NOTICE"}
+                       for entry in inputs.values()), config
         assert set(data["origin"]) == {"url"}
         assert inputs["performance"]["path"] == "materials/testbench.spice"
         assert inputs["netlist"]["path"].startswith("materials/circuit.")
-        license_input = inputs["license"]
-        assert license_input["path"] == "materials/LICENSE"
-        assert license_input["collection_source"] == "LICENSE"
         declared = {"case.toml", "README.md"}
         declared.update(entry["path"] for entry in inputs.values()
                         if not entry.get("collection_source") and not entry.get("source"))
@@ -62,8 +64,24 @@ def test_public_case_files_have_declared_owners_and_standalone_inputs(path, tmp_
         task = load_task(config)
         destination = tmp_path / str(index)
         task.materialize(destination)
+        assert {p.relative_to(destination).as_posix() for p in destination.rglob("*") if p.is_file()} == {
+            entry.path for entry in task.inputs
+        }
         copied = destination / "case.toml"
         copied.write_text(standalone_config(tomli_w.dumps(data)))
         standalone = load_task(copied)
         assert standalone.input_assets() == task.input_assets()
-        assert (destination / "materials/LICENSE").read_bytes() == (path.parent / "LICENSE").read_bytes()
+        from benchmarking.benchmark import task_contract
+        assert task_contract(standalone) == task_contract(task)
+
+
+def test_benchmark_selects_qualified_catalog_cases_across_processes():
+    from pathlib import Path
+
+    from benchmarking.benchmark import load_benchmark
+
+    benchmark = load_benchmark(Path(__file__).resolve().parents[2] / "benchmark.toml")
+    registered = {config for catalog in CATALOGS for config, _ in read_catalog(catalog)[1]}
+    assert set(benchmark.configs) < registered
+    assert len({config.parents[3] for config in benchmark.configs}) > 1
+    benchmark.validate_tasks([load_task(config) for config in benchmark.configs])

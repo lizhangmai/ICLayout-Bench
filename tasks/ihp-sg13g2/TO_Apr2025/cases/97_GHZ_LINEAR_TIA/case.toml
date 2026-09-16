@@ -5,14 +5,14 @@ title = "TO_Apr2025 97-derived multi-stage linear TIA"
 status = "qualified"
 
 [task]
-coefficient = 4
+coefficient = 6
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_hbt_tia_physical"
 environment = "ihp-sg13g2-to-97-derived-linear-tia"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "879563b94e675001ca7dbffc73def08d3a71137cbfb7d4ad232cf6583e0a3bff"
+sha256 = "c03831618b2694d9a5de788e7e0c44576d725e5bf1fd9785bde719b6614f6f05"
 format = "text"
 
 [task.inputs.netlist]
@@ -30,17 +30,6 @@ format = "spice"
 path = "materials/testbench.spice"
 sha256 = "759a7548f5ea81399322a73a10b58207d3ff28b2a5ed0ef7d55850b1a6b3959e"
 format = "spice"
-
-[task.inputs.license]
-collection_source = "LICENSE"
-path = "materials/LICENSE"
-sha256 = "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-format = "text"
-
-[task.inputs.pex_scope]
-path = "materials/pex_scope.json"
-sha256 = "84f58f488f94a74ffed9299d43fd9f70c53fb721dc2f747a4672fcb5410ae338"
-format = "json"
 
 [task.constraints]
 schema_version = 1
@@ -311,7 +300,7 @@ schema_version = 1
 type = "klayout-geometry-docker"
 
 [toolchain.backends.geometry.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 timeout_seconds = 120
 
 [toolchain.backends.drc]
@@ -319,7 +308,7 @@ type = "klayout-docker"
 support_profiles = { support = "klayout" }
 
 [toolchain.backends.drc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "drc"
 support = "build/support/tia97-klayout"
 profile = "drc-upstream.json"
@@ -330,7 +319,7 @@ type = "klayout-docker"
 support_profiles = { support = "klayout" }
 
 [toolchain.backends.lvs.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "lvs"
 support = "build/support/tia97-klayout"
 profile = "lvs-upstream.json"
@@ -340,7 +329,7 @@ timeout_seconds = 600
 type = "klayout-docker"
 
 [toolchain.backends.artifact.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "artifact"
 timeout_seconds = 60
 
@@ -349,7 +338,7 @@ type = "ngspice-docker"
 support_profiles = { support = "hbt-models" }
 
 [toolchain.backends.simulation.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/tia97-hbt-models"
 timeout_seconds = 600
 
@@ -358,7 +347,7 @@ type = "sg13g2-hbt-rc-docker"
 support_profiles = { klayout_support = "klayout", magic_support = "magic" }
 
 [toolchain.backends.parasitics.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 klayout_support = "build/support/tia97-klayout"
 klayout_profile = "lvs-upstream.json"
 magic_support = "build/support/tia97-magic"

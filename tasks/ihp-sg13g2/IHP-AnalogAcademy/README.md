@@ -14,5 +14,6 @@ reports measurements, reproduction commands, and qualification limitations.
 Prepare the PDK and tools using the [tools guide](../../../docs/tools.md#manual-tools),
 then follow the selected case's reproduction commands. References remain outside
 standard solver inputs. Source attribution is recorded in each case's `origin.url`.
-The shared [LICENSE](LICENSE) is copied to `materials/LICENSE` during
-materialization and reference export.
+Retain the shared [LICENSE](LICENSE) with collection distributions and material
+exports. Solver materialization and local prepared runs are not redistribution
+packages; the license remains outside solver inputs.

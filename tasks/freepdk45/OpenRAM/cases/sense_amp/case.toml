@@ -7,12 +7,12 @@ status = "qualified"
 [task]
 kind = "netlist_to_gds"
 family = "freepdk45_sense_amp"
-coefficient = 3
+coefficient = 5
 environment = "freepdk45-nominal-predictive-rc"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "a8d40f2e0fcc405da7f54182fee519ea7daed3207de1561f975fe59989ba1925"
+sha256 = "7c518c8889ae2f2734dcd2a7e9e03ede33e31122c03e553b201c811c99f1a9e4"
 format = "text"
 
 [task.inputs.netlist]
@@ -20,18 +20,6 @@ path = "materials/circuit.spice"
 sha256 = "f5a25305dc9184f778cad474f697091f37bfc8b30cf045e46306ce0927c5565f"
 format = "spice"
 subcircuit = "sense_amp"
-
-[task.inputs.license]
-path = "materials/LICENSE"
-collection_source = "LICENSE"
-sha256 = "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
-format = "text"
-
-[task.inputs.notice]
-path = "materials/NOTICE"
-collection_source = "NOTICE"
-sha256 = "a4dbe0ab0c21e740b36f892dd35e78c56724a55d507e30e051b82b81bf226d9b"
-format = "text"
 
 [task.inputs.performance]
 path = "materials/testbench.spice"
@@ -343,7 +331,7 @@ schema_version = 1
 type = "klayout-docker"
 
 [toolchain.backends.artifact.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "artifact"
 timeout_seconds = 120
 
@@ -351,7 +339,7 @@ timeout_seconds = 120
 type = "klayout-docker"
 
 [toolchain.backends.drc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "drc"
 timeout_seconds = 120
 support = "build/support/freepdk45-klayout"
@@ -364,7 +352,7 @@ support = "klayout"
 type = "klayout-docker"
 
 [toolchain.backends.lvs.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 120
 support = "build/support/freepdk45-klayout"
@@ -377,14 +365,14 @@ support = "klayout"
 type = "klayout-geometry-docker"
 
 [toolchain.backends.geometry.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 timeout_seconds = 60
 
 [toolchain.backends.rc]
 type = "magic-rc-docker"
 
 [toolchain.backends.rc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/freepdk45-magic-vtg"
 technology = "freepdk45.tech"
 tech_name = "nangate45"
@@ -446,7 +434,7 @@ support = "magic-vtg"
 type = "ngspice-docker"
 
 [toolchain.backends.ngspice.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/freepdk45-models"
 timeout_seconds = 120
 

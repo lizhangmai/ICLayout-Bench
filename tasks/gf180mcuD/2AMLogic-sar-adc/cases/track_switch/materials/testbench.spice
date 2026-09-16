@@ -1,0 +1,24 @@
+* GF180MCU nominal characterization: 3.3 V, 27 C, typical models.
+.include "support/models.spice"
+.include "dut.spice"
+.include "parameters.spice"
+.temp 27
+VDD vdd 0 3.3
+VIN vin 0 PWL(0 .5 5n .5 5.1n 2.5 30n 2.5 30.1n .5 55n .5 55.1n 2.5)
+VCLK clk 0 PWL(0 3.3 20n 3.3 20.1n 0 45n 0 45.1n 3.3)
+VCLKB clkb 0 PWL(0 0 20n 0 20.1n 3.3 45n 3.3 45.1n 0)
+CLOAD out 0 1p
+XDUT vin out clk clkb vdd 0 adc_tgate_dum
+.control
+tran .01n 70n
+meas tran track_high find v(out) at=19n
+meas tran hold_high find v(out) at=44n
+meas tran track_low find v(out) at=54n
+meas tran track_again find v(out) at=69n
+meas tran settle_s trig v(vin) val=1.5 rise=1 targ v(out) val=2.48 rise=1
+let hold_error=abs(v(out)-2.5)
+meas tran hold_error_v max hold_error from=21n to=44n
+write waveform.raw
+quit
+.endc
+.end

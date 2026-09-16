@@ -1,6 +1,6 @@
-# Layout-Bench Repository Conventions
+# ICLayout-Bench Repository Conventions
 
-This repository owns the common framework, public tasks, reference solutions, and qualification materials; hidden tasks and internal assembly belong to the Private repository (one-way dependency Private → Public). Write all repository Markdown in English, except `README_CN.md`.
+This repository owns the official participant harness, generic client, public protocol, scoring specifications, development tasks and result analysis. It also owns the shared evaluation engine and local HTTP service. Private owns operator-controlled admission, frozen reruns and releases (one-way dependency Private → Public). See the architecture guide for the current package boundary. Write all repository Markdown in English, except `README_CN.md`.
 
 ## Starting Work
 
@@ -18,7 +18,8 @@ Run `git status --short --branch` and preserve unrelated changes. Use the [READM
 
 ## Execution and Completion
 
-- Keep common mechanisms in `benchmarking/`; task-specific preparation, reference solutions, and qualification evidence live in the corresponding task directory. Public installation and CI must not depend on Private.
+- Keep protocol, client, harness and analysis in `benchmarking/`, shared preparation/execution/EDA in `layout_eval/`, and the local HTTP adapter in `layout_service/`. Private imports these modules through `layout_operator`; Public must not import operator code. Task-specific preparation, reference solutions, and qualification evidence live in the corresponding task directory. Public installation and CI must not depend on Private.
+- Reuse a compatible existing tool image during development. Before rebuilding, changing container dependencies, or validating release reproduction, follow [image development](docs/tools.md#image-development); keep the public build recipe current and report whether validation reused, derived, or rebuilt an image.
 - A standard solve materializes only declared inputs and reviewed resource bundles. Public reference solutions may be downloaded for debugging but are never mounted for a standard solver Agent. Follow the [task guide](docs/tasks.md#asset-rights) for sources and distribution.
 - Evaluate frozen candidates independently with trusted materials, without Agent credentials or writable directories. DRC/LVS establishes physical validity; task success also requires the declared geometry and post-layout metrics.
 - Rerun affected case validation and shared evaluator regressions when the judge, rules, or task changes; use the task guide to determine calibration scope. Deterministic protocol tests are not model scores.

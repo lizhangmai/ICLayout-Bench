@@ -5,21 +5,21 @@ title = "TO_Apr2025 160-derived four-stage LNA at 100 MHz"
 status = "qualified"
 
 [[assets]]
-path = "reference/lna160_four_stage_distinct_rsil_qualified.gds"
+path = "reference/LNA160_FOUR_STAGE.gds"
 role = "physical-witness"
 visibility = "maintainer"
 format = "gds"
 sha256 = "2f172d59e1ab2ddc0fc1895ae9b5d5a541cc5449b043c39df3cad8f01a7aa2f2"
 
 [task]
-coefficient = 3
+coefficient = 5
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_hbt_lna_four_stage"
 environment = "ihp-sg13g2-lna160-derived-functional"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "9fd75cc42ae75b5bff5383a37d2beafbcbb7df75f151efb8b96b63056c6f21a0"
+sha256 = "3147b92364c48bfdb103786dfe83f1f8e5aa5cd9806487339d45033d41f485a1"
 format = "text"
 
 [task.inputs.netlist]
@@ -37,17 +37,6 @@ format = "spice"
 path = "materials/testbench.spice"
 sha256 = "73cd2486a28743b5e6f7b28533c3f4f8a30dc2794e732b30791612ecebed9dc8"
 format = "spice"
-
-[task.inputs.license]
-collection_source = "LICENSE"
-path = "materials/LICENSE"
-sha256 = "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-format = "text"
-
-[task.inputs.pex_scope]
-path = "materials/pex_scope.json"
-sha256 = "4861dcfa09519aa06fa89b7087ee3fd6ee3e28239200a600ba3d2004f4dda179"
-format = "json"
 
 [task.constraints]
 schema_version = 1
@@ -202,7 +191,7 @@ schema_version = 1
 [toolchain.backends.artifact]
 type = "klayout-docker"
 [toolchain.backends.artifact.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "artifact"
 timeout_seconds = 600
 
@@ -210,7 +199,7 @@ timeout_seconds = 600
 type = "klayout-docker"
 support_profiles = { support = "klayout" }
 [toolchain.backends.drc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "drc"
 support = "build/support/lna160-klayout"
 profile = "drc-upstream.json"
@@ -220,7 +209,7 @@ timeout_seconds = 600
 type = "klayout-docker"
 support_profiles = { support = "klayout" }
 [toolchain.backends.lvs.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "lvs"
 support = "build/support/lna160-klayout"
 profile = "lvs-upstream.json"
@@ -229,14 +218,14 @@ timeout_seconds = 600
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
 [toolchain.backends.geometry.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 timeout_seconds = 600
 
 [toolchain.backends.parasitics]
 type = "sg13g2-hbt-rc-docker"
 support_profiles = { klayout_support = "klayout", magic_support = "magic" }
 [toolchain.backends.parasitics.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 klayout_support = "build/support/lna160-klayout"
 klayout_profile = "lvs-upstream.json"
 magic_support = "build/support/lna160-magic"
@@ -250,13 +239,13 @@ timeout_seconds = 600
 type = "ngspice-docker"
 support_profiles = { support = "hbt-models" }
 [toolchain.backends.simulation.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/lna160-hbt-models"
 timeout_seconds = 600
 
 [qualification]
 evidence = "README.md"
-reference = "reference/lna160_four_stage_distinct_rsil_qualified.gds"
+reference = "reference/LNA160_FOUR_STAGE.gds"
 
 [origin]
 url = "https://github.com/IHP-GmbH/TO_Apr2025/blob/63e203a0eccfb6028a1a0a8364553e4e979b55b3/160GHz_LNA/design_data/qucs-s/160GHz_LNA(MAIN).sch"

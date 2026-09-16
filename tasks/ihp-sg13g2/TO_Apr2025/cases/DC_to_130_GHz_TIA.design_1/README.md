@@ -22,7 +22,7 @@ both `VEE`, so it does not create a DC voltage drop.
 | [materials/circuit.cdl](materials/circuit.cdl) | Strict LVS netlist |
 | [materials/circuit.spice](materials/circuit.spice) | Ready-to-use pre-layout simulator netlist |
 | [materials/testbench.spice](materials/testbench.spice) | Shared nominal operating-point and AC testbench |
-| [Collection LICENSE](../../LICENSE) | Shared terms, delivered as `materials/LICENSE` |
+| [Collection LICENSE](../../LICENSE) | Collection distribution terms; excluded from solver inputs |
 | [reference/FMD_QNC_03a_TIA_1.gds](reference/FMD_QNC_03a_TIA_1.gds) | Qualified reference layout, top cell `FMD_QNC_03a_TIA_1` |
 
 ## Reference Results
@@ -63,18 +63,30 @@ are explicit grading choices, with the acceptance limits checked separately.
 The fixed absolute area target is a feasible envelope demonstrated by the
 reference layout, rather than a ratio to the reference or a claim of optimality.
 
+The [HBT diagnostic policy](../../../../../docs/tools.md#hbt-core-simulation-support)
+checks Magic compact-contact warnings against native device records before
+requiring complete candidate graph validation. The reference report retains
+the original diagnostics, their review and the final HBT/RC mapping.
+
+Coefficient 4 reflects a compact transimpedance core with bias, passive
+feedback and loaded transfer requirements.
+
 ## Reproduce
+
+These operator commands require the installed `ICLayout-Bench-Private` package.
+Run preparation from the Public checkout; run any `tests/integration/` commands
+from the Private checkout using that environment.
 
 Prepare the image and PDK resources using the shared
 [tools guide](../../../../../docs/tools.md#manual-tools). Run from the repository
 root and choose a fresh output directory for each reproduction:
 
 ```bash
-uv run --locked python scripts/public_preview.py prepare \
+python -m layout_eval.preview prepare \
   --case DC_to_130_GHz_TIA.design_1 \
   --output build/runs/public-preview-DC_to_130_GHz_TIA.design_1-01/prepared \
-  --image layout-bench-tools:local
-uv run --locked python scripts/public_preview.py run \
+  --image iclayout-bench-tools:local
+python -m layout_eval.preview run \
   --prepared build/runs/public-preview-DC_to_130_GHz_TIA.design_1-01/prepared \
   --output build/runs/public-preview-DC_to_130_GHz_TIA.design_1-01/run
 ```
@@ -85,7 +97,7 @@ To reproduce pre-layout/post-layout calibration and the reference acceptance
 regressions, run:
 
 ```bash
-uv run --locked pytest -m acceptance_eda \
+python -m pytest -m acceptance_eda \
   tests/integration/test_tia130_postlayout.py
 ```
 

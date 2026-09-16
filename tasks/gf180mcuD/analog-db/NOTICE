@@ -1,0 +1,69 @@
+Layout-Bench analog-db GF180 collection
+======================================
+
+Required Notice: Copyright 2026 Danial Noori Zadeh
+
+Circuit materials derive from MacAnalog/spicexplorer-release analog-db,
+commit 263d0322f8900dc331536fbbe6c0e804514fc454, entry ldo_004_basic_pmos.
+The database LICENSE and NOTICE identify original circuit definitions under
+PolyForm Noncommercial 1.0.0; these terms are retained in LICENSE. The entry's
+provenance metadata separately refers to an MIT source architecture; this
+collection does not assume that metadata relicenses the normalized database
+material. It is not covered as a whole by the framework's MIT license.
+
+Layout-Bench changes: expose the reference and error-amplifier tail interfaces;
+retain the GF180 MOS dimensions and pass-device multiplicity; replace the ideal
+divider by GF180 1 kohm/square poly devices; remove the internal loop-probe source;
+use a 0.9 V external reference for a nominal 1.8 V output; independently construct
+the physical witness. Testbenches are separately identified as MIT.
+Retain LICENSE and these notices with distributions of these materials.
+
+Batch additions at the same fixed analog-db commit
+-------------------------------------------------
+amp_004_folded_cascode: first-party SpiceXplorer / CORA-benchmark material,
+identified as such by the database NOTICE. The provenance MIT label does not
+relicense the normalized material. Layout-Bench exposes vb1/vb2, retains total
+W/L and multiplicity and uses single-finger MOS instances with physical bodies.
+
+gs_001_cascode_cs, dp_001_resistive_load, cmp_001_hyst_diffpair: manifests
+attribute the source topology to Token Zhang, Arcadia-1/ferrosim, MIT.
+Layout-Bench retains MOS W/L and multiplicity, binds physical poly loads or
+feedback/tail resistors where applicable, and authors independent witnesses.
+The supplied attribution and standard component terms are retained in LICENSE.
+
+tsn_003_ptat_4t_xcoupled: source topology attributed to CODA-Team AnalogGym
+Sensing Front End, BSD-3-Clause. Copyright (c) 2024, CODA-Team. The supplied
+component license is reproduced in LICENSE. Layout-Bench fixes the GF180
+circuit and independently authors a physical witness and temperature contract.
+
+All five normalized circuit derivatives retain the database PolyForm
+Noncommercial terms and Required Notice: Copyright 2026 Danial Noori Zadeh.
+New measurement decks are independently authored Layout-Bench code under MIT.
+Physical witnesses are distributed with the corresponding circuit terms.
+Upstream proprietary-process reference decks, generators, DSL, optimization
+traces and scoreboard are not included in these maintained case materials.
+
+Additional fixed-snapshot cases
+-------------------------------
+amp_018_telescopic_cascode: the database NOTICE identifies original first-party
+SpiceXplorer / CORA-benchmark material. Layout-Bench retains W/L/m and exposes
+gate_pc, casc_n and tail to preserve both relative external voltage biases.
+
+cmfb_003_5t_nmos_input: original normalized analog-db material. Layout-Bench
+retains the seven MOS and implements each 5 Mohm sense arm as twenty series
+250-kohm physical poly segments, with explicit substrate terminals.
+
+These derivatives and their independent witnesses retain PolyForm Noncommercial
+1.0.0 and Required Notice: Copyright 2026 Danial Noori Zadeh. Independently
+authored measurement decks are separately MIT.
+
+Isolated-body PTAT at the same fixed snapshot
+--------------------------------------------
+tsn_002_ptat_classic: source topology attributed to CODA-Team AnalogGym Sensing
+Front End, BSD-3-Clause. Copyright (c) 2024, CODA-Team. Applicable component
+terms are retained in LICENSE. Layout-Bench preserves the four core MOS W/L/m
+and output-connected body, implements the 20 kohm resistor with physical poly,
+and adds three MOS for startup. The independently authored witness uses an
+isolated P-well, deep N-well and explicit N-well enclosure. The normalized
+derivative and witness retain PolyForm Noncommercial 1.0.0 and Required Notice:
+Copyright 2026 Danial Noori Zadeh. The independent measurement deck is MIT.

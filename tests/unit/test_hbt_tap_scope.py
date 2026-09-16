@@ -8,8 +8,8 @@ import pytest
 from benchmarking.bundles import publish_bundle
 from benchmarking.evaluation import Job
 from benchmarking.files import Asset
-from benchmarking.hbt import SG13G2HBTRCDocker
-from benchmarking.klayout import KLayoutDocker
+from layout_eval.hbt import SG13G2HBTRCDocker
+from layout_eval.klayout import KLayoutDocker
 
 pytestmark = pytest.mark.unit
 
@@ -25,8 +25,8 @@ def settings(tmp_path, monkeypatch):
             self.inputs = inputs
             return SimpleNamespace(reason="tool boundary stop", returncode=1, evidence={}, files={})
 
-    monkeypatch.setattr("benchmarking.klayout.DockerTool", Tool)
-    monkeypatch.setattr("benchmarking.magic.DockerTool", Tool)
+    monkeypatch.setattr("layout_eval.klayout.DockerTool", Tool)
+    monkeypatch.setattr("layout_eval.magic.DockerTool", Tool)
     profile = {"deck": "rules.lvs", "variables": {"disable_tap_extraction": "false"}, "scope": "strict taps"}
     publish_bundle({"rules.lvs": Asset(b"# fixture", "text"),
                     "profile.json": Asset(json.dumps(profile).encode(), "json")}, {}, tmp_path / "klayout")

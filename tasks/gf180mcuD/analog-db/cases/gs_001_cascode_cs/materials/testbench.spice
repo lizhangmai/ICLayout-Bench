@@ -1,0 +1,31 @@
+* Maintained Layout-Bench testbench. SPDX-License-Identifier: MIT
+.include support/models.spice
+.include dut.spice
+.include parameters.spice
+.temp 27
+VDD vdd 0 DC {supply_v}
+IB ibias 0 20u
+* External bias fixture: DC output feedback, AC-isolated input injection.
+LFB vout vin 1T
+VIN acin 0 DC 0 AC 1
+CIN acin vin 1
+CL vout 0 1p
+XDUT vdd vout vin ibias 0 gs_001_cascode_cs
+.control
+set noaskquit
+set numdgt=12
+op
+let output_v=v(vout)
+let bias_v=v(ibias)
+let power_w=-v(vdd)*i(vdd)
+print output_v bias_v power_w
+write op.raw v(vdd) v(vout) v(vin) v(ibias) i(vdd)
+ac dec 100 1 1G
+let gain_db=db(v(vout))
+meas ac gain_db find gain_db at=10
+let drop_db=db(v(vout))-gain_db
+meas ac bandwidth_hz when drop_db=-3 fall=1
+write ac.raw frequency v(vout) v(vin)
+quit
+.endc
+.end

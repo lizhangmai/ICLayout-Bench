@@ -20,8 +20,6 @@ and evaluation plan are also available at runtime through `/protocol/task.json`.
 | [materials/circuit.cdl](materials/circuit.cdl) | Authoritative LVS netlist for `input_common_centroid` |
 | [materials/circuit.spice](materials/circuit.spice) | Pre-layout simulator netlist |
 | [materials/testbench.spice](materials/testbench.spice) | Bias, load, AC sweep, and public measurement expressions |
-| [materials/pex_scope.json](materials/pex_scope.json) | Declared post-layout extraction boundary and calibration record |
-| `materials/LICENSE` | License for the declared circuit materials |
 
 Use one external label on each distinct conductor. Internal nodes must not be
 declared as external ports.
@@ -85,8 +83,7 @@ resistor-network simplification are disabled. The compact-device extraction
 boundary represents MOS bodies at ideal model rails; the explicit tap is checked
 by physical LVS but is not emitted as an extracted tap element. Well/substrate
 sheet resistance, tap resistance as an extracted quantity, body coupling, and
-noise are outside the declared scope. The finite source tap versus ideal-rail
-calibration is recorded in [materials/pex_scope.json](materials/pex_scope.json).
+noise are outside the declared scope. The finite source tap is used only in source calibration.
 
 ## Electrical Requirements and Scoring
 
@@ -144,7 +141,7 @@ with area in µm². The fixed full-score area target is
 1,300 µm²; the zero-area-utility boundary is 1,800 µm².
 Area earns no points until all electrical requirements pass.
 
-The task coefficient is `1`. A batch averages all scheduled independent
+The task coefficient is `3`. A batch averages all scheduled independent
 attempts per task, then computes `sum(coefficient * task_mean) / sum(coefficient)`.
 Coefficients are fixed integers; adding tasks does not change existing ones.
 

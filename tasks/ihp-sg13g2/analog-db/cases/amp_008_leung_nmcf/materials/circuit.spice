@@ -1,0 +1,35 @@
+* Derived from analog-db amp_008_leung_nmcf, fixed snapshot
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Modified: process-grid dimensions, physical passives, explicit bias and separate body taps.
+.subckt amp_008_leung_nmcf vss vdd vinn vinp vout net013
+XM12 vb4 vb3 net54 sub sg13_lv_nmos w=2.56u l=0.14u m=16
+XM13 dm_1 vb3 net56 sub sg13_lv_nmos w=2.56u l=0.14u m=16
+XM14 vb3 vb3 vss sub sg13_lv_nmos w=2.56u l=0.14u m=4
+XM15 voutn vb3 dm_2 sub sg13_lv_nmos w=2.56u l=0.14u m=16
+XM16 net050 vb3 net063 sub sg13_lv_nmos w=2.56u l=0.14u m=16
+XM17 net54 vb4 vss sub sg13_lv_nmos w=2.56u l=0.14u m=16
+XM18 net56 vb4 vss sub sg13_lv_nmos w=2.56u l=0.14u m=16
+XM19 dm_2 vb4 vss sub sg13_lv_nmos w=2.56u l=0.14u m=32
+XM20 net063 vb4 vss sub sg13_lv_nmos w=2.56u l=0.14u m=32
+XM21 net043 net043 vss sub sg13_lv_nmos w=5.17u l=1.73u m=4
+XM22 net049 net043 vss sub sg13_lv_nmos w=5.17u l=1.73u m=4
+XM23 vout net049 vss sub sg13_lv_nmos w=6.43u l=2.18u m=4
+XM8 dm_2 vinn net31 well_net31 sg13_lv_pmos w=4.11u l=0.66u m=4
+XM9 net063 vinp net31 well_net31 sg13_lv_pmos w=4.11u l=0.66u m=4
+XRtap_net31 net31 well_net31 ntap1 A=102.56e-12 P=106.56e-6
+XM0 net013 net013 vdd well_vdd sg13_lv_pmos w=3.82u l=1.79u m=4
+XM1 vb4 net013 vdd well_vdd sg13_lv_pmos w=3.82u l=1.79u m=4
+XM10 net043 net050 vdd well_vdd sg13_lv_pmos w=7.44u l=4.42u m=4
+XM11 vout net050 vdd well_vdd sg13_lv_pmos w=7.14u l=0.22u m=4
+XM2 dm_1 net013 vdd well_vdd sg13_lv_pmos w=3.82u l=1.79u m=4
+XM3 vb3 net013 vdd well_vdd sg13_lv_pmos w=3.82u l=1.79u m=4
+XM4 net31 net013 vdd well_vdd sg13_lv_pmos w=3.82u l=1.79u m=16
+XM5 voutn voutn vdd well_vdd sg13_lv_pmos w=3.82u l=1.79u m=4
+XM6 net050 voutn vdd well_vdd sg13_lv_pmos w=3.82u l=1.79u m=4
+XM7 net049 net013 vdd well_vdd sg13_lv_pmos w=3.82u l=1.79u m=4
+XRtap_vdd vdd well_vdd ntap1 A=774.64e-12 P=778.64e-6
+XRptap vss sub ptap1 A=2872.24e-12 P=2876.24e-6
+XC0_0 net050 vout cap_cmim w=46.95u l=46.95u m=1
+XC0_1 net050 vout cap_cmim w=46.95u l=46.95u m=1
+XC1_0 net049 vout cap_cmim w=30.75u l=30.75u m=1
+.ends amp_008_leung_nmcf

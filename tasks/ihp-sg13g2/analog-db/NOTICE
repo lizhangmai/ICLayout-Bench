@@ -1,0 +1,200 @@
+Layout-Bench analog-db collection
+================================
+
+Required Notice: Copyright 2026 Danial Noori Zadeh
+
+Circuit materials derive from MacAnalog/spicexplorer-release analog-db,
+commit 263d0322f8900dc331536fbbe6c0e804514fc454, entry amp_001_5t.
+The analog-db notice licenses its harness and original circuit definitions
+under PolyForm Noncommercial 1.0.0 and identifies amp_001_5t as derived from
+IIC-JKU / Harald Pretl analog-circuit-design under Apache License 2.0:
+https://github.com/iic-jku/analog-circuit-design
+Both license texts are retained in LICENSE. This collection is not licensed
+as a whole under the framework's MIT license.
+
+Layout-Bench modifications: resolve the IHP binding into fixed device values;
+add explicit physical substrate/well contacts; publish native LVS and simulator
+representations with the same six MOS devices; independently construct the
+reference layout. The maintained testbench is separately identified as MIT.
+Retain these notices and LICENSE with distributions of these materials.
+
+Additional fixed-snapshot cases
+-------------------------------
+sw_002_chopper_diff: original normalized analog-db material under PolyForm
+Noncommercial 1.0.0. Layout-Bench retains all eight MOS and separate clocks,
+adds explicit taps and an independent physical witness and measurement deck.
+
+buf_001_super_follower: the fixed manifest attributes the source topology to
+Token Zhang, Arcadia-1/ferrosim, MIT. The recorded attribution and standard
+component terms are retained in LICENSE, with the limitation that the original
+copyright notice was not independently obtained. Layout-Bench retains W/L/m,
+adds physical taps, implements internal compensation with physical IHP MIM,
+and independently constructs the witness and loaded characterization.
+
+All normalized derivatives and corresponding witnesses retain the database
+PolyForm Noncommercial terms and Required Notice: Copyright 2026 Danial Noori
+Zadeh. The independently authored measurement decks are separately MIT.
+
+cmfb_004_output_switched_cap and sw_003_binary_capbank: original normalized
+analog-db material at the same fixed snapshot, under PolyForm Noncommercial
+1.0.0 and its Required Notice. Layout-Bench retains fixed MOS W/L/m and
+capacitor connectivity, realizes ideal capacitors with physical IHP MIM unit
+arrays, adds explicit physical taps, and independently authors witnesses and
+measurement decks. The collection LICENSE and this NOTICE accompany material
+distributions; these derivatives are not relicensed as framework MIT.
+
+amp_024_smcnr: the fixed snapshot attributes the sensing-front-end topology
+to CODA-Team AnalogGym under BSD-3-Clause (Copyright (c) 2024, CODA-Team).
+Layout-Bench retains the eight MOS groups and series compensation topology,
+externalizes the 100 nA sink, realizes the internal compensation with two MIM
+units and four high-poly segments, adds explicit taps, and independently
+constructs the reference and native measurement deck. Normalized derivatives
+retain PolyForm Noncommercial terms and the database Required Notice above.
+
+amp_023_fer_fd2s: the fixed manifest records Token Zhang / Arcadia-1 ferrosim
+under MIT, with the same original-notice retrieval limitation recorded above.
+Layout-Bench retains all 28 MOS groups, externalizes the 20 uA supply-fed bias
+and common-mode reference, implements every compensation and sensing passive
+with six MIM units and 18 high-poly segments, adds physical taps, and independently
+constructs the witness and differential/common-mode measurement deck. Normalized
+derivatives retain PolyForm Noncommercial terms and the database Required Notice.
+
+ia_006_fan_chopper_cmfb: the fixed snapshot records normalized composition by
+Noorizadeh (MacAnalog group), using the Fan CCIA and transistor CMFB blocks.
+No separate component license tag is supplied; original/normalized database
+materials retain PolyForm Noncommercial terms and the Required Notice above.
+Layout-Bench retains all 46 MOS groups with maintained parallel fingering and
+explicit process-grid rounding of CMFB dimensions, externalizes four bias
+voltages and the common-mode reference, exposes two summing-node monitors,
+implements all passives with 13 MIM units and 90 high-poly segments, retunes
+Miller/controller compensation, adds taps and independently constructs the
+matched physical witness and full-clock measurement deck. The independently
+authored measurement deck is MIT; circuit derivatives are not relicensed MIT.
+
+smp_001_nmos_th: the fixed manifest records a SpiceXplorer worked example,
+analog-circuit-design provenance and an Apache-2.0 component label. Applicable
+Apache terms remain in LICENSE alongside the database PolyForm Noncommercial
+terms and Required Notice. Layout-Bench retains the source NMOS dimensions,
+removes the electrically unused VDD port, replaces ideal 500 fF storage with
+one physical 18.2 um square MIM, adds an explicit substrate tap and independently
+constructs the witness and acquisition/retention measurement deck. Normalized
+circuit derivatives and the witness retain PolyForm terms; the independently
+authored measurement deck is MIT.
+
+amp_002_alfio_raffc, amp_008_leung_nmcf and amp_009_leung_nmcnr: the fixed
+snapshot records CODA-Team AnalogGym / BSD-3-Clause provenance. The component
+terms are retained in LICENSE alongside the normalized database PolyForm
+Noncommercial terms and Required Notice. Layout-Bench retains all 24 MOS groups
+per circuit, resolves parameter ties, applies documented process-grid dimensions
+and parallel fingering, preserves source-tied input PMOS bodies with separate
+physical wells/taps, externalizes the bias sinks and realizes every compensation
+branch with physical MIM/poly. Layout-Bench independently constructs witnesses
+and native measurement decks. The measurement decks are MIT; normalized circuit
+derivatives and witnesses are not relicensed MIT.
+
+amp_003_fan_smc: CODA-Team AnalogGym BSD-3-Clause provenance from the same
+fixed snapshot; normalized derivatives retain the database PolyForm terms
+and Required Notice. Layout-Bench retains all 24 MOS groups and 412 physical
+fingers, implements the single compensation branch with two physical MIM
+units, preserves the source-tied input body in its own well and adds taps.
+The external bias is deliberately changed from 60 uA to 3 uA for maintained
+headroom. The independent witness and native loop/recovery deck do not imply
+unchanged source bias or upstream performance targets.
+
+amp_005_hoilee_affc and amp_010_peng_acbc: CODA-Team AnalogGym BSD-3-Clause
+provenance at the fixed snapshot. Layout-Bench retains all 30/27 source MOS
+groups, respectively, resolves process-grid dimensions, preserves separate
+source-tied input wells and implements every capacitor with seven/six MIM
+units. The external bias sinks are deliberately changed from 10.5166 uA to
+3.15498 uA and from 18.0825 uA to 1.80825 uA, respectively. Independent physical
+witnesses and loop/recovery decks establish the maintained contracts; normalized
+circuits and witnesses retain PolyForm terms and the database Required Notice.
+
+ldo_009_fer_5t_pass: the fixed manifest records Token Zhang / Arcadia-1 ferrosim
+under MIT, with the original-notice retrieval limitation stated above.
+Layout-Bench retains all seven source MOS groups, internal output storage,
+bleeder and reference resistance. Eighteen physical MIM units and five high-poly
+segments implement all passives; Miller compensation is deliberately changed
+from 2 pF to approximately 10 pF. Bias, reference and the zero-volt feedback
+measurement link become explicit external interfaces. Physical taps, witness
+and regulation/loop/startup decks are independently constructed. The normalized
+circuit and witness retain PolyForm terms and the database Required Notice.
+
+trm_001_vcr: the fixed manifest records a SpiceXplorer worked example,
+analog-circuit-design provenance and an Apache-2.0 component label. Layout-Bench
+retains the source NMOS dimensions and replaces the ideal 200 kohm pullup with
+eight physical high-poly segments, adds an explicit substrate tap and authors
+an independent witness and loaded control/conductance/recovery deck. Apache
+terms remain in LICENSE alongside the normalized-material PolyForm terms and
+Required Notice. These circuit derivatives and witnesses are not relicensed
+MIT; independently authored measurement decks are separately MIT.
+
+amp_007_leung_dfcfc2: CODA-Team AnalogGym BSD-3-Clause provenance at the
+fixed snapshot. Layout-Bench retains all 26 MOS groups and 440 source fingers,
+implements both compensation capacitors with ten physical MIM units, preserves
+the separate source-tied input well, adds taps and externalizes the unchanged
+20 uA sink. Independent physical witness and loaded loop/recovery measurements
+retain the normalized-material PolyForm terms and database Required Notice;
+the independently authored measurement deck is MIT.
+
+ldo_008_fer_mirror_ota: the fixed manifest records Token Zhang / Arcadia-1
+ferrosim under MIT, subject to the original-notice retrieval limitation above.
+Layout-Bench retains all seven MOS groups and 81 fingers, implements the source
+160 pF series compensation with forty MIM units (160.331872 pF nominal), and
+retains the 2 kohm series resistor and 9/9 kohm divider as three physical
+high-poly devices. The external reference is deliberately changed from 0.6 V
+to 0.5 V; supply-fed 20 uA bias and MOS dimensions are unchanged. The zero-volt
+measurement link is relocated to the explicit divider/input interface. Taps,
+physical witness and bilateral-injection/regulation/startup/recovery decks are
+independently authored. Normalized circuit derivatives and witness retain
+PolyForm terms and the Required Notice; measurement decks are MIT.
+
+amp_006_leung_dfcfc1: CODA-Team AnalogGym BSD-3-Clause provenance at the
+fixed snapshot. Layout-Bench retains all 26 MOS groups, rounds dimensions to
+the 10 nm physical grid, and regroups parallel fingers within each group while
+preserving rounded total W and L (1,413 source fingers become 675 physical
+fingers). Both compensation branches remain as eleven physical MIM units;
+the source-tied input well and explicit distributed body contacts remain.
+The external sink is deliberately calibrated from 27.4754 to 6.86885 uA.
+The independent witness and normalized circuit derivatives retain PolyForm
+Noncommercial terms and the database Required Notice; the separately authored
+bilateral-injection and sustained-recovery measurement deck is MIT.
+
+amp_012_peng_tcfc and amp_015_sau_cfcc: CODA-Team AnalogGym BSD-3-Clause
+provenance at the fixed snapshot. Layout-Bench retains all 32/24 source MOS
+groups, respectively, rounds dimensions to the 10 nm grid and regroups
+parallel fingers while preserving each group's rounded total W and L.
+The maintained circuits contain 108/225 physical MOS and preserve separate
+source-tied input wells, all original active paths and compensation branches.
+AMP012 adds approximately 4 pF net10-output MIM compensation and calibrates
+the external sink from 1.29849 to 0.16231125 uA. AMP015 adds approximately
+16 pF net050-output compensation and 48 pF output-to-return storage, and
+calibrates its sink from 10.0474 to 1.255925 uA. Three/seventeen physical MIM
+units implement all capacitors. Taps, witnesses and native measurement decks
+are independently authored. Normalized circuit derivatives and witnesses
+retain PolyForm terms and the Required Notice; measurement decks are MIT.
+
+ldo_001_analoggym_basic: CODA-Team AnalogGym BSD-3-Clause provenance at the
+fixed snapshot. Layout-Bench retains all 24 MOS groups and exact per-group
+total W/L, regrouping 1,168 source fingers into 831 physical MOS, including
+the unchanged 464-finger PMOS pass array. Three MIM units retain the original
+net106-output compensation, one added MIM supplies approximately 4 pF at
+net10-output, and sixteen high-poly segments implement the 300/100 kohm
+divider. The external reference is deliberately changed from 0.4 to 0.225 V;
+the 8 uA sink and internal bias paths remain. The zero-volt measurement link
+moves to the explicit divider/input interface. Physical taps, witness and
+native loop/regulation/startup decks are independently authored. Normalized
+circuit derivatives and the witness retain PolyForm terms and the Required
+Notice; independently authored measurement decks are MIT.
+
+VREF001 mixed-device reference
+-----------------------------
+vref_001_vgs retains the fixed-source LV/HV two-NMOS VGS reference, including
+original W/L and gate/source connections. The fixed manifest calls it a
+SpiceXplorer worked example, identifies analog-circuit-design provenance and
+labels the component Apache-2.0. This does not relicense the normalized
+analog-db material as a whole: PolyForm Noncommercial 1.0.0, the Required Notice
+and applicable component terms in LICENSE remain in force. Layout-Bench resolves
+parameters, adds physical substrate contacts, supplies an independent GDS and
+a separately MIT-identified native measurement deck. No external provenance
+pointer was followed to acquire additional circuit material.

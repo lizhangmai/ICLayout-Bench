@@ -1,6 +1,8 @@
 """Validated, content-addressed files shared by preparation and evaluation."""
 
 import hashlib
+import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -28,7 +30,9 @@ def relative(value: object, name: str) -> str:
 
 
 def read_file(root: Path, name: str) -> bytes:
-    path = root / relative(name, "file path")
+    # The operator-selected root may be ../my-agent; lexical normalization is
+    # distinct from following symlinks. Declared asset names remain confined.
+    path = Path(os.path.abspath(root)) / relative(name, "file path")
     if path.resolve(strict=True) != path or not path.is_file():
         raise ValueError(f"Input must be a regular, non-symlink file: {name}")
     return path.read_bytes()
@@ -52,3 +56,27 @@ class Asset:
 
     def identity(self) -> dict:
         return {"sha256": self.sha256, "format": self.format, "bytes": len(self.content)}
+
+
+def sync_directory(path):
+    descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def atomic_write(path, content, mode=0o600):
+    """Publish only a complete file, then persist its directory entry."""
+    descriptor, temporary = tempfile.mkstemp(prefix=".pending-", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fchmod(stream.fileno(), mode)
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        sync_directory(path.parent)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)

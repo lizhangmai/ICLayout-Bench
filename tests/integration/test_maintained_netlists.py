@@ -7,21 +7,22 @@ from pathlib import Path
 import pytest
 
 from benchmarking.bundles import load_bundle
-from benchmarking.docker import DockerTool
 from benchmarking.files import Asset
-from benchmarking.prepare_support import prepare_support
+from layout_eval.docker import DockerTool
+from layout_eval.prepare_support import prepare_support
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
+PUBLIC_ROOT = ROOT
 
 
 @pytest.mark.parametrize("case_name", ["full_OTA", "comparator"])
 def test_maintained_netlists_agree_on_devices_and_tap_geometry(tmp_path, case_name):
-    case = ROOT / "tasks/ihp-sg13g2/IHP-AnalogAcademy/cases" / case_name
+    case = PUBLIC_ROOT / "tasks/ihp-sg13g2/IHP-AnalogAcademy/cases" / case_name
     from benchmarking.tasks import load_task
     task = load_task(case / "case.toml")
     top = task.netlist_subcircuit
-    image = os.environ.get("LAYOUT_BENCH_TEST_IMAGE", "layout-bench-tools:local")
+    image = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
     cdl = task.input_assets()["netlist"]
     spice = task.input_assets()["simulation"]
     expected_ports = next(line.split()[1:] for line in task.input_assets()["netlist"].content.decode().splitlines()
@@ -30,7 +31,7 @@ def test_maintained_netlists_agree_on_devices_and_tap_geometry(tmp_path, case_na
         line = next(line for line in netlist.content.decode().splitlines() if line.startswith(".subckt"))
         assert line.split()[1:] == expected_ports
 
-    prepare_support(ROOT / "third_party/IHP-Open-PDK", f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#klayout", tmp_path / "support")
+    prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK", f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#klayout", tmp_path / "support")
     bundle = load_bundle(tmp_path / "support")
     # Cross-check model interfaces with the PDK reader without simplification:
     # this catches missing devices, altered terminals and geometry parameters.

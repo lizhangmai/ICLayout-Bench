@@ -1,0 +1,113 @@
+* Derived from analog-db amp_012_peng_tcfc, fixed snapshot
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* Required Notice: Copyright 2026 Danial Noori Zadeh
+* Modified: 10 nm MOS grid, equivalent parallel regrouping, explicit physical MIM/taps;
+* disclosed bias and added physical compensation calibration.
+* Normalized material: PolyForm Noncommercial 1.0.0; CODA-Team BSD component.
+* See collection LICENSE and NOTICE.
+.subckt amp_012_peng_tcfc vss vdd vinn vinp vout vb1
+MM12 vb4 vb3 net54 sub sg13_lv_nmos w=6.84u l=0.43u m=4
+MM13 net7 vb3 net56 sub sg13_lv_nmos w=6.84u l=0.43u m=4
+MM14 vb3 vb3 vss sub sg13_lv_nmos w=6.84u l=0.43u m=1
+MM15 voutn vb3 dm_2 sub sg13_lv_nmos w=6.84u l=0.43u m=8
+MM16 voutp vb3 net063 sub sg13_lv_nmos w=6.84u l=0.43u m=8
+MM17 net54 vb4 vss sub sg13_lv_nmos w=6.84u l=0.43u m=4
+MM18 net56 vb4 vss sub sg13_lv_nmos w=6.84u l=0.43u m=4
+MM19 dm_2 vb4 vss sub sg13_lv_nmos w=6.84u l=0.43u m=8
+MM20 net063 vb4 vss sub sg13_lv_nmos w=6.84u l=0.43u m=8
+MM23 vout net10 vss sub sg13_lv_nmos w=5.58u l=0.61u m=2
+MM63 vb2 vb3 net9 sub sg13_lv_nmos w=6.84u l=0.43u m=4
+MM64 net9 vb4 vss sub sg13_lv_nmos w=6.84u l=0.43u m=4
+MM69 net10 net043 vss sub sg13_lv_nmos w=9.3u l=9.14u m=2
+MM70 net043 net043 vss sub sg13_lv_nmos w=9.3u l=9.14u m=2
+MM8 dm_2 vinn net31 well_net31 sg13_lv_pmos w=5.5u l=2.06u m=4
+MM9 net063 vinp net31 well_net31 sg13_lv_pmos w=5.5u l=2.06u m=4
+RRtap_net31_0 net31 well_net31 ntap1 A=4e-12 P=8e-6
+RRtap_net31_1 net31 well_net31 ntap1 A=4e-12 P=8e-6
+RRtap_net31_2 net31 well_net31 ntap1 A=4e-12 P=8e-6
+RRtap_net31_3 net31 well_net31 ntap1 A=4e-12 P=8e-6
+MM0 net2 vb1 vdd well_vdd sg13_lv_pmos w=5.76u l=4.94u m=1
+MM1 net3 vb1 vdd well_vdd sg13_lv_pmos w=5.76u l=4.94u m=1
+MM10 net043 voutp vdd well_vdd sg13_lv_pmos w=7.83u l=0.75u m=4
+MM11 vout voutp vdd well_vdd sg13_lv_pmos w=9.06u l=0.54u m=4
+MM2 net6 vb1 vdd well_vdd sg13_lv_pmos w=5.76u l=4.94u m=1
+MM3 net8 vb1 vdd well_vdd sg13_lv_pmos w=5.76u l=4.94u m=1
+MM4 net31 vb1 vdd well_vdd sg13_lv_pmos w=5.76u l=4.94u m=2
+MM5 voutn voutn vdd well_vdd sg13_lv_pmos w=5.76u l=4.94u m=1
+MM57 vb1 vb2 net2 well_vdd sg13_lv_pmos w=5.76u l=4.94u m=1
+MM58 vb4 vb2 net3 well_vdd sg13_lv_pmos w=5.76u l=4.94u m=1
+MM6 voutp voutn vdd well_vdd sg13_lv_pmos w=5.76u l=4.94u m=1
+MM61 net7 vb2 net6 well_vdd sg13_lv_pmos w=5.76u l=4.94u m=1
+MM62 vb3 vb2 net8 well_vdd sg13_lv_pmos w=5.76u l=4.94u m=1
+MM65 vb2 vb2 vdd well_vdd sg13_lv_pmos w=1.44u l=4.94u m=1
+MM66 net10 vb2 net049 well_vdd sg13_lv_pmos w=8.64u l=4.94u m=8
+MM7 net049 vb1 vdd well_vdd sg13_lv_pmos w=8.64u l=4.94u m=8
+RRtap_vdd_0 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_1 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_2 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_3 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_4 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_5 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_6 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_7 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_8 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_9 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_10 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_11 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_12 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_13 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_14 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_15 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_16 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_17 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_18 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRtap_vdd_19 vdd well_vdd ntap1 A=4e-12 P=8e-6
+RRptap_0 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_1 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_2 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_3 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_4 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_5 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_6 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_7 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_8 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_9 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_10 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_11 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_12 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_13 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_14 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_15 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_16 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_17 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_18 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_19 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_20 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_21 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_22 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_23 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_24 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_25 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_26 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_27 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_28 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_29 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_30 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_31 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_32 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_33 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_34 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_35 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_36 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_37 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_38 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_39 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_40 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_41 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_42 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_43 vss sub ptap1 A=4e-12 P=8e-6
+RRptap_44 vss sub ptap1 A=4e-12 P=8e-6
+CC0_0 voutp vout cap_cmim w=35.325u l=35.325u m=1
+CC1_0 net049 vout cap_cmim w=41.2u l=41.2u m=1
+CCLOCAL_0 net10 vout cap_cmim w=51.64u l=51.64u m=1
+.ends amp_012_peng_tcfc

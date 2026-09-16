@@ -11,7 +11,7 @@ for active feedback through `RFB`. The ordered interface is
 Reference validation covers nominal 1 MHz and
 100 MHz transimpedance, bias, power and a dense DC-linearity measurement at
 three input-current conditions. The extraction boundary and calibration
-method are recorded in [materials/pex_scope.json](materials/pex_scope.json).
+method are recorded in the [problem](problem.md#physical-requirements) and the calibration below.
 
 ## Files
 
@@ -22,8 +22,7 @@ method are recorded in [materials/pex_scope.json](materials/pex_scope.json).
 | [materials/circuit.cdl](materials/circuit.cdl) | Strict LVS netlist |
 | [materials/circuit.spice](materials/circuit.spice) | Ready-to-use pre-layout simulator netlist |
 | [materials/testbench.spice](materials/testbench.spice) | Shared nominal operating-point, AC and DC-linearity testbench |
-| [materials/pex_scope.json](materials/pex_scope.json) | Candidate PEX and calibration boundary |
-| [Collection LICENSE](../../LICENSE) | Shared terms, delivered as `materials/LICENSE` |
+| [Collection LICENSE](../../LICENSE) | Collection distribution terms; excluded from solver inputs |
 | [reference/FMD_QNC_01_LIN_TIA.gds](reference/FMD_QNC_01_LIN_TIA.gds) | Passing reference layout, top cell `FMD_QNC_01_LIN_TIA` |
 
 ## Reference Results
@@ -35,7 +34,7 @@ geometry and distributed interconnect R/C. The compact-device substrate body
 is reconciled to `VSS` with tap extraction disabled in the candidate path;
 the finite source `ptap1` remains in the source calibration and strict LVS
 netlist. The finite-tap and ideal-body calibration agreed within 8.7 × 10⁻¹³
-relative across the reported values, below the declared 1 × 10⁻⁹ limit.
+relative across the reported values, within the regression tolerance below.
 
 The table gives measured ranges across the `−5 µA`, `0 A` and `+5 µA`
 input-current jobs. Linearity is the scalar maximum from the 21-point
@@ -71,18 +70,52 @@ port rejection and repeatability. Input consistency and actual reference accepta
 support this case’s `qualified` status. Electrical-failure handling is covered by
 shared evaluator regressions; this case does not supply a dedicated failing layout.
 
+The [HBT diagnostic policy](../../../../../docs/tools.md#hbt-core-simulation-support)
+checks Magic compact-contact warnings against native device records before
+requiring complete candidate graph validation. The reference report retains
+the original diagnostics, their review and the final HBT/RC mapping.
+
+Coefficient 6 reflects active emitter-follower feedback coupled to the
+multistage transfer path, bias headroom and dense-sweep linearity requirements.
+
+### Calibration limits
+
+Change only XRSUB from 81.6666667 ohm to 1e-6 ohm and rerun the same source
+deck at all three input-current points. Normalize each difference by the
+absolute finite-source value, with a 1e-30 floor. The recorded finite/ideal
+output bias is 2.068457712479 / 2.068457712479 V and low-frequency
+transimpedance is 518.3655 / 518.3655 ohm; supply3_current has the largest
+relative difference. No scored requirement changes.
+
+The independent linearity check reads VSENSE current and RFOUT voltage at every
+DC point specified by the public testbench, computes the straight line through
+the endpoint samples and normalizes maximum output error by endpoint output
+span. The recorded source maximum is 1.4654353 percent over a 0.0057695311 V
+output span. Acceptance comes from the task's linearity metric.
+
+The following maintainer regression limits are read by the reproduction tests;
+they do not add solver requirements.
+
+| Comparison | Unit | Maximum difference |
+| --- | --- | --- |
+| `relative` | 1 | 1e-09 |
+
 ## Reproduce
+
+These operator commands require the installed `ICLayout-Bench-Private` package.
+Run preparation from the Public checkout; run any `tests/integration/` commands
+from the Private checkout using that environment.
 
 Prepare the image and PDK resources using the shared
 [tools guide](../../../../../docs/tools.md#manual-tools). Run from the repository
 root and choose a fresh output directory for each reproduction:
 
 ```bash
-uv run --locked python scripts/public_preview.py prepare \
+python -m layout_eval.preview prepare \
   --case 97_GHZ_LINEAR_TIA \
   --output build/runs/public-preview-97_GHZ_LINEAR_TIA-01/prepared \
-  --image layout-bench-tools:local
-uv run --locked python scripts/public_preview.py run \
+  --image iclayout-bench-tools:local
+python -m layout_eval.preview run \
   --prepared build/runs/public-preview-97_GHZ_LINEAR_TIA-01/prepared \
   --output build/runs/public-preview-97_GHZ_LINEAR_TIA-01/run
 ```
@@ -93,7 +126,7 @@ To reproduce pre-layout/post-layout calibration and the reference acceptance
 regressions, run:
 
 ```bash
-uv run --locked pytest -m acceptance_eda \
+python -m pytest -m acceptance_eda \
   tests/integration/test_tia97_postlayout.py
 ```
 

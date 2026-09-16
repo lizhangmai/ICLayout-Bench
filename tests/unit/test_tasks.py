@@ -65,16 +65,17 @@ def replace(config: Path, before: str, after: str):
     config.write_text(config.read_text().replace(before, after))
 
 
-def test_coefficient_is_frozen_and_published(package):
+@pytest.mark.parametrize("coefficient", [3, 6, 10])
+def test_coefficient_is_frozen_and_published(package, coefficient):
     original = load_task(package)
-    replace(package, 'family = "synthetic"', 'family = "synthetic"\ncoefficient = 3')
+    replace(package, 'family = "synthetic"', f'family = "synthetic"\ncoefficient = {coefficient}')
     weighted = load_task(package)
     assert original.coefficient == 1
-    assert weighted.coefficient == weighted.description()["coefficient"] == 3
+    assert weighted.coefficient == weighted.description()["coefficient"] == coefficient
     assert original.digest != weighted.digest
 
 
-@pytest.mark.parametrize("value", ["0", "6", "-1", "2.5", "true", '\"3\"'])
+@pytest.mark.parametrize("value", ["0", "11", "-1", "2.5", "true", '\"3\"'])
 def test_invalid_coefficient_is_rejected(package, value):
     replace(package, 'family = "synthetic"', f'family = "synthetic"\ncoefficient = {value}')
     with pytest.raises(ValueError, match="coefficient"):

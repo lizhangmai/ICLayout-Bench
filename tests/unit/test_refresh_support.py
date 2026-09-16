@@ -7,7 +7,7 @@ import tomllib
 import pytest
 import tomli_w
 
-from benchmarking.refresh_support import refresh
+from layout_eval.refresh_support import refresh
 
 pytestmark = pytest.mark.unit
 

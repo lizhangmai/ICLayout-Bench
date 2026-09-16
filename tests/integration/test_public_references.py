@@ -1,19 +1,16 @@
 """Evaluate declared public witnesses through their own plans and resource bindings."""
 
-import configparser
-import json
 import os
 import tomllib
 
 import pytest
-import tomli_w
 from helpers.catalog import CATALOGS, ROOT, read_catalog
 
-from benchmarking.evaluate import run_evaluation
 from benchmarking.files import Asset, read_file
-from benchmarking.prepare_support import load_profile, prepare_support
 from benchmarking.tasks import load_task
-from benchmarking.toolchains import load_toolchain
+from layout_eval.evaluate import run_evaluation
+from layout_eval.preparation import prepare_case as prepare_public_case
+from layout_eval.toolchains import load_toolchain
 
 pytestmark = [pytest.mark.integration, pytest.mark.acceptance_eda]
 CASES = [path for catalog in CATALOGS for path, data in read_catalog(catalog)[1]
@@ -23,54 +20,19 @@ CASES = [path for catalog in CATALOGS for path, data in read_catalog(catalog)[1]
 
 @pytest.fixture(scope='module')
 def prepare_case(tmp_path_factory):
-    supports = {}
-    image = os.environ.get('LAYOUT_BENCH_TEST_IMAGE', 'layout-bench-tools:local')
-    submodules = configparser.ConfigParser()
-    submodules.read(ROOT / '.gitmodules')
-
-    def checkout(source):
-        if 'checkout' in source:
-            return ROOT / source['checkout']
-        matches = [section['path'] for section in submodules.values()
-                   if section.get('url', '').removesuffix('.git')
-                   == source['repository'].removesuffix('.git')]
-        assert len(matches) == 1, f'Expected one declared checkout for {source}'
-        return ROOT / matches[0]
+    image = os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-bench-tools:local')
+    environments = {}
 
     def prepare(case):
-        data = tomllib.loads(case.read_text())
-        original = load_task(case)
+        if case in environments:
+            return environments[case]
+        prepared = prepare_public_case(case, tmp_path_factory.mktemp('public-reference') / 'prepared',
+                                       root=ROOT, image=image)
+        data = tomllib.loads(prepared.read_text())
         witness_path = data['qualification']['reference']
-        witness = Asset(read_file(case.parent, witness_path), 'gds')
-        for record in data.get('assets', []):
-            if record['path'] == witness_path:
-                assert witness.sha256 == record['sha256']
-        directory = tmp_path_factory.mktemp('public-reference') / 'case'
-        original.materialize(directory)
-        replacements = {}
-        for backend in data['toolchain']['backends'].values():
-            settings = backend['settings']
-            if 'image' in settings:
-                settings['image'] = image
-            for setting, profile in backend.get('support_profiles', {}).items():
-                spec = f'{case.parents[3]}/pdk.toml#{profile}'
-                if spec not in supports:
-                    source = json.loads(load_profile(spec).content)['source']
-                    support = tmp_path_factory.mktemp('public-support') / 'bundle'
-                    prepare_support(checkout(source), spec, support, compiler_image=image)
-                    supports[spec] = str(support)
-                previous = replacements.setdefault(settings[setting], supports[spec])
-                assert previous == supports[spec], 'Conflicting resource profile declarations'
-        for backend in data['toolchain']['backends'].values():
-            for setting, value in backend['settings'].items():
-                if isinstance(value, str) and value in replacements:
-                    backend['settings'][setting] = replacements[value]
-        for entry in data['task']['inputs'].values():
-            entry.pop('source', None)
-            entry.pop('collection_source', None)
-        prepared = directory / 'case.toml'
-        prepared.write_text(tomli_w.dumps(data))
-        return load_task(prepared), load_toolchain(prepared), witness
+        witness = Asset(read_file(prepared.parent, witness_path), 'gds')
+        environments[case] = load_task(prepared), load_toolchain(prepared), witness
+        return environments[case]
 
     return prepare
 

@@ -1,1 +1,1 @@
-"""Layout-Bench: task loading, isolated agent runs and independent layout evaluation."""
+"""ICLayout-Bench: official participant harness, HTTP client, public contracts and analysis."""

@@ -5,14 +5,14 @@ title = "IHP AnalogAcademy input_pair"
 status = "qualified"
 
 [task]
-coefficient = 1
+coefficient = 3
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_pmos_input_pair"
 environment = "ihp-sg13g2-input-pair-rc-tt"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "47b21ff7ab5c7548d39cc8ae7f2c500b8aa3bbecfa7e1669ca1e78cc3656263c"
+sha256 = "6e6a595890ce1e2c0052cca88264a0b56c5da26d417c5c6965017bbd0c71c403"
 format = "text"
 
 [task.inputs.netlist]
@@ -30,17 +30,6 @@ format = "spice"
 path = "materials/testbench.spice"
 sha256 = "0ce316136b95395971965c7760a711d8431e8c1d4294a074b658520442e11dde"
 format = "spice"
-
-[task.inputs.license]
-collection_source = "LICENSE"
-path = "materials/LICENSE"
-sha256 = "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-format = "text"
-
-[task.inputs.pex_scope]
-path = "materials/pex_scope.json"
-sha256 = "3a9017e0697982944935b64c72a6c97ca100324dca3569eec553db27a8bacce8"
-format = "json"
 
 [task.constraints]
 schema_version = 1
@@ -250,7 +239,7 @@ schema_version = 1
 [toolchain.backends.artifact]
 type = "klayout-docker"
 [toolchain.backends.artifact.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "artifact"
 timeout_seconds = 600
 
@@ -259,7 +248,7 @@ type = "klayout-docker"
 [toolchain.backends.drc.support_profiles]
 support = "klayout"
 [toolchain.backends.drc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "drc"
 support = "build/support/input-pair-klayout"
 profile = "drc-upstream.json"
@@ -270,7 +259,7 @@ type = "klayout-docker"
 [toolchain.backends.lvs.support_profiles]
 support = "klayout"
 [toolchain.backends.lvs.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "lvs"
 support = "build/support/input-pair-klayout"
 profile = "lvs-upstream.json"
@@ -280,7 +269,7 @@ timeout_seconds = 600
 type = "magic-rc-docker"
 support_profiles = { support = "magic" }
 [toolchain.backends.rc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/input-pair-magic"
 technology = "magic/ihp-sg13g2.tech"
 tech_name = "ihp-sg13g2"
@@ -291,19 +280,19 @@ timeout_seconds = 600
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
 [toolchain.backends.geometry.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 timeout_seconds = 120
 
 [toolchain.backends.simulation]
 type = "ngspice-docker"
 support_profiles = { support = "analog-models" }
 [toolchain.backends.simulation.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/input-pair-models"
 timeout_seconds = 600
 
 [[assets]]
-path = "reference/input_common_centroid_qualified.gds"
+path = "reference/input_common_centroid.gds"
 role = "physical-witness"
 visibility = "maintainer"
 format = "gds"
@@ -311,7 +300,7 @@ sha256 = "b28969621e1ec84dfe1ae5336ae5e85af0e1aa9b16068c430748ef105f122be2"
 
 [qualification]
 evidence = "README.md"
-reference = "reference/input_common_centroid_qualified.gds"
+reference = "reference/input_common_centroid.gds"
 
 [origin]
 url = "https://github.com/IHP-GmbH/IHP-AnalogAcademy/blob/133ecf657572e021b5921b5a1b7693abfb209623/modules/module_1_bandgap_reference/part_3_layout/OTA_layout/input_pair/schematic_mod/input_common_centroid.sch"

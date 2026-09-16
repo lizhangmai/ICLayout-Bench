@@ -1,0 +1,59 @@
+* Derived from analog-db amp_023_fer_fd2s, fixed snapshot
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Fixed dimensions and explicit physical taps.
+.subckt amp_023_fer_fd2s vinp vinn voutp voutn vdd vss ibias vcmr
+MM2A voutp o1a vss sub sg13_lv_nmos w=8u l=0.3u m=4
+MM2B voutn o1b vss sub sg13_lv_nmos w=8u l=0.3u m=4
+MMB1 vbp ibias vss sub sg13_lv_nmos w=4u l=0.4u m=1
+MMB2 vcp ibias vss sub sg13_lv_nmos w=4u l=0.4u m=1
+MMBD ibias ibias vss sub sg13_lv_nmos w=4u l=0.4u m=1
+MMEA1 ead vcmr eatail sub sg13_lv_nmos w=4u l=0.2u m=1
+MMEA2 vcmfb vsen eatail sub sg13_lv_nmos w=4u l=0.2u m=1
+MMEAT eatail ibias vss sub sg13_lv_nmos w=4u l=0.4u m=1
+MMI1 fp vinp tail sub sg13_lv_nmos w=6u l=0.3u m=2
+MMI2 fn vinn tail sub sg13_lv_nmos w=6u l=0.3u m=2
+MMKA x1a vcmfb vss sub sg13_lv_nmos w=3u l=0.4u m=1
+MMKB x1b vcmfb vss sub sg13_lv_nmos w=3u l=0.4u m=1
+MMNA o1a vcn x1a sub sg13_lv_nmos w=4u l=0.2u m=1
+MMNB o1b vcn x1b sub sg13_lv_nmos w=4u l=0.2u m=1
+MMNCD vcmfb vcmfb vss sub sg13_lv_nmos w=1.5u l=0.4u m=1
+MMND1 vcn vcn vss sub sg13_lv_nmos w=0.75u l=0.4u m=1
+MMT tail ibias vss sub sg13_lv_nmos w=4u l=0.4u m=2
+MMCA o1a vcp fp well sg13_lv_pmos w=6u l=0.2u m=1
+MMCB o1b vcp fn well sg13_lv_pmos w=6u l=0.2u m=1
+MMEPD ead ead vdd well sg13_lv_pmos w=3u l=0.4u m=1
+MMEPM vcmfb ead vdd well sg13_lv_pmos w=3u l=0.4u m=2
+MMLA voutp vbp vdd well sg13_lv_pmos w=6u l=0.4u m=6
+MMLB voutn vbp vdd well sg13_lv_pmos w=6u l=0.4u m=6
+MMPD1 vbp vbp vdd well sg13_lv_pmos w=6u l=0.4u m=1
+MMPD2 vcp vcp vdd well sg13_lv_pmos w=1.5u l=0.4u m=1
+MMPM1 vcn vbp vdd well sg13_lv_pmos w=6u l=0.4u m=1
+MMSA fp vbp vdd well sg13_lv_pmos w=6u l=0.4u m=2
+MMSB fn vbp vdd well sg13_lv_pmos w=6u l=0.4u m=2
+RRptap1 vss sub ptap1 A=703.2e-12 P=707.2e-6
+RRntap1 vdd well ntap1 A=324.4e-12 P=328.4e-6
+CCCA_0 za voutp cap_cmim w=25.85u l=25.85u m=1
+CCCA_1 za voutp cap_cmim w=25.85u l=25.85u m=1
+CCCB_0 zb voutn cap_cmim w=25.85u l=25.85u m=1
+CCCB_1 zb voutn cap_cmim w=25.85u l=25.85u m=1
+CCMA_0 voutp vsen cap_cmim w=9.95u l=9.95u m=1
+CCMB_0 voutn vsen cap_cmim w=9.95u l=9.95u m=1
+RRZA_0 o1a za sub rhigh w=1u l=0.96u m=1
+RRZB_0 o1b zb sub rhigh w=1u l=0.96u m=1
+RRCA_0 voutp RCA1 sub rhigh w=1u l=18u m=1
+RRCA_1 RCA1 RCA2 sub rhigh w=1u l=18u m=1
+RRCA_2 RCA2 RCA3 sub rhigh w=1u l=18u m=1
+RRCA_3 RCA3 RCA4 sub rhigh w=1u l=18u m=1
+RRCA_4 RCA4 RCA5 sub rhigh w=1u l=18u m=1
+RRCA_5 RCA5 RCA6 sub rhigh w=1u l=18u m=1
+RRCA_6 RCA6 RCA7 sub rhigh w=1u l=18u m=1
+RRCA_7 RCA7 vsen sub rhigh w=1u l=18u m=1
+RRCB_0 voutn RCB1 sub rhigh w=1u l=18u m=1
+RRCB_1 RCB1 RCB2 sub rhigh w=1u l=18u m=1
+RRCB_2 RCB2 RCB3 sub rhigh w=1u l=18u m=1
+RRCB_3 RCB3 RCB4 sub rhigh w=1u l=18u m=1
+RRCB_4 RCB4 RCB5 sub rhigh w=1u l=18u m=1
+RRCB_5 RCB5 RCB6 sub rhigh w=1u l=18u m=1
+RRCB_6 RCB6 RCB7 sub rhigh w=1u l=18u m=1
+RRCB_7 RCB7 vsen sub rhigh w=1u l=18u m=1
+.ends amp_023_fer_fd2s

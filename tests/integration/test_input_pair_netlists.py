@@ -8,13 +8,14 @@ from pathlib import Path
 import pytest
 
 from benchmarking.bundles import load_bundle
-from benchmarking.docker import DockerTool
 from benchmarking.files import Asset
-from benchmarking.prepare_support import prepare_support
+from layout_eval.docker import DockerTool
+from layout_eval.prepare_support import prepare_support
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-CASE = ROOT / "tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/input_pair"
+PUBLIC_ROOT = ROOT
+CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/input_pair"
 
 
 def test_maintained_netlists_agree_on_mos_and_tap_dimensions(tmp_path):
@@ -56,10 +57,10 @@ result = {}
 end
 File.write('comparison.json', JSON.pretty_generate(result))
 """
-    prepare_support(ROOT / "third_party/IHP-Open-PDK", f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#klayout",
+    prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK", f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#klayout",
                     tmp_path / "support")
     bundle = load_bundle(tmp_path / "support")
-    result = DockerTool(os.environ.get("LAYOUT_BENCH_TEST_IMAGE", "layout-bench-tools:local"),
+    result = DockerTool(os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local"),
                         ["klayout", "-v"], 120).run(
         ["klayout", "-b", "-r", "compare.rb"],
         {"compare.rb": Asset(script.encode(), "ruby"),

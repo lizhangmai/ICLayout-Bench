@@ -1,148 +1,213 @@
 # Architecture and Extension Interfaces
 
-Layout-Bench measures an Agent's ability to turn authoritative netlists, constraints, and process resources into GDS. The system under test includes the harness, model, prompt, context strategy, and tools; each measurement covers one task, one configuration, and one independent repetition. The benchmark owns a small session protocol and treats harness internals as opaque unless a run explicitly declares a managed or native runtime semantic. See the root [README](../README.md) for the current public scope.
+ICLayout-Bench measures an Agent's ability to turn authoritative netlists, constraints, and process resources into GDS. The system under test includes the harness, model, prompt, context strategy, and tools; each measurement covers one task, one configuration, and one independent repetition. The benchmark owns a small session protocol and treats harness internals as opaque. Declared mode labels record measurement conditions; they do not select or install a runtime. See the root [README](../README.md) for the current public scope.
 
 <a id="repositories"></a>
 
-The public repository owns the common framework, public tasks, reference solutions, and qualification materials. Private assembles hidden tasks, dedicated materials, authorization, evaluation plans, and deployment configuration; the dependency direction is **Private → Public**. Public installation and CI do not depend on the private repository. Credentials and continually growing raw run artifacts live outside the repositories.
+## Repository responsibilities
 
-<a id="architecture"></a>
+Public provides both local self-testing and participation in an operator service.
+It owns `benchmarking` (harness, client, protocol, task/score definitions and public
+analysis), `layout_eval` (preparation, isolated execution, immutable submissions,
+EDA backends and independent evaluation), and `layout_service` (the local HTTP
+adapter). These packages ship together in the Public wheel. Local evaluation
+requires Docker and compatible tool/resources; remote participation does not.
 
-## From Run to Report
+Private owns `layout_operator`: controlled reruns, hidden-task admission, internal
+batch verification and reviewed releases. It imports the Public implementation;
+it does not carry another evaluator or HTTP server. Hidden tasks, deployment
+credentials and restricted evidence remain operator-owned. Source dependency is
+**Private → Public**. Public installs and tests without Private.
 
-```mermaid
-flowchart LR
-    P[Task and Agent configuration / run plan] --> R[Runner freezes conditions]
-    R --> A[Isolated harness session]
-    A -->|Explicit submission| C[Durable GDS snapshot]
-    C --> E[Independent evaluator]
-    T[Trusted task and tool materials] --> E
-    R --> L[Durable records]
-    E --> L
-    L --> S[Statistics / optional restricted export]
-```
+UserTrial installs the Public wheel and verifies both local self-testing and
+remote participation. It contains neither a source clone nor a copied evaluator.
+The public catalog checkout is an explicit data/build input for local preparation;
+a prepared case can be served using only the installed wheel and Docker. The
+`--public-root` preview option locates that catalog independently of Python imports.
 
-| Responsibility | Code entry points | Contract / seam |
+Both paths use `layout-http.v1`, the same task checks and scoring arithmetic.
+Local results are always `local_development`; choosing an official harness does
+not certify a participant-controlled run. Only a frozen evaluator-operated rerun
+can receive `evaluator_verified`. Equal task, resources, engine and tool identities
+are needed to compare local and operator results; hidden tasks can differ.
+`tool_identity.public_revision` is a `sha256:` content identity of the installed
+Public implementation, including packaged runtime resources, independent of Git.
+
+The local service binds to loopback, supports one active session and advertises
+no optional diagnostics/opinions. It retains receipts across restart, marks lost
+live work as an error, and requires manual cleanup after retention. It is a local
+development server, not a supplied production deployment. Operators must provide
+their deployment authentication, TLS, capacity and task admission arrangements.
+Model credentials stay with the local harness or controlled host gateway; solver
+containers receive neither credentials nor reference layouts.
+
+<a id="http-session"></a>
+
+## HTTP session contract: `layout-http.v1`
+
+This section owns the wire contract. JSON uses UTF-8, finite numbers, UTC RFC 3339
+timestamps and lowercase SHA-256 hex digests. Paths below are relative to the
+service URL. Version 1 uses `/v1`; incompatible changes require another version.
+Responses include `protocol: "layout-http.v1"`. Clients ignore unknown response
+fields but reject incompatible versions. Unknown request fields, malformed JSON
+and wrong types return `400`. The protocol field is response metadata, not a
+required request member.
+
+Use `Authorization: Bearer <token>` on every request. An operator-issued access
+token can create sessions; creation returns a fresh token scoped to that one
+session's operations and evidence. Use TLS except on loopback for development.
+Credentials never enter EDA containers. Cross-session and nonexistent identifiers
+both return `404` after authentication.
+
+Errors have the shape
+`{"protocol":"layout-http.v1","error":{"code":"invalid_request","message":"...","retryable":false}}`.
+Messages exclude host paths, exception traces, hidden materials and secrets.
+Status/code pairs are `400 invalid_request`, `401 unauthorized`, `404 not_found`,
+`409 conflict`, `410 session_closed`, `413 too_large`, `429 budget_exhausted`,
+`503 unavailable`, `500 infrastructure_error`. Only `503` is retryable by default,
+with `Retry-After` seconds. A transport timeout has unknown outcome: replay the
+same idempotency key or query status before issuing another mutation.
+
+### Lifecycle, concurrency and retries
+
+States are `active → closing → evaluating → complete`, or `error` on an
+infrastructure failure. Creation responds only after inputs and isolation are
+ready. The deadline starts at `created_at`; disconnects and client exit do not
+pause it. Expiry closes the session, cancels execution, selects the last accepted
+candidate and evaluates it. Explicit close uses the same selection rule. Queries
+remain available until the creation response's `retained_until`. After closure,
+new mutations return `410`; identical acknowledged retries still return their
+original response. A restart losing a live workspace marks the session `error`
+and retains acknowledged snapshots and receipts; interrupted work is not success.
+
+The creation response's `limits` contains `wall_seconds`, `cpus`, `memory_mb`,
+`pids`, `workspace_mb`, `max_file_bytes`, `max_response_bytes`,
+`max_candidate_bytes`, `max_command_seconds`, `max_log_bytes`,
+`diagnostic_requests`, `opinion_requests`. The server enforces them. A command is
+capped by remaining session time. Logs are bounded with explicit truncation.
+Only one execution or workspace read/write/snapshot can run at once; conflicting
+requests return `409`. The deadline and explicit close take precedence and stop
+execution before freezing the final selection. Failed creation never returns an
+active session; operator capacity limits bound creation and retained storage.
+
+Every POST requires `Idempotency-Key` (1–128 ASCII letters, digits, `-`, `_`, `.`).
+The namespace is authenticated principal + route + key. The server durably stores
+the validated request and response before acknowledging success. Identical JSON
+values replay the same response; reusing a key with different content returns
+`409`. Concurrent identical requests wait or return retryable `503`, never run
+twice. A submission retry does not reread the workspace. Creation replay reveals
+the original token only to the original access principal. Records persist until
+`retained_until`. Validation failure does not accept a submission; new keys mean
+new operations.
+
+### Operations
+
+`{sid}`, `{eid}` and `{submission_id}` are opaque server identifiers. Request
+fields are required unless marked optional. Creation returns `201`; execution
+and close return `202`; other successful operations return `200`. Every response
+also includes the common `protocol` field.
+
+| Method and path | Request | Success fields |
 |---|---|---|
-| Configuration and freezing | `tasks.py`, `model_config.py`, `provenance.py` | Validate inputs, configuration, files, and the actual execution identity; do not interpret the circuit |
-| Run orchestration | `agent.py`, `swarm.py` | One execution and independent batch repetitions; invoke evaluation after stopping |
-| Session and submission | `session.py`, `snapshot.py`, `submit.py` | Isolation, budgets, and the last valid submission; do not judge layout correctness |
-| Harness and model gateway | `harnesses.py`, `session.py`, `inference.py` | Common session protocol, optional harness profiles, registered wire-family adapters, and host credentials; no EDA dependency |
-| Evaluation | `evaluation.py`, `evaluate.py`, `scoring.py`, `toolchains.py` | Execute each task's dependency graph, call backends, decide metrics and compute the unified task score |
-| EDA and materials | `klayout.py`, `geometry.py`, `magic.py`, `ngspice.py`; `environment.py`, `prepare_support.py` | Tool execution, format interpretation, resource preparation, and validation |
-| Evidence and statistics | `recording.py`, `recorder.py`, `report.py`, `admission.py` | Durable events and artifacts, evidence binding, statistics, and optional admission/export |
+| `POST /v1/sessions` | `task_id`, `condition` | `session_id`, `session_token`, status fields, `task`, `capabilities`, `limits`, `tool_identity`, `retained_until` |
+| `GET /v1/sessions/{sid}` | None | `session_id`, `state`, `created_at`, `deadline`, `remaining_seconds`, `active_execution_id` (nullable), `last_submission` (nullable receipt), `diagnostics_remaining`, `opinions_remaining` |
+| `GET /v1/sessions/{sid}/file?path=...` | URL-encoded relative path | `path`, `content_base64`, `sha256`, `size_bytes` |
+| `POST /v1/sessions/{sid}/files` | `path`, `content_base64` | `path`, `sha256`, `size_bytes` |
+| `POST /v1/sessions/{sid}/executions` | `command` (shell string), `timeout_seconds` | `execution_id`, `state` |
+| `GET /v1/sessions/{sid}/executions/{eid}?offset=0` | Nonnegative byte offset, default 0 | `execution_id`, `state`, `exit_code` (nullable), `log_base64`, `next_offset`, `truncated` |
+| `POST /v1/sessions/{sid}/executions/{eid}/cancel` | `{}` | `execution_id`, `state` |
+| `POST /v1/sessions/{sid}/submissions` | `path` | Receipt fields below |
+| `GET /v1/sessions/{sid}/submissions/{submission_id}` | None | Receipt fields below |
+| `POST /v1/sessions/{sid}/diagnostics` | `submission_id` | `diagnostic_id`, `submission_id`, `candidate_sha256`, `state` |
+| `GET /v1/sessions/{sid}/diagnostics/{diagnostic_id}` | None | `diagnostic_id`, `state`, `summary` (nullable), `candidate_sha256` |
+| `POST /v1/sessions/{sid}/opinions` | `text`, optional `submission_id` | `opinion_id`, `received_at` |
+| `POST /v1/sessions/{sid}/close` | `{}` | `session_id`, `state`, `last_submission` |
+| `GET /v1/sessions/{sid}/result` | None | Result fields below |
 
-These modules live under `benchmarking/` and are assembled by the root `main.py`. A harness owns its provider conversation and tool orchestration unless it opts into a declared managed/native semantic; the runner enforces the external session contract and budgets, and the evaluator rejudges frozen candidates. Generated scripts, self-reported check results, and process logs cannot replace the final judge.
+`capabilities` lists optional implemented operations (`diagnostics`, `opinions`).
+Absent optional operations return `404` and their budgets are zero. All other
+operations are required. Execution states are `running`, `complete`, `cancelled`,
+`timed_out`, `error`; diagnostic states are `running`, `complete`, `error`.
+A nonzero shell exit is still `complete`, not a task verdict. Log slices obey
+`max_response_bytes`; offsets refer to raw bytes. Decode base64 before joining
+slices; poll until terminal and drained. Truncation means bytes beyond the stored
+log limit were discarded; `next_offset` never advances beyond retained bytes.
 
-<a id="extension-layers"></a>
+`task` has `id`, `sha256`, `description` (public solver task description),
+`input_paths`, `workspace_root: "/workspace"`. Inputs are read-only under `/task`,
+approved resources under `/resources`. Only `/workspace` is accessible through
+file APIs. Paths use POSIX relative syntax excluding empty segments, `.`, `..`,
+NUL, absolute paths, symlinks and special files. Resolve beneath the workspace
+without races against commands; writes are atomic. Commands use `/bin/sh -lc`
+in `/workspace`, with no network, credentials, references or private repo mounts.
 
-## Where to Change When Extending
+Receipts contain `submission_id`, `sequence` (increasing within the session),
+`candidate_sha256`, `size_bytes`, `accepted_at`. The server snapshots a bounded
+regular GDS file at the declared task output path while execution is quiescent, stores immutable bytes and durably
+records acceptance. Acceptance proves delivery, not physical validity. The last
+accepted sequence wins; rejected requests never erase previous submissions.
+Final evaluation reads those immutable bytes in a separate trusted environment,
+without model credentials or writable solver paths. Diagnostics consume a separate
+budget, bind to accepted snapshots and expose only approved summaries. Opinions
+are unreviewed observations, independent of submissions and scores.
 
-- **New task**: add one unified circuit case with sources, inputs, constraints, and an evaluation plan, then complete [qualification](tasks.md#qualification). Models, budgets, and repetitions belong to the [run configuration](running.md), not to the case TOML.
-- **New harness**: use `command` plus reviewed `files` and implement the `layout-session.v1` protocol. Add a profile under the harness seam only when launch preparation or a trusted capability declaration is reusable; the session runner must not learn the framework's internal conversation.
-- **New model wire family**: register one adapter implementing `validate_request`, `prepare_request`, and `response_semantics`, then select it with the required `wire_api` field. The adapter owns HTTP method/auth/header conventions, terminal-state parsing, and mapping to the common nullable usage fields. Do not add one benchmark branch per model or per harness.
-- **New EDA backend**: implement `identity` and `run(job, inputs) -> JobResult`, returning measured values with units, declared artifacts, and diagnostic evidence. The backend owns execution isolation and format interpretation and may use a container, a native library, or a controlled remote tool.
-- **New process or environment**: configure support bundles, device mappings, rules, and parameters, then validate the supported range using the [tools guide](tools.md). Individual tools being usable does not mean their combination has passed task qualification.
+### Conditions, results and export
 
-Case attribution is a single `origin.url` pointing to the upstream circuit.
-Catalogs index cases; maintained inputs, reference assets and PDK
-resources carry the digests used by the framework. Updating a source
-checkout does not rewrite or redefine a maintained case. Cases ship ready-to-use
-materials; schematic export and material generation belong to development.
+`condition` is participant-reported metadata: `harness_kind` (`official` or
+`custom`), `harness_id`, `harness_version`, `model`, `prompt_sha256`,
+`configuration_sha256`. The last two may be null when unknown. Metadata does not
+certify model identity or absence of human assistance. Official and custom harness
+conditions remain separate comparison groups.
 
-`evaluation.py` and `evaluate.py` do not import concrete tools; `tasks.py` depends only on evaluation data definitions. It freezes inline task constraints and evaluation plans, and exposes the same requirements to the solver description and evaluator inputs. `Task.inputs` controls solver file materialization; `Task.input_assets()` also includes generated inline snapshots for execution and evidence archival. Evaluation validates both TOML file plans and JSON snapshots through the same schema. `toolchains.py` assembles backends at the entry point from a standalone toolchain or the host-only `[toolchain]` table in a circuit case: `backends.<id>` declares `type` and `settings`, while `bindings` maps logical operations to backend IDs. Python callers may also inject a backend instance or factory. Task files cannot trigger dynamic Python imports; decks and file formats for different EDAs must be adapted explicitly.
+Results contain `session_id`, `state`, `task_id`, `task_sha256`, `condition`,
+`tool_identity`, `limits`, `verification_level`, `provenance`, `usage`,
+`submission` (nullable receipt), `outcome`, `task_success`, `score`, `metrics`,
+`failure_reason`, `evidence`. Before terminal state, verdict fields are null and
+metrics/evidence empty. Terminal `outcome` is `pass`, `fail`, `no_submission` or
+`error`. Infrastructure error has null success and score; no submission has false
+success. Score uses the public task score envelope and incomplete-attempt policy.
+Metrics retain units and missing values from the evaluation specification. Do
+not conflate physical failure, no submission and infrastructure errors.
 
-Case loading can resolve explicitly declared `collection_source` inputs inside a
-case's enclosing source collection. The loader validates the collection boundary,
-source path and digest, then freezes bytes in `Task.inputs`; materialization,
-sessions and evaluators consume those snapshots without mounting the collection.
-See [shared collection inputs](tasks.md#shared-collection-inputs) for the declaration
-and standalone preparation rules.
+`verification_level` is `local_development`, `service_recorded` or
+`evaluator_verified`; the last requires a frozen evaluator-operated rerun.
+`provenance` maps `candidate`, `interaction`, `condition`, `usage` to
+`server_observed`, `participant_reported` or `unknown`. `usage` contains nullable
+`input_tokens`, `output_tokens`, `cached_input_tokens`, `reasoning_output_tokens`,
+`cost`. Direct local model usage is unknown to the service, never zero-filled.
+`tool_identity` records immutable image identity and public implementation revision.
+`evidence` is a list of reviewed artifacts with `path` (session-scoped API-relative
+URL), `sha256`, `size_bytes`, `media_type`; it may be empty. Evidence routes require
+the session token and never expose private host paths or unreviewed judge files.
 
-Optional backend-level `support_profiles` maps support-path setting names to
-reviewed PDK preparation profiles. It is host assembly metadata, validated but
-not forwarded to backend constructors. Public preview discovers executable
-executable cases through their catalogs and uses these mappings to prepare and
-bind model or composite extraction resources; circuit names and source
-collections do not select semiconductor models. See the
-[tool guide](tools.md#stepwise-preparation-and-reuse) for declaration examples.
+Analysis retains task/tool identities, budgets, conditions, provenance, candidate
+receipt and nullable outcome data. Simulator runs are protocol tests, never model
+scores. Hidden-task result export requires disclosure review.
 
-A unified image serves preparation, solving, and judging, while each role runs in its own container. The session runner controls mounts, the optional model gateway, budgets, and trusted materials; the evaluator never sees Agent credentials or a writable workspace. A public development host may be controlled by the user; confidentiality for hidden data depends on a host controlled by the evaluator and cannot be provided by containers on the user's machine. See [admission and export](admission.md) for optional mechanisms and trust seams.
 
-<a id="harness-semantics"></a>
+<a id="ownership"></a>
 
-## Harness and Runtime Semantics
+## Official harness and trust
 
-The external seam is the same for every harness:
+`benchmarking.official` owns an observe/action loop, bounded recent history,
+explicit retries, execution polling and early submission. Its provider returns a
+single structured action. The included Codex provider uses installed authentication
+and an explicitly frozen model/effort, with host tool actions rejected. Provider
+output is never executed directly on the host. Both this loop and custom local
+harnesses call `benchmarking.client`. A model change changes the measured condition.
 
-```text
-task inputs + /protocol/harness.json
-              ↓
-        executable harness
-              ├─ python -I /protocol/process_check.py (optional)
-              ↓  python -I /protocol/submit.py
-       frozen candidate snapshot
-              ↓
-       independent evaluator
-```
+Public scoring arithmetic and task/evaluation schemas remain auditable. The shared evaluator
+freezes inputs and executes the declared checks against immutable candidates.
+Public can evaluate prepared public tasks locally without an operator account. Protocol
+simulators return explicit errors and cannot be analyzed as model measurements.
 
-Every run records a `HarnessSpec` with `id`, `version`, `protocol`, `mode`,
-capabilities, and optional `wire_api`. The default `external-cli` profile is
-`opaque`: the benchmark does not inspect or reproduce the harness's internal
-conversation. `managed` and `native` are explicit measurement conditions and
-must be kept separate in reports when context ownership changes. The harness
-runtime remains outside the benchmark core and is not part of task or judge
-semantics.
+Only an evaluator-operated frozen rerun may receive `evaluator_verified`. Merely
+requesting `harness_kind=official` never raises trust. Operator evidence binds the
+pre-run manifest, complete task/repetition schedule, source and tool identities,
+provider actions, receipts and independent reports. Unknown usage stays null; CLI
+usage counters in private transcripts do not become gateway-observed usage.
 
-The optional `process-feedback.v1` capability adds a read-only
-`python -I /protocol/process_check.py` request. The host snapshots the current
-output, evaluates that immutable snapshot with the same evaluation plan and
-backend identities used by the final judge, and returns a diagnostic summary.
-Each request and result records the candidate digest, tool identity, elapsed
-time, report artifact, and any error in the durable event journal. Feedback
-never becomes a submission and never changes the independent final evaluation;
-`run.json.process_feedback` is reported separately. A harness without the
-capability does not receive the helper or feedback instructions.
-
-The public preview includes a provider-neutral `managed` reference harness.
-Its fixed loop owns the prompt, conversation history, bounded `run_command`
-tool, and explicit `submit_layout` tool. A separate adapter process converts a
-provider or local model into the normalized JSONL request/response contract;
-the loop does not import a vendor SDK or choose a model. Use the same harness,
-tool definitions, prompt, and budgets when comparing adapters, and record the
-adapter command and version as part of the Agent configuration. The included
-deterministic adapter is a protocol control only, not a model baseline.
-
-The host-owned gateway is provider-neutral: a frozen `wire_api` selects one
-trusted registry adapter, while credentials, the fixed endpoint, request and
-response limits, socket framing, budgets, and durable evidence remain in the
-gateway. `responses` is one optional built-in wire family, not a benchmark
-assumption. A harness may provide its own bridge to the socket, but the bridge
-must keep the same declared wire family. Supporting another provider API means
-registering one adapter and its semantic tests, not changing the session
-runner or adding a branch for every Agent framework.
-
-The adapter seam is deliberately small:
-
-| Adapter method | Responsibility | Must not do |
-|---|---|---|
-| `validate_request(path, body, model) -> bytes` | Validate and canonicalize one client request for the frozen model and wire paths | Select a destination, read credentials, or spend a request budget |
-| `prepare_request(path, body, model, credential) -> WireRequest` | Choose the relative HTTP path, method, and authentication/header convention | Return an absolute URL or bypass the fixed profile endpoint |
-| `response_semantics(path, content_type, body) -> {outcome, reason, usage}` | Validate a terminal response and map usage to `input_tokens`, `output_tokens`, `cached_input_tokens`, `reasoning_output_tokens`, and `cost` (missing values stay `null`) | Mark a malformed or failed response as a model/layout failure |
-
-Adapters are trusted framework code registered by the host; task files and
-harnesses cannot load arbitrary Python. The canonical harness remains a
-separate normalized JSONL conversation/tool seam and does not import a wire
-adapter or vendor SDK.
-
-## Design Basis
-
-The references below explain design choices; they are not execution rules or runtime dependencies for this project:
-
-| Pinned source | What is borrowed and where it stops |
-|---|---|
-| [ARC-AGI-3 Benchmarking](https://github.com/arcprize/arc-agi-3-benchmarking/tree/1aa78da7e3058e0ead572ede7cd97065d1e5befc) | Adapters, exit reasons, and structured step-by-step records are useful; game actions, human baselines, and the scoring formula do not apply to layout. Its hidden-task access and official scoring depend on an external platform, so the local harness is not a complete hosted-service specification. |
-| [SWE-bench harness](https://github.com/SWE-bench/SWE-bench/blob/02e7a74ffd0b707aab73d203fe87bdc7c76afc8e/docs/reference/harness.md) | Independent environments, execution limits, and machine-readable evidence are useful; caches still need to bind this project's candidate and judge inputs. |
-| [VerilogEval](https://github.com/NVlabs/verilog-eval/blob/c498220d0a52248f8e3fdffe279075215bde2da6/README.md) | Fixed tools, sampling parameters, and result identity are useful; successful RTL simulation does not imply task success for layout. |
-
-Use [tasks and evaluation](tasks.md#task-scoring) for the unified task score and the [running guide](running.md#scoring) for coefficient-weighted batch statistics. DRC/LVS are physical-validity gates; a complete task must also meet its declared geometry and post-layout requirements.
+Public analysis groups identical harness/model/prompt/configuration, tool, budget
+and trust conditions separately. It preserves infrastructure errors and missing
+values rather than filling them with zeros. Hidden-task admission and conservative
+aggregate disclosure remain evaluator-side operations.

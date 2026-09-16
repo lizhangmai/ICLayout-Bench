@@ -5,7 +5,7 @@ if [[ $# -gt 1 || ( $# -eq 1 && "$1" != tools ) ]]; then
     echo 'The toolchain is unified; this check accepts only the tools image.' >&2
     exit 2
 fi
-image="${LAYOUT_BENCH_TEST_IMAGE:-layout-bench-tools:local}"
+image="${ICLAYOUT_BENCH_TEST_IMAGE:-iclayout-bench-tools:local}"
 echo "Checking unified tool image: ${image}"
 docker run --rm --network none -i "${image}" bash -es <<'CHECK'
 set -euo pipefail

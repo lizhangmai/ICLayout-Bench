@@ -10,3 +10,12 @@
 [submodule "third_party/FreePDK45"]
 	path = third_party/FreePDK45
 	url = https://gitlab.com/Chips4Makers/freepdk45.git
+[submodule "third_party/gf180mcu_fd_pr"]
+	path = third_party/gf180mcu_fd_pr
+	url = https://github.com/efabless/globalfoundries-pdk-libs-gf180mcu_fd_pr.git
+[submodule "third_party/open-pdks"]
+	path = third_party/open-pdks
+	url = https://github.com/fossi-foundation/open-pdks.git
+[submodule "third_party/gf180mcu_fd_pv"]
+	path = third_party/gf180mcu_fd_pv
+	url = https://github.com/efabless/globalfoundries-pdk-libs-gf180mcu_fd_pv.git

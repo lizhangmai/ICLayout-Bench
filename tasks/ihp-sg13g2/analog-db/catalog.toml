@@ -1,0 +1,97 @@
+schema_version = 3
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_001_5t"
+config_path = "cases/amp_001_5t/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.sw_002_chopper_diff"
+config_path = "cases/sw_002_chopper_diff/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.buf_001_super_follower"
+config_path = "cases/buf_001_super_follower/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.cmfb_004_output_switched_cap"
+config_path = "cases/cmfb_004_output_switched_cap/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.sw_003_binary_capbank"
+config_path = "cases/sw_003_binary_capbank/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_024_smcnr"
+config_path = "cases/amp_024_smcnr/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_023_fer_fd2s"
+config_path = "cases/amp_023_fer_fd2s/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.ia_006_fan_chopper_cmfb"
+config_path = "cases/ia_006_fan_chopper_cmfb/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.smp_001_nmos_th"
+config_path = "cases/smp_001_nmos_th/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_008_leung_nmcf"
+config_path = "cases/amp_008_leung_nmcf/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_009_leung_nmcnr"
+config_path = "cases/amp_009_leung_nmcnr/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_002_alfio_raffc"
+config_path = "cases/amp_002_alfio_raffc/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_003_fan_smc"
+config_path = "cases/amp_003_fan_smc/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.ldo_009_fer_5t_pass"
+config_path = "cases/ldo_009_fer_5t_pass/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_005_hoilee_affc"
+config_path = "cases/amp_005_hoilee_affc/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_010_peng_acbc"
+config_path = "cases/amp_010_peng_acbc/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.trm_001_vcr"
+config_path = "cases/trm_001_vcr/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_007_leung_dfcfc2"
+config_path = "cases/amp_007_leung_dfcfc2/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.ldo_008_fer_mirror_ota"
+config_path = "cases/ldo_008_fer_mirror_ota/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_006_leung_dfcfc1"
+config_path = "cases/amp_006_leung_dfcfc1/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_012_peng_tcfc"
+config_path = "cases/amp_012_peng_tcfc/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_015_sau_cfcc"
+config_path = "cases/amp_015_sau_cfcc/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.ldo_001_analoggym_basic"
+config_path = "cases/ldo_001_analoggym_basic/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.vref_001_vgs"
+config_path = "cases/vref_001_vgs/case.toml"

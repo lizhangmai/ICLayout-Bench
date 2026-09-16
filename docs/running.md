@@ -1,248 +1,134 @@
-# Running Agents, Batch Evaluation, and Interpreting Results
+# Participation and Result Analysis
 
-First complete the no-key quick start in the root [README](../README.md#quick-start-no-model-key-required), then use the generated configuration to connect your own harness or model gateway. One measurement is one task × one Agent configuration × one independent repetition; the harness, model, prompt, context, and tools together form the system under test.
+## Local self-testing
 
-<a id="protocol"></a>
+Run the [README quick start](../README.md#quick-start) to prepare a public case,
+check its reference and start the local HTTP service. Use the official harness or
+your custom harness against that endpoint. It uses the same evaluation engine as
+operator runs, but always reports `local_development`. You control the local task,
+image and resources; a local pass does not certify a formal or hidden-task result.
 
-Tools, materials, input modalities, and budgets are measurement conditions. Record a configuration difference whenever you add a layout generator, retrieval library, skill, or image-observation capability. The optional `process-feedback.v1` capability lets a harness request a read-only check of a frozen output during the session; the final judge still runs independently after the session stops and never chooses the best intermediate candidate for the Agent. See [tasks and evaluation](tasks.md#evaluation) for the decisions.
-
-<a id="offline-cli"></a>
-
-## 1. Configure and Run One Agent
-
-`main.py run <task.toml> --agent <agent.toml> --toolchain <toolchain.toml> --output <new-directory>` starts one offline development run. The command accepts any executable harness that follows the session protocol; the schema and isolation rules are described below. `--resources <bundle>` may provide a reviewed, frozen resource bundle; the CLI does not read an arbitrary resource directory or a complete upstream checkout. Image and resource preparation and final evaluation are outside solve time. Timing starts before launching the prepared container and making the task message readable, so it includes a small amount of startup overhead.
-
-For a unified `case.toml` with a `[toolchain]` table, omit `--toolchain` to use
-those bindings. An explicit `--toolchain` takes precedence and may name either
-a standalone toolchain or another case TOML. The merged case is host configuration;
-only declared task inputs reach the solver.
-
-The current Agent configuration is schema 1:
-
-| Field | Semantics |
-|---|---|
-| `id`, `image`, `command` | Named harness process, tool image, and an argument list that is not expanded by a host shell; record the actual image ID and override the image's default entrypoint |
-| `[harness]` | Optional `id`, `version`, `protocol`, `mode`, `capabilities`, and `wire_api`; the current protocol is `layout-session.v1`, with defaults `external-cli` and `opaque`; declare `process-feedback.v1` to receive the process-check helper |
-| `wall_seconds`, `memory_mb`, `cpus`, `pids`, `workspace_mb` | Positive external runtime limits; the configuration does not claim enforceable token or cost caps |
-| `files[]` | `path`, `target`, and `sha256`; validate ordinary files at load time, freeze them, and mount them read-only under `/agent` |
-| `environment` | Optional public string settings archived verbatim; never use them for credentials |
-
-For each session, the Runner prepares separate read-only `/task`, `/agent`, `/resources`, and `/protocol` mounts. `/protocol/harness.json` publishes the frozen session protocol and declared capabilities; `/protocol/resources.json` describes only mounted reviewed resources and an optional preflight. When the resource bundle is a reviewed PDK view, the Runner automatically sets container-local `KLAYOUT=1` and prepends the PDK Python paths to `PYTHONPATH`; explicit `PYTHONPATH` entries are retained. It never infers or mounts a reference solution. With inference configured, `/protocol/inference.json` describes the fixed gateway and `/protocol/inference.sock` is its canonical Unix socket; the former `/protocol/model.sock` path remains a compatibility alias. The Runner does not mount the host repository, Docker socket, or evaluation support directories. `/workspace` is a size-limited tmpfs and starts empty; the root filesystem is read-only, with a fixed 64 MiB `/tmp` and 16 MiB shared memory. Containers run as non-root with networking disabled, capabilities removed, privilege escalation disabled, and memory (without extra swap), CPU, and process counts limited. The implementation follows Docker's [container run options](https://docs.docker.com/engine/containers/run/) and [run parameter reference](https://docs.docker.com/reference/cli/docker/container/run/). Reject images that declare extra writable volumes so they cannot bypass the workspace limit. An image must provide the read-only `/usr/bin/python3` standard library and support native Unix sockets and file-descriptor reads; rerun isolation tests for every new image.
-
-<a id="submission"></a>
-
-### Submission and Durable Records
-
-The CLI reads the common first message from `/protocol/prompt.txt` and obtains paths and output requirements, sourced from the task configuration, from `/protocol/task.json`. The descriptor also carries `witnessed`: `true` when the case declares a qualification reference, `false` otherwise — a solver may treat `false` as "no feasibility witness is published" but must not read anything into the task's difficulty. When constraints are embedded in the task configuration, this JSON also contains their structured definition in `constraints`; no separate constraints file is materialized. The submission action is `python -I /protocol/submit.py`: the client sends only a `submit` request to the Unix socket for this run and supplies no candidate bytes, file path, or success assertion. The host runs a read-only helper against the container, clears the CLI's custom environment, isolates Python imports, and opens each directory and ordinary file along the configured output path with `O_NOFOLLOW`. It rejects any symlink, special file, or missing path so the snapshot rule stays explicit.
-
-The host first writes the candidate by content address and `fsync`s the file and directories, then checks the deadline and decides whether to accept it. It appends a `submission` event containing the receipt and artifact reference and `fsync`s successfully before returning `accepted=true`. The receipt time is the decision time after the candidate is durable; event commit and receipt delivery may be slightly later. Reject a request whose candidate reaches durable storage only after the deadline. Writes to the workspace after acceptance do not modify the archived immutable candidate. No explicit submission is `no_submission`, and a submission after the deadline is rejected. Normal exit, non-zero exit, and timeout all use the last successfully received snapshot. A submission receipt confirms delivery; it cannot self-report DRC/LVS or performance success. After the session stops, remove the entire container and pass the frozen candidate and independent trusted task materials to the existing evaluator.
-
-When `process-feedback.v1` is declared, `python -I /protocol/process_check.py` sends a separate control action. The host snapshots the output without changing the accepted submission, archives the candidate summary, and evaluates that frozen snapshot with the same task plan and backend identities as the final judge. The response reports whether the check was accepted and includes the check outcome; an evaluator error is diagnostic evidence, not a final task result. `process_feedback.request` and `process_feedback.result` events retain the request, candidate digest, tool identity, elapsed time, report reference, and error. The checks and their reports are kept in `run.json.process_feedback`, separately from `candidate`, `evaluation`, and the final score. A harness that does not declare the capability has no helper or extra control behavior.
-
-`run.json` schema 2 stores termination reasons and evaluation conclusions separately, including the harness identity, actual command, messages, configuration, code, materials, inputs, limits, submission receipts, and the last candidate digest. Atomically write `phase=running` before starting. After stopping, write `phase=stopped`; after independent evaluation, write `phase=finished` and bind the size and digest of the complete event log. Synchronize every replacement of a report with its file and directory. An incomplete record cannot be a final score.
-
-`events.jsonl` schema 1 is synchronized one record at a time and contains a globally increasing sequence number, UTC time, relative time, event kind, and structured data. Record session creation and stop, inference request/result/rejection, submission acceptance/rejection, console chunks, and run completion separately. Save an inference request before forwarding it and its result before returning it to the Agent. Preserve all retrievable messages and tool inputs and outputs in request/response artifacts and native CLI logs; CLI output cannot forge framework events. Native logs are untrusted diagnostic evidence and do not reveal model reasoning that was not exposed.
-
-Save stdout/stderr in full as offset-bearing `console.chunk` artifacts. Keep only the first 64 KiB preview in the `console` field of `run.json`; `console_truncated` describes that preview only. The current host console archive limit is 64 MiB and is recorded in the actual environment. Stop when the limit is reached or evidence storage fails, and classify the run as an infrastructure or incomplete-record condition rather than producing a score without evidence. Disable Docker's own persistent logs. Offline token/cost is `null`; see the next section for inference usage.
-
-Use mode `0700` for run directories and the host temporary root, `0600` for events and reports, and `0400` for artifacts; control and inference sockets are `0600`. Containers use the host's non-root UID/GID. When the root starts a run, use `1000:1000` and transfer socket ownership. Mount each input subdirectory under the temporary root separately and read-only. This isolation seam separates other ordinary host users, but not processes with the same UID, root, or Docker administrators; those identities must be trusted by the operator.
-
-`uv run --locked python main.py recover <run-directory>` validates received artifacts in the log read-only and returns a reference to the last candidate; it does not restore the Agent or rewrite an old score. A complete receipt event is the authoritative submission record: an artifact without a receipt event is not a submission, and a client disconnect or lost confirmation message does not revoke a committed event. Recovery may ignore a final incomplete log line, but rejects a corrupt complete record, discontinuous sequence numbers, or a candidate digest/size mismatch. A confirmed submission remains recoverable after the host process is force-killed. The operator may clean up an orphaned container by the container ID in `session.created`; `batch --resume` handles only a frozen, local batch directory and uses its predeclared replacement allowance. Re-evaluate a recovered candidate through the independent `evaluate` entry point, but an interrupted run does not thereby become a complete model score.
-
-<a id="model-inference"></a>
-
-## 2. Connect a Model Gateway
-
-Create a schema 1 inference profile with the fields below, fill in your endpoint, model, and host key-variable name, and use the command in [README](../README.md#run-your-agent). Only a `main.py run` command whose harness forwards a request contacts the selected model; the public preview and protocol tests do not require a model account.
-
-Run `uv run --locked python main.py inference-check <profile.toml> [--agent <agent.toml>]`
-before a paid run. This validates the fixed HTTPS profile, credential presence,
-and (when supplied) the harness wire declaration without making a provider
-request. It reports only the credential variable name and a boolean presence
-flag, never the value. It is a compatibility preflight, not a network or
-provider-version guarantee.
-
-A run configuration normally uses `command` and optional `[[files]]`; the session runner does not require a particular Agent framework. The `[harness]` table records protocol metadata only; the harness supplies its own command, bridge, and reviewed files. Model communication and EDA backends are separate; the session does not parse provider sessions or the task circuit.
-
-`--inference <profile.toml>` selects a schema 1 configuration supplied by the trusted operator:
-
-| Field | Semantics |
-|---|---|
-| `base_url` | Fixed HTTPS base URL; URL credentials, queries, fragments, and dynamic redirects are forbidden |
-| `model` | The model name required for every request; the CLI may not request another model |
-| `wire_api` | Required wire-family identity for the host gateway; `responses` is one optional built-in adapter, not a benchmark default |
-| `api_key_env` | Host environment-variable name whose value is read only by the host; the TOML and records contain no key |
-| `max_requests` | Maximum forwarded requests, including failures and compaction; retries count against the limit |
-| `request_timeout_seconds` | Per-connection/response time limit, also bounded by the session deadline |
-| `max_input_tokens`, `max_output_tokens` | Optional aggregate limits on observed provider-reported counters; missing usage remains `null` and cannot be treated as zero |
-| `max_wall_seconds` | Optional gateway wall-time budget, bounded by the enclosing session wall-clock limit |
-
-The configuration specifies the model and wire family; the core does not hard-code a model or harness. If a harness declares `wire_api`, it must match the inference profile. A harness bridge connects to the loopback forwarder through that declared wire family. The forwarder can reach only this run's Unix socket. The host gateway holds the credential and makes the HTTPS connection, reads no HTTP proxy environment, and accepts no target URL, authorization header, or arbitrary method from the client. The selected adapter prepares only a relative request for the fixed base URL.
-
-The selected wire adapter fixes its allowed paths, model binding, request validation, HTTP method/auth headers, and response terminal semantics. The gateway applies the common 8 MiB request and 16 MiB response limits, one-request-at-a-time bound, session deadline, request quota, and generic error redaction. The `responses` adapter currently allows `POST /responses` and `POST /responses/compact`, forces `store=false` on generation, allows only client-executed function/custom/namespace tools, rejects online search/remote MCP/remote file or image references/background execution/server-side conversation references, and treats inline images as local data. The proxy buffers each complete response before forwarding SSE; this delay is part of wall-clock time.
-
-Every adapter returns the same terminal outcome vocabulary: `completed`,
-`service_error`, `budget_truncated`, `content_filtered`,
-`incomplete_error`, or `protocol_or_transport_error`. HTTP status is retained
-separately. The gateway records a forwarded request before transport, records
-the response before returning it, and classifies deadline/quota denials as
-budget events; adapters do not retry or reinterpret those gateway decisions.
-
-For a non-success HTTP response, return only a generic error and do not forward a body that might echo credentials or redirect headers; reject a successful body that contains a key as well. Do not print raw connection exceptions to the Agent. On stop, close the inference entry point and active connections before destroying the container; start no new request after the deadline. Whether a remote request already sent stops computation and billing depends on the provider; cancelling the connection cannot claim zero remote usage.
-
-Archive complete request/response artifacts, digests, byte counts, fixed endpoint, model, and forwarding status. Each gateway summary reports forwarded, denied, failed, truncated, content-filtered, and cancelled counts, request wall time, and denial reasons. Read input/output, cached input, and reasoning output usage from the actual terminal response. Aggregate them only when every relevant response provides valid values; otherwise use `null` and retain known/missing coverage rather than filling gaps from CLI self-reporting. Keep unpriced cost as `null`; there is no enforced cost budget. Token counters are provider-observable resource evidence, not a common compute unit.
-
-Record HTTP status separately from response semantics:
-
-| Response semantics | Classification |
-|---|---|
-| Consistent successful JSON/SSE terminal state | Normal response |
-| `response.failed`, an in-stream `error`, a missing or conflicting terminal state, malformed or truncated SSE, an HTTP rejection, or a connection failure | Infrastructure error; HTTP 200 cannot override it |
-| `incomplete` caused by `max_output_tokens` / `content_filter` | Classify as `budget_truncated` / `content_filtered`, respectively; neither is an infrastructure failure |
-| Unknown or missing `incomplete` cause | `incomplete_error`; extend the mapping only after endpoint validation |
-
-The optional `responses` wire adapter follows the semantics of the [Responses API](https://developers.openai.com/api/reference/cli/resources/responses/methods/create); validate compatible endpoints separately. A single truncated response does not force the session to end, so a harness may continue within the remaining budget. Deadline cancellation or an exhausted request quota is a budget stop, and previously accepted candidates are still evaluated. The adapter identifies standalone `/responses/compact` results by their independent `response.compaction` object; it does not inject an undeclared `store` parameter. A new wire adapter keeps equivalent provider-specific checks inside its own implementation and returns the common outcome/usage fields.
-
-The socket framing is deliberately small and provider-neutral. For each request,
-open a new Unix-socket connection, send one compact JSON line
-`{"path":"/wire-path","bytes":N}` followed by exactly `N` UTF-8 JSON bytes,
-then read one JSON response line `{"status":S,"type":"...","bytes":M}` and
-exactly `M` response bytes. A connection carries one request and one response;
-the path set is owned by the selected wire adapter. The reference
-dependency-free client is [inference_bridge.py](../tests/fixtures/agents/inference_bridge.py)
-for the optional `responses` family.
-The client must treat status, media type, and body as untrusted and leave
-Responses JSON/SSE semantic handling to the harness or a reviewed adapter.
-
-| `run_kind` | Meaning |
-|---|---|
-| `offline_cli_development` | An offline program, or a configured profile with no forwarded inference request |
-| `model_protocol_test` | Protocol validation against a deterministic endpoint; not a model score |
-| `model_cli_development` | Model development run through a real HTTPS gateway; endpoint compatibility and solving effectiveness require concrete measurements |
-
-Configuring an inference profile is not evidence that a model was contacted. A
-profile with only denied or zero forwarded requests is recorded as
-`offline_cli_development`; the run report keeps `inference.requests` empty and
-the batch summary exposes `inference_requests`, `inference_denied_requests`,
-and `inference_unused_runs`. Use these fields when checking that a baseline
-actually exercised the model rather than only running the harness protocol.
-
-<a id="failures"></a>
-
-### Termination Reasons and Retries
-
-| Situation | Handling |
-|---|---|
-| Normal end, model refusal, Agent error, or budget exhaustion | Evaluate the last accepted candidate; no submission is a failure, and a poor result is not retried |
-| Candidate format error or violation of published file/geometry limits | Artifact failure, counted in the measurement denominator |
-| API service, image startup, or storage failure | Record an infrastructure error; batch runs use the predeclared retry allowance and retain the original attempt |
-| Evaluator crash, timeout, or missing measurement | Keep the candidate for re-evaluation; do not count it as a model failure or start a replacement Agent |
-
-The run report uses `reason = "Wall-clock limit reached"` for a session deadline and a generic `Agent exited with code N` reason for a non-zero harness exit; detailed diagnostics remain in the console artifacts.
-
-Classify an evaluation anomaly as an artifact failure only after confirming a violation of a published candidate limit. Leave unresolved slots as `missing` and show incomplete coverage in summaries. Distinguish response budget truncation from service failure as above; HTTP 200 alone does not prove inference succeeded.
-
-<a id="local-run-plans"></a>
-
-## 3. Freeze a Batch Run Plan
-
-Batch entries require a `post_layout` evaluation with a `layout-v1` scoring
-declaration. Use standalone `evaluate` or `characterize` for measurement
-workflows without a benchmark score.
-
-Create a run-plan TOML for your selected case and harness. After quick start, both `tasks[].config` and `tasks[].toolchain` can point to the generated `prepared/case/case.toml`; `agents[].resources` can point to `prepared/agent-resources`. Resolve these paths relative to the plan file. Run and recompute its report with:
+To reuse an existing compatible image and prepare a fresh case without a reference
+run, execute from the Public checkout:
 
 ```bash
-uv run --locked python main.py batch path/to/plan.toml --output build/runs/model-batch
-uv run --locked python main.py summarize build/runs/model-batch
+uv run --locked python -m layout_eval.preview prepare \
+  --case cell_6t --image iclayout-bench-tools:dev --output build/prepared-cell6t
+export ICLAYOUT_BENCH_TOKEN="$(openssl rand -hex 32)"
+uv run --locked python -m layout_service \
+  --prepared build/prepared-cell6t --data build/local-service \
+  --image iclayout-bench-tools:dev --token-env ICLAYOUT_BENCH_TOKEN
 ```
 
-Batch-plan schema 1 is described below; unknown fields and versions are rejected:
+Preparation requires the public catalog and pinned upstream sources. An installed
+wheel accepts `python -m layout_eval.preview --public-root /path/to/ICLayout-Bench
+prepare ...`; that checkout supplies resources, not imported Python modules.
+Use new output directories. The local server binds to loopback and accepts one
+active session. Set `--seconds` for the session budget and `--port` for the listener.
+Receipt retention is seven days; remove expired local storage when no longer needed.
 
-| Field | Semantics |
-|---|---|
-| `id`, `scope` | Plan identity; `scope` is `public_development`, `hidden_development`, or `synthetic`, recording the caller-declared data scope; all are local development |
-| `repetitions` | Positive repetition count for every task/configuration combination; it cannot change based on intermediate results |
-| `order`, `seed` | `interleaved` orders repetition → task → configuration, or `shuffled` uses the given non-negative integer seed; archive the expanded order before running. The seed controls scheduling only and is not a provider random seed |
-| `max_infrastructure_retries` | Infrastructure replacement attempts allowed for each measurement slot; may be 0, with an independent record for every original attempt |
-| `tasks[]` | Each item references `config` (`task.toml` or `case.toml`) and `toolchain`; with embedded bindings, both may point to the same case file. Task IDs must be unique |
-| `agents[]` | Each item has a unique configuration alias `id` and `config` (an existing CLI configuration), plus optional `resources` (frozen bundle) and `inference` (fixed inference configuration); use one CLI with different endpoints/models as separate configurations |
+To inspect an existing candidate without running an Agent, use its prepared case:
 
-Resolve the file and directory references above relative to the plan file and reject symlinks. CLI file references remain relative to the CLI configuration. Preserve existing adapter semantics inside toolchain `settings`: for current built-in backends, a relative `support` path is relative to the launch working directory, and the run record saves that directory and the actual support-bundle digest. Approved environments may be assembled with absolute paths. Take budgets directly from the referenced CLI and inference configurations, put the expanded values in the frozen manifest, and keep budgets, models, and repetition arrangements out of `task.toml`.
-
-Before execution, load and validate every task, resource bundle, CLI file, endpoint configuration, and evaluation backend, and resolve the actual image IDs for the Agent and EDA. Then archive the original plan, per-task inputs and configurations, actual commands/environment/limits, endpoint and model, backend/support-bundle identities, host description, and the complete expanded order. `provenance.py` records the current `benchmarking` Python/JSON/YAML implementation files, available root entry points/image/dependency declarations, Git commit, and a status containing both uncommitted and untracked items. Source-content digests include new modules not yet committed. When an installed package has no Git checkout, still record source digests; root entry points or build files may be absent. An externally injected backend declares its installation/source identity through `identity`; the framework does not inspect arbitrary plugin directories.
-
-Inspect the frozen manifest in `execution.json`; authoritative content digests and artifact references are stored in `batch.json.execution`. Each slot has its own `slot_id`. Write each original or replacement attempt under `runs/<slot_id>/attempt-<n>/`. Before the first task message, write the manifest digest, slot, task, configuration, repetition, and attempt number into that run's `run.json.execution`. Use `main.py batch ... --concurrency N` to run independent slots concurrently; the chosen value and host worker count are frozen in the manifest. Reuse frozen inputs and tool identities, but create a new container, empty workspace, and inference gateway for every solve; do not read memories from earlier solves. Check source and backend identities before and after every attempt; stop if the implementation changes, retain incomplete records, and keep different conditions out of one manifest.
-
-The task `inputs` archives in `execution.json` and `run.json` include both declared files and frozen inline constraints/evaluation snapshots. Solver files still come only from the task's file declarations; inline requirements reach the solver through `/protocol/task.json`. Report verification checks evaluation-plan format, digest and bytes against the frozen archive, for both existing TOML file plans and JSON snapshots of inline plans.
-
-Freeze only the provider parameters that are declared and observable: archive the model, fixed endpoint, harness identity/image/command, configuration, and request contents. Do not claim to have frozen unavailable model snapshots, server defaults, or nondeterminism. The event artifacts contain the sampling and inference fields for each request; the scheduling seed does not control provider-side behavior.
-
-Replace infrastructure errors according to the [failure classifications](#failures), using a new session for each attempt; keep evaluation errors with their candidates for re-evaluation. Missing configuration or environment blocks the entire plan during preflight. Storage failure or source changes during execution leave the plan incomplete. For unfinished attempts, the framework records only the exception category and does not write raw exception text that may contain credentials into batch records. Resume an interrupted, still-running batch with the same plan and `main.py batch ... --resume --output <existing-directory>`; the runner marks abandoned attempts as infrastructure interruptions, preserves their evidence, and uses only the predeclared replacement allowance. Recovery takes a non-blocking local lease on the batch directory, so a concurrent recovery owner is rejected without changing the journal; the lease is released by the operating system if its process exits. It never overwrites an old attempt or changes frozen concurrency/conditions. A resumed batch remains incomplete when slots are missing; evaluation errors are retained as diagnostics rather than replaced.
-
-<a id="scoring"></a>
-
-## 4. Interpret Statistics and Reproduction Scope
-
-`summary.json` and `main.py summarize` recompute internal statistics from durable records and record the source digest of the statistics implementation used. Recomputing after changing that implementation does not overwrite original run evidence. A summary validates the digests for the execution manifest, individual records, event logs, and evaluation reports, together with task and CLI inputs, budgets, images, inference configuration, source, and candidate/judge bindings. It rejects duplicate counts, unplanned replacements, corrupt records, and inconsistent conditions. Slots that have not run, were interrupted, exhausted replacement attempts, or await evaluation recheck remain `missing`. `complete` means that the planned measurement sample is fully covered; it does not mean that all runs succeeded or that formal admission was granted. The batch CLI returns 0 when all scheduled measurements finish and 2 when samples are missing, while per-task failures remain in the statistics.
-
-The single ranked result is `BenchScore`, using the task score defined in the
-[task guide](tasks.md#task-scoring). Freeze the task set, each task's integer
-coefficient, repetitions, budgets and actual evaluation bindings before running.
-A model configuration is evaluated across this fixed suite even when individual
-tasks require different declared tool environments; evidence still binds and
-validates each task's own environment. Different model configurations, execution
-kinds or unplanned judge identities cannot be pooled into the same score.
-
-Within `bench_score.cohorts`, `missing` counts slots without a completed
-non-infrastructure attempt, and `unknown` counts completed attempts without a
-valid grade. A score cohort is `complete` only when both counts are zero.
-
-Average all scheduled independent repetitions within each task, then take the
-coefficient-weighted mean across tasks. No submission, an Agent error or a
-budget stop scores zero. A normally completed candidate receives its
-`layout-v1` grade, including partial credit for an electrical violation after
-physical validation. `run.json.score` is the official attempt score; the
-evaluation report records the inspected candidate's grade, even if the attempt
-ended early. Infrastructure failures may use only the predeclared replacement
-allowance; evaluator errors without a valid grade remain pending. If any
-scheduled result is missing or unknown, the formal score is `null`; do not
-drop tasks, shrink denominators or select the best repetition. Per-task rows
-retain observed counts, raw outcomes and attempt scores; evaluation reports
-retain the component breakdown.
-
-Task-success and physical-validity counts are diagnostics, not alternative
-family-weighted or task-equal ranking systems. A task's `witnessed` flag stays
-bound to its frozen identity so readers can distinguish demonstrated feasibility
-from a witness-less specification. Reports must disclose the exact suite identity;
-adding cases, changing coefficients or changing scoring calibration creates a
-new benchmark version whose bare score is not directly comparable with old ones.
-
-Batch groups also expose `inference_forwarded_requests`, `inference_denied_requests`, `inference_failed_requests`, `inference_truncated_requests`, `inference_content_filtered_requests`, `inference_cancelled_requests`, `inference_wall_seconds`, and `inference_usage`. The latter keeps known/missing counts and nullable totals for each observable usage field. These are resource diagnostics; they do not enter BenchScore or imply that two providers' token counts represent equal work.
-
-Store physical-validity and task-success rates separately. Retain raw metric values and units by task for every measured candidate whose evaluator produced a numeric value in `observed_metrics`; `successful_metrics` is the success-only view kept for compatibility. Do not average quality measurements with different scales across tasks. Resource statistics distinguish all attempts (including replacements), valid measurements, and success/failure subsets. Failure causes are retained in per-task and group `failure_modes` counters, while evaluator errors remain diagnostics rather than model failures. When usage is missing, the total is `null`, with known/missing counts and a distribution for the known portion. Keep offline programs and deterministic endpoints labeled `offline_cli_development` and `model_protocol_test`; do not combine them into real model scores.
-
-For task `t`, schedule `n_t` independent repetitions in advance:
-
-```text
-TaskMean_t = sum(score_t,r for each scheduled repetition r) / n_t
-BenchScore = sum(coefficient_t * TaskMean_t) / sum(coefficient_t)
+```bash
+uv run --locked python -m layout_eval.cli evaluate \
+  build/prepared-cell6t/case/case.toml my-candidate.gds --output build/candidate-check
 ```
 
-Coefficients are absolute integers, not stored percentages. Adding a task only
-adds its coefficient and mean to this formula; existing coefficients stay fixed.
-Repeated operating points inside one candidate evaluation contribute through the
-worst-observation rule, not as additional independent attempts.
+Inspect the printed failure summary and `build/candidate-check/report.json`, plus
+the per-job evidence in that newly generated directory, to locate physical,
+connectivity, geometry or post-layout failures. Evaluation uses the case's frozen
+toolchain. It does not convert a reference or manually supplied GDS into model output.
 
-Multiple modifications within one run are still one solve. Independent repetitions estimate expected task score; do not replace it with “succeeded at least once.” Fix repetition count, budget, and order before execution and do not change them based on intermediate results. Group different processes and actual judge configurations separately; report public development, protocol tests, and hidden scopes separately.
+<a id="service-participation"></a>
 
-Correctness, quality, and efficiency answer different questions. The unified task formula uses physical validity, electrical attainment and qualified area utility. Tokens, cost and time remain separate resource diagnostics. Two configurations with different successful subsets cannot be ranked directly by their respective mean area; comparisons on common successful tasks must disclose coverage and selection bias. Tokens from different providers do not inherently represent equal compute, and missing usage or unpriced cost must not be filled with 0.
+## Generic client
 
-A per-task Wilson interval describes variation in binary task success on that
-fixed task; it is not a confidence interval for the continuous task score.
-It does not establish generalization to a broader circuit family, and overlap
-of two intervals is not a substitute for a difference test.
+Install Public, obtain an operator endpoint and creation credential (or start the
+local service above), then create a session.
+The service owns EDA; the local harness owns its model configuration. Use TLS
+except for loopback development. No hosted endpoint is supplied by this checkout.
 
-`recover` retrieves a submission, `evaluate` re-evaluates a candidate, and `summarize` recomputes statistics; none restores a model session. An evaluation fix should create a related new record for the same frozen candidate and retain old evidence. Rerunning an Agent can reproduce conditions and the statistics process, but cannot guarantee the same GDS.
+```bash
+export ICLAYOUT_BENCH_ENDPOINT=http://127.0.0.1:8765
+# Supply ICLAYOUT_BENCH_TOKEN securely.
+uv run --locked python -m benchmarking.client --key create-1 POST sessions <<'JSON'
+{"task_id":"freepdk45.OpenRAM.cell_6t","condition":{"harness_kind":"custom","harness_id":"local-cli","harness_version":"1","model":"YOUR_MODEL","prompt_sha256":null,"configuration_sha256":null}}
+JSON
+```
 
-Authorized operators retain run and summary directories; complete logs are not automatically an external report. Public local `run` and `batch` need no admission policy. Use the optional [admission mechanism](admission.md) when qualification, resources, endpoints, and export fields must be checked. It does not provide a hosted service or official leaderboard.
+Keep the returned token private. Set `ICLAYOUT_BENCH_SESSION` to the returned ID and
+replace `ICLAYOUT_BENCH_TOKEN` with the scoped session token. Your local Codex,
+Claude Code or other harness can call these same commands:
+
+```bash
+uv run --locked python -m benchmarking.client status
+uv run --locked python -m benchmarking.client exec --key inspect-1 'ls -R /task; ls /resources'
+uv run --locked python -m benchmarking.client write --key source-1 generate.py < generate.py
+uv run --locked python -m benchmarking.client exec --key generate-1 --seconds 120 'python /workspace/generate.py'
+uv run --locked python -m benchmarking.client submit --key candidate-1 output/final.gds
+uv run --locked python -m benchmarking.client close --key finish-1
+uv run --locked python -m benchmarking.client result --export build/runs/custom-result
+```
+
+Write your own generator before running it and use the output path in the task
+contract. `exec` polls bounded logs. Commands share workspace files but run in the
+foreground; leftover processes are removed. Replay an uncertain mutation using
+its identical body/key. A new operation requires a new key. Accepted submissions
+are immutable; the last accepted candidate wins. A receipt is not a passing verdict.
+Optional diagnostics/opinions are available only when advertised in capabilities.
+
+## Official harness
+
+`benchmarking.official` implements the public observe/action loop. Its included
+Codex provider requests one structured action per model call and rejects model
+host-tool events. The harness maintains a bounded recent history, clips long tool
+observations, enforces a step limit, reserves closing time, and attempts a snapshot
+after each successful command when the declared output exists. This early-submission
+policy is part of the measured condition, not a claim that the output is valid.
+
+```bash
+uv run --locked python -m benchmarking.official \
+  --task freepdk45.OpenRAM.cell_6t --model YOUR_CONFIGURED_MODEL --effort medium \
+  --steps 32 --key official-1 --output build/runs/official-1
+```
+
+Use an existing authenticated `codex` CLI. Model/effort are explicit; user/project
+configuration, plugins, hooks, apps, web search, host skills and multi-agent
+operation are disabled for the structured provider. Auth remains with the CLI.
+No service credential goes to the provider process. A provider warning or failure
+is not a candidate; an invalid action closes the session with a recorded harness
+error while retaining accepted candidates. The remote deadline remains authoritative.
+
+The generated directory contains frozen conditions, redacted session metadata,
+provider/action/observation JSONL, harness outcome and service result tables.
+Growing raw transcripts remain local and should not be committed. Missing model
+usage stays null; raw CLI counters are separate provider/participant evidence.
+Official harness identity does not certify a participant-controlled run.
+
+## Analysis
+
+```bash
+uv run --locked --group analysis python -m benchmarking.analyze \
+  build/runs/official-1/analysis/result.json \
+  --output build/runs/analysis --plots
+```
+
+Multiple result files or a disclosed operator `verified-results.json` are accepted.
+The command generates `results.json`, `runs.csv`, `tasks.csv`, a digest manifest
+and optional SVG/PDF figures. Directories must be new. Conditions, tool identities,
+budgets and verification levels form separate cohorts; task digests remain distinct.
+Tables show per-task mean and sample standard deviation only over known scores,
+alongside measured/unknown counts and distinct outcome counts. A lone sample has
+no sample standard deviation. Error or incomplete scores are missing, not zero;
+no-submission remains the evaluator's conclusive score. This is not an automatically
+published leaderboard or a cross-condition model ranking.
+
+## Formal evaluation
+
+Use the operator's endpoint and scoped credentials with the same client/harness.
+The operator controls task selection, tools, budgets and verification; installing
+the local evaluator grants no access to hidden tasks or formal credentials.
+Private's `layout_operator` owns frozen reruns, admission and reviewed releases.
+The shared `layout_eval` engine and `layout_service` adapter remain in Public.
+Scoring definitions are [public](tasks.md#task-scoring), and local/verified results
+remain separate analysis cohorts.

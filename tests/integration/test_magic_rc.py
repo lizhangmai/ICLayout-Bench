@@ -5,17 +5,18 @@ from pathlib import Path
 
 import pytest
 
-from benchmarking.docker import DockerTool
-from benchmarking.environment import prepare_pdk
-from benchmarking.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
-from benchmarking.magic import MagicRCDocker
-from benchmarking.ngspice import NgspiceDocker
-from benchmarking.prepare_support import prepare_support
+from layout_eval.docker import DockerTool
+from layout_eval.environment import prepare_pdk
+from layout_eval.evaluate import run_evaluation
+from layout_eval.magic import MagicRCDocker
+from layout_eval.ngspice import NgspiceDocker
+from layout_eval.prepare_support import prepare_support
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
+PUBLIC_ROOT = ROOT
 
 PLAN = b'''schema_version = 1
 mode = "characterization"
@@ -81,14 +82,14 @@ CLOAD OUT 0 1p
 @pytest.fixture(scope="module")
 def context(tmp_path_factory):
     root = tmp_path_factory.mktemp("magic-rc")
-    prepare_support(ROOT / "third_party/IHP-Open-PDK", f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#magic", root / "magic")
-    prepare_support(ROOT / "third_party/IHP-Open-PDK", f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#mos-models", root / "models")
-    prepare_pdk(ROOT / "third_party/IHP-Open-PDK", root / "view")
+    prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK", f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#magic", root / "magic")
+    prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK", f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#mos-models", root / "models")
+    prepare_pdk(PUBLIC_ROOT / "third_party/IHP-Open-PDK", root / "view")
     backends = {
         "layout.extract_rc": MagicRCDocker(
-            image="layout-bench-tools:local", support=str(root / "magic"),
+            image="iclayout-bench-tools:local", support=str(root / "magic"),
             technology="magic/ihp-sg13g2.tech", tech_name="ihp-sg13g2", style="ngspice()"),
-        "circuit.simulate": NgspiceDocker(image="layout-bench-tools:local", support=str(root / "models")),
+        "circuit.simulate": NgspiceDocker(image="iclayout-bench-tools:local", support=str(root / "models")),
     }
     source = Asset((ROOT / "tests/fixtures/sg13g2/make_switch.py").read_bytes(), "python")
     primitive_files = {"pdk/" + p.relative_to(root / "view").as_posix(): Asset(p.read_bytes(), "binary")
@@ -96,7 +97,7 @@ def context(tmp_path_factory):
     environment = {"KLAYOUT": "1", "PYTHONDONTWRITEBYTECODE": "1",
                    "PYTHONPATH": "/workspace/pdk/ihp-sg13g2/libs.tech/klayout/python:"
                                  "/workspace/pdk/ihp-sg13g2/libs.tech/klayout/python/pycell4klayout-api/source/python"}
-    tool = DockerTool("layout-bench-tools:local", ["klayout", "-v"], 60)
+    tool = DockerTool("iclayout-bench-tools:local", ["klayout", "-v"], 60)
     layouts = {}
     for length in (200, 2000):
         result = tool.run(["python", "wire.py", "wire.gds", "--wire-length", str(length)],
@@ -146,7 +147,7 @@ def test_same_conductor_port_aliases_are_rejected(tmp_path, context):
     # between P and B. Native topology validation must reject this unsupported
     # interface instead of accepting a short or duplicate resistance network.
     source = Asset((ROOT / "tests/fixtures/sg13g2/make_plate.py").read_bytes(), "python")
-    tool = DockerTool("layout-bench-tools:local", ["klayout", "-v"], 60)
+    tool = DockerTool("iclayout-bench-tools:local", ["klayout", "-v"], 60)
     result = tool.run(["python", "plate.py", "wire.gds", "--alias-port", "B"],
                       {"plate.py": source}, {"wire.gds": "gds"})
     assert not result.returncode and not result.reason
@@ -216,3 +217,35 @@ VDRIVE IN 0 1m
     # integer truncation in Magic 8.3.678 used to silently omit this unlabelled
     # internal net. The ideal channel model isolates this geometric resistance.
     assert resistances[1] - resistances[0] == pytest.approx(0.110 * 1800 / 0.2, rel=2e-3)
+
+
+@pytest.mark.parametrize('geometry,expected', [('deep-well', 'error'), ('nwell-ring', 'passed')])
+def test_isolated_body_cannot_gain_a_resistive_path_to_substrate(tmp_path, geometry, expected):
+    """An isolated-body compact model must not acquire an interconnect short.
+
+    Existing wire/alias tests do not cover extresist adding connectivity absent
+    from native topology. These one-device controls isolate that failure; their
+    README records geometry provenance, independent oracle and scope.
+    """
+    import tomllib
+
+    case = PUBLIC_ROOT / 'tasks/gf180mcuD/analog-db/cases/tsn_003_ptat_4t_xcoupled/case.toml'
+    config = tomllib.loads(case.read_text())['toolchain']['backends']['rc']
+    support = tmp_path / 'magic'
+    profile = config['support_profiles']['support']
+    prepare_support(PUBLIC_ROOT / 'third_party/open-pdks',
+                    f'{case.parents[3]}/pdk.toml#{profile}', support)
+    settings = {**config['settings'], 'support': str(support)}
+    backend = MagicRCDocker(**settings)
+    from benchmarking.evaluation import Job
+
+    job = Job('rc', 'extract', 'layout.extract_rc', (), (('netlist', 'spice'),), (), None,
+              json.dumps({'top_cell': 'isolated_body_probe', 'ports': ['vdd', 'vout', 'vss']}))
+    layout = ROOT / f'tests/fixtures/gf180-isolated-body/{geometry}.gds'
+    result = backend.run(job, {'layout': Asset(layout.read_bytes(), 'gds')})
+    assert result.status == expected, result.reason
+    if expected == 'error':
+        assert not result.outputs
+        assert 'introduced a resistive connection' in result.evidence['console'].content.decode()
+    else:
+        assert result.outputs['netlist'].content

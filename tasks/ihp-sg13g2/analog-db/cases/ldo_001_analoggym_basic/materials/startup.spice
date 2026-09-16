@@ -1,0 +1,27 @@
+* Native zero-state startup with resistive load. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+
+.include parameters.spice
+.include dut.spice
+.option klu rshunt=1e12 reltol=1e-5 abstol=1e-12 vntol=1e-8 method=gear maxord=2
+.temp 27
+.save v(vout) v(vdd) v(vref) v(fb) v(sense) v(ib) i(VDD) i(VREF) i(VPROBE)
+VDD vdd 0 pwl(0 0 {ramp_s} {supply_v})
+VREF vref 0 pwl(0 0 {ramp_s} 0.225)
+IBIAS ib 0 pwl(0 0 {ramp_s} 8u)
+RLOAD vout 0 {load_ohm}
+VPROBE sense fb 0
+XDUT vdd vout 0 ib vref fb sense ldo_001_analoggym_basic
+.control
+set numdgt=12
+tran 2n 50u 0 2n uic
+let err=abs(v(vout)-0.9)
+meas tran startup_error_v max err from=40u to=49u
+meas tran peak_v max v(vout) from=0 to=50u
+meas tran minimum_v min v(vout) from=0 to=50u
+write transient.raw v(vout) v(vdd) v(vref) i(VDD) i(VREF)
+quit
+.endc
+.end

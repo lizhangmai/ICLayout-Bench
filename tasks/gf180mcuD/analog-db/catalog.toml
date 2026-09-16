@@ -1,0 +1,37 @@
+schema_version = 3
+
+[[cases]]
+id = "gf180mcuD.analog-db.ldo_004_basic_pmos"
+config_path = "cases/ldo_004_basic_pmos/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.gs_001_cascode_cs"
+config_path = "cases/gs_001_cascode_cs/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.dp_001_resistive_load"
+config_path = "cases/dp_001_resistive_load/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.tsn_003_ptat_4t_xcoupled"
+config_path = "cases/tsn_003_ptat_4t_xcoupled/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.amp_004_folded_cascode"
+config_path = "cases/amp_004_folded_cascode/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.cmp_001_hyst_diffpair"
+config_path = "cases/cmp_001_hyst_diffpair/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.amp_018_telescopic_cascode"
+config_path = "cases/amp_018_telescopic_cascode/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.cmfb_003_5t_nmos_input"
+config_path = "cases/cmfb_003_5t_nmos_input/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.tsn_002_ptat_classic"
+config_path = "cases/tsn_002_ptat_classic/case.toml"

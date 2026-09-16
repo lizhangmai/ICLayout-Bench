@@ -3,27 +3,30 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "layout-bench"
-version = "0.1.0a1"
+name = "iclayout-bench"
+version = "0.3.0a1"
 description = "A benchmark for evaluating LLM agents on integrated circuit layout tasks."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["tomli-w>=1.2.0"]
 
 [dependency-groups]
-eda = ["klayout==0.30.11", "psutil>=7.0"]
+eda = ["klayout==0.30.11", "psutil>=7.0", "gdsfactory==7.27.2"]
 dev = [
     "pytest>=8.4.1",
     "ruff>=0.11.4",
-    "tomli-w>=1.2.0",
+]
+analysis = [
+    "matplotlib>=3.10,<4",
 ]
 
 [tool.setuptools]
-packages = ["benchmarking"]
+packages = ["benchmarking", "layout_eval", "layout_service"]
 
 [tool.setuptools.package-data]
-benchmarking = ["model_configs.yaml", "sg13g2_view.json"]
+benchmarking = ["model_configs.yaml"]
+layout_eval = ["sg13g2_view.json"]
 
 [tool.ruff]
 extend-exclude = ["third_party"]

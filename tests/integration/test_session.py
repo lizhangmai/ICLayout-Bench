@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 from dataclasses import replace
 from pathlib import Path
 
@@ -14,15 +15,17 @@ from helpers.protocol import write_protocol_task
 
 from benchmarking.files import Asset
 from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
-from benchmarking.model_config import RunConfig
-from benchmarking.recorder import RecordingError, RunRecorder, recover_submissions
-from benchmarking.session import CONSOLE_PREVIEW_BYTES, DockerSession, task_message
 from benchmarking.tasks import load_task
+from layout_eval.inference import InferenceConfig, InferenceGateway
+from layout_eval.model_config import RunConfig
+from layout_eval.recorder import RecordingError, RunRecorder, recover_submissions
+from layout_eval.session import CONSOLE_PREVIEW_BYTES, DockerSession, task_message
 
-IMAGE = os.environ.get("LAYOUT_BENCH_TEST_IMAGE", "layout-bench-tools:local")
+IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
+PUBLIC_ROOT = ROOT
 
 PREAMBLE = '''import json, os, subprocess, time
 from pathlib import Path
@@ -51,6 +54,107 @@ def execute(code, seconds=10, task=None):
     task = task or session_task()
     config = configuration(code, seconds)
     return DockerSession(config.image).run(task, config, {}, task_message(task, config))
+
+
+@pytest.mark.acceptance
+@pytest.mark.acceptance_container
+def test_private_inference_socket_and_submission_with_non_root_agent():
+    """Both private host sockets must be usable across daemon UID mappings."""
+    profile = InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED", 2, 10,
+                              Asset(b"socket regression", "text"), "responses")
+    gateway = InferenceGateway(profile, transport=lambda *args: (
+        200, "application/json", b'{"status":"completed"}'))
+    config = configuration('''
+import socket
+assert os.getuid() != 0
+for name in ('control.sock', 'inference.sock'):
+    info = Path('/protocol', name).stat()
+    assert info.st_uid == os.getuid()
+    assert info.st_mode & 0o777 == 0o600
+body = b'{"model":"test-model"}'
+with socket.socket(socket.AF_UNIX) as connection:
+    connection.settimeout(2)
+    connection.connect('/protocol/inference.sock')
+    header = {'path': '/responses', 'bytes': len(body)}
+    connection.sendall(json.dumps(header).encode() + b'\\n' + body)
+    stream = connection.makefile('rb')
+    response = json.loads(stream.readline())
+    assert response['status'] == 200
+    assert json.loads(stream.read(response['bytes']))['status'] == 'completed'
+output.write_bytes(b'gateway-and-submission')
+assert submit()['accepted']
+''')
+    task = session_task()
+    result = DockerSession(config.image).run(
+        task, config, {}, task_message(task, config), inference=gateway)
+    assert result.termination == "completed", result.console.content
+    assert result.candidate.content == b"gateway-and-submission"
+
+
+# Protect the public preparation -> actual isolated Agent seam. Existing session
+# tests have no process resources. Process-owned checks are declared in pdk.toml;
+# this test independently asserts successful execution and read-only isolation.
+# It uses no witness or model endpoint and makes no circuit-qualification claim.
+@pytest.mark.acceptance_eda
+@pytest.mark.parametrize("manifest", sorted((PUBLIC_ROOT / "tasks").glob("*/pdk.toml")),
+                         ids=lambda path: path.parent.name)
+def test_declared_pdks_are_usable_in_agent_container(tmp_path, manifest):
+    from benchmarking.bundles import load_bundle
+
+    cases = []
+    for catalog in sorted(manifest.parent.glob("*/catalog.toml")):
+        for entry in tomllib.loads(catalog.read_text())["cases"]:
+            case = catalog.parent / entry["config_path"]
+            data = tomllib.loads(case.read_text())
+            if data.get("qualification", {}).get("reference") and data["status"] in {"candidate", "qualified"}:
+                task = load_task(case)
+                if task.evaluation and task.evaluation.mode == "post_layout":
+                    cases.append(case)
+    assert cases, "A published process must have an executable witness"
+    prepared = tmp_path / "prepared"
+    command = [sys.executable, str(ROOT / "scripts/public_preview.py"), "prepare",
+               "--case", str(cases[0]), "--image", IMAGE, "--output", str(prepared)]
+    preparation = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
+    assert preparation.returncode == 0, preparation.stdout + preparation.stderr
+    bundle = load_bundle(prepared / "agent-resources")
+    witness_digests = set()
+    for case in cases:
+        data = tomllib.loads(case.read_text())
+        reference = data["qualification"]["reference"]
+        witness_digests.update(asset["sha256"] for asset in data.get("assets", [])
+                               if asset["path"] == reference)
+    mounted_digests = {identity["sha256"] for identity in json.loads(bundle.manifest.content)["files"].values()}
+    assert witness_digests, "Published witnesses must carry content digests"
+    assert witness_digests.isdisjoint(mounted_digests), "A published answer entered the PDK resources"
+    resources = {**dict(bundle.files), "manifest.json": bundle.manifest}
+    code = '''
+info = json.loads(Path('/protocol/resources.json').read_text())
+assert os.environ['ICLAYOUT_BENCH_PDK'] == info['pdk']
+assert Path(os.environ['PDK_PATH']).is_dir()
+assert not list(Path('/resources').rglob('.git'))
+assert not Path('/task/reference').exists()
+assert not Path('/var/run/docker.sock').exists()
+assert not Path('/resources/tasks').exists()
+for source in Path('/resources/pdks').iterdir():
+    try:
+        (source / 'forbidden').write_text('must be read-only')
+    except OSError:
+        pass
+    else:
+        raise AssertionError('Writable PDK mount')
+for command in info['checks']:
+    check = subprocess.run(command, capture_output=True, text=True, timeout=90)
+    print(check.stdout, check.stderr, flush=True)
+    assert check.returncode == 0, command
+    assert 'in PCellDeclaration.produce' not in check.stderr, 'PCell generation failed internally'
+print('PDK_CHECKS_PASSED', flush=True)
+'''
+    config = replace(configuration(code, seconds=180), memory_mb=2048, workspace_mb=256, pids=128)
+    task = load_task(prepared / "case/case.toml")
+    result = DockerSession(IMAGE).run(task, config, resources, task_message(task, config))
+    assert result.termination == "completed", result.console.content.decode(errors="replace")
+    assert b"PDK_CHECKS_PASSED" in result.console.content
+    assert result.environment["network"] == "none"
 
 
 @pytest.mark.acceptance
@@ -142,6 +246,65 @@ output.write_bytes(b'last'); assert submit()['accepted']; assert submit()['accep
 
 @pytest.mark.acceptance
 @pytest.mark.acceptance_container
+def test_submission_must_be_durable_before_deadline(tmp_path):
+    # The running guide requires the deadline decision after durable storage.
+    # Existing timeout tests only delay the Agent, not host artifact I/O. Delay
+    # that boundary and verify the prior receipt remains authoritative; this
+    # is a protocol regression, not evidence of layout correctness.
+    task = session_task()
+    config = configuration('''
+output.write_bytes(b'on-time'); assert submit()['accepted']
+output.write_bytes(b'late-storage'); submit()
+''', seconds=3)
+
+    class SlowArchive(RunRecorder):
+        def archive(self, asset):
+            if asset.content == b'late-storage':
+                time.sleep(config.wall_seconds)
+            return super().archive(asset)
+
+    recorder = SlowArchive(tmp_path / 'run')
+    result = DockerSession(config.image).run(
+        task, config, {}, task_message(task, config), recorder=recorder)
+    assert result.candidate.content == b'on-time'
+    assert result.submissions[-1]['accepted'] is False
+    assert recover_submissions(recorder.root)['candidate']['sha256'] == result.candidate.sha256
+
+
+@pytest.mark.acceptance
+@pytest.mark.acceptance_container
+def test_process_feedback_cannot_extend_solver_deadline(tmp_path):
+    # Existing feedback coverage uses immediate callbacks. A delayed trusted
+    # evaluator must not extend the documented solve budget. Inspect the real
+    # container during that callback; a late return alone cannot prove isolation.
+    task = session_task()
+    config = replace(configuration('''
+output.write_bytes(b'accepted'); assert submit()['accepted']
+subprocess.run(['python', '-I', '/protocol/process_check.py'])
+time.sleep(30)
+''', seconds=2), harness=HarnessSpec(capabilities=(PROCESS_FEEDBACK_CAPABILITY,)))
+    recorder = RunRecorder(tmp_path / 'run')
+    running_during_late_feedback = []
+
+    def feedback(candidate, sequence):
+        time.sleep(config.wall_seconds + 1)
+        events = [json.loads(line) for line in (recorder.root / 'events.jsonl').read_text().splitlines()]
+        cid = next(event['data']['container_id'] for event in events if event['kind'] == 'session.created')
+        state = subprocess.run(['docker', 'inspect', '--format', '{{.State.Running}}', cid],
+                               capture_output=True, text=True, check=False)
+        running_during_late_feedback.append(state.returncode == 0 and state.stdout.strip() == 'true')
+        return {'report': {'outcome': 'failed'}}
+
+    result = DockerSession(config.image).run(
+        task, config, {}, task_message(task, config), recorder=recorder, feedback=feedback)
+    assert running_during_late_feedback == [False]
+    assert result.termination == 'budget_exhausted'
+    assert result.candidate.content == b'accepted'
+    assert result.process_feedback[-1]['outcome'] == 'error'
+
+
+@pytest.mark.acceptance
+@pytest.mark.acceptance_container
 def test_process_feedback_is_opt_in_and_uses_a_frozen_snapshot(tmp_path):
     task = session_task()
     config = replace(configuration('''
@@ -176,6 +339,12 @@ print(feedback.stdout, flush=True)
     assert recover_submissions(recorder.root)["candidate"] is None
     kinds = [json.loads(line)["kind"] for line in (recorder.root / "events.jsonl").read_text().splitlines()]
     assert kinds.count("process_feedback.request") == kinds.count("process_feedback.result") == 2
+
+
+# The participant-opinion protocol must preserve arbitrary observed text without
+# accepting a layout or changing a grade. Existing process feedback is the
+# opposite direction. Exercise the real socket, archive and report verification;
+# the synthetic opinion is a protocol fixture, not a confirmed benchmark defect.
 
 
 @pytest.mark.acceptance
@@ -236,7 +405,7 @@ def test_killed_host_retains_acknowledged_candidate(tmp_path):
     code = """
 import sys
 from pathlib import Path
-from benchmarking.agent import run_agent
+from layout_eval.agent import run_agent
 from benchmarking.tasks import load_task
 sys.path.insert(0, str(Path.cwd() / "tests"))
 from integration.test_session import session_task, configuration
@@ -288,7 +457,7 @@ run_agent(task, config, {}, {job.operation: object() for job in task.evaluation.
 @pytest.mark.acceptance
 @pytest.mark.acceptance_container
 def test_console_storage_ceiling_stops_with_incomplete_evidence(tmp_path, monkeypatch):
-    monkeypatch.setattr("benchmarking.session.MAX_CONSOLE_BYTES", 8192)
+    monkeypatch.setattr("layout_eval.session.MAX_CONSOLE_BYTES", 8192)
     task = session_task()
     config = configuration("print('x'*100000, flush=True); time.sleep(30)")
     recorder = RunRecorder(tmp_path / "run")

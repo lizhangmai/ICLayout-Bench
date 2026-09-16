@@ -18,8 +18,6 @@ inputs:
 | [materials/circuit.cdl](materials/circuit.cdl) | Authoritative LVS netlist and device geometry |
 | [materials/circuit.spice](materials/circuit.spice) | Authoritative simulator export |
 | [materials/testbench.spice](materials/testbench.spice) | Nominal pre-layout and post-layout operating-point and AC testbench |
-| [materials/pex_scope.json](materials/pex_scope.json) | Candidate-extraction and substrate-boundary contract |
-| `materials/LICENSE` | License notice for the delivered case materials |
 
 The circuit is a three-stage SiGe HBT transimpedance core. Q1 is the input
 common-emitter device (`Nx=5`), Q2 is the intermediate common-collector
@@ -94,8 +92,8 @@ the finite `ptap1` card. Device terminals, multiplicities, resistor geometry,
 MIM geometry and top-level connectivity remain candidate-derived. The
 finite source tap is retained in pre-layout calibration, and the accepted
 model boundary is limited to the nominal low-frequency transfer and bias
-measurements in this task. Details are in
-[materials/pex_scope.json](materials/pex_scope.json).
+measurements in this task. No other internal-node aliases are permitted; a simulator global ground
+alias must not replace the explicit source substrate connection.
 
 ## Electrical Requirements and Scoring
 
@@ -150,7 +148,7 @@ with area in µm². The fixed full-score area target is
 380,000 µm²; the zero-area-utility boundary is 409,200 µm².
 Area earns no points until all electrical requirements pass.
 
-The task coefficient is `3`. A batch averages all scheduled independent
+The task coefficient is `5`. A batch averages all scheduled independent
 attempts per task, then computes `sum(coefficient * task_mean) / sum(coefficient)`.
 Coefficients are fixed integers; adding tasks does not change existing ones.
 

@@ -1,6 +1,6 @@
 ---
 name: add-case
-description: "Create, promote, or revise a Layout-Bench circuit case across PDKs and EDA backends. Apply the case development standard from contract and artifact ownership through isolated inputs, evaluation, scoring, qualification, and change validation."
+description: "Create, promote, or revise an ICLayout-Bench circuit case across PDKs and EDA backends. Apply the case development standard from contract and artifact ownership through isolated inputs, evaluation, scoring, qualification, and change validation."
 ---
 
 # Add Case
@@ -49,20 +49,27 @@ criteria are explicit enough to implement without inventing hidden requirements.
 
 ## Plan ownership and artifacts
 
-Before creating or moving files, map the proposed case to the standard's
+Before creating or moving files, inspect a maintained collection and its cases:
+compare the actual tree with input declarations and materialized solver files.
+Read relevant cleanup commits for the artifact types being introduced. Resolve
+differences using the current standard; existing files demonstrate mechanisms,
+not permission to repeat obsolete patterns.
+
+Map the proposed case to the standard's
 [ownership boundaries](../../../tasks/AGENTS.md#2-ownership-and-directory-layout)
 and [file roles](../../../tasks/AGENTS.md#3-file-roles-and-naming).
 In working notes, account for each artifact's owner, role, format, declared path,
-solver visibility, source/license, and producer or consumer. Include the catalog,
+solver visibility, source/license, consumer, and why an existing file cannot
+serve that purpose. Distinguish maintained files from runtime copies. Include the catalog,
 process resources, test helpers, and qualification evidence as
 applicable. This is a development check, not another maintained case manifest.
 
-Inspect a maintained case's configuration, materials, documentation, and evaluation
-flow, plus its collection and PDK boundaries. Use it to understand how the protocol
-fits together, then apply the written standard. Match artifacts by responsibility;
-choose technical settings from the actual circuit and process. Use established
-roles and filenames, with any necessary additional artifact explained in the
-README's Files section. Keep optional artifacts absent until needed.
+Match artifacts by responsibility; choose technical settings from the actual
+circuit and process. Use established roles and filenames, with any necessary
+additional artifact explained in the README's Files section. Apply the
+[license-file rules](../../../tasks/AGENTS.md#5-sources-licenses-and-reproducibility)
+to the actual upstream declarations and copied components before adding license
+or notice files. Keep optional artifacts absent until their consumer requires them.
 
 For revisions, identify affected consumers before editing: input declarations,
 resource profiles, catalogs, scripts/tests, documentation, and evidence identities.
@@ -72,12 +79,12 @@ unrelated cleanup and preserve existing user work and prior evidence. For a
 removal, skip construction of the deleted case and validate affected remaining
 cases and shared dependencies before the final review.
 
-**Ready to build the artifact set:** every proposed file has an owner and consumer,
-required inputs and maintainer assets are separated, and the change's affected
-contracts and validation scope are identified. For each proposed regression,
-identify its independent expectation and the defect it would detect under the
-[test conventions](../../../tests/AGENTS.md#public-case-regressions). Keep
-circuit-specific debugging recipes separate from framework regression contracts.
+**Ready to build the artifact set:** every proposed file has a justified owner
+and consumer; solver inputs, distribution terms and maintainer assets are
+distinguished; affected contracts and validation scope are identified. Every new
+test or fixture satisfies the
+[regression gate](../../../tests/AGENTS.md#before-adding-a-regression). Leave
+unjustified files out of the maintained tree, including generator output.
 
 ## Resolve process and tool capabilities
 
@@ -88,7 +95,7 @@ extraction boundaries, including relevant body, substrate and passive-device
 assumptions. First establish pre-layout functionality with the intended models
 and stimuli; a source directory's name does not establish a performance target.
 
-Use the [extension boundaries](../../../docs/architecture.md#extension-layers)
+Use the [extension boundaries](../../../docs/architecture.md#ownership)
 and [tool guide](../../../docs/tools.md#eda-backend-contract) to reuse or extend
 the appropriate backend. Logical evaluation operations bind to tools through
 configuration. A new case must not introduce circuit-specific branches into the
@@ -124,11 +131,14 @@ appropriate instead of deleting and rebuilding them between checks.
 
 Separate solver inputs from source records, references and host configuration.
 Validate digests and materialize the declared inputs to inspect what the solver
-actually receives. Centralize identical source licenses/notices through
-[shared collection inputs](../../../docs/tasks.md#shared-collection-inputs); preserve
-case-specific attribution and verify both solver materialization and reference
-export carry the applicable declarations. Prepared standalone configurations must
-read their copied snapshots rather than the original collection. Derive runtime
+actually receives. Keep collection licenses and required notices outside the
+default solver input set; preserve them with material distributions. Consult
+[shared collection inputs](../../../docs/tasks.md#shared-collection-inputs) for
+explicitly shared solve inputs. Verify solver materialization against the input
+list and, when an export is part of the change, inspect that export for the
+applicable attribution outside solver inputs. A solve directory is not a material
+distribution. Prepared standalone configurations must read their copied snapshots
+rather than the original collection. Derive runtime
 requirements and evaluator inputs from the same frozen definitions.
 
 Apply the [evaluation plan contract](../../../docs/tasks.md#evaluation-plan):
@@ -140,7 +150,7 @@ functional footprint using the selected process's relevant device and complete
 routing layers, with explicit exclusions.
 
 Apply the current [unified scoring contract](../../../docs/tasks.md#task-scoring)
-and [batch semantics](../../../docs/running.md#scoring). Assign the task's integer
+and [batch semantics](../../../docs/tasks.md#task-scoring). Assign the task's integer
 coefficient using the capability rubric; leave existing cases' coefficients
 unchanged. Calibrate dimension assignments, zero-score boundaries and absolute
 area anchors before model evaluation. Explain their basis and validate their
@@ -169,8 +179,9 @@ checks. Publish results and reproduction commands; preserve generated reports an
 identities under `build/runs/`.
 
 Consult shared evaluator regressions for rejection, scoring, error handling,
-equivalent transformations and repeatability. Add targeted tests for new devices,
-extraction methods or special judging rules. Use pre/post-layout calibration when
+equivalent transformations and repeatability. Close demonstrated coverage gaps
+under the regression gate established above; a new case or PDK alone does not
+justify another test circuit. Use pre/post-layout calibration when
 it supports a limit or validates a new flow. Reuse established mechanism coverage;
 a complete counterexample matrix and an area variant are not required per case.
 
@@ -185,7 +196,8 @@ Maintain the declared circuit and acceptance limits during validation.
 Run the standard's [completion checks](../../../tasks/AGENTS.md#9-changes-and-completion)
 against the final tree and generated results. Trace each requirement from the
 problem through the testbench/check, evaluation observation, acceptance/scoring
-rule, and evidence. Trace each artifact to its declaration and consumer. Resolve
+rule, and evidence. Inspect tracked changes and untracked files; trace each artifact
+to its declaration and consumer, including collection files and generated fixtures. Resolve
 unexplained discrepancies before reporting completion, including stale references,
 misplaced shared helpers, inconsistent roles, and unsupported status claims.
 

@@ -19,17 +19,18 @@ from helpers.scoring import (
 from helpers.stimuli import command, number
 
 from benchmarking.bundles import publish_bundle
-from benchmarking.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
-from benchmarking.klayout import KLayoutDocker
-from benchmarking.prepare_support import prepare_support
 from benchmarking.tasks import load_task
-from benchmarking.toolchains import load_toolchain
+from layout_eval.evaluate import run_evaluation
+from layout_eval.klayout import KLayoutDocker
+from layout_eval.prepare_support import prepare_support
+from layout_eval.toolchains import load_toolchain
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-CASE = ROOT / "tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/comparator"
+PUBLIC_ROOT = ROOT
+CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/comparator"
 
 
 @pytest.fixture(scope="module")
@@ -40,7 +41,7 @@ def case_config(tmp_path_factory):
     path = directory / "case.toml"
     config = (CASE / "case.toml").read_text()
     for profile, name in [("klayout", "klayout"), ("magic", "magic"), ("analog-models", "analog-models")]:
-        prepare_support(ROOT / "third_party/IHP-Open-PDK", f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}", root / name)
+        prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK", f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}", root / name)
         config = config.replace(f"build/support/comparator-{name}", str(root / name))
     config = standalone_config(config)
     path.write_text(config)
@@ -281,7 +282,7 @@ def test_zero_exit_or_incomplete_deck_never_passes(context, tmp_path, fault):
         files["fixture.drc"] = Asset(script.encode(), "ruby")
     files[f"{mode}.json"] = Asset(json.dumps(settings).encode(), "json")
     publish_bundle(files, {"purpose": "deliberately broken tool configuration"}, tmp_path / "support")
-    backend = KLayoutDocker(image="layout-bench-tools:local", check=mode,
+    backend = KLayoutDocker(image="iclayout-bench-tools:local", check=mode,
                             support=str(tmp_path / "support"), profile=f"{mode}.json")
     report = run_evaluation(task.evaluation, {"candidate": fixtures["valid"], **task.evaluation_inputs()},
                             {**backends, f"layout.{mode}": backend}, tmp_path / "run")

@@ -4,17 +4,16 @@ id = "TO_Apr2025.40_GHZ_LOW_NOISE_TIA"
 title = "TO_Apr2025 40 GHz low-noise single-ended TIA"
 status = "qualified"
 
-
 # Solver inputs, answer contract, and candidate-derived post-layout evaluation.
 [task]
-coefficient = 3
+coefficient = 5
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_hbt_tia_physical"
 environment = "ihp-sg13g2-to-40ghz-lvs"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "27865134d3fc73640e0971170fd3b594df7150b73dc65de24c35fe42c18093bc"
+sha256 = "eb3905644667b9018cf67866672dae27e3fa91bedb04782f4dbd91027cd340d6"
 format = "text"
 
 [task.inputs.netlist]
@@ -32,17 +31,6 @@ format = "spice"
 path = "materials/testbench.spice"
 sha256 = "4973b1a2b9d7ca896646e106df79170391670961e01377f4d4dd2c2109a9dae4"
 format = "spice"
-
-[task.inputs.license]
-collection_source = "LICENSE"
-path = "materials/LICENSE"
-sha256 = "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-format = "text"
-
-[task.inputs.pex_scope]
-path = "materials/pex_scope.json"
-sha256 = "4385efe1a933db52fa0b82d3e9dc53d0fc98957376f7ceac945fdc47425666c0"
-format = "json"
 
 [task.constraints]
 schema_version = 1
@@ -293,7 +281,7 @@ schema_version = 1
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
 [toolchain.backends.geometry.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 timeout_seconds = 120
 
 [toolchain.backends.drc]
@@ -301,7 +289,7 @@ type = "klayout-docker"
 [toolchain.backends.drc.support_profiles]
 support = "klayout"
 [toolchain.backends.drc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "drc"
 support = "build/support/to-40ghz-klayout"
 profile = "drc-upstream.json"
@@ -312,7 +300,7 @@ type = "klayout-docker"
 [toolchain.backends.lvs.support_profiles]
 support = "klayout"
 [toolchain.backends.lvs.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "lvs"
 support = "build/support/to-40ghz-klayout"
 profile = "lvs-upstream.json"
@@ -321,7 +309,7 @@ timeout_seconds = 600
 [toolchain.backends.artifact]
 type = "klayout-docker"
 [toolchain.backends.artifact.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "artifact"
 timeout_seconds = 60
 
@@ -329,7 +317,7 @@ timeout_seconds = 60
 type = "ngspice-docker"
 support_profiles = { support = "hbt-models" }
 [toolchain.backends.simulation.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/to-40ghz-hbt-models"
 timeout_seconds = 120
 
@@ -337,7 +325,7 @@ timeout_seconds = 120
 type = "sg13g2-hbt-rc-docker"
 support_profiles = { klayout_support = "klayout", magic_support = "magic" }
 [toolchain.backends.parasitics.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 klayout_support = "build/support/to-40ghz-klayout"
 klayout_profile = "lvs-upstream.json"
 magic_support = "build/support/to-40ghz-magic"

@@ -1,0 +1,13 @@
+* Derived from analog-db ldo_004_basic_pmos, GF180 binding at
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Layout-Bench changes: external vref/ibias
+* interfaces; physical 1k/square poly divider; loop probe replaced by a wire.
+.subckt ldo_004_basic_pmos vdd vout vref ibias vss
+XM1 noutm fb ibias vss nfet_03v3 w=46u l=0.5u
+XM2 egate vref ibias vss nfet_03v3 w=46u l=0.5u
+XM3 noutm noutm vdd vdd pfet_03v3 w=50u l=0.5u
+XM4 egate noutm vdd vdd pfet_03v3 w=50u l=0.5u
+XMP vout egate vdd vdd pfet_03v3 w=10u l=0.3u m=100
+XR1 vout fb vss ppolyf_u_1k r_width=2u r_length=200u
+XR2 fb vss vss ppolyf_u_1k r_width=2u r_length=200u
+.ends ldo_004_basic_pmos

@@ -2,21 +2,28 @@
 
 import http.server
 import json
+import select
+import socket
 import ssl
 import subprocess
 import threading
 import time
+from dataclasses import replace
 
 import pytest
 
 from benchmarking.files import Asset
-from benchmarking.inference import InferenceConfig, ResponsesGateway
-from benchmarking.recorder import RunRecorder
+from layout_eval.inference import InferenceConfig, ResponsesGateway
+from layout_eval.recorder import RunRecorder
 
 pytestmark = [pytest.mark.integration, pytest.mark.acceptance, pytest.mark.acceptance_fast]
 
 
-def test_https_auth_redirects_and_secret_reflection(tmp_path, monkeypatch):
+# Extend the real transport contract to explicit CONNECT routes. The proxy is
+# external I/O and forwards only the independently configured local endpoint.
+@pytest.mark.parametrize('use_proxy', [False, True])
+@pytest.mark.parametrize('scheme', ['http', 'https'])
+def test_http_and_https_auth_redirects_and_secret_reflection(tmp_path, monkeypatch, scheme, use_proxy):
     cert, key = tmp_path/"cert.pem", tmp_path/"key.pem"
     subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
                     "-subj", "/CN=localhost", "-addext", "subjectAltName=DNS:localhost",
@@ -54,16 +61,48 @@ def test_https_auth_redirects_and_secret_reflection(tmp_path, monkeypatch):
                 release.wait(5)
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.load_cert_chain(cert, key)
-    server.socket = context.wrap_socket(server.socket, server_side=True)
+    if scheme == 'https':
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(cert, key)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     monkeypatch.setenv("LB_TEST_INFERENCE_KEY", secret)
     monkeypatch.setenv("SSL_CERT_FILE", str(cert))
-    profile = InferenceConfig(f"https://localhost:{server.server_port}/v1", "test-model", "LB_TEST_INFERENCE_KEY",
+    profile = InferenceConfig(f"{scheme}://localhost:{server.server_port}/v1", "test-model", "LB_TEST_INFERENCE_KEY",
                               4, 5, Asset(b"test-profile", "text"), "responses")
+    tunnel_targets = []
+
+    class Proxy(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_CONNECT(self):
+            tunnel_targets.append((self.path, self.headers.get('Authorization')))
+            if self.path != f'localhost:{server.server_port}':
+                self.send_error(403)
+                return
+            with socket.create_connection(('127.0.0.1', server.server_port), timeout=3) as upstream:
+                self.send_response(200)
+                self.end_headers()
+                sockets = [self.connection, upstream]
+                while True:
+                    ready, _, _ = select.select(sockets, [], [], 3)
+                    if not ready:
+                        return
+                    for source in ready:
+                        data = source.recv(65536)
+                        if not data:
+                            return
+                        sockets[1 - sockets.index(source)].sendall(data)
+
+    proxy = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Proxy) if use_proxy else None
+    if proxy:
+        proxy_thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+        proxy_thread.start()
+        profile = replace(profile, proxy_url=f'http://127.0.0.1:{proxy.server_port}')
     gateway = ResponsesGateway(profile)
+    assert gateway.public['transport'] == scheme
     gateway.recorder = RunRecorder(tmp_path / "run")
     gateway.deadline = time.monotonic()+20
     try:
@@ -72,6 +111,11 @@ def test_https_auth_redirects_and_secret_reflection(tmp_path, monkeypatch):
         reflected = gateway.request("/responses", b'{"model":"test-model"}')
         assert [first[0], redirect[0], reflected[0]] == [200, 307, 502]
         assert len(received) == 3
+        if use_proxy:
+            assert len(tunnel_targets) == len(received)
+            assert all(target == f'localhost:{server.server_port}' and auth is None
+                       for target, auth in tunnel_targets)
+            assert gateway.public['proxy_url'] == profile.proxy_url
         assert all(path == "/v1/responses" and auth == f"Bearer {secret}" and body["store"] is False
                    for path, auth, body in received)
         assert secret not in json.dumps(gateway.summary())
@@ -90,3 +134,7 @@ def test_https_auth_redirects_and_secret_reflection(tmp_path, monkeypatch):
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+        if proxy:
+            proxy.shutdown()
+            proxy.server_close()
+            proxy_thread.join(timeout=2)

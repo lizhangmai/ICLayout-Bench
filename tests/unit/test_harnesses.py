@@ -4,7 +4,7 @@ import pytest
 
 from benchmarking.files import Asset
 from benchmarking.harnesses import SESSION_PROTOCOL
-from benchmarking.model_config import load_run_config
+from layout_eval.model_config import load_run_config
 
 pytestmark = pytest.mark.unit
 

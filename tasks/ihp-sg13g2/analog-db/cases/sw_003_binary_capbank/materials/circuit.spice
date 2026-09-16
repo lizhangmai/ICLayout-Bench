@@ -1,0 +1,27 @@
+* Derived from analog-db sw_003_binary_capbank, fixed snapshot
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Fixed dimensions and explicit physical taps.
+.subckt sw_003_binary_capbank vinp vout VCM VDD VSS V_D0 V_D0_NOT V_D1 V_D1_NOT V_D2 V_D2_NOT
+XM1 vinp V_D0 bot0 sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM11 VCM V_D2_NOT bot2 sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM3 VCM V_D0_NOT bot0 sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM5 vinp V_D1 bot1 sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM7 VCM V_D1_NOT bot1 sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM9 vinp V_D2 bot2 sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM10 bot2 V_D2_NOT vinp well sg13_lv_pmos w=0.15u l=0.13u m=1
+XM12 bot2 V_D2 VCM well sg13_lv_pmos w=0.15u l=0.13u m=1
+XM2 bot0 V_D0_NOT vinp well sg13_lv_pmos w=0.15u l=0.13u m=1
+XM4 bot0 V_D0 VCM well sg13_lv_pmos w=0.15u l=0.13u m=1
+XM6 bot1 V_D1_NOT vinp well sg13_lv_pmos w=0.15u l=0.13u m=1
+XM8 bot1 V_D1 VCM well sg13_lv_pmos w=0.15u l=0.13u m=1
+XRptap1 VSS sub ptap1 A=195.12e-12 P=199.12e-6
+XRntap1 VDD well ntap1 A=97.56e-12 P=101.56e-6
+XC1_0 vout vinp cap_cmim w=25.85u l=25.85u m=1
+XC2_0 vout bot0 cap_cmim w=25.85u l=25.85u m=1
+XC3_0 vout bot1 cap_cmim w=25.85u l=25.85u m=1
+XC3_1 vout bot1 cap_cmim w=25.85u l=25.85u m=1
+XC4_0 vout bot2 cap_cmim w=25.85u l=25.85u m=1
+XC4_1 vout bot2 cap_cmim w=25.85u l=25.85u m=1
+XC4_2 vout bot2 cap_cmim w=25.85u l=25.85u m=1
+XC4_3 vout bot2 cap_cmim w=25.85u l=25.85u m=1
+.ends sw_003_binary_capbank

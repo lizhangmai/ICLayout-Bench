@@ -1,0 +1,1057 @@
+schema_version = 2
+kind = "layout_case"
+id = "ihp-sg13g2.analog-db.trm_001_vcr"
+title = "Resistor-Pullup NMOS Shunt Trim"
+status = "qualified"
+
+[task]
+coefficient = 4
+kind = "netlist_to_gds"
+family = "ihp-sg13g2_trm_001_vcr"
+environment = "ihp-sg13g2-trm_001_vcr-nominal-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "c355bd2efa0fee210681af95232582365607eaeac2f0ffeb308f27a6ea4b3dd2"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+sha256 = "ed94062ae8c8856ffe51593d5134a9926c266e6620767f13d491a21ad288136a"
+subcircuit = "trm_001_vcr"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "c9204b415bfb76c62877c48820ba441aa6c96df3988a808b7e8d3ceafd8ab800"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "50783e7f3277c5a395028e57b2754bae806f316b1af65da289e30fe04401e57c"
+
+[task.constraints]
+schema_version = 1
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 110
+max_height_um = 80
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "trm_001_vcr"
+max_bytes = 10485760
+
+[task.evaluation]
+schema_version = 1
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout-v1"
+area_metric = "functional_area"
+area_target = 8000
+area_zero = 32000
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "vcode",
+    "vout",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.1
+temp_c = 27
+load_ohm = 500000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.1
+temp_c = 27
+load_ohm = 1000000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.1
+temp_c = 85
+load_ohm = 500000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.1
+temp_c = 85
+load_ohm = 1000000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_4"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+temp_c = 27
+load_ohm = 500000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_5"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+temp_c = 27
+load_ohm = 1000000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_6"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+temp_c = 85
+load_ohm = 500000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_7"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+temp_c = 85
+load_ohm = 1000000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "output_v"
+category = "performance"
+observations = [
+    "condition_0:output_v",
+    "condition_1:output_v",
+    "condition_2:output_v",
+    "condition_3:output_v",
+    "condition_4:output_v",
+    "condition_5:output_v",
+    "condition_6:output_v",
+    "condition_7:output_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0.04
+upper = 0.07
+zero_lower = 0
+zero_upper = 0.15
+
+[[task.evaluation.metrics]]
+id = "power_w"
+category = "performance"
+observations = [
+    "condition_0:power_w",
+    "condition_1:power_w",
+    "condition_2:power_w",
+    "condition_3:power_w",
+    "condition_4:power_w",
+    "condition_5:power_w",
+    "condition_6:power_w",
+    "condition_7:power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 1.1e-05
+zero_lower = 0
+zero_upper = 2.2e-05
+
+[[task.evaluation.metrics]]
+id = "high_v"
+category = "performance"
+observations = [
+    "condition_0:high_v",
+    "condition_1:high_v",
+    "condition_2:high_v",
+    "condition_3:high_v",
+    "condition_4:high_v",
+    "condition_5:high_v",
+    "condition_6:high_v",
+    "condition_7:high_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0.68
+upper = 1.07
+zero_lower = 0.3
+zero_upper = 1.3
+
+[[task.evaluation.metrics]]
+id = "low_v"
+category = "performance"
+observations = [
+    "condition_0:low_v",
+    "condition_1:low_v",
+    "condition_2:low_v",
+    "condition_3:low_v",
+    "condition_4:low_v",
+    "condition_5:low_v",
+    "condition_6:low_v",
+    "condition_7:low_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0.005
+upper = 0.016
+zero_lower = 0
+zero_upper = 0.1
+
+[[task.evaluation.metrics]]
+id = "knee_code_v"
+category = "performance"
+observations = [
+    "condition_0:knee_code_v",
+    "condition_1:knee_code_v",
+    "condition_2:knee_code_v",
+    "condition_3:knee_code_v",
+    "condition_4:knee_code_v",
+    "condition_5:knee_code_v",
+    "condition_6:knee_code_v",
+    "condition_7:knee_code_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0.3
+upper = 0.38
+zero_lower = 0.2
+zero_upper = 0.5
+
+[[task.evaluation.metrics]]
+id = "maximum_slope"
+category = "performance"
+observations = [
+    "condition_0:maximum_slope",
+    "condition_1:maximum_slope",
+    "condition_2:maximum_slope",
+    "condition_3:maximum_slope",
+    "condition_4:maximum_slope",
+    "condition_5:maximum_slope",
+    "condition_6:maximum_slope",
+    "condition_7:maximum_slope",
+]
+unit = "V/V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = -0.1
+upper = -0.005
+zero_lower = -10
+zero_upper = 0.05
+
+[[task.evaluation.metrics]]
+id = "span_v"
+category = "performance"
+observations = [
+    "condition_0:span_v",
+    "condition_1:span_v",
+    "condition_2:span_v",
+    "condition_3:span_v",
+    "condition_4:span_v",
+    "condition_5:span_v",
+    "condition_6:span_v",
+    "condition_7:span_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0.65
+upper = 1.08
+zero_lower = 0
+zero_upper = 1.3
+
+[[task.evaluation.metrics]]
+id = "conductance_04_s"
+category = "performance"
+observations = [
+    "condition_0:conductance_04_s",
+    "condition_1:conductance_04_s",
+    "condition_2:conductance_04_s",
+    "condition_3:conductance_04_s",
+    "condition_4:conductance_04_s",
+    "condition_5:conductance_04_s",
+    "condition_6:conductance_04_s",
+    "condition_7:conductance_04_s",
+]
+unit = "S"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 8e-05
+upper = 0.00015
+zero_lower = 0
+zero_upper = 0.0003
+
+[[task.evaluation.metrics]]
+id = "conductance_06_s"
+category = "performance"
+observations = [
+    "condition_0:conductance_06_s",
+    "condition_1:conductance_06_s",
+    "condition_2:conductance_06_s",
+    "condition_3:conductance_06_s",
+    "condition_4:conductance_06_s",
+    "condition_5:conductance_06_s",
+    "condition_6:conductance_06_s",
+    "condition_7:conductance_06_s",
+]
+unit = "S"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0.0003
+upper = 0.0005
+zero_lower = 0
+zero_upper = 0.001
+
+[[task.evaluation.metrics]]
+id = "conductance_ratio"
+category = "performance"
+observations = [
+    "condition_0:conductance_ratio",
+    "condition_1:conductance_ratio",
+    "condition_2:conductance_ratio",
+    "condition_3:conductance_ratio",
+    "condition_4:conductance_ratio",
+    "condition_5:conductance_ratio",
+    "condition_6:conductance_ratio",
+    "condition_7:conductance_ratio",
+]
+unit = "1"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 2.5
+upper = 5
+zero_lower = 1
+zero_upper = 10
+
+[[task.evaluation.metrics]]
+id = "recovery_down_v"
+category = "performance"
+observations = [
+    "condition_0:recovery_down_v",
+    "condition_1:recovery_down_v",
+    "condition_2:recovery_down_v",
+    "condition_3:recovery_down_v",
+    "condition_4:recovery_down_v",
+    "condition_5:recovery_down_v",
+    "condition_6:recovery_down_v",
+    "condition_7:recovery_down_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 0.0001
+zero_lower = 0
+zero_upper = 0.1
+
+[[task.evaluation.metrics]]
+id = "recovery_up_v"
+category = "performance"
+observations = [
+    "condition_0:recovery_up_v",
+    "condition_1:recovery_up_v",
+    "condition_2:recovery_up_v",
+    "condition_3:recovery_up_v",
+    "condition_4:recovery_up_v",
+    "condition_5:recovery_up_v",
+    "condition_6:recovery_up_v",
+    "condition_7:recovery_up_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 0.0001
+zero_lower = 0
+zero_upper = 0.1
+
+[[task.evaluation.metrics]]
+id = "mean_power_w"
+category = "performance"
+observations = [
+    "condition_0:mean_power_w",
+    "condition_1:mean_power_w",
+    "condition_2:mean_power_w",
+    "condition_3:mean_power_w",
+    "condition_4:mean_power_w",
+    "condition_5:mean_power_w",
+    "condition_6:mean_power_w",
+    "condition_7:mean_power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 1e-05
+zero_lower = 0
+zero_upper = 2e-05
+
+[[task.evaluation.metrics]]
+id = "step_span_v"
+category = "performance"
+observations = [
+    "condition_0:step_span_v",
+    "condition_1:step_span_v",
+    "condition_2:step_span_v",
+    "condition_3:step_span_v",
+    "condition_4:step_span_v",
+    "condition_5:step_span_v",
+    "condition_6:step_span_v",
+    "condition_7:step_span_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0.25
+upper = 0.7
+zero_lower = 0
+zero_upper = 1.3
+
+[toolchain]
+schema_version = 1
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 600
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+support = "build/support/input-pair-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+support = "build/support/input-pair-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/input-pair-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+capacitance_threshold_ff = 0
+timeout_seconds = 600
+gds_readonly = false
+grid_subdivision = 2
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 120
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-res-models"
+
+[toolchain.backends.simulation.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/analog-res-models"
+timeout_seconds = 600
+
+[[assets]]
+path = "reference/trm_001_vcr.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "35815d1a14528eec80ba78e4143169dec0498212bf2edf5665de339ac2f12fae"
+
+[qualification]
+reference = "reference/trm_001_vcr.gds"
+evidence = "README.md"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/trm_001_vcr"

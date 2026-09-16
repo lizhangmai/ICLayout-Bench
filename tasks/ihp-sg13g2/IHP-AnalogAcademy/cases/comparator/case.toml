@@ -6,14 +6,14 @@ status = "qualified"
 
 # Solver inputs, answer contract, and scoring entry point.
 [task]
-coefficient = 3
+coefficient = 6
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_analog_comparator"
 environment = "ihp-sg13g2-comparator-rc-tt"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "cf39037d65cd53f7b5a18c531fda0392ccd2f0c7a931fc1619526c481e920e11"
+sha256 = "b17e966560107979e3a422cabc41fea094a44031248dd931b2e8497dff74c814"
 format = "text"
 
 [task.inputs.netlist]
@@ -31,12 +31,6 @@ format = "spice"
 path = "materials/testbench.spice"
 sha256 = "61d8165d7b359539cebe3a94815dcbd22cede35ca87c393e345832523f3c4c8e"
 format = "spice"
-
-[task.inputs.license]
-path = "materials/LICENSE"
-collection_source = "LICENSE"
-sha256 = "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-format = "text"
 
 [task.constraints]
 schema_version = 1
@@ -352,7 +346,7 @@ schema_version = 1
 [toolchain.backends.artifact]
 type = "klayout-docker"
 [toolchain.backends.artifact.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "artifact"
 
 [toolchain.backends.drc]
@@ -360,7 +354,7 @@ type = "klayout-docker"
 [toolchain.backends.drc.support_profiles]
 support = "klayout"
 [toolchain.backends.drc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "drc"
 support = "build/support/comparator-klayout"
 profile = "drc-upstream.json"
@@ -371,7 +365,7 @@ type = "klayout-docker"
 [toolchain.backends.lvs.support_profiles]
 support = "klayout"
 [toolchain.backends.lvs.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "lvs"
 support = "build/support/comparator-klayout"
 profile = "lvs-upstream.json"
@@ -380,14 +374,14 @@ timeout_seconds = 600
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
 [toolchain.backends.geometry.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 timeout_seconds = 120
 
 [toolchain.backends.rc]
 type = "magic-rc-docker"
 support_profiles = { support = "magic" }
 [toolchain.backends.rc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/comparator-magic"
 technology = "magic/ihp-sg13g2.tech"
 tech_name = "ihp-sg13g2"
@@ -399,7 +393,7 @@ timeout_seconds = 600
 type = "ngspice-docker"
 support_profiles = { support = "analog-models" }
 [toolchain.backends.simulation.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/comparator-analog-models"
 timeout_seconds = 600
 

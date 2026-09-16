@@ -5,12 +5,14 @@
 This case contains a qualified four-stage direct-coupled SiGe HBT voltage
 amplifier. Four `npn13G2` common-emitter stages use collector loads,
 emitter degeneration and three interstage `VBIAS` clamps. The case-owned
-interface is `IN OUT VDD VSS VBIAS`.
+interface is `IN OUT VDD VSS VBIAS`. The four emitter `rsil` lengths are
+20.00/20.01/20.02/20.03 um, giving repeated emitter contacts distinct
+candidate-derived device identities for the cross-extractor mapping.
 
 Qualification covers nominal 100 MHz voltage
 gain, output bias and `VDD` supply current at the declared bias point. The
-candidate extraction boundary and substrate calibration are recorded in
-[materials/pex_scope.json](materials/pex_scope.json).
+candidate extraction boundary and substrate calibration are recorded in the
+[problem](problem.md#physical-requirements) and the calibration below.
 
 ## Files
 
@@ -21,9 +23,8 @@ candidate extraction boundary and substrate calibration are recorded in
 | [materials/circuit.cdl](materials/circuit.cdl) | Strict LVS netlist with drawn HBT geometry |
 | [materials/circuit.spice](materials/circuit.spice) | Ready-to-use pre-layout simulator netlist |
 | [materials/testbench.spice](materials/testbench.spice) | Shared nominal operating-point and AC testbench |
-| [materials/pex_scope.json](materials/pex_scope.json) | Candidate PEX and calibration boundary |
-| [Collection LICENSE](../../LICENSE) | Shared terms, delivered as `materials/LICENSE` |
-| [reference/lna160_four_stage_distinct_rsil_qualified.gds](reference/lna160_four_stage_distinct_rsil_qualified.gds) | Qualified reference layout, top cell `LNA160_FOUR_STAGE` |
+| [Collection LICENSE](../../LICENSE) | Collection distribution terms; excluded from solver inputs |
+| [reference/LNA160_FOUR_STAGE.gds](reference/LNA160_FOUR_STAGE.gds) | Qualified reference layout, top cell `LNA160_FOUR_STAGE` |
 
 ## Reference Results
 
@@ -61,18 +62,51 @@ are explicit grading choices, with the acceptance limits checked separately.
 The fixed absolute area target is a feasible envelope demonstrated by the
 reference layout, rather than a ratio to the reference or a claim of optimality.
 
+The [HBT diagnostic policy](../../../../../docs/tools.md#hbt-core-simulation-support)
+checks Magic compact-contact warnings against native device records before
+requiring complete candidate graph validation. The reference report retains
+the original diagnostics, their review and the final HBT/RC mapping.
+
+Coefficient 5 reflects four cascaded HBT stages with independent bias clamps
+and interstage parasitics under the nominal gain and bias contract.
+
+### Calibration limits
+
+For the finite-body source control, all HBT bulk terminals use SUBSTRATE
+and the source tap retains 81.6666667 ohm. For the ideal-body control, replace
+SUBSTRATE by VSS and remove the tap. Both runs use the same nominal deck,
+models and measurements. Compare the five terminal metrics using the absolute
+tolerances below. A VBIAS sweep checks the bias window and saturation boundary;
+internal source/native stage nodes are diagnostic only. These controls do not
+change the scored candidate circuit or acceptance limits.
+
+The following maintainer regression limits are read by the reproduction tests;
+they do not add solver requirements.
+
+| Comparison | Unit | Maximum difference |
+| --- | --- | --- |
+| `vin_bias` | V | 1e-09 |
+| `out_bias` | V | 0.001 |
+| `i_vdd` | A | 1e-05 |
+| `i_vbias` | V | 1e-05 |
+| `gain_db` | dB | 0.1 |
+
 ## Reproduce
+
+These operator commands require the installed `ICLayout-Bench-Private` package.
+Run preparation from the Public checkout; run any `tests/integration/` commands
+from the Private checkout using that environment.
 
 Prepare the image and PDK resources using the shared
 [tools guide](../../../../../docs/tools.md#manual-tools). Run from the repository
 root and choose a fresh output directory for each reproduction:
 
 ```bash
-uv run --locked python scripts/public_preview.py prepare \
+python -m layout_eval.preview prepare \
   --case 160GHz_LNA \
   --output build/runs/public-preview-160GHz_LNA-01/prepared \
-  --image layout-bench-tools:local
-uv run --locked python scripts/public_preview.py run \
+  --image iclayout-bench-tools:local
+python -m layout_eval.preview run \
   --prepared build/runs/public-preview-160GHz_LNA-01/prepared \
   --output build/runs/public-preview-160GHz_LNA-01/run
 ```
@@ -83,7 +117,7 @@ To reproduce pre-layout/post-layout calibration and the reference acceptance
 regressions, run:
 
 ```bash
-uv run --locked pytest -m acceptance_eda \
+python -m pytest -m acceptance_eda \
   tests/integration/test_lna160_postlayout.py
 ```
 

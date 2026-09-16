@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from benchmarking.geometry import validate_constraints
+from layout_eval.geometry import validate_constraints
 
 pytestmark = pytest.mark.unit
 DATA = {

@@ -4,7 +4,9 @@ from textwrap import dedent
 
 import pytest
 
-from benchmarking.hbt import convert_klayout_netlist, merge_hbt_netlists
+from layout_eval.hbt import convert_klayout_netlist, merge_hbt_netlists
+
+pytestmark = pytest.mark.unit
 
 PORTS = ["OUT", "IN", "GND"]
 

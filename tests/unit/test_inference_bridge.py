@@ -8,14 +8,14 @@ from pathlib import Path
 import pytest
 
 from benchmarking.files import Asset
-from benchmarking.inference import InferenceConfig, ResponsesGateway
+from layout_eval.inference import InferenceConfig, ResponsesGateway
 
 pytestmark = pytest.mark.unit
 
 
 def _bridge_module():
     path = Path(__file__).parents[2] / "tests/fixtures/agents/inference_bridge.py"
-    spec = importlib.util.spec_from_file_location("layout_bench_inference_bridge", path)
+    spec = importlib.util.spec_from_file_location("iclayout_bench_inference_bridge", path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)

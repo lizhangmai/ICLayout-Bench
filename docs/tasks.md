@@ -11,6 +11,21 @@ Catalogs index maintained cases; source attribution is a URL in each case.
 Use `candidate` for incomplete or unvalidated cases and `qualified` after the
 [per-case checks](#qualification) pass. Executable cases ship ready-to-use inputs;
 source-only circuit inventories do not constitute runnable layout tasks.
+The [GF180 collections](tools.md#gf180) contain fifteen qualified, executable cases
+with passing references, nominal RC evaluation and calibrated scoring, including
+the [analog-db regulator core](../tasks/gf180mcuD/analog-db/README.md) with
+supply/load, dropout and load-step coverage. The same collection also adds
+a cascode gain stage, resistive differential pair, folded-cascode OTA,
+hysteretic comparator and temperature-slope cores, including isolated-body
+startup at specified supply ramps; each ships an independently
+validated reference and its own calibrated operating conditions.
+The [analog-db OTA collection](../tasks/ihp-sg13g2/analog-db/README.md) adds an
+IHP conversion pilot with fixed sizing, a physical witness and nominal AC/DC
+evaluation. The collection also includes a physical-MIM common-mode sampler
+and a three-bit capacitor bank with all-eight-code AC/step measurements; see
+the collection index for their distinct operating boundaries. Its circuit
+materials retain separately identified noncommercial
+and upstream license terms; they are not covered by the framework's MIT license.
 
 Public cases are grouped by PDK: IHP AnalogAcademy and TO_Apr2025 cases use one
 directory per circuit under `tasks/<pdk>/<collection>/cases/<circuit>/`, with a
@@ -156,7 +171,7 @@ Record the source, license, and permitted use and distribution scope separately 
 | Netlist, constraints, evaluation requirements, required testbench/model/description | Inputs declared by the case TOML's `[task]` section; readable by a standard Agent |
 | Reference GDS and case-specific validation results | Case-local maintainer materials; comparator keeps its reference GDS in `reference/` and its overview, reference results, reproduction steps and source attribution in `README.md`; downloadable for debugging but excluded from standard solve inputs |
 | Preparation source records | May be referenced by `provenance`; not materialized for the Agent automatically |
-| Process and tool materials | Separately reviewed resource bundles; do not mount a complete upstream checkout or repository |
+| Process and tool materials | Declared, frozen read-only PDK source/support bundles; full PDK sources are permitted, but benchmark/circuit-answer repositories and local Git metadata are excluded; see [Agent PDK resources](tools.md#agent-pdk-resources) |
 
 Hidden tasks use only independently authored or authorized unpublished designs. Their inputs, reference solutions, qualification materials, and raw run evidence are held by the evaluator and do not enter public Git, images, or CI. Every requirement that affects the current task must be provided to the running Agent; hidden data must not become an undisclosed scoring rule. Restricted originals stay in approved environments. Private Git and zero-data-retention endpoints do not by themselves grant permission to store, process, or transmit the data. Bind the specific approval record through the [admission interface](admission.md).
 
@@ -170,7 +185,7 @@ Hidden tasks use only independently authored or authorized unpublished designs. 
 |---|---|
 | `schema_version`, `kind` | Currently `1` and `netlist_to_gds`; unsupported versions or kinds are rejected |
 | `id`, `title`, `family`, `status` | Task identity, display name, statistics family, and `candidate` / `qualified` status |
-| `coefficient` | Integer difficulty coefficient from 1 through 5; default 1 for general task fixtures. Public scored cases declare it explicitly. It is frozen with the task and used only when aggregating independent tasks |
+| `coefficient` | Integer difficulty coefficient from 1 through 10; default 1 for general task fixtures. Public scored cases declare it explicitly. It is frozen with the task and used only when aggregating independent tasks |
 | `environment` | Required process and tool configuration identity; the actual run also records image and PDK-view digests |
 | `inputs.netlist` | `path`, `sha256`, and target `subcircuit` |
 | `constraints` or `inputs.constraints` | Exactly one: inline structured constraints, or `path` and `sha256` for a separate constraints file |
@@ -182,9 +197,15 @@ Hidden tasks use only independently authored or authorized unpublished designs. 
 
 ### Shared collection inputs
 
-Store identical source licenses and notices once at collection level. Cases declare
-which files accompany their materials; materialization copies the verified bytes to
-the declared destination without delivering the collection directory:
+Store source licenses and required notices at collection level, outside the
+default solver input set. Preserve them with repository distributions and material
+exports. `Task.materialize()` creates an isolated solve directory, not a complete
+redistribution package. A solver needs the circuit contract and design inputs;
+license text does not need to be declared as a task input.
+
+The loader also supports shared collection files that are explicitly declared as
+inputs. Existing license input declarations remain supported; the following is a
+legacy example of the mapping, not a requirement for new cases:
 
 ```toml
 [task.inputs.license]
@@ -211,9 +232,10 @@ its own digest. Existing case-local license inputs remain supported.
 
 Keep distinct component terms and circuit modification notices attributable when
 centralizing files. Collection notices can include labeled sections for their cases;
-case-only additions can remain separate declared inputs. Reference exporters must
-also use the declared, verified license/notice snapshots. Changing a shared file
-requires updating the digests and validating every case that references it.
+case-only additions can remain with the corresponding materials. Material exports
+must retain the applicable collection terms independently of the solver input
+list. Changing an explicitly declared shared input requires updating its digests
+and validating every case that references it.
 
 Each case records only its upstream location under `[origin]`:
 
@@ -233,7 +255,7 @@ in development history, outside case and catalog configuration.
 
 Resolve paths relative to the task configuration directory. Map inputs to `/task/<path>` and outputs to `/workspace/<output.path>`. The task ID, subcircuit, and top cell come from configuration; the runner does not hard-code tasks. The loader rejects unknown fields, unsupported versions, paths that escape their bounds or use symlinks, overlapping inputs, and digest mismatches. The configuration digest binds the original TOML bytes.
 
-Materialize file snapshots validated at load time. Copy only declared inputs; do not bring in neighboring reference solutions, source records, or a complete checkout. Callers must still use read-only mounts and control access. Successful loading does not prove that the circuit is feasible or that the judge is correct; `status="qualified"` is not a qualification credential. The output path is a convention, and the Agent must explicitly submit it using the [submission protocol](running.md#submission).
+Materialize file snapshots validated at load time. Copy only declared inputs; do not bring in neighboring reference solutions, source records, or a complete checkout. Callers must still use read-only mounts and control access. Successful loading does not prove that the circuit is feasible or that the judge is correct; `status="qualified"` is not a qualification credential. The output path is a convention, and the Agent must explicitly submit it using the [submission protocol](running.md#service-participation).
 
 ## 3. Define Executable Constraints
 
@@ -332,21 +354,41 @@ annotations do not contribute. Verify that geometry outside the footprint
 cannot conceal functional routing. The acceptance limits continue to govern
 all scored candidates, including ones smaller than the full-score target.
 
-The task coefficient expresses required capability independently of its score:
+The task coefficient is an integer from 1 through 10. It expresses the capability
+needed to implement the fixed circuit under its declared environment and acceptance
+contract, independently of the candidate's `layout-v1` score.
 
 | Coefficient | Capability scope |
 |---:|---|
-| 1 | A basic local block focused on one layout capability |
-| 2 | A complete compact block with bias, load or matching constraints |
-| 3 | Multi-stage, dynamic or independently supplied circuitry with inter-block parasitic effects |
-| 4 | Strongly coupled requirements involving feedback, stability, speed or linearity |
-| 5 | System-level tasks combining interacting functional blocks and operating modes |
+| 1 | Basic single-stage logic with connectivity and loaded logic-level checks |
+| 2 | Compound logic with multiple conduction paths and input transitions |
+| 3 | Local analog or controlled driver behavior: bias, transfer or output states |
+| 4 | A complete compact circuit coupling gain, accuracy, load or a physical passive network |
+| 5 | Local feedback, clocked state or charge transfer with parasitic-dependent dynamics |
+| 6 | Regenerative decisions, storage integrity, coupled startup behavior or a complete compensated loop |
+| 7 | Multistage compensation or regulation maintaining frequency response and recovery across loads |
+| 8 | Active auxiliary compensation, self-oscillation or broader return-ratio and startup requirements |
+| 9 | Strongly interacting control goals or complex regulation combining startup, frequency response and recovery |
+| 10 | Clock modulation, signal feedback and actual common-mode control operating together |
 
-Declare the coefficient before model evaluation. Device count, source naming,
-repair effort and observed model success rates do not determine it. Adding a
-task does not change existing coefficients; the [batch score](running.md#scoring)
-normalizes their sum over the frozen task set. Changing score boundaries,
-coefficients, task membership or tools creates a different benchmark identity.
+Apply the whole acceptance contract and compare neighboring capability anchors;
+feedback or startup alone does not imply a high grade. Circuit names, transistor
+count, area, simulator runtime, repair effort and observed model success rates do
+not determine the coefficient. Unmeasured RF performance, noise, statistical yield
+or geometric symmetry requirements cannot raise a task's grade. Each case README
+explains its circuit-specific scope and its problem publishes the integer.
+
+Declare coefficients before model evaluation. Using the integer directly as a
+[batch score](tasks.md#task-scoring) weight is an aggregation policy, not a claim that
+a grade-10 circuit takes ten times the work of a grade-1 circuit. Adding tasks does
+not regrade existing ones. Changing coefficients, score boundaries, task membership
+or tools creates a different benchmark identity; historical results retain their
+frozen coefficients and must not be silently reweighted.
+
+The root benchmark version `2` uses this scale for its unchanged 16 representatives
+(total coefficient 92). The 52-case catalog contains 1, 1, 3, 9, 13, 7, 6, 8, 3 and 1
+cases at grades 1 through 10, respectively. The task score formula and electrical
+acceptance limits are independent of this grading scale.
 
 <a id="evaluation"></a>
 
@@ -368,12 +410,12 @@ DRC/LVS establishes physical validity under the selected rules and extraction co
 | `error` | A crash, timeout, missing measurement, or similar condition prevented a valid result |
 | `blocked` | A prerequisite did not pass, so the current step was not run |
 
-Reports store `physical_valid`, `specs_pass`, and `task_success` separately; unknown or not applicable is `null`. Even when a `physical` or `characterization` run passes overall, `task_success` remains `null`. An out-of-limit performance result is a failure; a simulation crash is an evaluation error. Raw metrics may be saved for a physically valid candidate, while the primary quality report summarizes only successful candidates and discloses coverage. See [statistics](running.md#scoring) for the policy.
+Reports store `physical_valid`, `specs_pass`, and `task_success` separately; unknown or not applicable is `null`. Even when a `physical` or `characterization` run passes overall, `task_success` remains `null`. An out-of-limit performance result is a failure; a simulation crash is an evaluation error. Raw metrics may be saved for a physically valid candidate, while the primary quality report summarizes only successful candidates and discloses coverage. See [statistics](tasks.md#task-scoring) for the policy.
 
-Independent re-evaluation does not run the Agent. `evaluate` and `run` use the case's `[toolchain]` by default. An explicit `--toolchain` selects an independent configuration instead, which remains required for cases without an embedded toolchain. `load_toolchain` also accepts a case TOML directly. Existing backend path semantics remain unchanged: relative `support` paths resolve from the launch working directory. Run from the repository root with a new output directory:
+Independent re-evaluation does not run the Agent. `evaluate` and `run` use the case's `[toolchain]` by default. An explicit `--toolchain` selects an independent configuration instead, which remains required for cases without an embedded toolchain. `load_toolchain` also accepts a case TOML directly. Existing backend path semantics remain unchanged: relative `support` paths resolve from the launch working directory. With Public installed, run from the Public checkout with a new output directory:
 
 ```text
-uv run --locked python main.py evaluate <case.toml> <candidate.gds> --output <new-output-directory>
+python -m layout_eval.cli evaluate <case.toml> <candidate.gds> --output <new-output-directory>
 ```
 
 <a id="qualification"></a>
@@ -389,7 +431,8 @@ rejection, scoring and error behavior. Apply the following division of work.
 For each executable case:
 
 - Load its configuration, verify input/reference digests and materialize only the
-  declared inputs, including shared licenses. The result must work independently
+  declared inputs. Collection licenses remain distribution metadata outside the
+  default solver input set. The result must work independently
   of upstream source checkouts and authoring scripts.
 - Check that the authoritative and simulator netlists, ordered ports, device
   parameters, problem, testbench, constraints and measurements describe the same

@@ -1,0 +1,45 @@
+* Maintained Layout-Bench loaded local-feedback buffer test. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerRES.lib res_typ
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.include dut.spice
+.include parameters.spice
+.temp 27
+.option rshunt=1e12
+VDD vdd 0 1.5
+IB vdd ibias 20u
+VI vin 0 DC {input_v} AC 1 PWL(0 {input_v} 1u {input_v} 1.001u {input_v+0.1} 3u {input_v+0.1} 3.001u {input_v} 5u {input_v})
+CL vout 0 {load_f}
+XD vdd vout vin ibias 0 buf_001_super_follower
+.save v(vdd) v(vout) v(vin) v(ibias) i(vdd)
+.control
+set noaskquit
+set numdgt=12
+op
+let output_v=v(vout)
+let bias_v=v(ibias)
+let power_w=-v(vdd)*i(vdd)
+print output_v bias_v power_w
+write op.raw all
+ac dec 100 1 1G
+let gain=mag(v(vout))
+meas ac gain_vv find gain at=10
+let drop_db=db(v(vout))-db(gain_vv)
+meas ac bandwidth_hz when drop_db=-3 fall=1
+write ac.raw all
+tran 0.2n 5u
+let output=v(vout)
+meas tran low_v find output at=0.5u
+meas tran high_v find output at=2.5u
+let step_gain=(high_v-low_v)/0.1
+let err_up=abs(output-high_v)
+let err_down=abs(output-low_v)
+meas tran recovery_up_v max err_up from=1.5u to=2.9u
+meas tran recovery_down_v max err_down from=3.5u to=4.9u
+let power=-v(vdd)*i(vdd)
+meas tran mean_power_w avg power from=0 to=5u
+print step_gain
+write transient.raw all
+quit
+.endc
+.end

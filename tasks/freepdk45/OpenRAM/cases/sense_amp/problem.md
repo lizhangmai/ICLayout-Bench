@@ -6,7 +6,7 @@ Implement the supplied clocked regenerative sense amplifier. A lower sampled BL 
 
 ## Inputs and Interface
 
-Ordered SPICE ports: `bl br dout sclk vdd gnd`. Names are case-insensitive; different names are not interchangeable. The delivered inputs are this problem, `materials/circuit.spice`, `materials/testbench.spice`, `materials/LICENSE` and `materials/NOTICE`. The model and extraction resources are supplied as reviewed support bundles. Reference geometry and qualification evidence are maintainer materials, excluded from solver inputs.
+Ordered SPICE ports: `bl br dout sclk vdd gnd`. Names are case-insensitive; different names are not interchangeable. The delivered inputs are this problem, `materials/circuit.spice`, and `materials/testbench.spice`. The model and extraction resources are supplied as reviewed support bundles. Reference geometry and qualification evidence are maintainer materials, excluded from solver inputs.
 
 ## Operating Conditions
 
@@ -36,7 +36,7 @@ Every observation must meet its inclusive bounds. Supply power is in W and volta
 | `high` | `find v(dout) at=1610p` | V | 0.9 <= value | lower: 0.5 | response |
 | `supply` | `avg par('-v(vdd)*i(Vdd)') from=0 to=2n` | W | 0 <= value <= 1e-05 | lower: 0, upper: 5e-05 | supply |
 
-Use the unified score `S = G * (60*E + 20*H + 20*H*Q)`. G requires all validity gates and complete, valid evaluation; H requires every electrical bound. E averages the applicable response and supply attainments; each dimension uses its worst observation, with linear interpolation to the zero boundaries above. Area utility is `Q = clip((7.6 - area) / (7.6 - 3.8), 0, 1)` using absolute um2 anchors. Electrical acceptance earns 80–100 points; a physical pass with an electrical failure earns less than 60; conclusive invalidity earns zero. Evaluator errors give a null score when no independent validity rejection is established. Coefficient: **3**.
+Use the unified score `S = G * (60*E + 20*H + 20*H*Q)`. G requires all validity gates and complete, valid evaluation; H requires every electrical bound. E averages the applicable response and supply attainments; each dimension uses its worst observation, with linear interpolation to the zero boundaries above. Area utility is `Q = clip((7.6 - area) / (7.6 - 3.8), 0, 1)` using absolute um2 anchors. Electrical acceptance earns 80–100 points; a physical pass with an electrical failure earns less than 60; conclusive invalidity earns zero. Evaluator errors give a null score when no independent validity rejection is established. Coefficient: **5**.
 
 ## Tools and Submission
 

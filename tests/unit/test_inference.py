@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from benchmarking.files import Asset
-from benchmarking.inference import (
+from layout_eval.inference import (
     InferenceConfig,
     InferenceGateway,
     ResponsesGateway,
@@ -138,6 +138,34 @@ def test_declared_observable_token_and_gateway_time_budgets_are_provider_neutral
     assert summary["limit_reached"] is True
 
 
+# Existing budget coverage has complete usage only. The running guide's observed
+# token caps must still stop forwarding when known usage alone reaches the cap;
+# missing usage keeps the reported total unknown, not the budget unenforceable.
+@pytest.mark.parametrize('field', ['input_tokens', 'output_tokens'])
+def test_known_usage_enforces_token_budget_despite_missing_responses(field):
+    config = InferenceConfig('https://example.invalid/v1', 'test-model', 'UNUSED', 5, 10,
+                             Asset(b'profile', 'text'), 'responses', **{f'max_{field}': 10})
+    responses = [None, {field: getattr(config, f'max_{field}')}, None]
+    forwarded = []
+
+    def transport(*args):
+        usage = responses[len(forwarded)]
+        forwarded.append(usage)
+        return 200, 'application/json', json.dumps({'status': 'completed', 'usage': usage}).encode()
+
+    gateway = InferenceGateway(config, transport=transport)
+    gateway.deadline = time.monotonic() + 10
+    request = b'{"model":"test-model"}'
+    assert gateway.request('/responses', request)[0] == 200
+    assert gateway.request('/responses', request)[0] == 200
+    assert gateway.request('/responses', request)[0] == 429
+    assert len(forwarded) == 2
+    summary = gateway.summary()
+    assert summary['usage'][field] is None
+    assert summary['usage_observed'][field] == {'known': 1, 'missing': 1}
+    assert summary['denied_reasons'] == {f'{field[:-7]}_token_budget_exhausted': 1}
+
+
 def test_no_forwarded_requests_are_not_classified_as_model_usage():
     config = InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED", 1, 10,
                              Asset(b"profile", "text"), "responses")
@@ -152,13 +180,13 @@ def test_no_forwarded_requests_are_not_classified_as_model_usage():
     assert gateway.summary()["run_kind"] == "model_protocol_test"
 
 
-def test_credential_stays_out_of_public_identity_and_profile_requires_tls(tmp_path, monkeypatch):
+def test_credential_stays_out_of_public_identity_and_profile_records_http_or_https(tmp_path, monkeypatch):
     source = Path(tmp_path / "profile.toml")
     source.write_text('''schema_version = 1
 wire_api = "responses"
 base_url = "https://example.invalid/v1"
 model = "test-model"
-api_key_env = "LAYOUT_BENCH_TEST_KEY"
+api_key_env = "ICLAYOUT_BENCH_TEST_KEY"
 max_requests = 2
 request_timeout_seconds = 5
 max_input_tokens = 100
@@ -173,8 +201,20 @@ max_wall_seconds = 120
     assert gateway.public["max_input_tokens"] == 100
     assert gateway.public["max_output_tokens"] == 50
     assert gateway.public["max_wall_seconds"] == 120
-    source.write_text(source.read_text().replace("https://", "http://"))
-    with pytest.raises(ValueError, match="HTTPS"):
+    # Explicit proxy route is part of the profile; credentials cannot hide in it.
+    original = source.read_text()
+    proxy_url = 'http://localhost:8123'
+    source.write_text(original + f'\nproxy_url = "{proxy_url}"\n')
+    assert ResponsesGateway(load_inference_config(source)).public['proxy_url'] == proxy_url
+    for invalid in ('socks5://localhost:8123', 'http://user:secret@localhost:8123',
+                    'http://localhost:8123/path', 'http://localhost:0'):
+        source.write_text(original + f'\nproxy_url = "{invalid}"\n')
+        with pytest.raises(ValueError, match='proxy'):
+            load_inference_config(source)
+    source.write_text(original.replace("https://", "http://"))
+    assert ResponsesGateway(load_inference_config(source)).public['transport'] == 'http'
+    source.write_text(source.read_text().replace("http://", "ftp://"))
+    with pytest.raises(ValueError, match=r"HTTP\(S\)"):
         load_inference_config(source)
 
 
@@ -184,7 +224,7 @@ def test_profile_rejects_unknown_wire_adapter(tmp_path):
 wire_api = "unknown"
 base_url = "https://example.invalid/v1"
 model = "test-model"
-api_key_env = "LAYOUT_BENCH_TEST_KEY"
+api_key_env = "ICLAYOUT_BENCH_TEST_KEY"
 max_requests = 2
 request_timeout_seconds = 5
 ''')
@@ -197,7 +237,7 @@ def test_profile_requires_an_explicit_wire_family(tmp_path):
     source.write_text('''schema_version = 1
 base_url = "https://example.invalid/v1"
 model = "test-model"
-api_key_env = "LAYOUT_BENCH_TEST_KEY"
+api_key_env = "ICLAYOUT_BENCH_TEST_KEY"
 max_requests = 2
 request_timeout_seconds = 5
 ''')
@@ -311,7 +351,7 @@ def test_non_success_sse_cannot_be_scored_as_a_model_failure(body):
 
 
 def test_multiline_sse_and_standalone_compaction():
-    from benchmarking.inference import response_semantics
+    from layout_eval.inference import response_semantics
 
     body = b': keepalive\r\nevent: response.completed\r\ndata: {"type":"response.completed",\r\ndata: "response":{"status":"completed"}}\r\n\r\n'
     assert response_semantics("/responses", "text/event-stream", body, "responses")["outcome"] == "completed"
@@ -378,7 +418,7 @@ def test_socket_handler_closes_cleanly_on_recursive_json_header(tmp_path):
 
 
 def test_request_and_response_persist_before_forwarding(tmp_path, monkeypatch):
-    from benchmarking.recorder import RecordingError, RunRecorder
+    from layout_eval.recorder import RecordingError, RunRecorder
 
     recorder = RunRecorder(tmp_path / "run")
     def transport(path, body, timeout):
@@ -404,7 +444,7 @@ def test_request_and_response_persist_before_forwarding(tmp_path, monkeypatch):
 
 
 def test_conflicting_or_nonterminal_sse_tail_is_rejected():
-    from benchmarking.inference import response_semantics
+    from layout_eval.inference import response_semantics
 
     completed = b'data: {"type":"response.completed","response":{"status":"completed"}}\n\n'
     for tail in (completed, b'data: {"type":"response.created"}\n\n'):
@@ -413,3 +453,69 @@ def test_conflicting_or_nonterminal_sse_tail_is_rejected():
     unicode_message = '{"type":"response.completed","response":{"status":"completed","text":"a\u2028b"}}'
     assert response_semantics("/responses", "text/event-stream", ('data: '+unicode_message+'\n\n').encode(),
                               "responses")["outcome"] == "completed"
+
+
+# Messages is a second real wire family. Expectations follow the published
+# message_start -> cumulative message_delta -> message_stop contract; transport
+# is the only fake. Protect terminal validation, usage accounting and isolation.
+@pytest.mark.parametrize('streaming', [False, True])
+def test_messages_terminal_usage_and_client_tool_isolation(streaming):
+    from layout_eval.messages import MessagesWireAdapter
+
+    adapter = MessagesWireAdapter()
+    request = {'model': 'test-model', 'max_tokens': 32,
+               'messages': [{'role': 'user', 'content': 'hello'}],
+               'tools': [{'name': 'run_command', 'input_schema': {'type': 'object'}}]}
+    validated = adapter.validate_request('/v1/messages', json.dumps(request).encode(), request['model'])
+    assert json.loads(validated) == request
+    wire = adapter.prepare_request('/v1/messages', validated, request['model'], 'fixture-secret')
+    assert wire.headers['x-api-key'] == 'fixture-secret' and wire.path == '/v1/messages'
+    message = {'type': 'message', 'role': 'assistant', 'content': [], 'stop_reason': 'end_turn',
+               'usage': {'input_tokens': 5, 'output_tokens': 7,
+                         'cache_read_input_tokens': 3, 'cache_creation_input_tokens': 2}}
+    if streaming:
+        initial = {**message, 'stop_reason': None, 'usage': {**message['usage'], 'output_tokens': 1}}
+        events = [{'type': 'message_start', 'message': initial},
+                  {'type': 'message_delta', 'delta': {}, 'usage': {'output_tokens': 4}},
+                  {'type': 'message_delta', 'delta': {'stop_reason': 'end_turn'}, 'usage': {'output_tokens': 7}},
+                  {'type': 'message_stop'}]
+        body = ''.join('event: ' + event['type'] + '\ndata: ' + json.dumps(event) + '\n\n' for event in events).encode()
+        media = 'text/event-stream'
+        with pytest.raises(ValueError, match='Truncated'):
+            adapter.response_semantics('/v1/messages', media, body[:-1])
+    else:
+        body, media = json.dumps(message).encode(), 'application/json'
+    verdict = adapter.response_semantics('/v1/messages', media, body)
+    assert verdict['outcome'] == 'completed'
+    assert verdict['usage']['input_tokens'] == 5 + 3 + 2
+    assert verdict['usage']['output_tokens'] == 7
+    assert verdict['usage']['cached_input_tokens'] == 3
+    assert verdict['usage']['cost'] is None
+    request['tools'] = [{'type': 'web_search_20250305', 'name': 'web_search'}]
+    with pytest.raises(ValueError, match='client-executed'):
+        adapter.validate_request('/v1/messages', json.dumps(request).encode(), request['model'])
+    request['tools'] = []
+    request['messages'][0]['content'] = [{'type': 'image', 'source': {'type': 'url', 'url': 'https://remote.invalid/a'}}]
+    with pytest.raises(ValueError, match='inline'):
+        adapter.validate_request('/v1/messages', json.dumps(request).encode(), request['model'])
+
+
+@pytest.mark.parametrize(('reason', 'outcome'), [('max_tokens', 'budget_truncated'),
+                                               ('refusal', 'content_filtered'), ('tool_use', 'completed'),
+                                               ('unknown', 'incomplete_error')])
+def test_messages_stop_reason_is_independent_of_http_success(reason, outcome):
+    from layout_eval.messages import MessagesWireAdapter
+
+    body = json.dumps({'type': 'message', 'stop_reason': reason}).encode()
+    assert MessagesWireAdapter().response_semantics('/v1/messages', 'application/json', body)['outcome'] == outcome
+
+
+def test_messages_rejects_unsupported_context_edits_without_rewriting_requests():
+    # Gateway policy rejects unsupported conversation edits. Harness-specific
+    # compatibility transformations belong to the externally supplied harness.
+    from layout_eval.messages import MessagesWireAdapter
+
+    request = {'model': 'test-model', 'messages': [{'role': 'user', 'content': 'hello'}], 'max_tokens': 10,
+               'context_management': {'edits': [{'type': 'clear_thinking_20251015', 'keep': 'all'}]}}
+    with pytest.raises(ValueError, match='allowed fields'):
+        MessagesWireAdapter().validate_request('/v1/messages', json.dumps(request).encode(), request['model'])

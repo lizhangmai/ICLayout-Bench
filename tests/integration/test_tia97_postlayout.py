@@ -10,7 +10,7 @@ from itertools import pairwise
 from pathlib import Path
 
 import pytest
-from helpers.case_config import standalone_config
+from helpers.case_config import calibration_limits, standalone_config
 from helpers.scoring import (
     assert_characterization_unscored,
     assert_layout_score,
@@ -21,17 +21,18 @@ from helpers.spice_raw import output_rows
 from helpers.stimuli import assert_ac_stimuli, command, number
 from helpers.stimuli import testbench as declared_testbench
 
-from benchmarking.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
-from benchmarking.hbt import convert_klayout_netlist
-from benchmarking.prepare_support import prepare_support
 from benchmarking.tasks import load_task
-from benchmarking.toolchains import load_toolchain
+from layout_eval.evaluate import run_evaluation
+from layout_eval.hbt import convert_klayout_netlist
+from layout_eval.prepare_support import prepare_support
+from layout_eval.toolchains import load_toolchain
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-CASE = ROOT / "tasks/ihp-sg13g2/TO_Apr2025/cases/97_GHZ_LINEAR_TIA"
+PUBLIC_ROOT = ROOT
+CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/TO_Apr2025/cases/97_GHZ_LINEAR_TIA"
 TOP = "FMD_QNC_01_LIN_TIA"
 PORTS = ["RFIN", "RFOUT", "VCC1", "VCC2", "VCC3", "VSS"]
 
@@ -42,11 +43,11 @@ def environment(tmp_path_factory):
     task = load_task(CASE / "case.toml")
     task.materialize(root / "case")
     config = (CASE / "case.toml").read_text()
-    image = os.environ.get("LAYOUT_BENCH_TEST_IMAGE", "layout-bench-tools:local")
+    image = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
     for profile, name in [("klayout", "klayout"), ("magic", "magic"),
                           ("hbt-models", "hbt-models")]:
-        prepare_support(ROOT / "third_party/IHP-Open-PDK",
-                        f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}",
+        prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK",
+                        f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}",
                         root / name, compiler_image=image)
         config = config.replace(f"build/support/tia97-{name}", str(root / name))
     path = root / "case/case.toml"
@@ -111,18 +112,16 @@ def ideal_body_netlist(source):
 
 
 def check_dc_linearity(report, directory, task):
-    scope = json.loads(task.evaluation_inputs()["input:pex_scope"].content)
-    linearity = scope["linearity"]
-    lower, upper = linearity["current_range_a"]
-    step = linearity["step_a"]
     metric = next(metric for metric in task.evaluation.metrics
-                  if metric.id == linearity["metric_id"])
-    assert metric.unit == linearity["metric_unit"] == "percent"
+                  if metric.id == "linearity_error_pct")
+    assert metric.unit == "percent"
     limit = metric.upper
     for specification in task.evaluation.jobs:
         if specification.stage != "simulate":
             continue
         rows = output_rows(report, directory, specification.id, "dc")
+        sweep = command(declared_testbench(task, specification.id), "dc")
+        lower, upper, step = map(number, sweep[-3:])
         expected_points = round((upper - lower) / step) + 1
         assert len(rows) == expected_points
         currents = [float(row["i(vsense)"].real) for row in rows]
@@ -276,10 +275,7 @@ def test_finite_substrate_tap_calibration(environment, tmp_path):
     assert finite["outcome"] == ideal["outcome"] == "passed"
     assert_characterization_unscored(finite)
     assert_characterization_unscored(ideal)
-    scope = json.loads(task.evaluation_inputs()["input:pex_scope"].content)
-    assert scope["source_boundary"]["global_ground_alias_forbidden"] is True
-    assert scope["calibration"]["declared_metrics_unchanged"] is True
-    limit = scope["calibration"]["maximum_relative_difference"]
+    limit = calibration_limits(CASE)["relative"]
     for specification in task.evaluation.jobs:
         if specification.stage != "simulate":
             continue

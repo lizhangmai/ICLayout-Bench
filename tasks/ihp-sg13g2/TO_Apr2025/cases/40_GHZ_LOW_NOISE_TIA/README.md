@@ -11,7 +11,7 @@ ordered interface is `RFin RFout VSS vcc1 vcc2 vcc3`.
 Qualification covers the nominal 1 MHz to
 100 MHz transfer, bias and supply-power behavior at three input-current
 conditions. The extraction boundary and its substrate treatment are recorded
-in [materials/pex_scope.json](materials/pex_scope.json).
+in the [problem](problem.md#physical-requirements) and the calibration below.
 
 ## Files
 
@@ -22,8 +22,7 @@ in [materials/pex_scope.json](materials/pex_scope.json).
 | [materials/circuit.cdl](materials/circuit.cdl) | Strict LVS netlist |
 | [materials/circuit.spice](materials/circuit.spice) | Ready-to-use pre-layout simulator netlist |
 | [materials/testbench.spice](materials/testbench.spice) | Shared nominal operating-point and AC testbench |
-| [materials/pex_scope.json](materials/pex_scope.json) | Candidate PEX and calibration boundary |
-| [Collection LICENSE](../../LICENSE) | Shared terms, delivered as `materials/LICENSE` |
+| [Collection LICENSE](../../LICENSE) | Collection distribution terms; excluded from solver inputs |
 | [reference/FDM_QNC_00_LN_TIA.gds](reference/FDM_QNC_00_LN_TIA.gds) | Qualified reference layout, top cell `FDM_QNC_00_LN_TIA` |
 
 ## Reference Results
@@ -59,18 +58,48 @@ are explicit grading choices, with the acceptance limits checked separately.
 The fixed absolute area target is a feasible envelope demonstrated by the
 reference layout, rather than a ratio to the reference or a claim of optimality.
 
+The [HBT diagnostic policy](../../../../../docs/tools.md#hbt-core-simulation-support)
+checks Magic compact-contact warnings against native device records before
+requiring complete candidate graph validation. The reference report retains
+the original diagnostics, their review and the final HBT/RC mapping.
+
+Coefficient 5 reflects three HBT stages with separate supplies and
+interstage parasitics across the declared input-current conditions.
+
+### Calibration limits
+
+Run the same source deck at all three input-current points with the finite
+source tap, then change only XSUBTAP to R=1e-6. Compare input/output bias,
+all three supply currents, total power and both transimpedance measurements.
+The native compact-netlist control uses candidate extraction with tap cards
+disabled. These are source/model controls, not alternative layout acceptance.
+The regression also translates the complete reference by 13 um in X and
+17 um in Y and compares area, transfer, bias and power; the relative
+repeatability tolerance is 1e-3.
+
+The following maintainer regression limits are read by the reproduction tests;
+they do not add solver requirements.
+
+| Comparison | Unit | Maximum difference |
+| --- | --- | --- |
+| `relative` | 1 | 0.001 |
+
 ## Reproduce
+
+These operator commands require the installed `ICLayout-Bench-Private` package.
+Run preparation from the Public checkout; run any `tests/integration/` commands
+from the Private checkout using that environment.
 
 Prepare the image and PDK resources using the shared
 [tools guide](../../../../../docs/tools.md#manual-tools). Run from the repository
 root and choose a fresh output directory for each reproduction:
 
 ```bash
-uv run --locked python scripts/public_preview.py prepare \
+python -m layout_eval.preview prepare \
   --case 40_GHZ_LOW_NOISE_TIA \
   --output build/runs/public-preview-40_GHZ_LOW_NOISE_TIA-01/prepared \
-  --image layout-bench-tools:local
-uv run --locked python scripts/public_preview.py run \
+  --image iclayout-bench-tools:local
+python -m layout_eval.preview run \
   --prepared build/runs/public-preview-40_GHZ_LOW_NOISE_TIA-01/prepared \
   --output build/runs/public-preview-40_GHZ_LOW_NOISE_TIA-01/run
 ```
@@ -81,7 +110,7 @@ To reproduce pre-layout/post-layout calibration and the reference acceptance
 regressions, run:
 
 ```bash
-uv run --locked pytest -m acceptance_eda \
+python -m pytest -m acceptance_eda \
   tests/integration/test_to_apr2025_40ghz.py
 ```
 

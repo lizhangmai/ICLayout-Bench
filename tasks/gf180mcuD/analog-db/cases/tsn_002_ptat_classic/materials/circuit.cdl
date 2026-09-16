@@ -1,0 +1,16 @@
+* Derived from analog-db tsn_002_ptat_classic, fixed commit
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE, including CODA-Team attribution.
+* Original four-MOS W/L/m and output-connected body retained.
+* Added three-MOS startup; physical 20 kohm poly resistor and isolated well.
+.subckt tsn_002_ptat_classic vdd vout vss
+XR0 vout vss vss ppolyf_u_1k r_width=2u r_length=40u m=1
+MM0 vmir net1 vout vout nfet_03v3_dn w=8u l=1u m=1
+XM1 net1 net1 vss vss nfet_03v3 w=2u l=1u m=1
+XM3 vmir vmir vdd vdd pfet_03v3 w=2u l=1u m=1
+XM4 net1 vmir vdd vdd pfet_03v3 w=2u l=1u m=1
+* Added MOS startup with self-disabling injection path; original core W/L and body unchanged.
+XSTARTP startup vss vdd vdd pfet_03v3 w=0.42u l=20u m=1
+XSTARTN startup net1 vss vss nfet_03v3 w=2u l=0.28u m=1
+XINJECT net1 startup vdd vss nfet_03v3 w=0.42u l=1u m=1
+.ends tsn_002_ptat_classic

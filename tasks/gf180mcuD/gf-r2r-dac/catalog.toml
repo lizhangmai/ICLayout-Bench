@@ -1,0 +1,4 @@
+schema_version = 3
+cases = [
+    { id = "gf180mcuD.gf-r2r-dac.r2r", config_path = "cases/r2r/case.toml" },
+]

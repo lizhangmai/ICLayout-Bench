@@ -1,0 +1,939 @@
+schema_version = 2
+kind = "layout_case"
+id = "ihp-sg13g2.analog-db.ia_006_fan_chopper_cmfb"
+title = "Clocked Capacitive Instrumentation Amplifier with Transistor CMFB"
+status = "qualified"
+
+[task]
+coefficient = 10
+kind = "netlist_to_gds"
+family = "ihp-sg13g2_ia_006_fan_chopper_cmfb"
+environment = "ihp-sg13g2-ia_006_fan_chopper_cmfb-nominal-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "0e016c54429e4a1c1ab2608dc97babf6d4d511cac4684d26b2ed5a5b24efa1e1"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+sha256 = "e5049836e133e951c36c34dd5eed0fe1c2492f1671930153c97cf4ccae786f1d"
+subcircuit = "ia_006_fan_chopper_cmfb"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "fab7e5093d129e451f3d1f3203860b3884b42e0d5fb09aa464b3d49e85edecfd"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "0bcfd15c384f9f2a804e139cf1b9da63ae8915d6cc857b8001cc07c85630968c"
+
+[task.constraints]
+schema_version = 1
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 3000
+max_height_um = 700
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "ia_006_fan_chopper_cmfb"
+max_bytes = 10485760
+
+[task.evaluation]
+schema_version = 1
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout-v1"
+area_metric = "functional_area"
+area_target = 1200000
+area_zero = 4800000
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vinp",
+    "vinn",
+    "voutp",
+    "voutn",
+    "vref",
+    "clk_chin",
+    "clk_chin_not",
+    "clk_chfb",
+    "clk_chfb_not",
+    "clk_chout",
+    "clk_chout_not",
+    "vdd",
+    "vss",
+    "core__vb1",
+    "core__vb2",
+    "core__vb3",
+    "core__vb4",
+    "vref_cm",
+    "core__vsum_p",
+    "core__vsum_n",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-12
+step_v = 0.01
+
+[task.evaluation.jobs.parameters.measurements]
+dc_cm_v = "V"
+dc_dm_v = "V"
+baseline_v = "V"
+plateau_v = "V"
+return_v = "V"
+baseline_error_v = "V"
+return_error_v = "V"
+high_drift_v = "V"
+return_drift_v = "V"
+ripple_rms_v = "V"
+ripple_pp_v = "V"
+cm_mean_v = "V"
+cm_min_v = "V"
+cm_max_v = "V"
+sum_cm_v = "V"
+sum_error_v = "V"
+gain_vv = "V/V"
+dc_power_w = "W"
+mean_power_w = "W"
+clock_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-12
+step_v = -0.01
+
+[task.evaluation.jobs.parameters.measurements]
+dc_cm_v = "V"
+dc_dm_v = "V"
+baseline_v = "V"
+plateau_v = "V"
+return_v = "V"
+baseline_error_v = "V"
+return_error_v = "V"
+high_drift_v = "V"
+return_drift_v = "V"
+ripple_rms_v = "V"
+ripple_pp_v = "V"
+cm_mean_v = "V"
+cm_min_v = "V"
+cm_max_v = "V"
+sum_cm_v = "V"
+sum_error_v = "V"
+gain_vv = "V/V"
+dc_power_w = "W"
+mean_power_w = "W"
+clock_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 5e-12
+step_v = 0.01
+
+[task.evaluation.jobs.parameters.measurements]
+dc_cm_v = "V"
+dc_dm_v = "V"
+baseline_v = "V"
+plateau_v = "V"
+return_v = "V"
+baseline_error_v = "V"
+return_error_v = "V"
+high_drift_v = "V"
+return_drift_v = "V"
+ripple_rms_v = "V"
+ripple_pp_v = "V"
+cm_mean_v = "V"
+cm_min_v = "V"
+cm_max_v = "V"
+sum_cm_v = "V"
+sum_error_v = "V"
+gain_vv = "V/V"
+dc_power_w = "W"
+mean_power_w = "W"
+clock_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 5e-12
+step_v = -0.01
+
+[task.evaluation.jobs.parameters.measurements]
+dc_cm_v = "V"
+dc_dm_v = "V"
+baseline_v = "V"
+plateau_v = "V"
+return_v = "V"
+baseline_error_v = "V"
+return_error_v = "V"
+high_drift_v = "V"
+return_drift_v = "V"
+ripple_rms_v = "V"
+ripple_pp_v = "V"
+cm_mean_v = "V"
+cm_min_v = "V"
+cm_max_v = "V"
+sum_cm_v = "V"
+sum_error_v = "V"
+gain_vv = "V/V"
+dc_power_w = "W"
+mean_power_w = "W"
+clock_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "gain_vv"
+category = "performance"
+observations = [
+    "condition_0:gain_vv",
+    "condition_1:gain_vv",
+    "condition_2:gain_vv",
+    "condition_3:gain_vv",
+]
+unit = "V/V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 18.5
+upper = 21
+zero_lower = 0
+zero_upper = 30
+
+[[task.evaluation.metrics]]
+id = "baseline_error_v"
+category = "performance"
+observations = [
+    "condition_0:baseline_error_v",
+    "condition_1:baseline_error_v",
+    "condition_2:baseline_error_v",
+    "condition_3:baseline_error_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 5e-05
+zero_lower = 0
+zero_upper = 0.005
+
+[[task.evaluation.metrics]]
+id = "return_error_v"
+category = "performance"
+observations = [
+    "condition_0:return_error_v",
+    "condition_1:return_error_v",
+    "condition_2:return_error_v",
+    "condition_3:return_error_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 5e-05
+zero_lower = 0
+zero_upper = 0.005
+
+[[task.evaluation.metrics]]
+id = "high_drift_v"
+category = "performance"
+observations = [
+    "condition_0:high_drift_v",
+    "condition_1:high_drift_v",
+    "condition_2:high_drift_v",
+    "condition_3:high_drift_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 1e-05
+zero_lower = 0
+zero_upper = 0.002
+
+[[task.evaluation.metrics]]
+id = "return_drift_v"
+category = "performance"
+observations = [
+    "condition_0:return_drift_v",
+    "condition_1:return_drift_v",
+    "condition_2:return_drift_v",
+    "condition_3:return_drift_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 1e-05
+zero_lower = 0
+zero_upper = 0.002
+
+[[task.evaluation.metrics]]
+id = "ripple_rms_v"
+category = "performance"
+observations = [
+    "condition_0:ripple_rms_v",
+    "condition_1:ripple_rms_v",
+    "condition_2:ripple_rms_v",
+    "condition_3:ripple_rms_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 0.015
+zero_lower = 0
+zero_upper = 0.1
+
+[[task.evaluation.metrics]]
+id = "ripple_pp_v"
+category = "performance"
+observations = [
+    "condition_0:ripple_pp_v",
+    "condition_1:ripple_pp_v",
+    "condition_2:ripple_pp_v",
+    "condition_3:ripple_pp_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 0.12
+zero_lower = 0
+zero_upper = 0.6
+
+[[task.evaluation.metrics]]
+id = "cm_mean_v"
+category = "performance"
+observations = [
+    "condition_0:cm_mean_v",
+    "condition_1:cm_mean_v",
+    "condition_2:cm_mean_v",
+    "condition_3:cm_mean_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "target"
+aggregation = "max"
+lower = 0.59
+upper = 0.63
+zero_lower = 0.45
+zero_upper = 0.8
+
+[[task.evaluation.metrics]]
+id = "cm_min_v"
+category = "performance"
+observations = [
+    "condition_0:cm_min_v",
+    "condition_1:cm_min_v",
+    "condition_2:cm_min_v",
+    "condition_3:cm_min_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "target"
+aggregation = "max"
+lower = 0.57
+upper = 0.65
+zero_lower = 0.45
+zero_upper = 0.8
+
+[[task.evaluation.metrics]]
+id = "cm_max_v"
+category = "performance"
+observations = [
+    "condition_0:cm_max_v",
+    "condition_1:cm_max_v",
+    "condition_2:cm_max_v",
+    "condition_3:cm_max_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "target"
+aggregation = "max"
+lower = 0.57
+upper = 0.65
+zero_lower = 0.45
+zero_upper = 0.8
+
+[[task.evaluation.metrics]]
+id = "sum_cm_v"
+category = "performance"
+observations = [
+    "condition_0:sum_cm_v",
+    "condition_1:sum_cm_v",
+    "condition_2:sum_cm_v",
+    "condition_3:sum_cm_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "target"
+aggregation = "max"
+lower = 0.59
+upper = 0.61
+zero_lower = 0.45
+zero_upper = 0.75
+
+[[task.evaluation.metrics]]
+id = "sum_error_v"
+category = "performance"
+observations = [
+    "condition_0:sum_error_v",
+    "condition_1:sum_error_v",
+    "condition_2:sum_error_v",
+    "condition_3:sum_error_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 0.0003
+zero_lower = 0
+zero_upper = 0.01
+
+[[task.evaluation.metrics]]
+id = "mean_power_w"
+category = "performance"
+observations = [
+    "condition_0:mean_power_w",
+    "condition_1:mean_power_w",
+    "condition_2:mean_power_w",
+    "condition_3:mean_power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 0.0004
+zero_lower = 0
+zero_upper = 0.0008
+
+[[task.evaluation.metrics]]
+id = "clock_power_w"
+category = "performance"
+observations = [
+    "condition_0:clock_power_w",
+    "condition_1:clock_power_w",
+    "condition_2:clock_power_w",
+    "condition_3:clock_power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "target"
+aggregation = "max"
+lower = 0
+upper = 2.5e-08
+zero_lower = 0
+zero_upper = 1e-06
+
+[[task.evaluation.metrics]]
+id = "dc_cm_v"
+category = "performance"
+observations = [
+    "condition_0:dc_cm_v",
+    "condition_1:dc_cm_v",
+    "condition_2:dc_cm_v",
+    "condition_3:dc_cm_v",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "dc_dm_v"
+category = "performance"
+observations = [
+    "condition_0:dc_dm_v",
+    "condition_1:dc_dm_v",
+    "condition_2:dc_dm_v",
+    "condition_3:dc_dm_v",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "baseline_v"
+category = "performance"
+observations = [
+    "condition_0:baseline_v",
+    "condition_1:baseline_v",
+    "condition_2:baseline_v",
+    "condition_3:baseline_v",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "plateau_v"
+category = "performance"
+observations = [
+    "condition_0:plateau_v",
+    "condition_1:plateau_v",
+    "condition_2:plateau_v",
+    "condition_3:plateau_v",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "return_v"
+category = "performance"
+observations = [
+    "condition_0:return_v",
+    "condition_1:return_v",
+    "condition_2:return_v",
+    "condition_3:return_v",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "dc_power_w"
+category = "performance"
+observations = [
+    "condition_0:dc_power_w",
+    "condition_1:dc_power_w",
+    "condition_2:dc_power_w",
+    "condition_3:dc_power_w",
+]
+unit = "W"
+direction = "maximize"
+aggregation = "max"
+
+[toolchain]
+schema_version = 1
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 600
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+support = "build/support/input-pair-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+support = "build/support/input-pair-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/input-pair-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+capacitance_threshold_ff = 0
+timeout_seconds = 600
+gds_readonly = false
+grid_subdivision = 2
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 120
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-res-models"
+
+[toolchain.backends.simulation.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/analog-res-models"
+timeout_seconds = 900
+
+[[assets]]
+path = "reference/ia_006_fan_chopper_cmfb.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "ff16f3a5c68e69d59c4def4e79881c1253f0631f4962f6cf9e37c7ca681b67ad"
+
+[qualification]
+reference = "reference/ia_006_fan_chopper_cmfb.gds"
+evidence = "README.md"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/ia_006_fan_chopper_cmfb"

@@ -1,6 +1,6 @@
 import pytest
 
-from benchmarking.toolchains import load_toolchain
+from layout_eval.toolchains import load_toolchain
 
 pytestmark = pytest.mark.unit
 

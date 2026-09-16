@@ -1,4 +1,4 @@
-"""Small optional ``responses``-wire client for the Layout-Bench socket.
+"""Small optional ``responses``-wire client for the ICLayout-Bench socket.
 
 This file is intentionally dependency-free so a harness can copy it into its
 reviewed ``files`` without installing an Agent framework.  The host owns the

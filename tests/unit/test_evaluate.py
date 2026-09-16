@@ -5,9 +5,9 @@ from typing import ClassVar
 
 import pytest
 
-from benchmarking.evaluate import JobResult, Measurement, run_evaluation
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
+from layout_eval.evaluate import JobResult, Measurement, run_evaluation
 
 pytestmark = pytest.mark.unit
 

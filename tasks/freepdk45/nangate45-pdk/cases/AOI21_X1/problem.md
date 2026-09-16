@@ -6,7 +6,7 @@ Implement ZN = NOT (A OR (B1 AND B2)) using the supplied VTL transistors. Preser
 
 ## Inputs and Interface
 
-Ordered SPICE ports: `A B1 B2 ZN VDD VSS`. Names are case-insensitive; different names are not interchangeable. The delivered inputs are this problem, `materials/circuit.spice`, `materials/testbench.spice`, `materials/LICENSE` and `materials/NOTICE`. The model and extraction resources are supplied as reviewed support bundles. Reference geometry and qualification evidence are maintainer materials, excluded from solver inputs.
+Ordered SPICE ports: `A B1 B2 ZN VDD VSS`. Names are case-insensitive; different names are not interchangeable. The delivered inputs are this problem, `materials/circuit.spice`, and `materials/testbench.spice`. The model and extraction resources are supplied as reviewed support bundles. Reference geometry and qualification evidence are maintainer materials, excluded from solver inputs.
 
 ## Operating Conditions
 

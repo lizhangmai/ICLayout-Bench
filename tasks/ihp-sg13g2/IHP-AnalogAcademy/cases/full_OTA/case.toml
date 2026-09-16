@@ -6,14 +6,14 @@ status = "qualified"
 
 # Solver inputs, answer contract, and nominal post-layout requirements.
 [task]
-coefficient = 4
+coefficient = 6
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_two_stage_ota"
 environment = "ihp-sg13g2-full-ota-rc-tt"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "b44878cac37632d6ad71f3ed30ca07f3065f9d3790db5bc52aabb1b625a2464b"
+sha256 = "6fa91e90a344586542014e8fa2176731e0c01c87e1ceed6c13dd6718bf69b997"
 format = "text"
 
 [task.inputs.netlist]
@@ -31,12 +31,6 @@ format = "spice"
 path = "materials/testbench.spice"
 sha256 = "62851f9d9bf6754a4d9b70ca2d9d63a0fd6241ae5e65b289fc5e2e8882469bea"
 format = "spice"
-
-[task.inputs.license]
-collection_source = "LICENSE"
-path = "materials/LICENSE"
-sha256 = "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-format = "text"
 
 [task.constraints]
 schema_version = 1
@@ -203,7 +197,7 @@ schema_version = 1
 [toolchain.backends.artifact]
 type = "klayout-docker"
 [toolchain.backends.artifact.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "artifact"
 
 [toolchain.backends.drc]
@@ -211,7 +205,7 @@ type = "klayout-docker"
 [toolchain.backends.drc.support_profiles]
 support = "klayout"
 [toolchain.backends.drc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "drc"
 support = "build/support/full-ota-klayout-spice"
 profile = "drc-upstream.json"
@@ -222,7 +216,7 @@ type = "klayout-docker"
 [toolchain.backends.lvs.support_profiles]
 support = "klayout"
 [toolchain.backends.lvs.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "lvs"
 support = "build/support/full-ota-klayout-spice"
 profile = "lvs-upstream.json"
@@ -232,7 +226,7 @@ timeout_seconds = 600
 type = "magic-rc-docker"
 support_profiles = { support = "magic" }
 [toolchain.backends.rc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/full-ota-magic"
 technology = "magic/ihp-sg13g2.tech"
 tech_name = "ihp-sg13g2"
@@ -243,14 +237,14 @@ timeout_seconds = 600
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
 [toolchain.backends.geometry.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 timeout_seconds = 120
 
 [toolchain.backends.simulation]
 type = "ngspice-docker"
 support_profiles = { support = "analog-models" }
 [toolchain.backends.simulation.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/full-ota-models"
 timeout_seconds = 600
 

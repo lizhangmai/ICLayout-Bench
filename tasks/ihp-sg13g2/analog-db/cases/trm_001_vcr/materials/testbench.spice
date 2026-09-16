@@ -1,0 +1,50 @@
+* Native pullup/shunt control and loaded recovery. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include parameters.spice
+.include dut.spice
+.temp {temp_c}
+.option rshunt=1e12 reltol=1e-5 abstol=1e-14 vntol=1e-8 method=gear maxord=2
+VDD vdd 0 {supply_v}
+VCODE code 0 dc 0.4 pulse(0.3 0.5 2u 20n 20n 8u 16u)
+RLOAD vout 0 {load_ohm}
+CLOAD vout 0 1p
+XDUT vdd code vout 0 trm_001_vcr
+.control
+set numdgt=12
+op
+let output_v=v(vout)
+let power_w=-v(vdd)*i(VDD)
+print output_v power_w
+write op.raw v(vout) i(VDD)
+dc VCODE 0.2 0.8 0.002
+meas dc high_v find v(vout) at=0.2
+meas dc low_v find v(vout) at=0.8
+meas dc mid_v find v(vout) at=0.4
+meas dc knee_code_v when v(vout)=0.2 fall=1
+let shunt_g=(-i(VDD)-v(vout)/@rload[resistance])/v(vout)
+meas dc conductance_04_s find shunt_g at=0.4
+meas dc conductance_06_s find shunt_g at=0.6
+let conductance_ratio=conductance_06_s/conductance_04_s
+print conductance_ratio
+let slope=deriv(v(vout))
+let maximum_slope=vecmax(slope)
+let span_v=high_v-low_v
+print maximum_slope span_v
+write control.raw all
+reset
+tran 2n 18u 0 2n
+meas tran low_mean_v avg v(vout) from=9u to=9.5u
+meas tran high_mean_v avg v(vout) from=17u to=17.5u
+let down_error=abs(v(vout)-low_mean_v)
+let up_error=abs(v(vout)-high_mean_v)
+meas tran recovery_down_v max down_error from=5u to=9.5u
+meas tran recovery_up_v max up_error from=13u to=17.5u
+let supply=-v(vdd)*i(VDD)
+meas tran mean_power_w avg supply from=2u to=18u
+let step_span_v=high_mean_v-low_mean_v
+print step_span_v
+write transient.raw v(vout) v(code) v(vdd) i(VDD)
+quit
+.endc
+.end

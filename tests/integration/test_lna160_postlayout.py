@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 import pytest
-from helpers.case_config import standalone_config
+from helpers.case_config import calibration_limits, standalone_config
 from helpers.scoring import (
     assert_characterization_unscored,
     assert_layout_score,
@@ -18,17 +18,18 @@ from helpers.spice_raw import output_rows
 from helpers.stimuli import assert_ac_stimuli, command, number
 from helpers.stimuli import testbench as declared_testbench
 
-from benchmarking.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
-from benchmarking.hbt import convert_klayout_netlist
-from benchmarking.prepare_support import prepare_support
 from benchmarking.tasks import load_task
-from benchmarking.toolchains import load_toolchain
+from layout_eval.evaluate import run_evaluation
+from layout_eval.hbt import convert_klayout_netlist
+from layout_eval.prepare_support import prepare_support
+from layout_eval.toolchains import load_toolchain
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-CASE = ROOT / "tasks/ihp-sg13g2/TO_Apr2025/cases/160GHz_LNA"
+PUBLIC_ROOT = ROOT
+CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/TO_Apr2025/cases/160GHz_LNA"
 TOP = "LNA160_FOUR_STAGE"
 PORTS = ["IN", "OUT", "VDD", "VSS", "VBIAS"]
 
@@ -39,11 +40,11 @@ def environment(tmp_path_factory):
     task = load_task(CASE / "case.toml")
     task.materialize(root / "case")
     config = (CASE / "case.toml").read_text()
-    image = os.environ.get("LAYOUT_BENCH_TEST_IMAGE", "layout-bench-tools:local")
+    image = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
     for profile, name in [("klayout", "klayout"), ("magic", "magic"),
                           ("hbt-models", "hbt-models")]:
-        prepare_support(ROOT / "third_party/IHP-Open-PDK",
-                        f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}",
+        prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK",
+                        f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}",
                         root / name, compiler_image=image)
         config = config.replace(f"build/support/lna160-{name}", str(root / name))
     path = root / "case/case.toml"
@@ -53,7 +54,7 @@ def environment(tmp_path_factory):
 
 
 def declared_witness() -> Asset:
-    return Asset((CASE / "reference/lna160_four_stage_distinct_rsil_qualified.gds").read_bytes(), "gds")
+    return Asset((CASE / "reference/LNA160_FOUR_STAGE.gds").read_bytes(), "gds")
 
 
 def characterization_plan(task):
@@ -206,13 +207,7 @@ def test_source_finite_and_ideal_body_nominal_calibration(environment, tmp_path)
         name: ideal["jobs"]["nominal"]["measurements"][name]["value"]
         for name in names
     }
-    tolerances = {
-        "vin_bias": 1e-9,
-        "out_bias": 1e-3,
-        "i_vdd": 1e-5,
-        "i_vbias": 1e-5,
-        "gain_db": 0.1,
-    }
+    tolerances = calibration_limits(CASE)
     for name, tolerance in tolerances.items():
         assert ideal_values[name] == pytest.approx(
             finite_values[name], abs=tolerance, rel=0

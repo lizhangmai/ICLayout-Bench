@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -10,7 +11,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.acceptance, pytest.mark.acceptance_f
 
 def _harness_module():
     path = Path(__file__).parents[2] / "tests/fixtures/agents/canonical_harness.py"
-    spec = importlib.util.spec_from_file_location("layout_bench_canonical_harness", path)
+    spec = importlib.util.spec_from_file_location("iclayout_bench_canonical_harness", path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
@@ -61,6 +62,35 @@ def test_adapter_process_rejects_malformed_json_response(tmp_path, monkeypatch):
         process.request({"schema_version": 1, "type": "request"})
 
 
+# Existing adapters always write complete lines and read promptly. These real
+# subprocesses protect the declared timeout across both pipe I/O directions.
+def test_adapter_process_timeout_covers_partial_response(tmp_path, monkeypatch):
+    # The JSONL adapter timeout covers a complete exchange, not only readiness for one byte.
+    module = _harness_module()
+    monkeypatch.setattr(module, "WORKSPACE", tmp_path)
+    adapter = tmp_path / "adapter.py"
+    adapter.write_text(
+        "import sys\n"
+        "sys.stdout.write('{')\n"
+        "sys.stdout.flush()\n"
+        "sys.stdin.read()\n"
+    )
+    with module.AdapterProcess([sys.executable, str(adapter)], timeout=.1) as process, pytest.raises(
+            TimeoutError, match="response timed out"):
+        process.request({"schema_version": 1, "type": "request"})
+
+
+def test_adapter_process_timeout_covers_blocked_request_write(tmp_path, monkeypatch):
+    # A non-reading adapter must not make the bounded request path block before its deadline.
+    module = _harness_module()
+    monkeypatch.setattr(module, "WORKSPACE", tmp_path)
+    adapter = tmp_path / "adapter.py"
+    adapter.write_text("import time\ntime.sleep(1)\n")
+    with module.AdapterProcess([sys.executable, str(adapter)], timeout=.1) as process, pytest.raises(
+            TimeoutError, match="request timed out"):
+        process.request({"payload": "x" * (module.MAX_ADAPTER_LINE_BYTES // 2)})
+
+
 def test_workspace_tool_bounds_output_and_timeout(tmp_path, monkeypatch):
     module = _harness_module()
     monkeypatch.setattr(module, "WORKSPACE", tmp_path)
@@ -72,12 +102,46 @@ def test_workspace_tool_bounds_output_and_timeout(tmp_path, monkeypatch):
         "argv": [sys.executable, "-c", "import time; time.sleep(1)"], "timeout_seconds": .1,
     })
     assert not timeout["ok"] and timeout["timed_out"]
+    # EOF is not process completion: a tool may close both streams and keep
+    # computing. It must still receive the same deadline and failure result.
+    closed = module._tool_result("run_command", {
+        "argv": [sys.executable, "-c", "import os,time; os.close(1); os.close(2); time.sleep(.5)"],
+        "timeout_seconds": .1,
+    })
+    assert not closed["ok"] and closed["timed_out"]
     schema = next(tool for tool in module.TOOLS if tool["name"] == "run_command")["parameters"]
     maximum = schema["properties"]["timeout_seconds"]["maximum"]
     assert not module._tool_result("run_command", {"argv": ["true"], "timeout_seconds": maximum + 1})["ok"]
 
 
-def test_run_executes_tools_and_submits_through_the_fixed_loop(tmp_path, monkeypatch):
+# The former timeout killed only the shell; a child could mutate output later.
+# Observe a child's file effect independently of the harness's reported result.
+def test_workspace_tool_timeout_kills_descendants(tmp_path, monkeypatch):
+    # Bounded tool execution owns the process tree, including descendants that inherit its pipes.
+    module = _harness_module()
+    monkeypatch.setattr(module, "WORKSPACE", tmp_path)
+    started = tmp_path / "started"
+    late = tmp_path / "late"
+    child = (
+        "from pathlib import Path; import time; "
+        f"Path({str(started)!r}).write_text('started'); "
+        "time.sleep(1); "
+        f"Path({str(late)!r}).write_text('late')"
+    )
+    parent = (
+        "import subprocess,sys,time; "
+        f"subprocess.Popen([sys.executable, '-c', {child!r}]); "
+        "print('ready', flush=True); time.sleep(5)"
+    )
+    result = module._run_process([sys.executable, "-c", parent], .5)
+    assert result["timed_out"]
+    assert started.is_file()
+    time.sleep(1.2)
+    assert not late.exists()
+
+
+@pytest.mark.parametrize('stop_reason', ['stop', 'length', 'error'])
+def test_run_executes_tools_and_submits_through_the_fixed_loop(tmp_path, monkeypatch, stop_reason):
     module = _harness_module()
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -99,7 +163,7 @@ def test_run_executes_tools_and_submits_through_the_fixed_loop(tmp_path, monkeyp
                       "from pathlib import Path; Path('marker').write_text('ok')"]}}]},
         {"schema_version": 1, "type": "response", "content": "", "stop_reason": "tool_calls",
          "tool_calls": [{"id": "submit", "name": "submit_layout", "arguments": {}}]},
-        {"schema_version": 1, "type": "response", "content": "done", "stop_reason": "stop"},
+        {"schema_version": 1, "type": "response", "content": "done", "stop_reason": stop_reason},
     ]
     adapter.write_text(
         "import json, sys\n"
@@ -108,7 +172,16 @@ def test_run_executes_tools_and_submits_through_the_fixed_loop(tmp_path, monkeyp
         "    json.loads(line)\n"
         "    print(json.dumps(responses[index - 1]), flush=True)\n"
     )
-    assert module.run([sys.executable, str(adapter)], max_turns=4, adapter_timeout=2) == "stop"
+    # A prior submission must not turn an adapter error/truncation into normal
+    # CLI completion, which the runner would otherwise treat as scoreable.
+    monkeypatch.setattr(sys, 'argv', ['canonical_harness.py', '--max-turns', '4',
+                                     '--adapter-timeout', '2', '--adapter', sys.executable, str(adapter)])
+    if stop_reason == 'stop':
+        module.main()
+    else:
+        with pytest.raises(SystemExit) as error:
+            module.main()
+        assert error.value.code != 0
     assert (workspace / "marker").read_text() == "ok"
 
 

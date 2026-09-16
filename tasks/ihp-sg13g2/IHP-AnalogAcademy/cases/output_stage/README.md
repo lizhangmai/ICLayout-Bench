@@ -21,9 +21,8 @@ input bias and output load defined in [problem.md](problem.md).
 | [materials/circuit.cdl](materials/circuit.cdl) | Authoritative LVS netlist |
 | [materials/circuit.spice](materials/circuit.spice) | Pre-layout simulator netlist |
 | [materials/testbench.spice](materials/testbench.spice) | Bias, load, AC sweep, and measurements |
-| [materials/pex_scope.json](materials/pex_scope.json) | Post-layout extraction boundary and calibration record |
 | [Collection LICENSE](../../LICENSE) | License for the declared circuit materials |
-| [reference/output_stage_qualified.gds](reference/output_stage_qualified.gds) | Qualified feasibility witness, excluded from standard solver inputs |
+| [reference/output_stage.gds](reference/output_stage.gds) | Qualified feasibility witness, excluded from standard solver inputs |
 
 ## Reference Results
 
@@ -46,8 +45,8 @@ All post-layout values satisfy the limits in
 model uses a compact-device body boundary with ideal model rails; explicit taps
 are still checked by LVS. Well/substrate sheet resistance, body coupling, and
 noise are outside this qualification scope. The finite tap versus ideal-rail
-calibration changes the largest declared pre-layout measurement by less than
-1.6 × 10⁻⁵ relative.
+calibration preserves the nominal terminal behavior within the regression
+tolerance below.
 
 The `layout-v1` scoring boundaries are published in
 [problem.md](problem.md#electrical-requirements-and-scoring). Response zero
@@ -57,18 +56,40 @@ are explicit grading choices, with the acceptance limits checked separately.
 The fixed absolute area target is a feasible envelope demonstrated by the
 reference layout, rather than a ratio to the reference or a claim of optimality.
 
+Coefficient 4 reflects a complete compact gain stage with a current-source
+bias replica, compensation capacitor and output-load requirements.
+
+### Calibration limits
+
+Replace both finite source taps by 1e-6 ohm connections and run the same
+source deck, models, temperature and nominal values. Recorded finite/ideal
+output bias is 0.6474679382968 / 0.6474679392507 V; 100 MHz gain is
+1.122446 / 1.122463 V/V and has the largest relative difference. Normalize
+by the absolute finite-source value, with a 1e-30 floor. No scored requirement changes.
+
+The following maintainer regression limits are read by the reproduction tests;
+they do not add solver requirements.
+
+| Comparison | Unit | Maximum difference |
+| --- | --- | --- |
+| `relative` | 1 | 1.6e-05 |
+
 ## Reproduce
+
+These operator commands require the installed `ICLayout-Bench-Private` package.
+Run preparation from the Public checkout; run any `tests/integration/` commands
+from the Private checkout using that environment.
 
 Prepare the image and PDK resources using the shared
 [tools guide](../../../../../docs/tools.md#manual-tools). Run from the repository
 root and choose a fresh output directory for each reproduction:
 
 ```bash
-uv run --locked python scripts/public_preview.py prepare \
+python -m layout_eval.preview prepare \
   --case output_stage \
   --output build/runs/public-preview-output_stage-01/prepared \
-  --image layout-bench-tools:local
-uv run --locked python scripts/public_preview.py run \
+  --image iclayout-bench-tools:local
+python -m layout_eval.preview run \
   --prepared build/runs/public-preview-output_stage-01/prepared \
   --output build/runs/public-preview-output_stage-01/run
 ```
@@ -79,7 +100,7 @@ To reproduce pre-layout/post-layout calibration and the reference acceptance
 regressions, run:
 
 ```bash
-uv run --locked pytest -m acceptance_eda \
+python -m pytest -m acceptance_eda \
   tests/integration/test_output_stage_postlayout.py
 ```
 

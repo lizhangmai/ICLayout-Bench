@@ -7,7 +7,8 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-_SPEC = importlib.util.spec_from_file_location("layout_bench_main", ROOT / "main.py")
+PUBLIC_ROOT = ROOT
+_SPEC = importlib.util.spec_from_file_location("iclayout_bench_main", ROOT / "layout_eval/cli.py")
 _MODULE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_MODULE)
 _run_summary = _MODULE._run_summary
@@ -59,7 +60,7 @@ def test_inference_preflight_never_reports_a_model_call():
         base_url = "https://example.invalid/v1"
         model = "test-model"
         wire_api = "responses"
-        api_key_env = "LAYOUT_BENCH_TEST_KEY"
+        api_key_env = "ICLAYOUT_BENCH_TEST_KEY"
 
     assert _inference_preflight(Profile(), None, False) == {
         "status": "missing_credential",
@@ -67,7 +68,7 @@ def test_inference_preflight_never_reports_a_model_call():
         "endpoint": "https://example.invalid/v1",
         "model": "test-model",
         "wire_api": "responses",
-        "credential_env": "LAYOUT_BENCH_TEST_KEY",
+        "credential_env": "ICLAYOUT_BENCH_TEST_KEY",
         "credential_present": False,
         "harness": None,
     }

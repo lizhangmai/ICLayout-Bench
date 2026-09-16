@@ -18,13 +18,13 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_IMAGE = os.environ.get("LAYOUT_BENCH_TEST_IMAGE", "layout-bench-tools:local")
+DEFAULT_IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
 
 
 def _pytest(marker, image=None):
     environment = os.environ.copy()
     if image:
-        environment["LAYOUT_BENCH_TEST_IMAGE"] = image
+        environment["ICLAYOUT_BENCH_TEST_IMAGE"] = image
     command = [sys.executable, "-m", "pytest", "-m", marker]
     print("+ " + " ".join(command), flush=True)
     subprocess.run(command, cwd=ROOT, env=environment, check=True)
@@ -54,7 +54,7 @@ def _preview(output, image, network, *, skip_build):
 
 
 def _run_preview_pair(image, network):
-    with tempfile.TemporaryDirectory(prefix="layout-bench-acceptance-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="iclayout-bench-acceptance-") as temporary:
         root = Path(temporary)
         _preview(root / "preview-build", image, network, skip_build=False)
         _preview(root / "preview-skip-build", image, network, skip_build=True)
@@ -81,7 +81,7 @@ def main():
         _pytest("acceptance_eda", args.image)
     elif args.suite == "preview":
         if args.output is None:
-            with tempfile.TemporaryDirectory(prefix="layout-bench-acceptance-") as temporary:
+            with tempfile.TemporaryDirectory(prefix="iclayout-bench-acceptance-") as temporary:
                 _preview(Path(temporary) / "preview", args.image, args.network, skip_build=args.skip_build)
         else:
             _preview(args.output, args.image, args.network, skip_build=args.skip_build)

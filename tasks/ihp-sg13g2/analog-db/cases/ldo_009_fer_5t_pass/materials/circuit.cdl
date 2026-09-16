@@ -1,0 +1,37 @@
+* Derived from analog-db ldo_009_fer_5t_pass, fixed snapshot
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Modified: physical passives and explicit taps; Miller compensation retuned from 2 pF to approximately 10 pF.
+.subckt ldo_009_fer_5t_pass vdd vout vss nbias ref0 sense
+MMIN otao vref tail sub sg13_lv_nmos w=8u l=0.4u m=2
+MMIP otax sense tail sub sg13_lv_nmos w=8u l=0.4u m=2
+MMNB nbias nbias vss sub sg13_lv_nmos w=4u l=0.4u m=1
+MMNT tail nbias vss sub sg13_lv_nmos w=4u l=0.4u m=2
+MMLD otax otax vdd well_vdd sg13_lv_pmos w=4u l=0.4u m=1
+MMLM otao otax vdd well_vdd sg13_lv_pmos w=4u l=0.4u m=1
+MMP vout otao vdd well_vdd sg13_lv_pmos w=8u l=0.2u m=20
+RRtap_vdd vdd well_vdd ntap1 A=247.6e-12 P=251.6e-6
+RRptap vss sub ptap1 A=395.2e-12 P=399.2e-6
+CCMIL_0 vout otao cap_cmim w=36.515u l=36.515u m=1
+CCMIL_1 vout otao cap_cmim w=36.515u l=36.515u m=1
+CCMIL_2 vout otao cap_cmim w=36.515u l=36.515u m=1
+CCMIL_3 vout otao cap_cmim w=36.515u l=36.515u m=1
+CCMIL_4 vout otao cap_cmim w=36.515u l=36.515u m=1
+CCOUT_0 vout vss cap_cmim w=50.635u l=50.635u m=1
+CCOUT_1 vout vss cap_cmim w=50.635u l=50.635u m=1
+CCOUT_2 vout vss cap_cmim w=50.635u l=50.635u m=1
+CCOUT_3 vout vss cap_cmim w=50.635u l=50.635u m=1
+CCOUT_4 vout vss cap_cmim w=50.635u l=50.635u m=1
+CCOUT_5 vout vss cap_cmim w=50.635u l=50.635u m=1
+CCOUT_6 vout vss cap_cmim w=50.635u l=50.635u m=1
+CCOUT_7 vout vss cap_cmim w=50.635u l=50.635u m=1
+CCOUT_8 vout vss cap_cmim w=50.635u l=50.635u m=1
+CCOUT_9 vout vss cap_cmim w=50.635u l=50.635u m=1
+CCOUT_10 vout vss cap_cmim w=50.635u l=50.635u m=1
+CCOUT_11 vout vss cap_cmim w=50.635u l=50.635u m=1
+CCOUT_12 vout vss cap_cmim w=50.635u l=50.635u m=1
+RRBLD_0 vout rbld1 sub rhigh w=1u l=17.465u m=1 b=0
+RRBLD_1 rbld1 rbld2 sub rhigh w=1u l=17.465u m=1 b=0
+RRBLD_2 rbld2 rbld3 sub rhigh w=1u l=17.465u m=1 b=0
+RRBLD_3 rbld3 vss sub rhigh w=1u l=17.465u m=1 b=0
+RRREF_0 ref0 vref sub rhigh w=1u l=6.94u m=1 b=0
+.ends ldo_009_fer_5t_pass

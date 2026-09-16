@@ -8,7 +8,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
-from helpers.case_config import standalone_config
+from helpers.case_config import calibration_limits, standalone_config
 from helpers.scoring import (
     assert_characterization_unscored,
     assert_layout_score,
@@ -17,17 +17,18 @@ from helpers.scoring import (
 )
 from helpers.spice_raw import output_rows
 
-from benchmarking.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset, read_file
-from benchmarking.prepare_support import prepare_support
 from benchmarking.tasks import load_task
-from benchmarking.toolchains import load_toolchain
+from layout_eval.evaluate import run_evaluation
+from layout_eval.prepare_support import prepare_support
+from layout_eval.toolchains import load_toolchain
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-CASE = ROOT / "tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/input_pair"
-IMAGE = os.environ.get("LAYOUT_BENCH_TEST_IMAGE", "layout-bench-tools:local")
+PUBLIC_ROOT = ROOT
+CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/input_pair"
+IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
 
 
 def declared_asset(config, role):
@@ -49,14 +50,14 @@ def environment(tmp_path_factory):
     ):
         support = root / name
         prepare_support(
-            ROOT / "third_party/IHP-Open-PDK",
-            f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}",
+            PUBLIC_ROOT / "third_party/IHP-Open-PDK",
+            f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}",
             support,
         )
         config_text = config_text.replace(
             f"build/support/input-pair-{name}", str(support)
         )
-    config_text = config_text.replace("layout-bench-tools:local", IMAGE)
+    config_text = config_text.replace("iclayout-bench-tools:local", IMAGE)
     path = root / "case/case.toml"
     config_text = standalone_config(config_text)
     path.write_text(config_text)
@@ -194,11 +195,6 @@ def test_qualified_witness_passes_with_same_source_and_pex_conditions(
     nominal = report["jobs"]["nominal"]
     parasitics = report["jobs"]["parasitics"]
     source = task.evaluation_inputs()["input:simulation"]
-    scope = json.loads(task.evaluation_inputs()["input:pex_scope"].content)
-    assert scope["body_and_tap_connection"].startswith("ideal")
-    assert scope["included"] and scope["excluded"]
-    assert scope["calibration"]["declared_metrics_unchanged"] is True
-    assert scope["calibration"]["maximum_relative_difference"] > 0
 
     # Source and PEX are calibrated by the same declared deck and values.  The
     # only DUT change is the RC netlist extracted from this candidate GDS.
@@ -252,8 +248,7 @@ def test_finite_tap_is_negligible_at_the_declared_ideal_body_boundary(
     )
     assert finite["outcome"] == ideal["outcome"] == "passed"
     assert finite["task_success"] is ideal["task_success"] is None
-    scope = json.loads(task.evaluation_inputs()["input:pex_scope"].content)
-    limit = scope["calibration"]["maximum_relative_difference"]
+    limit = calibration_limits(CASE)["relative"]
     finite_measurements = finite["jobs"]["pre"]["measurements"]
     ideal_measurements = ideal["jobs"]["pre"]["measurements"]
     for name, measurement in finite_measurements.items():

@@ -1,0 +1,11 @@
+* Derived from analog-db dp_001_resistive_load, GF180 binding at
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Layout-Bench changes: physical 22-square high-resistance poly loads.
+.subckt dp_001_resistive_load vdd voutp voutn vinp vinn ibias vss
+XRN vdd voutn vss ppolyf_u_1k r_width=2u r_length=44u m=1
+XRP vdd voutp vss ppolyf_u_1k r_width=2u r_length=44u m=1
+XMN voutn vinn tail vss nfet_03v3 w=12u l=0.3u m=1
+XMP voutp vinp tail vss nfet_03v3 w=12u l=0.3u m=1
+XMR ibias ibias vss vss nfet_03v3 w=24u l=0.3u m=1
+XMT tail ibias vss vss nfet_03v3 w=24u l=0.3u m=1
+.ends dp_001_resistive_load

@@ -5,7 +5,8 @@ import json
 import pytest
 
 from benchmarking.files import Asset
-from benchmarking.session import (
+from layout_eval.session import (
+    _agent_environment,
     resource_environment,
     resource_preflight,
 )
@@ -68,3 +69,38 @@ def test_preflight_describes_only_reviewed_resource_imports():
     assert info["environment"] == resource_environment(pdk_resources())
     assert info["python_imports"] == ["klayout", "pya", "sg13g2_pycell_lib"]
     assert "reference" not in json.dumps(info).lower()
+
+
+# A descriptor must configure any future process without granting host paths or
+# overriding protected runtime settings. Synthetic mounted files are sufficient;
+# actual PDK/tool use is exercised separately in the real session regression.
+def declared_resources(environment):
+    return {
+        "pdks/new/python/tool.py": Asset(b"# synthetic", "python"),
+        "pdk-environment.json": Asset(json.dumps({
+            "schema_version": 1, "id": "new", "environment": environment,
+            "sources": {}, "checks": [["python", "-c", "pass"]],
+        }).encode(), "json"),
+    }
+
+
+def test_declared_environment_merges_search_paths_and_rejects_conflicts():
+    from types import SimpleNamespace
+
+    resources = declared_resources({"PDK": "new", "PYTHONPATH": "/resources/pdks/new/python"})
+    config = SimpleNamespace(environment={"PYTHONPATH": "/agent/python"})
+    result = _agent_environment(config, resources)
+    assert result == {"PDK": "new", "PYTHONPATH": "/resources/pdks/new/python:/agent/python"}
+    with pytest.raises(ValueError, match="PDK resources require"):
+        _agent_environment(SimpleNamespace(environment={"PDK": "another"}), resources)
+
+
+@pytest.mark.parametrize("environment", [
+    {"PDK_PATH": "/home/host/pdk"},
+    {"PDK_PATH": "/resources/absent"},
+    {"PDK_PATH": "/resources/pdks/../private"},
+    {"HOME": "/resources/pdks/new"},
+])
+def test_declared_environment_rejects_missing_host_and_reserved_paths(environment):
+    with pytest.raises(ValueError):
+        resource_environment(declared_resources(environment))

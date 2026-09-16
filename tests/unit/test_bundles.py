@@ -3,7 +3,7 @@ import tomli_w
 
 from benchmarking.bundles import load_bundle, publish_bundle
 from benchmarking.files import Asset
-from benchmarking.prepare_support import prepare_support
+from layout_eval.prepare_support import prepare_support
 
 pytestmark = pytest.mark.unit
 

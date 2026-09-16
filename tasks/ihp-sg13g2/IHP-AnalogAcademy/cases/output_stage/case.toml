@@ -5,14 +5,14 @@ title = "IHP AnalogAcademy output_stage"
 status = "qualified"
 
 [task]
-coefficient = 2
+coefficient = 4
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_ota_output_stage"
 environment = "ihp-sg13g2-output-stage-rc-tt"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "ef8c27240aeaad3629d256f1adc0e3f7e42dba71bde8ce9fe3ed1346e23a8fd9"
+sha256 = "51285aa53089baf342b032c8112a23630bb6881dc07d8a6f219394bca3b8220a"
 format = "text"
 
 [task.inputs.netlist]
@@ -30,17 +30,6 @@ format = "spice"
 path = "materials/testbench.spice"
 sha256 = "b857814e44bf0b95d14cd69944cbbdbc5da3b756290f76d824b26b7f73990678"
 format = "spice"
-
-[task.inputs.license]
-collection_source = "LICENSE"
-path = "materials/LICENSE"
-sha256 = "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-format = "text"
-
-[task.inputs.pex_scope]
-path = "materials/pex_scope.json"
-sha256 = "1d13c08c17dd0b7e486672cead02e6b1834e844ee0effdd24a11f4c84a588654"
-format = "json"
 
 [task.constraints]
 schema_version = 1
@@ -220,7 +209,7 @@ schema_version = 1
 [toolchain.backends.artifact]
 type = "klayout-docker"
 [toolchain.backends.artifact.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "artifact"
 timeout_seconds = 600
 
@@ -229,7 +218,7 @@ type = "klayout-docker"
 [toolchain.backends.drc.support_profiles]
 support = "klayout"
 [toolchain.backends.drc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "drc"
 support = "build/support/output-stage-klayout"
 profile = "drc-upstream.json"
@@ -240,7 +229,7 @@ type = "klayout-docker"
 [toolchain.backends.lvs.support_profiles]
 support = "klayout"
 [toolchain.backends.lvs.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "lvs"
 support = "build/support/output-stage-klayout"
 profile = "lvs-upstream.json"
@@ -250,7 +239,7 @@ timeout_seconds = 600
 type = "magic-rc-docker"
 support_profiles = { support = "magic" }
 [toolchain.backends.rc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/output-stage-magic"
 technology = "magic/ihp-sg13g2.tech"
 tech_name = "ihp-sg13g2"
@@ -261,19 +250,19 @@ timeout_seconds = 600
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
 [toolchain.backends.geometry.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 timeout_seconds = 120
 
 [toolchain.backends.simulation]
 type = "ngspice-docker"
 support_profiles = { support = "analog-models" }
 [toolchain.backends.simulation.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/output-stage-models"
 timeout_seconds = 600
 
 [[assets]]
-path = "reference/output_stage_qualified.gds"
+path = "reference/output_stage.gds"
 role = "physical-witness"
 visibility = "maintainer"
 format = "gds"
@@ -281,7 +270,7 @@ sha256 = "544da1bc51efdf1a755c7c4e6570b471debbeb125bb035a2904064f179a6a2e7"
 
 [qualification]
 evidence = "README.md"
-reference = "reference/output_stage_qualified.gds"
+reference = "reference/output_stage.gds"
 
 [origin]
 url = "https://github.com/IHP-GmbH/IHP-AnalogAcademy/blob/133ecf657572e021b5921b5a1b7693abfb209623/modules/module_1_bandgap_reference/part_3_layout/OTA_layout/output_stage/schematic_mod/output_stage.sch"

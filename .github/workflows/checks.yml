@@ -27,11 +27,10 @@ jobs:
           version: '0.11.2'
           python-version: ${{ matrix.python }}
           enable-cache: true
-      - run: uv sync --locked
+      - run: uv sync --locked --group analysis
       - run: uv run --locked ruff check .
       - run: uv run --locked python scripts/check_docs.py
-      - run: uv run --locked pytest -m unit
-      - run: uv run --locked python scripts/acceptance.py fast
+      - run: uv run --locked --group analysis pytest -m unit
       - run: git diff --exit-code
 
   package:
@@ -53,22 +52,32 @@ jobs:
         run: uv build --out-dir build/dist
       - name: Install wheel smoke test
         run: |
-          package_venv="$RUNNER_TEMP/layout-bench-package"
+          package_venv="$RUNNER_TEMP/iclayout-bench-package"
           python -m venv "$package_venv"
-          "$package_venv/bin/python" -m pip install --no-deps build/dist/*.whl
-          "$package_venv/bin/python" - <<'PY'
+          "$package_venv/bin/python" -m pip install build/dist/*.whl
+          "$package_venv/bin/python" -I - <<'PY'
+          import importlib.util
+          import subprocess
+          import sys
           from importlib.resources import files
+          from pathlib import Path
 
-          import benchmarking
-
+          for name in ("benchmarking", "layout_eval", "layout_service"):
+              module = __import__(name)
+              assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
+          assert importlib.util.find_spec("layout_operator") is None
           assert files("benchmarking").joinpath("model_configs.yaml").is_file()
-          assert files("benchmarking").joinpath("sg13g2_view.json").is_file()
-          print(benchmarking.__doc__)
+          assert files("layout_eval").joinpath("sg13g2_view.json").is_file()
+          from layout_eval.source import implementation_identity
+          assert implementation_identity().startswith("sha256:")
+          for name in ("benchmarking.client", "benchmarking.official", "layout_eval.cli",
+                       "layout_eval.preview", "layout_service"):
+              subprocess.run([sys.executable, "-I", "-m", name, "--help"], check=True)
           PY
       - name: Upload distributions
         uses: actions/upload-artifact@v4
         with:
-          name: layout-bench-distributions-${{ github.sha }}
+          name: iclayout-bench-distributions-${{ github.sha }}
           path: build/dist/*
           if-no-files-found: error
           retention-days: 14

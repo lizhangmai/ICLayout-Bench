@@ -20,7 +20,6 @@ and evaluation plan are also available at runtime through `/protocol/task.json`.
 | [materials/circuit.cdl](materials/circuit.cdl) | Authoritative LVS netlist for `two_stage_OTA_layout` |
 | [materials/circuit.spice](materials/circuit.spice) | Pre-layout simulator netlist |
 | [materials/testbench.spice](materials/testbench.spice) | Nominal bias, feedback fixture, AC sweep, and measurements |
-| `materials/LICENSE` | License for the declared circuit materials |
 
 Use one external label on each distinct conductor. Internal nodes must not be
 declared as external ports.
@@ -142,7 +141,7 @@ with area in µm². The fixed full-score area target is
 2,800 µm²; the zero-area-utility boundary is 4,000 µm².
 Area earns no points until all electrical requirements pass.
 
-The task coefficient is `4`. A batch averages all scheduled independent
+The task coefficient is `6`. A batch averages all scheduled independent
 attempts per task, then computes `sum(coefficient * task_mean) / sum(coefficient)`.
 Coefficients are fixed integers; adding tasks does not change existing ones.
 

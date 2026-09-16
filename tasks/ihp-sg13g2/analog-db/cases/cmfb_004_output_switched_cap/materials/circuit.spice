@@ -1,0 +1,27 @@
+* Derived from analog-db cmfb_004_output_switched_cap, fixed snapshot
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Fixed dimensions and explicit physical taps.
+.subckt cmfb_004_output_switched_cap vinp vinn vcmfb vcm vbias clk_phi clk_phi_not vdd vss
+XM1 vcm clk_phi sense_p sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM11 vbias clk_phi ctl_n sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM13 sense_n clk_phi_not vinn sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM15 ctl_n clk_phi_not vcmfb sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM3 vbias clk_phi ctl_p sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM5 sense_p clk_phi_not vinp sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM7 ctl_p clk_phi_not vcmfb sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM9 vcm clk_phi sense_n sub sg13_lv_nmos w=0.15u l=0.13u m=1
+XM10 sense_n clk_phi_not vcm well sg13_lv_pmos w=0.15u l=0.13u m=1
+XM12 ctl_n clk_phi_not vbias well sg13_lv_pmos w=0.15u l=0.13u m=1
+XM14 vinn clk_phi sense_n well sg13_lv_pmos w=0.15u l=0.13u m=1
+XM16 vcmfb clk_phi ctl_n well sg13_lv_pmos w=0.15u l=0.13u m=1
+XM2 sense_p clk_phi_not vcm well sg13_lv_pmos w=0.15u l=0.13u m=1
+XM4 ctl_p clk_phi_not vbias well sg13_lv_pmos w=0.15u l=0.13u m=1
+XM6 vinp clk_phi sense_p well sg13_lv_pmos w=0.15u l=0.13u m=1
+XM8 vcmfb clk_phi ctl_p well sg13_lv_pmos w=0.15u l=0.13u m=1
+XRptap1 vss sub ptap1 A=260.16e-12 P=264.16e-6
+XRntap1 vdd well ntap1 A=130.08e-12 P=134.08e-6
+XC1_0 vbias vcm cap_cmim w=25.85u l=25.85u m=1
+XC2_0 ctl_p sense_p cap_cmim w=25.85u l=25.85u m=1
+XC3_0 vbias vcm cap_cmim w=25.85u l=25.85u m=1
+XC4_0 ctl_n sense_n cap_cmim w=25.85u l=25.85u m=1
+.ends cmfb_004_output_switched_cap

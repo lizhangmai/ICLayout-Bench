@@ -13,6 +13,7 @@ from itertools import pairwise
 from pathlib import Path
 
 import pytest
+from helpers.case_config import calibration_limits
 from helpers.scoring import (
     assert_characterization_unscored,
     assert_layout_score,
@@ -22,17 +23,18 @@ from helpers.spice_raw import output_rows
 from helpers.stimuli import assert_ac_stimuli, command, number
 from helpers.stimuli import testbench as declared_testbench
 
-from benchmarking.docker import DockerTool
-from benchmarking.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
-from benchmarking.hbt import convert_klayout_netlist
-from benchmarking.ngspice import NgspiceDocker
-from benchmarking.prepare_support import prepare_support
+from layout_eval.docker import DockerTool
+from layout_eval.evaluate import run_evaluation
+from layout_eval.hbt import convert_klayout_netlist
+from layout_eval.ngspice import NgspiceDocker
+from layout_eval.prepare_support import prepare_support
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-CASE = ROOT / "tasks/ihp-sg13g2/TO_Apr2025/cases/40_GHZ_LOW_NOISE_TIA"
+PUBLIC_ROOT = ROOT
+CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/TO_Apr2025/cases/40_GHZ_LOW_NOISE_TIA"
 TOP = "FDM_QNC_00_LN_TIA"
 PORTS = ["RFin", "RFout", "VSS", "vcc1", "vcc2", "vcc3"]
 
@@ -41,10 +43,10 @@ PORTS = ["RFin", "RFout", "VSS", "vcc1", "vcc2", "vcc3"]
 def context(tmp_path_factory):
     directory = tmp_path_factory.mktemp("to-40ghz")
     config = tomllib.loads((CASE / "case.toml").read_text())
-    image = os.environ.get("LAYOUT_BENCH_TEST_IMAGE", "layout-bench-tools:local")
+    image = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
     for name in ("klayout", "magic", "hbt-models"):
-        prepare_support(ROOT / "third_party/IHP-Open-PDK",
-                        f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#{name}",
+        prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK",
+                        f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{name}",
                         directory / name, compiler_image=image)
     for entry in config["assets"]:
         assert Asset((CASE / entry["path"]).read_bytes(), entry["format"]).sha256 == entry["sha256"]
@@ -53,7 +55,7 @@ def context(tmp_path_factory):
 
 def task_backends(context, tmp_path):
     """Evaluator backends for the frozen task plan, using fresh support bundles."""
-    from benchmarking.toolchains import load_toolchain
+    from layout_eval.toolchains import load_toolchain
     _config, _image, directory = context
     config_text = (CASE / "case.toml").read_text()
     for name in ("klayout", "magic", "hbt-models"):
@@ -331,16 +333,13 @@ def test_finite_substrate_tap_calibration(context, tmp_path):
     assert_characterization_unscored(ideal)
     check_measurements(finite, tmp_path / "finite-tap", task)
     check_measurements(ideal, tmp_path / "ideal-body", task)
-    scope = json.loads(task.evaluation_inputs()["input:pex_scope"].content)
-    assert scope["source_boundary"]["global_ground_alias_forbidden"] is True
-    assert scope["calibration"]["declared_metrics_unchanged"] is True
     difference = compare_measurements(finite, ideal, task)
     (tmp_path / "finite-ideal-comparison.json").write_text(
         json.dumps({"finite_report": "finite-tap/report.json",
                     "ideal_body_report": "ideal-body/report.json",
                     "maximum": difference}, indent=2) + "\n"
     )
-    assert difference["relative_difference"] <= scope["calibration"]["maximum_relative_difference"], difference
+    assert difference["relative_difference"] <= calibration_limits(CASE)["relative"], difference
 
 
 @pytest.mark.acceptance_eda

@@ -1,4 +1,4 @@
-"""Generic harness metadata for the common Layout-Bench session protocol.
+"""Generic harness metadata for the common ICLayout-Bench session protocol.
 
 The benchmark owns the session protocol, not an Agent framework's internal
 conversation. A harness is therefore an opaque executable by default and

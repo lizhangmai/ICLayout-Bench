@@ -1,0 +1,35 @@
+* Native line/load and downward supply-headroom sweeps. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include parameters.spice
+.include dut.spice
+.temp 27
+.option rshunt=1e12 reltol=1e-5 abstol=1e-14 vntol=1e-8
+VDD vdd 0 {supply_v}
+VREF ref0 0 0.9
+IBIAS vdd nbias 20u
+ILOAD vout 0 {load_a}
+VPROBE sense vout 0
+XDUT vdd vout 0 nbias ref0 sense ldo_009_fer_5t_pass
+.control
+set numdgt=12
+dc VDD 1.3 0.8 -0.001
+let error_v=abs(v(vout)-0.9)
+meas dc regulation_floor_v when error_v=0.03 rise=1
+meas dc line_max_v max v(vout) from=1.3 to=1.2
+meas dc line_min_v min v(vout) from=1.3 to=1.2
+let line_span_v=line_max_v-line_min_v
+let headroom_v=regulation_floor_v-0.9
+print line_span_v headroom_v
+write line.raw all
+reset
+dc ILOAD 0.0001 0.001 0.00001
+meas dc load_max_v max v(vout)
+meas dc load_min_v min v(vout)
+let load_span_v=load_max_v-load_min_v
+print load_span_v
+write load.raw all
+quit
+.endc
+.end

@@ -19,7 +19,6 @@ and evaluation plan are also available at runtime through `/protocol/task.json`.
 | [materials/circuit.cdl](materials/circuit.cdl) | Authoritative LVS netlist for `DIFF_COMPARATOR` |
 | [materials/circuit.spice](materials/circuit.spice) | Pre-layout simulator netlist |
 | [materials/testbench.spice](materials/testbench.spice) | Clock stimulus and public measurement expressions |
-| `materials/LICENSE` | Shared collection license, delivered with the circuit |
 
 Use one distinct external conductor for each ordered port. Internal nodes must
 not be exposed as ports.
@@ -138,7 +137,7 @@ with area in µm². The fixed full-score area target is
 1,700 µm²; the zero-area-utility boundary is 2,025 µm².
 Area earns no points until all electrical requirements pass.
 
-The task coefficient is `3`. A batch averages all scheduled independent
+The task coefficient is `6`. A batch averages all scheduled independent
 attempts per task, then computes `sum(coefficient * task_mean) / sum(coefficient)`.
 Coefficients are fixed integers; adding tasks does not change existing ones.
 

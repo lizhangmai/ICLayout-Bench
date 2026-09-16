@@ -13,17 +13,18 @@ from pathlib import Path
 import pytest
 from helpers.stimuli import command, number
 
-from benchmarking.docker import DockerTool
-from benchmarking.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
-from benchmarking.klayout import KLayoutDocker
-from benchmarking.ngspice import NgspiceDocker
-from benchmarking.prepare_support import prepare_support
+from layout_eval.docker import DockerTool
+from layout_eval.evaluate import run_evaluation
+from layout_eval.klayout import KLayoutDocker
+from layout_eval.ngspice import NgspiceDocker
+from layout_eval.prepare_support import prepare_support
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-CASE = ROOT / "tasks/ihp-sg13g2/TO_Apr2025/cases/DC_to_130_GHz_TIA.design_1"
+PUBLIC_ROOT = ROOT
+CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/TO_Apr2025/cases/DC_to_130_GHz_TIA.design_1"
 TOP = "FMD_QNC_03a_TIA_1"
 PORTS = ["INPUT", "OUTPUT", "VCC2V", "VCC2V1", "VEE"]
 
@@ -32,9 +33,9 @@ PORTS = ["INPUT", "OUTPUT", "VCC2V", "VCC2V1", "VEE"]
 def context(tmp_path_factory):
     directory = tmp_path_factory.mktemp("to-derived")
     config = tomllib.loads((CASE / "case.toml").read_text())
-    image = os.environ.get("LAYOUT_BENCH_TEST_IMAGE", "layout-bench-tools:local")
+    image = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
     for name in ("klayout", "magic", "hbt-models"):
-        prepare_support(ROOT / "third_party/IHP-Open-PDK", f"{ROOT}/tasks/ihp-sg13g2/pdk.toml#{name}",
+        prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK", f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{name}",
                         directory / name, compiler_image=image)
     for entry in config["assets"]:
         assert Asset((CASE / entry["path"]).read_bytes(), entry["format"]).sha256 == entry["sha256"]
@@ -179,13 +180,13 @@ layout.write("rotated.gds")
 
 def _task_backends(context, tmp_path):
     """Evaluator backends for the frozen task plan, using fresh support bundles."""
-    from benchmarking.toolchains import load_toolchain
+    from layout_eval.toolchains import load_toolchain
     _, image, directory = context
     task_config = (CASE / "case.toml").read_text()
     for name in ("klayout", "magic"):
         task_config = task_config.replace(f"build/support/to-design1-{name}", str(directory / name))
     task_config = task_config.replace("build/support/to-design1-models", str(directory / "hbt-models"))
-    task_config = task_config.replace("layout-bench-tools:local", image)
+    task_config = task_config.replace("iclayout-bench-tools:local", image)
     path = tmp_path / "case-toolchain.toml"
     path.write_text(task_config)
     backends = load_toolchain(path)

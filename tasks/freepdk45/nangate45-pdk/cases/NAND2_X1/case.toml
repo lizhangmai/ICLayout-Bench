@@ -14,12 +14,12 @@ sha256 = "d077499ea242e1c8506c7a992ce713d46ea513c52b80073a2b7ae6d6515f2d3f"
 [task]
 kind = "netlist_to_gds"
 family = "freepdk45_nand2_x1"
-coefficient = 2
+coefficient = 1
 environment = "freepdk45-nominal-predictive-rc"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "2a72dedc0d26ad6388d6a855bc70d345d3dbbe2ea95229532c9e6ce75c94b60d"
+sha256 = "9871445b98e221bd1ada9403466ed0f1fa9a07e09b79a497d5a2e0bd2e139b9d"
 format = "text"
 
 [task.inputs.netlist]
@@ -27,18 +27,6 @@ path = "materials/circuit.spice"
 sha256 = "1decfdcffa5a7f962e26c0831e9a219521670f282df72e465fd61ebccdba12b0"
 format = "spice"
 subcircuit = "NAND2_X1"
-
-[task.inputs.license]
-path = "materials/LICENSE"
-collection_source = "LICENSE"
-sha256 = "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
-format = "text"
-
-[task.inputs.notice]
-path = "materials/NOTICE"
-collection_source = "NOTICE"
-sha256 = "e6bf1ab7efb96a846d548c1ac320501cbad7458d489015345df9da76ee830f1a"
-format = "text"
 
 [task.inputs.performance]
 path = "materials/testbench.spice"
@@ -447,7 +435,7 @@ schema_version = 1
 type = "klayout-docker"
 
 [toolchain.backends.artifact.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "artifact"
 timeout_seconds = 120
 
@@ -455,7 +443,7 @@ timeout_seconds = 120
 type = "klayout-docker"
 
 [toolchain.backends.drc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "drc"
 timeout_seconds = 120
 support = "build/support/freepdk45-klayout"
@@ -468,7 +456,7 @@ support = "klayout"
 type = "klayout-docker"
 
 [toolchain.backends.lvs.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 120
 support = "build/support/freepdk45-klayout"
@@ -481,14 +469,14 @@ support = "klayout"
 type = "klayout-geometry-docker"
 
 [toolchain.backends.geometry.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 timeout_seconds = 60
 
 [toolchain.backends.rc]
 type = "magic-rc-docker"
 
 [toolchain.backends.rc.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/freepdk45-magic-vtl"
 technology = "freepdk45.tech"
 tech_name = "nangate45"
@@ -550,7 +538,7 @@ support = "magic-vtl"
 type = "ngspice-docker"
 
 [toolchain.backends.ngspice.settings]
-image = "layout-bench-tools:local"
+image = "iclayout-bench-tools:local"
 support = "build/support/freepdk45-models"
 timeout_seconds = 120
 

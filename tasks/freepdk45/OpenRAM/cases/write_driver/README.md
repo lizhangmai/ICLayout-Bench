@@ -1,10 +1,12 @@
+> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+
 # Complementary SRAM Write Driver
 
 ## Overview
 
 Nominal, predictive **qualified** layout task with a distributed passing witness.
 The [problem](problem.md) defines the complete circuit, stimuli, limits and score.
-Coefficient **2** covers a compact loaded complementary tri-state driver.
+Coefficient **3** covers a compact loaded complementary tri-state driver.
 The enable label is renamed from en to wen to match the circuit interface.
 
 ## Files
@@ -15,7 +17,7 @@ The enable label is renamed from en to wen to match the circuit interface.
 | [case.toml](case.toml) | Single case configuration, input digests, toolchain, constraints, and evaluation plan |
 | [materials/circuit.spice](materials/circuit.spice) | Authoritative LVS and pre-layout simulator netlist |
 | [materials/testbench.spice](materials/testbench.spice) | Stimuli, loads, transient analysis, and measurements |
-| [Collection LICENSE](../../LICENSE), [NOTICE](../../NOTICE) | Shared source declarations; copied to `materials/` when inputs are materialized |
+| [Collection LICENSE](../../LICENSE), [NOTICE](../../NOTICE) | Collection distribution terms; excluded from solver inputs |
 | [reference/write_driver.gds](reference/write_driver.gds) | Passing feasibility witness, excluded from standard solver inputs |
 
 ## Reference Results
@@ -66,7 +68,7 @@ Prepare the image and resources using the
 choose a fresh output directory:
 
 ```bash
-uv run --locked python main.py evaluate \
+python -m layout_eval.cli evaluate \
   tasks/freepdk45/OpenRAM/cases/write_driver/case.toml \
   tasks/freepdk45/OpenRAM/cases/write_driver/reference/write_driver.gds \
   --output build/runs/freepdk45-write_driver-reference-evaluation
@@ -78,6 +80,15 @@ The evaluation command generates `report.json`, native reports, extracted netlis
 and simulation evidence under the selected run directory. The regression creates
 fresh temporary directories and prepares resources from the case's PDK profiles.
 It uses the same catalog-driven workflow for every process and circuit.
+
+To reproduce the Pre-layout column, use the shared
+[source-calibration recipe](../../../../../docs/tools.md#gf180-source-calibration)
+with `tasks/freepdk45/OpenRAM/cases/write_driver/case.toml` and a fresh output directory such as
+`build/runs/freepdk45-write_driver-source-calibration`. The recipe selects this
+case's authoritative SPICE netlist, retains every simulation condition and
+measurement, and produces an unscored characterization report. Compare its
+measurements with the Pre-layout column above; the GDS evaluation produces the
+Post-layout column.
 
 The distributed reference GDS is ready to use. Input consistency and actual
 reference acceptance support this case's qualified status. Shared evaluator

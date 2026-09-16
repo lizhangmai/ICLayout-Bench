@@ -1,0 +1,84 @@
+* Native clocked IA transfer, ripple and recovery. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include parameters.spice
+.include dut.spice
+.temp 27
+.option klu rshunt=1e13 reltol=1e-5 abstol=1e-13 vntol=1e-8 method=gear maxord=2
+VDD vdd 0 1.2
+VIP vinp 0 dc .6 pulse(.6 {.6+step_v/2} 500u 1u 1u 500u 10m)
+VIN vinn 0 dc .6 pulse(.6 {.6-step_v/2} 500u 1u 1u 500u 10m)
+VR vref 0 .6
+V1 core__vb1 0 .5
+V2 core__vb2 0 .75
+V3 core__vb3 0 .45
+V4 core__vb4 0 .589
+VCMR vref_cm 0 .6
+CLP voutp 0 {load_f}
+CLN voutn 0 {load_f}
+Vclk_chin clk_chin 0 pulse(1.2 0 25u 50n 50n 24.95u 50u)
+Vclk_chin_not clk_chin_not 0 pulse(0 1.2 25u 50n 50n 24.95u 50u)
+Vclk_chfb clk_chfb 0 pulse(1.2 0 25u 50n 50n 24.95u 50u)
+Vclk_chfb_not clk_chfb_not 0 pulse(0 1.2 25u 50n 50n 24.95u 50u)
+Vclk_chout clk_chout 0 pulse(1.2 0 25u 50n 50n 24.95u 50u)
+Vclk_chout_not clk_chout_not 0 pulse(0 1.2 25u 50n 50n 24.95u 50u)
+XDUT vinp vinn voutp voutn vref clk_chin clk_chin_not clk_chfb clk_chfb_not clk_chout clk_chout_not vdd 0 core__vb1 core__vb2 core__vb3 core__vb4 vref_cm monp monn ia_006_fan_chopper_cmfb
+.control
+set numdgt=12
+set noaskquit
+save v(voutp) v(voutn) v(vinp) v(vinn) v(monp) v(monn) i(VDD) v(clk_chin) i(Vclk_chin) v(clk_chin_not) i(Vclk_chin_not) v(clk_chfb) i(Vclk_chfb) v(clk_chfb_not) i(Vclk_chfb_not) v(clk_chout) i(Vclk_chout) v(clk_chout_not) i(Vclk_chout_not)
+op
+let dc_cm_v=(v(voutp)+v(voutn))/2
+let dc_dm_v=v(voutp)-v(voutn)
+let dc_power_w=-1.2*i(VDD)
+print dc_cm_v dc_dm_v dc_power_w
+write op.raw v(voutp) v(voutn) v(monp) v(monn) i(VDD)
+tran 500n 1.5m 0 500n
+let dm=v(voutp)-v(voutn)
+let cm=(v(voutp)+v(voutn))/2
+let sum_cm=(v(monp)+v(monn))/2
+let sum_demod=(v(monp)-v(monn))*(v(clk_chin)/.6-1)
+let power=-1.2*i(VDD)
+meas tran baseline_v avg dm from=400u to=500u
+meas tran plateau_v avg dm from=900u to=1m
+meas tran return_v avg dm from=1.4m to=1.5m
+meas tran command_v avg v(vinp) from=900u to=1m
+let gain_vv=(plateau_v-baseline_v)/(2*(command_v-.6))
+let baseline_error_v=abs(baseline_v)
+let return_error_v=abs(return_v-baseline_v)
+print gain_vv baseline_error_v return_error_v
+meas tran high_first avg dm from=900u to=950u
+meas tran high_second avg dm from=950u to=1m
+meas tran return_first avg dm from=1.4m to=1.45m
+meas tran return_second avg dm from=1.45m to=1.5m
+let high_drift_v=abs(high_second-high_first)
+let return_drift_v=abs(return_second-return_first)
+print high_drift_v return_drift_v
+let ripple_sq=(dm-plateau_v)^2
+meas tran ripple_ms avg ripple_sq from=900u to=1m
+meas tran ripple_max max dm from=900u to=1m
+meas tran ripple_min min dm from=900u to=1m
+let ripple_rms_v=sqrt(ripple_ms)
+let ripple_pp_v=ripple_max-ripple_min
+print ripple_rms_v ripple_pp_v
+meas tran cm_mean_v avg cm from=900u to=1m
+meas tran cm_min_v min cm from=400u to=1.5m
+meas tran cm_max_v max cm from=400u to=1.5m
+meas tran sum_cm_v avg sum_cm from=900u to=1m
+meas tran sum_error_signed_v avg sum_demod from=900u to=1m
+let sum_error_v=abs(sum_error_signed_v)
+print sum_error_v
+meas tran mean_power_w avg power from=400u to=1.5m
+let supplied0=-v(clk_chin)*i(Vclk_chin)
+let supplied1=-v(clk_chin_not)*i(Vclk_chin_not)
+let supplied2=-v(clk_chfb)*i(Vclk_chfb)
+let supplied3=-v(clk_chfb_not)*i(Vclk_chfb_not)
+let supplied4=-v(clk_chout)*i(Vclk_chout)
+let supplied5=-v(clk_chout_not)*i(Vclk_chout_not)
+let positive_clock_power=(supplied0+abs(supplied0))/2+(supplied1+abs(supplied1))/2+(supplied2+abs(supplied2))/2+(supplied3+abs(supplied3))/2+(supplied4+abs(supplied4))/2+(supplied5+abs(supplied5))/2
+meas tran clock_power_w avg positive_clock_power from=900u to=1m
+write transient.raw v(voutp) v(voutn) v(vinp) v(vinn) v(monp) v(monn) i(VDD) v(clk_chin) i(Vclk_chin) v(clk_chin_not) i(Vclk_chin_not) v(clk_chfb) i(Vclk_chfb) v(clk_chfb_not) i(Vclk_chfb_not) v(clk_chout) i(Vclk_chout) v(clk_chout_not) i(Vclk_chout_not)
+quit
+.endc
+.end

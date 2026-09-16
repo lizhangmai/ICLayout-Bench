@@ -1,0 +1,855 @@
+schema_version = 2
+kind = "layout_case"
+id = "gf180mcuD.analog-db.ldo_004_basic_pmos"
+title = "Externally Biased 1.8 V PMOS Regulator Core"
+status = "qualified"
+
+[task]
+kind = "netlist_to_gds"
+family = "gf180_externally_biased_pmos_ldo"
+coefficient = 7
+environment = "gf180mcuD-ldo-typical-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "9958a252200bcb06c2cec5fcdc79478da5fa6fc3b80d800171f0844f69a412cc"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "c6f1d28094341b66381edd0a83bc3d284c7ba5e2b5deb1e6996dba84a9daec35"
+subcircuit = "ldo_004_basic_pmos"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "f477c788073f94ed67cd7fd0b5d6b5f95cf6360fdc7a28a1287701eff130746a"
+
+[task.inputs.transient]
+path = "materials/transient.spice"
+format = "spice"
+sha256 = "2cf509d414b32f92db3c5247e0e034710320a8f98eb4d7d2d73476bc8fbf4f5c"
+
+[task.inputs.dropout]
+path = "materials/dropout.spice"
+format = "spice"
+sha256 = "6ed4afa715fc9cadaec7404d1539e998579a4628a2e1538973a34887d17509c6"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "ldo_004_basic_pmos"
+max_bytes = 10485760
+
+[task.constraints]
+schema_version = 1
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+  [5, 0], [11, 17], [11, 39], [12, 0], [13, 17], [21, 0], [22, 0], [22, 4],
+  [24, 0], [24, 5], [30, 0], [30, 4], [31, 0], [32, 0], [33, 0], [34, 0],
+  [34, 3], [34, 4], [34, 5], [35, 0], [36, 0], [36, 3], [36, 4], [36, 5],
+  [37, 0], [38, 0], [40, 0], [41, 0], [42, 0], [42, 3], [42, 4], [42, 5],
+  [46, 0], [46, 3], [46, 4], [46, 5], [49, 0], [53, 0], [53, 3], [53, 4],
+  [53, 5], [55, 0], [62, 0], [75, 0], [80, 5], [81, 0], [81, 3], [81, 4],
+  [81, 5], [82, 0], [86, 17], [88, 17], [96, 1], [100, 5], [100, 7], [100, 8],
+  [108, 5], [110, 5], [110, 11], [110, 12], [110, 13], [110, 14], [110, 15], [110, 16],
+  [111, 5], [112, 1], [115, 5], [116, 5], [117, 5], [117, 10], [118, 5], [119, 5],
+  [122, 5], [123, 5], [124, 5], [125, 5], [127, 5], [128, 17], [137, 5], [151, 5],
+  [152, 5], [153, 51], [166, 5], [167, 5], [173, 5], [178, 0], [183, 0], [184, 0],
+  [185, 0], [204, 0], [210, 0], [220, 0], [226, 0], [227, 0], [241, 0],
+]
+max_width_um = 800
+max_height_um = 400
+
+[task.evaluation]
+schema_version = 1
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "vout",
+    "vref",
+    "ibias",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "dc_0_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.2
+load_a = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "dc_0_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.2
+load_a = 0.001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "dc_0_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.2
+load_a = 0.005
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "dc_1_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+load_a = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "dc_1_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+load_a = 0.001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "dc_1_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+load_a = 0.005
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "dc_2_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+load_a = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "dc_2_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+load_a = 0.001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "dc_2_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+load_a = 0.005
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "step_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:transient"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.2
+
+[task.evaluation.jobs.parameters.measurements]
+peak_error_v = "V"
+high_settled_error_v = "V"
+low_settled_error_v = "V"
+tail_min_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "ldo-transient.raw"
+
+[[task.evaluation.jobs]]
+id = "step_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:transient"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+
+[task.evaluation.jobs.parameters.measurements]
+peak_error_v = "V"
+high_settled_error_v = "V"
+low_settled_error_v = "V"
+tail_min_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "ldo-transient.raw"
+
+[[task.evaluation.jobs]]
+id = "step_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:transient"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+
+[task.evaluation.jobs.parameters.measurements]
+peak_error_v = "V"
+high_settled_error_v = "V"
+low_settled_error_v = "V"
+tail_min_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "ldo-transient.raw"
+
+[[task.evaluation.jobs]]
+id = "dropout"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:dropout"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+dropout_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "ldo-dropout.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "output_v"
+category = "performance"
+observations = [
+    "dc_0_0:output_v",
+    "dc_0_1:output_v",
+    "dc_0_2:output_v",
+    "dc_1_0:output_v",
+    "dc_1_1:output_v",
+    "dc_1_2:output_v",
+    "dc_2_0:output_v",
+    "dc_2_1:output_v",
+    "dc_2_2:output_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "target"
+aggregation = "min"
+lower = 1.78
+zero_lower = 1.5
+upper = 1.82
+zero_upper = 2.1
+
+[[task.evaluation.metrics]]
+id = "tail_v"
+category = "performance"
+observations = [
+    "dc_0_0:tail_v",
+    "dc_0_1:tail_v",
+    "dc_0_2:tail_v",
+    "dc_1_0:tail_v",
+    "dc_1_1:tail_v",
+    "dc_1_2:tail_v",
+    "dc_2_0:tail_v",
+    "dc_2_1:tail_v",
+    "dc_2_2:tail_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "target"
+aggregation = "min"
+lower = 0.05
+zero_lower = 0
+upper = 0.15
+zero_upper = 0.3
+
+[[task.evaluation.metrics]]
+id = "quiescent_a"
+category = "performance"
+observations = [
+    "dc_0_0:quiescent_a",
+    "dc_0_1:quiescent_a",
+    "dc_0_2:quiescent_a",
+    "dc_1_0:quiescent_a",
+    "dc_1_1:quiescent_a",
+    "dc_1_2:quiescent_a",
+    "dc_2_0:quiescent_a",
+    "dc_2_1:quiescent_a",
+    "dc_2_2:quiescent_a",
+]
+unit = "A"
+dimension = "supply"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+zero_lower = 0
+upper = 0.00025
+zero_upper = 0.0005
+
+[[task.evaluation.metrics]]
+id = "power_w"
+category = "performance"
+observations = [
+    "dc_0_0:power_w",
+    "dc_0_1:power_w",
+    "dc_0_2:power_w",
+    "dc_1_0:power_w",
+    "dc_1_1:power_w",
+    "dc_1_2:power_w",
+    "dc_2_0:power_w",
+    "dc_2_1:power_w",
+    "dc_2_2:power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+zero_lower = 0
+upper = 0.018
+zero_upper = 0.025
+
+[[task.evaluation.metrics]]
+id = "psrr_db"
+category = "performance"
+observations = [
+    "dc_0_0:psrr_db",
+    "dc_0_1:psrr_db",
+    "dc_0_2:psrr_db",
+    "dc_1_0:psrr_db",
+    "dc_1_1:psrr_db",
+    "dc_1_2:psrr_db",
+    "dc_2_0:psrr_db",
+    "dc_2_1:psrr_db",
+    "dc_2_2:psrr_db",
+]
+unit = "dB"
+dimension = "response"
+direction = "maximize"
+aggregation = "min"
+lower = 40
+zero_lower = 0
+
+[[task.evaluation.metrics]]
+id = "peaking_db"
+category = "performance"
+observations = [
+    "dc_0_0:peaking_db",
+    "dc_0_1:peaking_db",
+    "dc_0_2:peaking_db",
+    "dc_1_0:peaking_db",
+    "dc_1_1:peaking_db",
+    "dc_1_2:peaking_db",
+    "dc_2_0:peaking_db",
+    "dc_2_1:peaking_db",
+    "dc_2_2:peaking_db",
+]
+unit = "dB"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+zero_lower = 0
+upper = 6
+zero_upper = 20
+
+[[task.evaluation.metrics]]
+id = "peak_error_v"
+category = "performance"
+observations = [
+    "step_0:peak_error_v",
+    "step_1:peak_error_v",
+    "step_2:peak_error_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+zero_lower = 0
+upper = 0.025
+zero_upper = 0.1
+
+[[task.evaluation.metrics]]
+id = "high_settled_error_v"
+category = "performance"
+observations = [
+    "step_0:high_settled_error_v",
+    "step_1:high_settled_error_v",
+    "step_2:high_settled_error_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+zero_lower = 0
+upper = 0.01
+zero_upper = 0.05
+
+[[task.evaluation.metrics]]
+id = "low_settled_error_v"
+category = "performance"
+observations = [
+    "step_0:low_settled_error_v",
+    "step_1:low_settled_error_v",
+    "step_2:low_settled_error_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+zero_lower = 0
+upper = 0.01
+zero_upper = 0.05
+
+[[task.evaluation.metrics]]
+id = "tail_min_v"
+category = "performance"
+observations = [
+    "step_0:tail_min_v",
+    "step_1:tail_min_v",
+    "step_2:tail_min_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "maximize"
+aggregation = "min"
+lower = 0.05
+zero_lower = 0
+
+[[task.evaluation.metrics]]
+id = "dropout_v"
+category = "performance"
+observations = [
+    "dropout:dropout_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+zero_lower = 0
+upper = 0.2
+zero_upper = 0.5
+
+[task.evaluation.scoring]
+method = "layout-v1"
+area_metric = "functional_area"
+area_target = 80000
+area_zero = 320000
+
+[toolchain]
+schema_version = 1
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 180
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+timeout_seconds = 180
+support = "build/support/gf180-physical-v2"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+timeout_seconds = 180
+support = "build/support/gf180-physical-v2"
+profile = "lvs-vss.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 180
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/gf180-magic"
+technology = "gf180mcuD.tech"
+tech_name = "gf180mcuD"
+style = "ngspice()"
+gds_readonly = false
+grid_subdivision = 10
+case_insensitive_ports = true
+timeout_seconds = 240
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/gf180-models"
+timeout_seconds = 240
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/ldo_004_basic_pmos"
+
+[[assets]]
+path = "reference/ldo_004_basic_pmos.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "f39a2f00d618f76c8095ffe29bd52f46940b8465ba3fe9bf2754793669f4b622"
+
+[qualification]
+reference = "reference/ldo_004_basic_pmos.gds"
+evidence = "README.md"

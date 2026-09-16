@@ -174,8 +174,8 @@ def _load_task_data(data: dict, config: Path, raw: bytes, *, label: str) -> Task
     if data["status"] not in {"candidate", "qualified"}:
         raise ValueError("Task status must be candidate or qualified")
     coefficient = data.get("coefficient", 1)
-    if type(coefficient) is not int or not 1 <= coefficient <= 5:
-        raise ValueError("Task coefficient must be an integer from 1 through 5")
+    if type(coefficient) is not int or not 1 <= coefficient <= 10:
+        raise ValueError("Task coefficient must be an integer from 1 through 10")
     for field in ("id", "title", "family", "environment"):
         _text(data[field], field)
     if not isinstance(data["inputs"], dict):

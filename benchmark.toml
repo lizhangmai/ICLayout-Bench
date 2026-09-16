@@ -1,0 +1,29 @@
+schema_version = 1
+id = "iclayout-bench"
+version = "2"
+
+# Fixed functional representatives, not every qualified catalog entry.
+# Case contracts and coefficients remain authoritative in their case.toml.
+cases = [
+  # FreePDK45: combinational logic, SRAM storage and clocked readout.
+  "freepdk45.nangate45-pdk.NAND2_X1",
+  "freepdk45.OpenRAM.cell_6t",
+  "freepdk45.OpenRAM.sense_amp",
+
+  # GF180MCU: sequential logic, conversion, oscillation and temperature bias.
+  "gf180mcuD.voidwalkers-scandff.scan_dff",
+  "gf180mcuD.gf-r2r-dac.r2r",
+  "gf180mcuD.Chipathon2023_ADC.comparator",
+  "gf180mcuD.tt_tnt_gf_vco.vco",
+  "gf180mcuD.analog-db.tsn_002_ptat_classic",
+
+  # IHP SG13G2: one OTA and one LDO, plus distinct clocked/passive/HBT functions.
+  "ihp-sg13g2.analog-db.amp_023_fer_fd2s",
+  "ihp-sg13g2.analog-db.ldo_008_fer_mirror_ota",
+  "ihp-sg13g2.analog-db.ia_006_fan_chopper_cmfb",
+  "ihp-sg13g2.analog-db.sw_002_chopper_diff",
+  "ihp-sg13g2.analog-db.smp_001_nmos_th",
+  "ihp-sg13g2.analog-db.trm_001_vcr",
+  "ihp-sg13g2.analog-db.vref_001_vgs",
+  "TO_Apr2025.DC_to_130_GHz_TIA.design_1",
+]

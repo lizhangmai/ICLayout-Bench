@@ -4,10 +4,10 @@ FROM ghcr.io/astral-sh/uv:0.11.2 AS uv
 FROM ubuntu:24.04 AS common
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    UV_PROJECT_ENVIRONMENT=/opt/layout-bench-tools \
+    UV_PROJECT_ENVIRONMENT=/opt/iclayout-bench-tools \
     UV_PYTHON_DOWNLOADS=never \
     UV_LINK_MODE=copy \
-    PATH=/opt/layout-bench-tools/bin:${PATH} \
+    PATH=/opt/iclayout-bench-tools/bin:${PATH} \
     QT_QPA_PLATFORM=offscreen
 
 RUN test "$(dpkg --print-architecture)" = amd64 \
@@ -24,12 +24,7 @@ RUN curl --fail --show-error --silent --location --retry 3 --retry-all-errors --
     && rm /tmp/klayout.deb \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=uv /uv /usr/local/bin/uv
-COPY pyproject.toml uv.lock /opt/layout-bench-build/
-RUN --mount=type=cache,target=/root/.cache/uv \
-    cd /opt/layout-bench-build \
-    && uv sync --locked --only-group eda --no-install-project --python /usr/bin/python3 \
-    && install -d -o ubuntu -g ubuntu /workspace
+RUN install -d -o ubuntu -g ubuntu /workspace
 
 WORKDIR /workspace
 CMD ["bash"]
@@ -134,4 +129,11 @@ COPY --from=magic-build /opt/magic /opt/magic
 ENV PATH=/opt/magic/bin:${PATH}
 COPY --from=xschem-build /opt/xschem /opt/xschem
 ENV PATH=/opt/xschem/bin:${PATH}
+# Keep frequently changed Python dependencies after native EDA build stages.
+# Lockfile changes must not invalidate tool downloads and compilation.
+COPY --from=uv /uv /usr/local/bin/uv
+COPY pyproject.toml uv.lock /opt/iclayout-bench-build/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    cd /opt/iclayout-bench-build \
+    && uv sync --locked --only-group eda --no-install-project --python /usr/bin/python3
 USER ubuntu

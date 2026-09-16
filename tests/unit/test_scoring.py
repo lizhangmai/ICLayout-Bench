@@ -6,9 +6,9 @@ import tomllib
 import pytest
 from test_evaluate import PLAN, evaluate
 
-from benchmarking.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.scoring import recompute_score
+from layout_eval.evaluate import run_evaluation
 
 pytestmark = pytest.mark.unit
 pytest_plugins = ["test_evaluate"]
