@@ -11,7 +11,15 @@ visibility = "maintainer"
 format = "gds"
 sha256 = "d077499ea242e1c8506c7a992ce713d46ea513c52b80073a2b7ae6d6515f2d3f"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "b5aa878931252c4c93b727515e05fa17b493ed67570c3b88a2b7f52fa0a380f8"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "freepdk45_nand2_x1"
 coefficient = 1
@@ -19,7 +27,7 @@ environment = "freepdk45-nominal-predictive-rc"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "9871445b98e221bd1ada9403466ed0f1fa9a07e09b79a497d5a2e0bd2e139b9d"
+sha256 = "553446b483268973caf88325eb297c64adc846b58ef88e249cf3f496d0ddbbed"
 format = "text"
 
 [task.inputs.netlist]
@@ -30,7 +38,7 @@ subcircuit = "NAND2_X1"
 
 [task.inputs.performance]
 path = "materials/testbench.spice"
-sha256 = "f5889403dd72ad2486d1e06ac8679aff490fe32ba6995f2a7a28fcc99dd8690e"
+sha256 = "389d2d09f05913f740d0b776e0fe2d4382057b2bc8a23564f4150adae920e4c9"
 format = "spice"
 
 [task.constraints]
@@ -163,6 +171,154 @@ functional_layers = [
 max_width_um = 100
 max_height_um = 100
 
+[[task.constraints.hard]]
+id = "cell_frame"
+type = "cell_frame"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        2,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        4,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        9,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        15,
+        0,
+    ],
+    [
+        16,
+        0,
+    ],
+    [
+        17,
+        0,
+    ],
+    [
+        18,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        20,
+        0,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        23,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        25,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        27,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+]
+height_um = 1.6300000000000001
+width_grid_um = 0.01
+
+[[task.constraints.hard.rails]]
+name = "VDD"
+layer = [
+    11,
+    0,
+]
+connectivity_layer = "metal1"
+y_um = 1.5150000000000001
+thickness_um = 0.07
+left_um = 0.115
+right_um = 0.030000000000000002
+
+[[task.constraints.hard.rails]]
+name = "VSS"
+layer = [
+    11,
+    0,
+]
+connectivity_layer = "metal1"
+y_um = 0.115
+thickness_um = 0.07
+left_um = 0.115
+right_um = 0.030000000000000002
+
 [task.output]
 path = "output/final.gds"
 format = "gds"
@@ -279,6 +435,49 @@ state_6 = "V"
 state_7 = "V"
 state_8 = "V"
 supply = "W"
+delay_a1_fall_2 = "s"
+transition_a1_fall_2 = "s"
+delay_a2_rise_3 = "s"
+transition_a2_rise_3 = "s"
+delay_a2_fall_6 = "s"
+transition_a2_fall_6 = "s"
+delay_a1_rise_7 = "s"
+transition_a1_rise_7 = "s"
+
+[[task.evaluation.jobs]]
+id = "source_nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+state_0 = "V"
+state_1 = "V"
+state_2 = "V"
+state_3 = "V"
+state_4 = "V"
+state_5 = "V"
+state_6 = "V"
+state_7 = "V"
+state_8 = "V"
+supply = "W"
+delay_a1_fall_2 = "s"
+transition_a1_fall_2 = "s"
+delay_a2_rise_3 = "s"
+transition_a2_rise_3 = "s"
+delay_a2_fall_6 = "s"
+transition_a2_fall_6 = "s"
+delay_a1_rise_7 = "s"
+transition_a1_rise_7 = "s"
 
 [[task.evaluation.metrics]]
 id = "functional_area"
@@ -299,9 +498,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_1"
@@ -312,9 +509,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_2"
@@ -325,9 +520,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_3"
@@ -338,9 +531,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_4"
@@ -351,9 +542,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_5"
@@ -364,9 +553,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_6"
@@ -377,9 +564,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_7"
@@ -390,9 +575,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_8"
@@ -403,9 +586,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "supply"
@@ -416,17 +597,62 @@ observations = [
 unit = "W"
 direction = "minimize"
 aggregation = "max"
-lower = 0
-upper = 6e-05
-zero_lower = 0
-zero_upper = 0.0003
 dimension = "supply"
+baseline = [
+    "source_nominal:supply",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[[task.evaluation.metrics]]
+id = "propagation_delay"
+category = "performance"
+observations = [
+    "nominal:delay_a1_fall_2",
+    "nominal:delay_a2_rise_3",
+    "nominal:delay_a2_fall_6",
+    "nominal:delay_a1_rise_7",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_nominal:delay_a1_fall_2",
+    "source_nominal:delay_a2_rise_3",
+    "source_nominal:delay_a2_fall_6",
+    "source_nominal:delay_a1_rise_7",
+]
+normalization = "ratio"
+lower = 0
+
+[[task.evaluation.metrics]]
+id = "output_transition"
+category = "performance"
+observations = [
+    "nominal:transition_a1_fall_2",
+    "nominal:transition_a2_rise_3",
+    "nominal:transition_a2_fall_6",
+    "nominal:transition_a1_rise_7",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_nominal:transition_a1_fall_2",
+    "source_nominal:transition_a2_rise_3",
+    "source_nominal:transition_a2_fall_6",
+    "source_nominal:transition_a1_rise_7",
+]
+normalization = "ratio"
+lower = 0
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 1.7
-area_zero = 3.4
+area_target = 1.6789
 
 [toolchain]
 schema_version = 1
@@ -479,7 +705,7 @@ type = "magic-rc-docker"
 image = "iclayout-bench-tools:local"
 support = "build/support/freepdk45-magic-vtl"
 technology = "freepdk45.tech"
-tech_name = "nangate45"
+tech_name = "freepdk45"
 style = "spice3(sim)"
 gds_readonly = false
 case_insensitive_ports = true

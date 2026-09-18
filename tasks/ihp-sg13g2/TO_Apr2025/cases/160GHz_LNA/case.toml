@@ -5,6 +5,13 @@ title = "TO_Apr2025 160-derived four-stage LNA at 100 MHz"
 status = "qualified"
 
 [[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "301b635ff42c4fe8e813615a1e7343262f9d98d811b6e40525985f23ff9778e4"
+
+[[assets]]
 path = "reference/LNA160_FOUR_STAGE.gds"
 role = "physical-witness"
 visibility = "maintainer"
@@ -12,6 +19,7 @@ format = "gds"
 sha256 = "2f172d59e1ab2ddc0fc1895ae9b5d5a541cc5449b043c39df3cad8f01a7aa2f2"
 
 [task]
+hours = 3
 coefficient = 5
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_hbt_lna_four_stage"
@@ -19,7 +27,7 @@ environment = "ihp-sg13g2-lna160-derived-functional"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "3147b92364c48bfdb103786dfe83f1f8e5aa5cd9806487339d45033d41f485a1"
+sha256 = "5214bffe696eadbfba534ecaea20b7c8c24d3495f0027936c618b5eb54b924cf"
 format = "text"
 
 [task.inputs.netlist]
@@ -40,25 +48,193 @@ format = "spice"
 
 [task.constraints]
 schema_version = 1
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
 
 [[task.constraints.hard]]
 id = "outline"
 type = "bbox_max"
 functional_layers = [
-  [1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0],
-  [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0],
-  [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0],
-  [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0],
-  [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0],
-  [133, 0], [134, 0], [139, 0], [152, 0],
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
 ]
 max_width_um = 160
 max_height_um = 90
-
-[[task.constraints.quality]]
-id = "area"
-type = "functional_bbox_area"
-layers_from = "outline"
 
 [task.output]
 path = "output/final.gds"
@@ -71,111 +247,206 @@ schema_version = 1
 mode = "post_layout"
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 13000
-area_zero = 14400
+area_target = 1326.32
 
 [[task.evaluation.jobs]]
 id = "artifact"
 stage = "check"
 operation = "layout.artifact"
 gate = "artifact"
-inputs = { layout = "candidate", task = "task" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
 
 [[task.evaluation.jobs]]
 id = "drc"
 stage = "check"
 operation = "layout.drc"
 gate = "drc"
-inputs = { layout = "candidate", task = "task" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
 
 [[task.evaluation.jobs]]
 id = "lvs"
 stage = "check"
 operation = "layout.lvs"
 gate = "lvs"
-inputs = { layout = "candidate", task = "task", netlist = "input:netlist" }
-outputs = { database = "klayout-lvs", binding = "json" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
 
 [[task.evaluation.jobs]]
 id = "geometry"
 stage = "check"
 operation = "layout.geometry"
 gate = "constraint"
-requires = ["artifact", "drc", "lvs"]
-inputs = { layout = "candidate", task = "task", constraints = "input:constraints", database = "job:lvs:database", binding = "job:lvs:binding" }
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
 
-[[task.evaluation.metrics]]
-id = "functional_area"
-category = "physical"
-observations = ["geometry:area"]
-unit = "um2"
-direction = "minimize"
-aggregation = "max"
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
 
 [[task.evaluation.jobs]]
 id = "parasitics"
 stage = "extract"
 operation = "layout.parasitics"
-requires = ["artifact", "drc", "lvs", "geometry"]
-inputs = { layout = "candidate", task = "task" }
-outputs = { netlist = "spice" }
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
 
 [task.evaluation.jobs.parameters]
 top_cell = "LNA160_FOUR_STAGE"
-ports = ["IN", "OUT", "VDD", "VSS", "VBIAS"]
+ports = [
+    "IN",
+    "OUT",
+    "VDD",
+    "VSS",
+    "VBIAS",
+]
 
 [[task.evaluation.jobs]]
 id = "nominal"
 stage = "simulate"
 operation = "circuit.simulate"
-inputs = { circuit = "job:parasitics:netlist", deck = "input:performance" }
-outputs = { op = "ngspice-raw", ac = "ngspice-raw" }
 
-[task.evaluation.jobs.parameters]
-values = { vin_dc = 0.8, vbias_dc = 0.76 }
-measurements = { vin_bias = "V", out_bias = "V", i_vdd = "A", i_vbias = "A", gain_db = "dB" }
-exports = { op = "operating_point.raw", ac = "frequency_response.raw" }
+[task.evaluation.jobs.inputs]
+circuit = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+vin_dc = 0.8
+vbias_dc = 0.76
+
+[task.evaluation.jobs.parameters.measurements]
+vin_bias = "V"
+out_bias = "V"
+i_vdd = "A"
+i_vbias = "A"
+gain_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+
+[[task.evaluation.jobs]]
+id = "source_nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+vin_dc = 0.8
+vbias_dc = 0.76
+
+[task.evaluation.jobs.parameters.measurements]
+vin_bias = "V"
+out_bias = "V"
+i_vdd = "A"
+i_vbias = "A"
+gain_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
 
 [[task.evaluation.metrics]]
 id = "gain_db"
 category = "performance"
-observations = ["nominal:gain_db"]
+observations = [
+    "nominal:gain_db",
+]
 unit = "dB"
 direction = "maximize"
 aggregation = "min"
-lower = 10
-upper = 60
 dimension = "response"
-zero_lower = 0
-zero_upper = 80
+baseline = [
+    "source_nominal:gain_db",
+]
+normalization = "db20"
 
 [[task.evaluation.metrics]]
 id = "output_bias"
 category = "performance"
-observations = ["nominal:out_bias"]
+observations = [
+    "nominal:out_bias",
+]
 unit = "V"
 direction = "target"
 aggregation = "min"
-lower = 0.20
-upper = 1.10
 dimension = "bias"
-zero_lower = 0
-zero_upper = 1.2
+baseline = [
+    "source_nominal:out_bias",
+]
+normalization = "target"
+scale = 1.2
+lower = 0
+upper = 1.2
 
 [[task.evaluation.metrics]]
 id = "supply_current"
 category = "performance"
-observations = ["nominal:i_vdd"]
+observations = [
+    "nominal:i_vdd",
+]
 unit = "A"
-direction = "target"
+direction = "minimize"
 aggregation = "min"
-lower = 0.00001
-upper = 0.003
 dimension = "supply"
-zero_lower = 0
-zero_upper = 0.005
+baseline = [
+    "source_nominal:i_vdd",
+]
+normalization = "ratio"
+scale = 1e-12
+lower = 0
 
 [toolchain]
 schema_version = 1
@@ -190,6 +461,7 @@ schema_version = 1
 
 [toolchain.backends.artifact]
 type = "klayout-docker"
+
 [toolchain.backends.artifact.settings]
 image = "iclayout-bench-tools:local"
 check = "artifact"
@@ -197,7 +469,10 @@ timeout_seconds = 600
 
 [toolchain.backends.drc]
 type = "klayout-docker"
-support_profiles = { support = "klayout" }
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
 [toolchain.backends.drc.settings]
 image = "iclayout-bench-tools:local"
 check = "drc"
@@ -207,7 +482,10 @@ timeout_seconds = 600
 
 [toolchain.backends.lvs]
 type = "klayout-docker"
-support_profiles = { support = "klayout" }
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
 [toolchain.backends.lvs.settings]
 image = "iclayout-bench-tools:local"
 check = "lvs"
@@ -217,13 +495,18 @@ timeout_seconds = 600
 
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
+
 [toolchain.backends.geometry.settings]
 image = "iclayout-bench-tools:local"
 timeout_seconds = 600
 
 [toolchain.backends.parasitics]
 type = "sg13g2-hbt-rc-docker"
-support_profiles = { klayout_support = "klayout", magic_support = "magic" }
+
+[toolchain.backends.parasitics.support_profiles]
+klayout_support = "klayout"
+magic_support = "magic"
+
 [toolchain.backends.parasitics.settings]
 image = "iclayout-bench-tools:local"
 klayout_support = "build/support/lna160-klayout"
@@ -237,7 +520,10 @@ timeout_seconds = 600
 
 [toolchain.backends.simulation]
 type = "ngspice-docker"
-support_profiles = { support = "hbt-models" }
+
+[toolchain.backends.simulation.support_profiles]
+support = "hbt-models"
+
 [toolchain.backends.simulation.settings]
 image = "iclayout-bench-tools:local"
 support = "build/support/lna160-hbt-models"

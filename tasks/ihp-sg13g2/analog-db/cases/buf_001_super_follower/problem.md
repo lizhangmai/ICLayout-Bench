@@ -27,20 +27,50 @@ Every scored simulation consumes the submitted GDS-derived distributed wiring RC
 
 All 3 operating conditions must complete. Every finite observation must meet its inclusive band; aggregation cannot hide a failing condition. Missing measurements/crossings or incomplete extraction do not establish success.
 
-| Metric | Definition | Unit | Acceptance | Zero-score boundaries | Dimension |
-| --- | --- | --- | --- | --- | --- |
-| `output_v` | DC output/control voltage | V | 0.12 to 0.16 | <= 0 or >= 0.3 | bias |
-| `bias_v` | DC V(ibias) | V | 0.37 to 0.42 | <= 0.2 or >= 0.6 | bias |
-| `power_w` | DC power delivered by VDD; telescopic also includes both external voltage-bias sources | W | 0 to 0.0004 | < 0 or >= 0.0008 | supply |
-| `gain_vv` | Magnitude V(vout) at 10 Hz with unit AC input | V/V | 0.78 to 0.9 | <= 0 or >= 1.2 | response |
-| `bandwidth_hz` | First falling 3 dB crossing relative to the 10 Hz gain | Hz | >= 2e+07 | <= 0 | response |
-| `step_gain` | (Vout at 2.5 us - Vout at 0.5 us) / 0.1 V | V/V | 0.78 to 0.9 | <= 0 or >= 1.2 | response |
-| `recovery_up_v` | Maximum absolute recovered error over the upward-step window | V | 0 to 0.0001 | < 0 or >= 0.01 | response |
-| `recovery_down_v` | Maximum absolute recovered error over the downward-step window | V | 0 to 0.0001 | < 0 or >= 0.01 | response |
-| `mean_power_w` | Time-average -V(vdd)*I(VDD) over the complete transient | W | 0 to 0.0004 | < 0 or >= 0.0008 | supply |
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-The unified score is `S = G * (60*E + 20*H + 20*H*Q)`. `G` requires physical validity and complete extraction/measurements. `E` averages applicable response, bias and supply dimensions, each using its worst observation's attainment. Attainment is 1 inside its band and decreases linearly to its zero boundary. `H` is 1 only when all electrical limits pass. `Q = clip((22000 - area_um2)/(22000 - 5500), 0, 1)`. The fixed absolute area target is 5500 um2 and zero utility is 22000 um2. Physical rejection scores 0; blocking evaluator errors have no score. Coefficient: 5.
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `output_v` | DC output/control voltage | V | target / target | 0 … 1.5 | 1.5 |
+| `bias_v` | DC V(ibias) | V | target / target | 0 … 1.5 | 1.5 |
+| `power_w` | DC power delivered by VDD; telescopic also includes both external voltage-bias sources | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `gain_vv` | Magnitude V(vout) at 10 Hz with unit AC input | V/V | target / target | −∞ … +∞ | 1.0 |
+| `bandwidth_hz` | First falling 3 dB crossing relative to the 10 Hz gain | Hz | maximize / ratio | 0 … +∞ | — |
+| `step_gain` | (Vout at 2.5 us - Vout at 0.5 us) / 0.1 V | V/V | target / target | −∞ … +∞ | 1.0 |
+| `recovery_up_v` | Maximum absolute recovered error over the upward-step window | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `recovery_down_v` | Maximum absolute recovered error over the downward-step window | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `mean_power_w` | Time-average -V(vdd)*I(VDD) over the complete transient | W | minimize / ratio | 0 … +∞ | 1e-12 |
+
+Area reference: **1242.88 um2**. 20 expanded device instances; sum of device/contact envelopes 782.8540 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **5**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Use reviewed resources from `/protocol/resources.json`. KLayout checks, Magic extracts RC, and ngspice simulates. Frozen constraints and requirements are in `/protocol/task.json`; `/protocol/harness.json` describes the harness. If available, use the published `process-feedback.v1` helper for interim checks. Write `/workspace/output/final.gds` and explicitly submit using `python -I /protocol/submit.py`.

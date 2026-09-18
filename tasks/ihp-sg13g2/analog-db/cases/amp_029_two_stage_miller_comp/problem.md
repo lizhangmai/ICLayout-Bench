@@ -1,0 +1,56 @@
+# Differential Two-Stage Miller Amplifier Without CMFB Layout Task
+
+## Objective
+
+Implement `amp_029_two_stage_miller_comp` as a GDS layout preserving the complete declared circuit. Fully differential NMOS-input two-stage Miller amplifier without CMFB. Ten physical MOS retain both PMOS first-stage current sources, both PMOS common-source output drivers, NMOS reference/tail/output sinks, and both series R/C Miller branches. VBL and the 20 uA reference source are external apparatus.
+
+## Inputs and Interface
+
+- `materials/circuit.cdl`: authoritative physical circuit and ordered named interface.
+- `materials/circuit.spice`: equivalent source simulation, including physical passives.
+- `materials/testbench.spice`: performance observations.
+- `materials/ac.spice`: frequency observations.
+- `problem.md`: this contract.
+
+Ordered ports: `vinp vinn voutp voutn vdd vss ref vbl`. `vss` is ground, `vdd` the positive rail; signal/output and bias/reference ports have the functions and directions specified below. Every named interface must be preserved. Device multipliers are explicitly expanded; series/parallel passive realizations are already declared in the circuit. The reference layout and development source are not solver inputs.
+
+## Operating Conditions
+
+1.2 V, 27 C, TT LV MOS and typical passives; inputs have 0.6 V common mode, VBL=0.7087 V and 20 uA flows from VDD into ref. Each output has 10 pF to ground. The fixed binding uses 30 kohm and 0.4 pF per Miller branch, represented by native rhigh/MIM. Open AC drives +0.5/-0.5 V at 1 Hz–1 GHz, 200 points/decade, with no DC or AC common-mode feedback. The separate closed test uses external differential feedback vp=0.6+(signal-voutp+voutn)/2 and vm=0.6-(signal-voutp+voutn)/2. It fixes input common mode only; it neither senses nor servos output common mode. A 10 mV signal pulse starts at 2 us with 100 ns edges and 8 us high width. Maximum transient step is 1 ns through 20 us. Report 8–10 and 18–20 us windows. Closed and open DC differential offsets may differ because one fixture closes differential feedback; their input common mode and external bias are identical.
+
+## Physical Requirements
+
+IHP native standalone-block DRC, named-port LVS and distributed Magic RC extraction. Physical source and extracted simulations retain finite native body taps. The functional footprint includes active/poly, passives, all routed metals and vias, excluding text and nonfunctional boundary markers. No DRC waivers are declared. The core topology, body connections and physical compensation are fixed. Geometrically equivalent implementations must retain the named ports and device parameters. Functional bounds are 2000 by 1000 um; they bound the supported block footprint, not electrical quality.
+
+## Electrical Requirements and Scoring
+
+| Metric | Unit | Definition | Assignment |
+|---|---|---|---|
+| output_cm_v | V | DC output common mode | bias; target (scale 1.2) |
+| offset_v | V | DC differential output offset | bias; target (scale 0.01) |
+| power_w | W | DC rail power including external current bias | supply; ratio (scale 1e-12) |
+| gain_db | dB | Balanced open differential AC gain at 1 Hz | response; db20 |
+| gain_10khz_db | dB | Balanced open differential AC gain at 10 kHz | response; db20 |
+| late_error_v | V | Mean absolute differential tracking error 8–10 us | response; ratio (scale 0.001) |
+| return_error_v | V | Mean absolute differential tracking error 18–20 us | response; ratio (scale 0.001) |
+| ripple_v | V | Differential peak-to-peak output 8–10 us | response; ratio (scale 0.001) |
+| fixture_cm_max | V | fixture_cm_max | diagnostic; unscored |
+| high_v | V | high_v | diagnostic; unscored |
+| low_v | V | low_v | diagnostic; unscored |
+| cm_min_v | V | cm_min_v | diagnostic; unscored |
+| cm_max_v | V | cm_max_v | diagnostic; unscored |
+| kcl_a | A | Absolute external DC current-balance residual; numerical validity bound 10 nA | diagnostic; unscored |
+
+All required jobs must finish with finite valid measurements. The 10 nA DC KCL residual bounds numerical validity; nonnegative power/error/range bounds follow their physical definitions. Additional fixture validity bounds are stated above and in runtime task metadata. There are no data-sheet gain, regulation-accuracy or speed gates. Failed extraction, invalid measurements and missing jobs cannot be replaced by low scores.
+
+Use `layout-v2`: physical validity G gates the score; electrical E is the geometric mean of the bias/response/supply dimension geometric means, and compactness Q is area_target/functional_area. Score is 100*G*sqrt(E*Q). Each scored candidate observation is paired with the independent source observation in the identical condition. Ratio-minimize uses (source+scale)/(candidate+scale); target uses scale/(scale+abs(candidate-source)); db20-maximize uses 10^((candidate-source)/20). Scores are continuous and not capped at 100. Each metric uses its worst same-condition paired quality. Diagnostics are unscored. Source results, not the reference GDS, define performance normalization. The 1 mV error/ripple floors and 1 pW power floors regularize zero values; they are not acceptance tolerances. Target scales use the stated rail/output voltage or differential step amplitude.
+
+Area anchor: 2278.38 um2. 1.5 times the sum over expanded physical MOS, resistor and capacitor units of (W + 4 um)*(L + 4 um). The 4 um allowances cover local contacts/isolation; 50% covers compact routing. Body taps are covered by the allowance, not counted twice. This is an analytical compact-area anchor, not the witness footprint.
+
+Coefficient 6 covers the compensated differential feedback experiment. No CMFB is added. Miller capacitors are open at DC and provide no DC common-mode feedback. A large parasitic-induced common-mode shift and reduced differential response are continuous quality losses. These finite-window measurements do not certify robust biasing, settling, phase margin or useful product gain. No numerical node shunt is used.
+
+## Tools and Submission
+
+Solve budget: **8 hours**.
+
+Use the runtime task/resource discovery interface for the frozen tool image, PDK and declared feedback operations. The evaluator checks the submitted GDS independently and extracts its parasitics. Submit `output/final.gds`, top cell `amp_029_two_stage_miller_comp`; do not submit a source netlist in place of a layout. Keep all named ports. The resource bundle contains the approved open PDK and native EDA tools.

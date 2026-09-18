@@ -26,49 +26,42 @@ candidate extraction boundary and substrate calibration are recorded in the
 | [Collection LICENSE](../../LICENSE) | Collection distribution terms; excluded from solver inputs |
 | [reference/LNA160_FOUR_STAGE.gds](reference/LNA160_FOUR_STAGE.gds) | Qualified reference layout, top cell `LNA160_FOUR_STAGE` |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The authoritative netlist, simulation decks and evaluation requirements are unchanged.
+
 ## Reference Results
 
-The reference layout passes artifact validation, the pinned SG13G2 main and
-additional maximal DRC scopes without waivers, strict named-port LVS and the
-160 × 90 µm functional outline. Post-layout extraction uses candidate HBT
-geometry and distributed interconnect R/C. Strict LVS retains the finite
-`ptap1`; the approved candidate body boundary reconciles the compact HBT
-body to `VSS` with tap extraction disabled. The source tap uses the finite
-equivalent `R=81.6666667 Ω` for calibration. The finite-tap and ideal-body
-nominal gain differed by only 8.5 × 10⁻⁵ dB, below the 0.1 dB calibration
-tolerance.
+Reference results use the pinned IHP SG13G2 ciel release described in
+[resource preparation](../../../../../docs/tools.md#ihp-physical-check-profiles).
 
-The table reports the nominal operating point at `VIN=0.8 V` and
-`VBIAS=0.76 V`. Acceptance limits are in [problem.md](problem.md).
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-| Metric | Unit | Pre-layout | Post-layout |
-|---|---|---:|---:|
-| Functional area | µm² | — | 12,642 |
-| Task score (`layout-v1`) | points / 100 | — | 100 |
-| 100 MHz voltage gain | dB | 40.85778 | 40.83956 |
-| `OUT` DC bias | V | 1.00304 | 0.932008 |
-| `VDD` supply current | µA | 537.010 | 544.849 |
+Measured `layout-v2` score: **31.992850**, with electrical quality
+**E = 0.97560345** and area quality **Q = 0.10491378**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **12642 um2**.
 
-The deck also reports `IN` bias and `VBIAS` current as diagnostics; they are
-not acceptance metrics. The source and post-layout values above come from
-the same testbench, with the post-layout values measured after extracting the
-submitted reference layout.
+Area reference: **1326.32 um2**. 16 expanded device instances; sum of device/contact envelopes 836.9640 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-The `layout-v1` scoring boundaries are published in
-[problem.md](problem.md#electrical-requirements-and-scoring). Response zero
-anchors describe loss of useful response; bias and supply anchors define the
-outer grading ranges around the intended operating point and budget. These
-are explicit grading choices, with the acceptance limits checked separately.
-The fixed absolute area target is a feasible envelope demonstrated by the
-reference layout, rather than a ratio to the reference or a claim of optimality.
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `gain_db` | dB | 40.85778 | 40.83956 | 0.99790454 |
+| `output_bias` | V | 1.00304 | 0.932008 | 0.9441147 |
+| `supply_current` | A | 0.00053701 | 0.000544849 | 0.98561253 |
 
-The [HBT diagnostic policy](../../../../../docs/tools.md#hbt-core-simulation-support)
-checks Magic compact-contact warnings against native device records before
-requiring complete candidate graph validation. The reference report retains
-the original diagnostics, their review and the final HBT/RC mapping.
-
-Coefficient 5 reflects four cascaded HBT stages with independent bias clamps
-and interstage parasitics under the nominal gain and bias contract.
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
 
 ### Calibration limits
 
@@ -89,41 +82,39 @@ they do not add solver requirements.
 | `out_bias` | V | 0.001 |
 | `i_vdd` | A | 1e-05 |
 | `i_vbias` | V | 1e-05 |
-| `gain_db` | dB | 0.1 |
+| `gain_db` | dB | 40.85778 | 40.83956 | 0.99790454 |
+
+
+Coefficient 5 reflects four cascaded HBT stages with independent bias clamps
+and interstage parasitics under the nominal gain and bias contract.
 
 ## Reproduce
 
-These operator commands require the installed `ICLayout-Bench-Private` package.
-Run preparation from the Public checkout; run any `tests/integration/` commands
-from the Private checkout using that environment.
-
-Prepare the image and PDK resources using the shared
-[tools guide](../../../../../docs/tools.md#manual-tools). Run from the repository
-root and choose a fresh output directory for each reproduction:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.preview prepare \
-  --case 160GHz_LNA \
-  --output build/runs/public-preview-160GHz_LNA-01/prepared \
-  --image iclayout-bench-tools:local
-python -m layout_eval.preview run \
-  --prepared build/runs/public-preview-160GHz_LNA-01/prepared \
-  --output build/runs/public-preview-160GHz_LNA-01/run
+python -m benchmarking.engine.preview prepare \
+  --case TO_Apr2025.160GHz_LNA --image iclayout-bench-tools:local \
+  --output build/runs/160GHz_LNA-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/160GHz_LNA-prepared \
+  --output build/runs/160GHz_LNA-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k '160GHz_LNA'
 ```
 
-These commands generate the reference evaluation report at
-`build/runs/public-preview-160GHz_LNA-01/run/reference/report.json`.
-To reproduce pre-layout/post-layout calibration and the reference acceptance
-regressions, run:
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
-```bash
-python -m pytest -m acceptance_eda \
-  tests/integration/test_lna160_postlayout.py
-```
-
-The tests create fresh temporary output directories. Reference layouts and
-results are available for reproduction and are excluded from standard solver
-inputs.
+The model-boundary calibration tolerances above are exercised by `tests/integration/test_lna160_postlayout.py`.
 
 ## Source and License
 

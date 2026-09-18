@@ -29,6 +29,10 @@ RUN install -d -o ubuntu -g ubuntu /workspace
 WORKDIR /workspace
 CMD ["bash"]
 
+FROM common AS ngspice-build
+COPY scripts/build_ngspice.sh /tmp/build_ngspice.sh
+RUN sh /tmp/build_ngspice.sh
+
 FROM common AS qucsator-build
 ARG QUCSATOR_COMMIT=e995f9acc71a8c7319286944e4a1692318b9dd80
 ARG QUCSATOR_SHA256=ee77425b6714b14ee8ac2ba5c33709c00802fd3cdc1f6519cf5d7df033644964
@@ -105,7 +109,7 @@ FROM common AS tools
 USER root
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git jq make ripgrep \
-        ngspice=42+ds-3build1 binutils tk libxpm4 libcairo2 libjpeg-turbo8 \
+        ngspice=42+ds-3build1 libklu2 libreadline8t64 binutils tk libxpm4 libcairo2 libjpeg-turbo8 \
     && rm -rf /var/lib/apt/lists/*
 ARG QUCS_S_VERSION=26.1.1-1
 ARG QUCS_S_SHA256=580c3cf5aa7f99bf76ee49822317633c46649aebec2f64f83fb52a2db8b45fab
@@ -117,6 +121,8 @@ RUN curl --fail --show-error --silent --location --retry 3 --retry-all-errors --
     && apt-get install -y --no-install-recommends /tmp/qucs-s.deb \
     && rm /tmp/qucs-s.deb \
     && rm -rf /var/lib/apt/lists/*
+COPY --from=ngspice-build /opt/ngspice /opt/ngspice
+ENV PATH=/opt/ngspice/bin:${PATH}
 COPY --from=qucsator-build /opt/qucsator /opt/qucsator
 ENV PATH=/opt/qucsator/bin:${PATH}
 RUN test -x /usr/bin/qucs-s \

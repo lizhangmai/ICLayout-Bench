@@ -51,6 +51,10 @@ real output-connected storage. Do not delete or idealize any internal passive.
 
 ## Operating Conditions
 
+The loop/load testbench allows 1000 DC operating-point iterations (`itl1=1000`)
+for both source and extracted simulations. Error tolerances and physical stimuli
+are unchanged; this is a convergence setting, not added circuit damping.
+
 Use typical IHP LV MOS/MIM/poly models at 27 C. VDD is 1.2 or 1.3 V,
 VREF=0.225 V, and the external IB-to-VSS sink is 8 uA. The reference is
 explicitly changed from the normalized source's 0.4 V: the 3:1 divider then
@@ -115,76 +119,68 @@ resistance/noise and fabrication signoff remain unqualified.
 
 ## Electrical Requirements and Scoring
 
-Every applicable operating point must independently pass every bound below.
-Incomplete measurements establish neither success nor a fabricated score.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-DC `output_v` is VOUT, `bias_v` is IB voltage, `power_w` is `-VDD*I(VDD)`,
-and `quiescent_a` is supplied current minus load current. `mean_power_w`
-averages VDD-supplied power over 2–18 us. Include on-chip bias consumption;
-exclude external reference/bias-generator overhead and do not credit sink
-energy as recovered supply power.
+For a post-layout observation x and its source observation b:
 
-`dc_gain_db` is `db(T)` at 0.01 Hz. `unity_hz` and `phase_margin_deg` use
-the first descending unity crossing; `final_*` uses the last. Phase margin
-is `180+phase(T)` at the applicable crossing. `minimum_return_distance`
-and `return_phase_excursion_deg` respectively bound the minimum `abs(1+T)`
-and maximum absolute continuous phase of `1+T` over the complete sweep.
-`hf_gain_db` is maximum `db(T)` over 200 MHz–1 GHz. Missing crossings are errors.
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
 
-`minimum_v`/`maximum_v` are VOUT extrema over 2–18 us. Recovery metrics
-are maximum `abs(VOUT−0.9)` over 5–9.5 us and 13–17.5 us. Separately,
-`loaded_ripple_v` and `released_ripple_v` are peak-to-peak VOUT over
-9–9.5 us and 17–17.5 us; a wide error band alone cannot hide persistent
-oscillation. Startup error is maximum `abs(VOUT−0.9)` over 40–49 us;
-startup peak/minimum cover the entire 0–50 us interval.
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
 
-`line_span_v` and `load_span_v` are full-window maximum minus minimum of
-the respective DC sweeps. `regulation_floor_v` is the first downward-supply
-30 mV error crossing; `headroom_v` subtracts the interpolated output there.
-Ngspice extrema use in-window samples; calibration also checks interpolated
-endpoints. Measurement windows and sweep endpoints must remain complete.
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `output_v` | condition_0:output_v, condition_1:output_v, condition_2:output_v, condition_3:output_v | V | target / target | 0 … 1.3 | 1.3 |
+| `bias_v` | condition_0:bias_v, condition_1:bias_v, condition_2:bias_v, condition_3:bias_v | V | target / target | 0 … 1.3 | 1.3 |
+| `quiescent_a` | condition_0:quiescent_a, condition_1:quiescent_a, condition_2:quiescent_a, condition_3:quiescent_a | A | minimize / ratio | 0 … +∞ | 1e-12 |
+| `power_w` | condition_0:power_w, condition_1:power_w, condition_2:power_w, condition_3:power_w | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `dc_gain_db` | condition_0:dc_gain_db, condition_1:dc_gain_db, condition_2:dc_gain_db, condition_3:dc_gain_db | dB | maximize / db20 | −∞ … +∞ | — |
+| `unity_hz` | condition_0:unity_hz, condition_1:unity_hz, condition_2:unity_hz, condition_3:unity_hz | Hz | maximize / ratio | 0 … +∞ | — |
+| `phase_margin_deg` | condition_0:phase_margin_deg, condition_1:phase_margin_deg, condition_2:phase_margin_deg, condition_3:phase_margin_deg | deg | target / target | 0 … 180 | 180 |
+| `final_unity_hz` | condition_0:final_unity_hz, condition_1:final_unity_hz, condition_2:final_unity_hz, condition_3:final_unity_hz | Hz | maximize / ratio | 0 … +∞ | — |
+| `final_phase_margin_deg` | condition_0:final_phase_margin_deg, condition_1:final_phase_margin_deg, condition_2:final_phase_margin_deg, condition_3:final_phase_margin_deg | deg | target / target | 0 … 180 | 180 |
+| `minimum_return_distance` | condition_0:minimum_return_distance, condition_1:minimum_return_distance, condition_2:minimum_return_distance, condition_3:minimum_return_distance | 1 | target / target | 0 … +∞ | 1.0 |
+| `return_phase_excursion_deg` | condition_0:return_phase_excursion_deg, condition_1:return_phase_excursion_deg, condition_2:return_phase_excursion_deg, condition_3:return_phase_excursion_deg | deg | minimize / ratio | 0 … +∞ | 1e-12 |
+| `hf_gain_db` | condition_0:hf_gain_db, condition_1:hf_gain_db, condition_2:hf_gain_db, condition_3:hf_gain_db | dB | minimize / db20 | −∞ … +∞ | — |
+| `minimum_v` | condition_0:minimum_v, condition_1:minimum_v, condition_2:minimum_v, condition_3:minimum_v | V | target / target | 0 … 1.3 | 1.3 |
+| `maximum_v` | condition_0:maximum_v, condition_1:maximum_v, condition_2:maximum_v, condition_3:maximum_v | V | target / target | 0 … 1.3 | 1.3 |
+| `recovery_load_v` | condition_0:recovery_load_v, condition_1:recovery_load_v, condition_2:recovery_load_v, condition_3:recovery_load_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `recovery_release_v` | condition_0:recovery_release_v, condition_1:recovery_release_v, condition_2:recovery_release_v, condition_3:recovery_release_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `mean_power_w` | condition_0:mean_power_w, condition_1:mean_power_w, condition_2:mean_power_w, condition_3:mean_power_w | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `loaded_ripple_v` | condition_0:loaded_ripple_v, condition_1:loaded_ripple_v, condition_2:loaded_ripple_v, condition_3:loaded_ripple_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `released_ripple_v` | condition_0:released_ripple_v, condition_1:released_ripple_v, condition_2:released_ripple_v, condition_3:released_ripple_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `startup_error_v` | startup_0:startup_error_v, startup_1:startup_error_v, startup_2:startup_error_v, startup_3:startup_error_v, startup_4:startup_error_v, startup_5:startup_error_v, startup_6:startup_error_v, startup_7:startup_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `startup_peak_v` | startup_0:peak_v, startup_1:peak_v, startup_2:peak_v, startup_3:peak_v, startup_4:peak_v, startup_5:peak_v, startup_6:peak_v, startup_7:peak_v | V | target / target | 0 … 1.3 | 1.3 |
+| `startup_minimum_v` | startup_0:minimum_v, startup_1:minimum_v, startup_2:minimum_v, startup_3:minimum_v, startup_4:minimum_v, startup_5:minimum_v, startup_6:minimum_v, startup_7:minimum_v | V | target / target | −∞ … +∞ | 1.3 |
+| `regulation_floor_v` | sweeps_0:regulation_floor_v, sweeps_1:regulation_floor_v, sweeps_2:regulation_floor_v, sweeps_3:regulation_floor_v | V | target / target | 0 … 1.3 | 1.3 |
+| `headroom_v` | sweeps_0:headroom_v, sweeps_1:headroom_v, sweeps_2:headroom_v, sweeps_3:headroom_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `line_span_v` | sweeps_0:line_span_v, sweeps_1:line_span_v, sweeps_2:line_span_v, sweeps_3:line_span_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `load_span_v` | sweeps_0:load_span_v, sweeps_1:load_span_v, sweeps_2:load_span_v, sweeps_3:load_span_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
 
-| Metric | Unit | Acceptance | Lower / upper zero-score boundaries | Dimension |
-| --- | --- | --- | --- | --- |
-| `output_v` | V | 0.87–0.93 | 0.7 / 1.1 | bias |
-| `bias_v` | V | 0.67–0.84 | 0 / 1.3 | bias |
-| `quiescent_a` | A | 0–0.00011 | 0 / 0.00022 | supply |
-| `power_w` | W | 0–0.0009 | 0 / 0.0018 | supply |
-| `dc_gain_db` | dB | 40–65 | 0 / 100 | response |
-| `unity_hz` | Hz | 400000–1e+06 | 0 / 2e+06 | response |
-| `phase_margin_deg` | deg | 65–110 | 0 / 180 | response |
-| `final_unity_hz` | Hz | 400000–1e+06 | 0 / 2e+06 | response |
-| `final_phase_margin_deg` | deg | 65–110 | 0 / 180 | response |
-| `minimum_return_distance` | 1 | 0.5–1.1 | 0 / 2 | response |
-| `return_phase_excursion_deg` | deg | 0–110 | 0 / 180 | response |
-| `hf_gain_db` | dB | -300–-30 | -400 / 0 | response |
-| `minimum_v` | V | 0.84–0.91 | 0.6 / 1.2 | response |
-| `maximum_v` | V | 0.88–0.95 | 0.7 / 1.3 | response |
-| `recovery_load_v` | V | 0–0.03 | 0 / 0.15 | response |
-| `recovery_release_v` | V | 0–0.03 | 0 / 0.15 | response |
-| `mean_power_w` | W | 0–0.0012 | 0 / 0.0024 | supply |
-| `loaded_ripple_v` | V | 0–0.001 | 0 / 0.03 | response |
-| `released_ripple_v` | V | 0–0.001 | 0 / 0.03 | response |
-| `startup_error_v` | V | 0–0.03 | 0 / 0.15 | response |
-| `startup_peak_v` | V | 0.87–0.95 | 0.7 / 1.3 | response |
-| `startup_minimum_v` | V | -0.001–0.001 | -0.1 / 0.1 | response |
-| `regulation_floor_v` | V | 0.85–1.05 | 0.7 / 1.3 | response |
-| `headroom_v` | V | 0–0.18 | 0 / 0.4 | response |
-| `line_span_v` | V | 0–0.006 | 0 / 0.05 | response |
-| `load_span_v` | V | 0–0.012 | 0 / 0.1 | response |
+Area reference: **42364.42 um2**. 1240 expanded device instances; sum of device/contact envelopes 27974.3733 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-Coefficient **9** represents coupled multistage error amplification, pass-gate
-control, physical feedback/compensation and regulation/loop/recovery requirements.
-Unified score is `G × (60E + 20H + 20HQ)`: G requires physical validity and
-complete valid observations; E averages worst attainment in response, bias
-and supply; H requires all bounds. Attainment decreases linearly to the stated
-zero boundaries. Q is `clip((8000000−area)/6000000,0,1)` with fixed absolute
-area target 2,000,000 and zero 8,000,000 um², including all devices, taps,
-feedback and routing. The budget is not a ratio to a submitted or changing
-reference. Completed physical rejection scores zero; errors preventing scoring
-produce no invented numerical score.
+The capability coefficient remains **9**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Discover task/resources/feedback through `/protocol/task.json`,
 `/protocol/resources.json` and `/protocol/harness.json`. Use the supplied

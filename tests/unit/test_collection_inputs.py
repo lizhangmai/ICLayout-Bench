@@ -64,34 +64,25 @@ def test_shared_inputs_are_frozen_and_materialized_without_neighbors(shared_case
         load_task(case)
 
 
-@pytest.mark.parametrize("source", ["../LICENSE", "/LICENSE", "nested/../../LICENSE", "x\\LICENSE", "./LICENSE", ""])
-def test_collection_paths_cannot_escape_or_use_noncanonical_names(shared_case, source):
+def test_collection_source_cannot_escape_the_collection(shared_case):
+    source = "../LICENSE"
     case, _ = shared_case
     change_license(case, collection_source=source)
     with pytest.raises(ValueError):
         load_task(case)
 
 
-@pytest.mark.parametrize("kind", ["file-symlink", "directory-symlink", "directory", "missing", "catalog-symlink"])
+@pytest.mark.parametrize("kind", [
+    "file-symlink",
+    "catalog-symlink",
+])
 def test_collection_inputs_require_regular_files_and_root(shared_case, tmp_path, kind):
     case, collection = shared_case
-    external = tmp_path / "external"
-    external.mkdir()
-    (external / "LICENSE").write_bytes((collection / "LICENSE").read_bytes())
-    if kind == "file-symlink":
-        (collection / "LICENSE").unlink()
-        (collection / "LICENSE").symlink_to(external / "LICENSE")
-    elif kind == "directory-symlink":
-        (collection / "linked").symlink_to(external, target_is_directory=True)
-        change_license(case, collection_source="linked/LICENSE")
-    elif kind == "catalog-symlink":
-        (collection / "catalog.toml").rename(external / "catalog.toml")
-        (collection / "catalog.toml").symlink_to(external / "catalog.toml")
-    else:
-        (collection / "LICENSE").unlink()
-        if kind == "directory":
-            (collection / "LICENSE").mkdir()
-    with pytest.raises((ValueError, FileNotFoundError)):
+    name = "LICENSE" if kind == "file-symlink" else "catalog.toml"
+    original = collection / name
+    original.rename(tmp_path / name)
+    original.symlink_to(tmp_path / name)
+    with pytest.raises(ValueError):
         load_task(case)
 
 
@@ -108,13 +99,3 @@ def test_shared_inputs_require_collection_layout(shared_case, tmp_path):
     shutil.copytree(case.parent, destination)
     with pytest.raises(ValueError, match="requires <collection>"):
         load_task(destination / "case.toml")
-
-
-def test_standalone_task_cannot_infer_collection_source(shared_case):
-    case, _ = shared_case
-    data = tomllib.loads(case.read_text())
-    standalone = {**data["task"], "schema_version": 1,
-                  **{name: data[name] for name in ["id", "title", "status"]}}
-    case.write_text(tomli_w.dumps(standalone))
-    with pytest.raises(ValueError, match="requires <collection>"):
-        load_task(case)

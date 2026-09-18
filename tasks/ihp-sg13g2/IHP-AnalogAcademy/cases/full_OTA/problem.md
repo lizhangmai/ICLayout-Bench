@@ -90,62 +90,47 @@ requirements.
 
 ## Electrical Requirements and Scoring
 
-All declared measurements must be finite and satisfy their limits.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-| Metric | Measurement | Unit | Acceptance |
-|---|---|---|---|
-| Low-frequency gain | `20 log10(abs(V(vout)/(V(v+) − V(v-))))` at 1 Hz | dB | ≥60 |
-| Unity-gain bandwidth | First downward 0 dB crossing in the AC sweep | MHz | ≥3 |
-| Phase margin | 180° plus continuously unwrapped transfer phase at that crossing | ° | ≥55 |
-| Output bias | `V(vout)` at the closed-feedback DC operating point | V | 0.55–0.65 |
-| Quiescent supply power | `-V(vdd) × I(VDD)` at the DC operating point | µW | 0–220 |
+For a post-layout observation x and its source observation b:
 
-The evaluator runs artifact validation, DRC, strict LVS, geometry, candidate RC
-extraction, and nominal simulation in dependency order. A failed or errored
-prerequisite blocks dependent jobs; a completed violation, missing crossover,
-non-finite value, tool error, or timeout cannot establish success.
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
 
-The single task score uses `layout-v1`:
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
 
-```text
-S = G * (60 * E + 20 * H + 20 * H * Q)
-```
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `low_frequency_gain` | `response` | dB | maximize / db20 | −∞ … +∞ | — |
+| `unity_gain_bandwidth` | `response` | Hz | maximize / ratio | 0 … +∞ | — |
+| `phase_margin` | `response` | deg | target / target | 0 … 180 | 180 |
+| `supply_power` | `supply` | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `output_bias` | `bias` | V | target / target | 0 … 1.2 | 1.2 |
 
-`G` requires valid artifact, DRC, strict LVS, hard geometry, candidate PEX and
-complete simulation measurements. A completed physical rejection scores 0;
-an evaluator error that prevents grading leaves the score pending (`null`).
-`H` is 1 only when every electrical requirement passes. `E` is the mean of the
-applicable `response`, `bias` and `supply` dimensions: take the worst observation
-of each metric, then the worst metric in each dimension. Successful candidates
-score 80–100; physically valid candidates with an electrical violation score
-below 60. There are no separate points for check jobs or individual cycles.
+Area reference: **2936.48 um2**. 24 expanded device instances; sum of device/contact envelopes 1887.1830 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-An observation earns attainment 1 throughout its inclusive acceptance range.
-Outside that range it declines linearly to the corresponding zero boundary in
-the table below, and remains 0 beyond it. A zero boundary equal to its acceptance
-boundary declares an immediate drop to 0 outside that side. A dash means that
-side has no bound. These are explicit grading anchors, not additional acceptance
-limits or alternate stimulus conditions.
-
-| Metric ID | Dimension | Lower-Side Zero | Upper-Side Zero | Unit |
-|---|---|---:|---:|---|
-| `low_frequency_gain` | `response` | 0 | — | dB |
-| `unity_gain_bandwidth` | `response` | 0 | — | MHz |
-| `phase_margin` | `response` | 0 | — | ° |
-| `supply_power` | `supply` | 0 | 300 | µW |
-| `output_bias` | `bias` | 0.4 | 0.8 | V |
-
-For a fully accepted candidate, area utility is
-`Q = clip((4,000 − area) / (4,000 − 2,800), 0, 1)`,
-with area in µm². The fixed full-score area target is
-2,800 µm²; the zero-area-utility boundary is 4,000 µm².
-Area earns no points until all electrical requirements pass.
-
-The task coefficient is `6`. A batch averages all scheduled independent
-attempts per task, then computes `sum(coefficient * task_mean) / sum(coefficient)`.
-Coefficients are fixed integers; adding tasks does not change existing ones.
+The capability coefficient remains **6**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Runtime environment and support resources are declared in
 `/protocol/resources.json` and `/protocol/harness.json`; the working directory is

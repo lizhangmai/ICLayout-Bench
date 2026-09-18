@@ -1,0 +1,20 @@
+* Required Notice: Copyright 2026 Danial Noori Zadeh
+* Native physical adaptation; see collection LICENSE and NOTICE.
+.subckt tsn_001_ptat_2t vdd vout vss
+XM0_0 vdd vout vout vss nfet_03v3 w=8u l=0.28u
+XM0_1 vdd vout vout vss nfet_03v3 w=8u l=0.28u
+XM0_2 vdd vout vout vss nfet_03v3 w=8u l=0.28u
+XM0_3 vdd vout vout vss nfet_03v3 w=8u l=0.28u
+XM0_4 vdd vout vout vss nfet_03v3 w=8u l=0.28u
+XM0_5 vdd vout vout vss nfet_03v3 w=8u l=0.28u
+XM0_6 vdd vout vout vss nfet_03v3 w=8u l=0.28u
+XM0_7 vdd vout vout vss nfet_03v3 w=8u l=0.28u
+XM1_0 vout vout vss vss nfet_03v3 w=4u l=1u
+XM1_1 vout vout vss vss nfet_03v3 w=4u l=1u
+XM1_2 vout vout vss vss nfet_03v3 w=4u l=1u
+XM1_3 vout vout vss vss nfet_03v3 w=4u l=1u
+XM1_4 vout vout vss vss nfet_03v3 w=4u l=1u
+XM1_5 vout vout vss vss nfet_03v3 w=4u l=1u
+XM1_6 vout vout vss vss nfet_03v3 w=4u l=1u
+XM1_7 vout vout vss vss nfet_03v3 w=4u l=1u
+.ends tsn_001_ptat_2t

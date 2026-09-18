@@ -44,7 +44,7 @@ def _preview(output, image, network, *, skip_build):
     output = Path(output).absolute()
     if output.exists() or output.is_symlink():
         raise ValueError(f"Acceptance output already exists: {output}")
-    command = [sys.executable, "scripts/public_preview.py", "quickstart",
+    command = [sys.executable, "-m", "benchmarking.engine.preview", "quickstart",
                "--image", image, "--network", network, "--output", str(output)]
     if skip_build:
         command.append("--skip-build")

@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # Resistive-Feedback Hysteretic Comparator
 
@@ -18,63 +18,78 @@ VDD = 3.3 V, VSS = 0 V, VINN = 1.65 V. VINP stays at 1.45 V through 0.1 ms, ramp
 | [materials/testbench.spice](materials/testbench.spice) | Shared source/post-layout measurement deck |
 | [reference/cmp_001_hyst_diffpair.gds](reference/cmp_001_hyst_diffpair.gds) | Independently constructed witness, excluded from solver inputs |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The schematic depicts the authoritative netlist; the current layout requirements
+and evaluation settings are declared in the task.
+
 ## Reference Results
 
-The reference functional area is 60543.6549 um2. It passes artifact, GF180 variant-D DRC including antenna without
-waivers, strict named-port LVS, geometry, distributed RC extraction and all
-18 required electrical observations. The table gives ranges over all three
-declared conditions; temperature extrema and comparator transient windows are
-defined in the problem. Both columns use the same maintained testbench.
+GF180 resources come from the pinned ciel prebuilt distribution, including its
+current KLayout rules, nominal models and variant-D Magic extraction.
+The reference uses a 0.001 um GDS database unit; dummy COMP fill is included
+where required by the rule deck.
+See [resource preparation](../../../../../docs/tools.md) and the process manifest
+for source pins, scope and reproducible preparation.
 
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| `rising_input` | V | 1.694373 to 1.694397 | 1.693921 to 1.693936 |
-| `falling_input` | V | 1.681959 to 1.682001 | 1.680888 to 1.680902 |
-| `hysteresis_v` | V | 0.012372 to 0.012438 | 0.013033 to 0.013046 |
-| `mean_power_w` | W | 0.0005595666 to 0.0005599238 | 0.0005542839 to 0.0005544049 |
-| `low_v` | V | 2.869148e-09 to 2.86915e-09 | 5.468602e-05 |
-| `high_v` | V | 3.3 | 3.298868 |
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-The targets require an 8–20 mV hysteresis window, explicit threshold bands, near-rail settled output and a 650 uW average power budget under all three loads. Thresholds are finite-ramp measurements. The coefficient is 5 for regenerative feedback and a multi-stage output path. Acceptance and zero-score bands are calibrated against these nominal
-source/RC measurements, rather than inherited from upstream targets. The
-absolute area budget is 65000 um2, verified feasible by this witness; area utility
-reaches zero at 260000 um2. These frozen budgets do not depend on a submitted
-layout, a changing reference-area ratio or model population. The witness is
-not an area optimum. Physical area and the final evaluation score are reported
-by the reproduction command below.
+Measured `layout-v2` score: **37.302565**, with electrical quality
+**E = 1.0045259** and area quality **Q = 0.1385212**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **60543.6549 um2**.
 
-The extracted RC network and device geometry come from the reference GDS.
-Finite substrate resistance, process/statistical corners and fabrication
-signoff are outside this nominal physical/simulation boundary.
+Area reference: **8386.58 um2**. 31 expanded device instances; sum of device/contact envelopes 5392.5600 um2, per-side envelope allowance 1 um, 50% routing allowance and outer margin 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `rising_input` | V | 1.694373 … 1.694397 | 1.69392 … 1.693935 | 0.99985548 |
+| `falling_input` | V | 1.681959 … 1.682001 | 1.680888 … 1.680902 | 0.99966284 |
+| `hysteresis_v` | V | 0.012372 … 0.012438 | 0.013018 … 0.013047 | 0.9997955 |
+| `mean_power_w` | W | 0.0005595666 … 0.0005599238 | 0.0005542408 … 0.0005544089 | 1.0093031 |
+| `low_v` | V | 2.869148e-09 … 2.86915e-09 | 5.468602e-05 | functional |
+| `high_v` | V | 3.3 | 3.298868 | functional |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
+
+The coefficient is 5 for regenerative feedback and a multi-stage output path.
 
 ## Reproduce
 
-From the repository root, prepare the image and shared verified bundles using
-the [GF180 instructions](../../../../../docs/tools.md#gf180), then run:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.cli evaluate \
-  tasks/gf180mcuD/analog-db/cases/cmp_001_hyst_diffpair/case.toml \
-  tasks/gf180mcuD/analog-db/cases/cmp_001_hyst_diffpair/reference/cmp_001_hyst_diffpair.gds \
-  --output build/runs/analog-db-cmp_001_hyst_diffpair-reference
+python -m benchmarking.engine.preview prepare \
+  --case gf180mcuD.analog-db.cmp_001_hyst_diffpair --image iclayout-bench-tools:local \
+  --output build/runs/cmp_001_hyst_diffpair-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/cmp_001_hyst_diffpair-prepared \
+  --output build/runs/cmp_001_hyst_diffpair-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'cmp_001_hyst_diffpair'
 ```
 
-This generates the reader's identity-bound report and raw waveforms in the
-selected output directory; use a fresh directory for every execution. Reproduce
-the Pre-layout column using the shared
-[source-calibration recipe](../../../../../docs/tools.md#gf180-source-calibration),
-with this case path and a fresh `build/runs/analog-db-cmp_001_hyst_diffpair-source` destination.
-That recipe keeps all three conditions and replaces only the extracted DUT
-with the published source netlist; characterization is not a layout score.
-
-```bash
-uv run --locked --group eda pytest tests/integration/test_public_references.py \
-  -k cmp_001_hyst_diffpair
-```
-
-The catalog-driven checks evaluate the witness and reject an empty layout.
-Retain collection LICENSE and NOTICE with distributions; they are outside the
-three declared solver inputs. Prepared solves are not redistribution packages.
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

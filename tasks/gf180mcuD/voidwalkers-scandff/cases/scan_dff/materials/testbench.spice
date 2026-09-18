@@ -21,7 +21,17 @@ meas tran reset89 find v(q) at=89n
 meas tran reset99 find v(q) at=99n
 meas tran high119 find v(q) at=119n
 meas tran low139 find v(q) at=139n
-meas tran delay_s trig v(clk) val=1.65 rise=1 td=100n targ v(q) val=2.97 rise=1 td=100n
+* Measure effective CLK->Q arcs for functional and scan data, plus asynchronous reset.
+meas tran delay_data_rise trig v(clk) val=1.65 rise=1 td=100n targ v(q) val=1.65 rise=1 td=100n
+meas tran slew_data_rise trig v(q) val=0.66 rise=1 td=100n targ v(q) val=2.64 rise=1 td=100n
+meas tran delay_data_fall trig v(clk) val=1.65 rise=1 td=120n targ v(q) val=1.65 fall=1 td=120n
+meas tran slew_data_fall trig v(q) val=2.64 fall=1 td=120n targ v(q) val=0.66 fall=1 td=120n
+meas tran delay_scan_rise trig v(clk) val=1.65 rise=1 td=60n targ v(q) val=1.65 rise=1 td=60n
+meas tran slew_scan_rise trig v(q) val=0.66 rise=1 td=60n targ v(q) val=2.64 rise=1 td=60n
+meas tran delay_scan_fall trig v(clk) val=1.65 rise=1 td=40n targ v(q) val=1.65 fall=1 td=40n
+meas tran slew_scan_fall trig v(q) val=2.64 fall=1 td=40n targ v(q) val=0.66 fall=1 td=40n
+meas tran delay_reset_fall trig v(rn) val=1.65 fall=1 td=80n targ v(q) val=1.65 fall=1 td=80n
+meas tran slew_reset_fall trig v(q) val=2.64 fall=1 td=80n targ v(q) val=0.66 fall=1 td=80n
 let pwr=-3.3*i(vdd)
 meas tran power_w avg pwr from=20n to=140n
 write waveform.raw

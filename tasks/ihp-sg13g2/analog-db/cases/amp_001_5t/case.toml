@@ -4,7 +4,22 @@ id = "ihp-sg13g2.analog-db.amp_001_5t"
 title = "Five-Transistor OTA Core with Bias Mirror"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "94a5efd6eabc78575609125a945bda736409944fa176166ae760828945243424"
+
+[[assets]]
+path = "reference/amp_001_5t.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "893bcdd7386bdf05c5ea53991e1bd367c1230d8d86a98427b213a88dbd828d29"
+
 [task]
+hours = 3
 coefficient = 4
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_nmos_5t_ota"
@@ -13,7 +28,7 @@ environment = "ihp-sg13g2-analog-db-ota-rc-tt"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "54728c39abeae90f189b125dd1e5af645adcf7aef5f7bcd221a43b1a39dac12b"
+sha256 = "ee5976a67782225dccc840f4403a99de9285f2d4d72b81b99e8af6deac73851d"
 
 [task.inputs.netlist]
 path = "materials/circuit.cdl"
@@ -41,12 +56,182 @@ quality = [
 id = "outline"
 type = "bbox_max"
 functional_layers = [
-  [1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0],
-  [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0],
-  [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0],
-  [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0],
-  [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0],
-  [133, 0], [134, 0], [139, 0], [152, 0],
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
 ]
 max_width_um = 120
 max_height_um = 70
@@ -62,10 +247,9 @@ schema_version = 1
 mode = "post_layout"
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 4000
-area_zero = 8000
+area_target = 1198.35
 
 [[task.evaluation.jobs]]
 id = "artifact"
@@ -173,6 +357,31 @@ phase_margin = "deg"
 op = "ota-op.raw"
 ac = "ota-ac.raw"
 
+[[task.evaluation.jobs]]
+id = "source_nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+output_bias = "V"
+bias_voltage = "V"
+supply_power = "W"
+low_frequency_gain = "dB"
+unity_gain_bandwidth = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ota-op.raw"
+ac = "ota-ac.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -193,8 +402,10 @@ unit = "dB"
 direction = "maximize"
 aggregation = "min"
 dimension = "response"
-lower = 30
-zero_lower = 0
+baseline = [
+    "source_nominal:low_frequency_gain",
+]
+normalization = "db20"
 
 [[task.evaluation.metrics]]
 id = "unity_gain_bandwidth"
@@ -206,8 +417,11 @@ unit = "Hz"
 direction = "maximize"
 aggregation = "min"
 dimension = "response"
-lower = 1000000.0
-zero_lower = 100000.0
+baseline = [
+    "source_nominal:unity_gain_bandwidth",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "phase_margin"
@@ -219,10 +433,13 @@ unit = "deg"
 direction = "target"
 aggregation = "min"
 dimension = "response"
-lower = 60
-zero_lower = 0
-upper = 90
-zero_upper = 120
+baseline = [
+    "source_nominal:phase_margin",
+]
+normalization = "target"
+scale = 180
+lower = 0
+upper = 180
 
 [[task.evaluation.metrics]]
 id = "output_bias"
@@ -234,10 +451,13 @@ unit = "V"
 direction = "target"
 aggregation = "min"
 dimension = "bias"
-lower = 0.78
-zero_lower = 0.6
-upper = 0.82
-zero_upper = 1
+baseline = [
+    "source_nominal:output_bias",
+]
+normalization = "target"
+scale = 1.5
+lower = 0
+upper = 1.5
 
 [[task.evaluation.metrics]]
 id = "bias_voltage"
@@ -249,10 +469,13 @@ unit = "V"
 direction = "target"
 aggregation = "min"
 dimension = "bias"
-lower = 0.39
-zero_lower = 0.2
-upper = 0.44
-zero_upper = 0.6
+baseline = [
+    "source_nominal:bias_voltage",
+]
+normalization = "target"
+scale = 1.5
+lower = 0
+upper = 1.5
 
 [[task.evaluation.metrics]]
 id = "supply_power"
@@ -264,10 +487,12 @@ unit = "W"
 direction = "minimize"
 aggregation = "max"
 dimension = "supply"
+baseline = [
+    "source_nominal:supply_power",
+]
+normalization = "ratio"
 lower = 0
-zero_lower = 0
-upper = 6.5e-05
-zero_upper = 0.0001
+scale = 1e-12
 
 [toolchain]
 schema_version = 1
@@ -346,13 +571,6 @@ support = "analog-models"
 image = "iclayout-bench-tools:local"
 support = "build/support/analog-db-analog-models"
 timeout_seconds = 600
-
-[[assets]]
-path = "reference/amp_001_5t.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "893bcdd7386bdf05c5ea53991e1bd367c1230d8d86a98427b213a88dbd828d29"
 
 [qualification]
 reference = "reference/amp_001_5t.gds"

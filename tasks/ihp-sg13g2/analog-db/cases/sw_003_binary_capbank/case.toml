@@ -4,7 +4,22 @@ id = "ihp-sg13g2.analog-db.sw_003_binary_capbank"
 title = "Three-Bit MIM Capacitive Transfer Bank"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "c37fdf79b0791690e29dcf1afcf3202c40dfe637e46ebbb6f1c84b8ad8e03301"
+
+[[assets]]
+path = "reference/sw_003_binary_capbank.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "b8a024563d98a686e8a787e364fae0c3d1f9bfc38a9a24db01a0417bda693e49"
+
 [task]
+hours = 3
 coefficient = 5
 kind = "netlist_to_gds"
 family = "ihp-sg13g2_sw_003_binary_capbank"
@@ -13,7 +28,7 @@ environment = "ihp-sg13g2-sw_003_binary_capbank-nominal-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "6d5624b65112ed849211498cc3d095e362c06766a5f90b7a55ca90e050136bdd"
+sha256 = "5610afd2d16e101bc0d61eab9e1df20214efe98a2b9a340356dd67640e482e43"
 
 [task.inputs.netlist]
 path = "materials/circuit.cdl"
@@ -232,10 +247,9 @@ schema_version = 1
 mode = "post_layout"
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 33000
-area_zero = 132000
+area_target = 9532.78
 
 [[task.evaluation.jobs]]
 id = "artifact"
@@ -579,6 +593,262 @@ settling_error_v = "V"
 ac = "ac.raw"
 transient = "transient.raw"
 
+[[task.evaluation.jobs]]
+id = "source_condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+b0 = 0
+b1 = 0
+b2 = 0
+
+[task.evaluation.jobs.parameters.measurements]
+gain_vv = "V/V"
+phase_deg = "deg"
+input_cap_f = "F"
+gain_error = "V/V"
+step_gain = "V/V"
+step_error = "V/V"
+return_error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+ac = "ac.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+b0 = 1
+b1 = 0
+b2 = 0
+
+[task.evaluation.jobs.parameters.measurements]
+gain_vv = "V/V"
+phase_deg = "deg"
+input_cap_f = "F"
+gain_error = "V/V"
+step_gain = "V/V"
+step_error = "V/V"
+return_error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+ac = "ac.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+b0 = 0
+b1 = 1
+b2 = 0
+
+[task.evaluation.jobs.parameters.measurements]
+gain_vv = "V/V"
+phase_deg = "deg"
+input_cap_f = "F"
+gain_error = "V/V"
+step_gain = "V/V"
+step_error = "V/V"
+return_error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+ac = "ac.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+b0 = 1
+b1 = 1
+b2 = 0
+
+[task.evaluation.jobs.parameters.measurements]
+gain_vv = "V/V"
+phase_deg = "deg"
+input_cap_f = "F"
+gain_error = "V/V"
+step_gain = "V/V"
+step_error = "V/V"
+return_error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+ac = "ac.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_4"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+b0 = 0
+b1 = 0
+b2 = 1
+
+[task.evaluation.jobs.parameters.measurements]
+gain_vv = "V/V"
+phase_deg = "deg"
+input_cap_f = "F"
+gain_error = "V/V"
+step_gain = "V/V"
+step_error = "V/V"
+return_error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+ac = "ac.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_5"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+b0 = 1
+b1 = 0
+b2 = 1
+
+[task.evaluation.jobs.parameters.measurements]
+gain_vv = "V/V"
+phase_deg = "deg"
+input_cap_f = "F"
+gain_error = "V/V"
+step_gain = "V/V"
+step_error = "V/V"
+return_error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+ac = "ac.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_6"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+b0 = 0
+b1 = 1
+b2 = 1
+
+[task.evaluation.jobs.parameters.measurements]
+gain_vv = "V/V"
+phase_deg = "deg"
+input_cap_f = "F"
+gain_error = "V/V"
+step_gain = "V/V"
+step_error = "V/V"
+return_error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+ac = "ac.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_7"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+b0 = 1
+b1 = 1
+b2 = 1
+
+[task.evaluation.jobs.parameters.measurements]
+gain_vv = "V/V"
+phase_deg = "deg"
+input_cap_f = "F"
+gain_error = "V/V"
+step_gain = "V/V"
+step_error = "V/V"
+return_error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+ac = "ac.raw"
+transient = "transient.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -606,10 +876,18 @@ unit = "V/V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 0.1
-upper = 1.02
-zero_lower = 0
-zero_upper = 1.2
+baseline = [
+    "source_condition_0:gain_vv",
+    "source_condition_1:gain_vv",
+    "source_condition_2:gain_vv",
+    "source_condition_3:gain_vv",
+    "source_condition_4:gain_vv",
+    "source_condition_5:gain_vv",
+    "source_condition_6:gain_vv",
+    "source_condition_7:gain_vv",
+]
+normalization = "target"
+scale = 1.0
 
 [[task.evaluation.metrics]]
 id = "phase_deg"
@@ -628,10 +906,18 @@ unit = "deg"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = -1
-upper = 1
-zero_lower = -10
-zero_upper = 10
+baseline = [
+    "source_condition_0:phase_deg",
+    "source_condition_1:phase_deg",
+    "source_condition_2:phase_deg",
+    "source_condition_3:phase_deg",
+    "source_condition_4:phase_deg",
+    "source_condition_5:phase_deg",
+    "source_condition_6:phase_deg",
+    "source_condition_7:phase_deg",
+]
+normalization = "target"
+scale = 180
 
 [[task.evaluation.metrics]]
 id = "input_cap_f"
@@ -648,12 +934,21 @@ observations = [
 ]
 unit = "F"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:input_cap_f",
+    "source_condition_1:input_cap_f",
+    "source_condition_2:input_cap_f",
+    "source_condition_3:input_cap_f",
+    "source_condition_4:input_cap_f",
+    "source_condition_5:input_cap_f",
+    "source_condition_6:input_cap_f",
+    "source_condition_7:input_cap_f",
+]
+normalization = "ratio"
 lower = 0
-upper = 3e-12
-zero_lower = 0
-zero_upper = 6e-12
+scale = 1e-21
 
 [[task.evaluation.metrics]]
 id = "gain_error"
@@ -670,12 +965,21 @@ observations = [
 ]
 unit = "V/V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:gain_error",
+    "source_condition_1:gain_error",
+    "source_condition_2:gain_error",
+    "source_condition_3:gain_error",
+    "source_condition_4:gain_error",
+    "source_condition_5:gain_error",
+    "source_condition_6:gain_error",
+    "source_condition_7:gain_error",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.015
-zero_lower = 0
-zero_upper = 0.03
+scale = 1e-09
 
 [[task.evaluation.metrics]]
 id = "step_gain"
@@ -694,10 +998,18 @@ unit = "V/V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 0.1
-upper = 1.02
-zero_lower = 0
-zero_upper = 1.2
+baseline = [
+    "source_condition_0:step_gain",
+    "source_condition_1:step_gain",
+    "source_condition_2:step_gain",
+    "source_condition_3:step_gain",
+    "source_condition_4:step_gain",
+    "source_condition_5:step_gain",
+    "source_condition_6:step_gain",
+    "source_condition_7:step_gain",
+]
+normalization = "target"
+scale = 1.0
 
 [[task.evaluation.metrics]]
 id = "step_error"
@@ -714,12 +1026,21 @@ observations = [
 ]
 unit = "V/V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:step_error",
+    "source_condition_1:step_error",
+    "source_condition_2:step_error",
+    "source_condition_3:step_error",
+    "source_condition_4:step_error",
+    "source_condition_5:step_error",
+    "source_condition_6:step_error",
+    "source_condition_7:step_error",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.015
-zero_lower = 0
-zero_upper = 0.03
+scale = 1e-09
 
 [[task.evaluation.metrics]]
 id = "return_error_v"
@@ -736,12 +1057,21 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:return_error_v",
+    "source_condition_1:return_error_v",
+    "source_condition_2:return_error_v",
+    "source_condition_3:return_error_v",
+    "source_condition_4:return_error_v",
+    "source_condition_5:return_error_v",
+    "source_condition_6:return_error_v",
+    "source_condition_7:return_error_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 2e-05
-zero_lower = 0
-zero_upper = 0.0001
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "settling_error_v"
@@ -758,12 +1088,21 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:settling_error_v",
+    "source_condition_1:settling_error_v",
+    "source_condition_2:settling_error_v",
+    "source_condition_3:settling_error_v",
+    "source_condition_4:settling_error_v",
+    "source_condition_5:settling_error_v",
+    "source_condition_6:settling_error_v",
+    "source_condition_7:settling_error_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 1e-05
-zero_lower = 0
-zero_upper = 0.0001
+scale = 1e-06
 
 [toolchain]
 schema_version = 1
@@ -842,13 +1181,6 @@ support = "analog-models"
 image = "iclayout-bench-tools:local"
 support = "build/support/input-pair-models"
 timeout_seconds = 600
-
-[[assets]]
-path = "reference/sw_003_binary_capbank.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "b8a024563d98a686e8a787e364fae0c3d1f9bfc38a9a24db01a0417bda693e49"
 
 [qualification]
 reference = "reference/sw_003_binary_capbank.gds"

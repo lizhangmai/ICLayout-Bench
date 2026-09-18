@@ -350,37 +350,24 @@ IIC-JKU upstream circuit material
    limitations under the License.
 
 
-Component terms recorded for ferrosim-derived topologies
-======================================================
+Component attribution recorded by analog-db: ferrosim-derived topologies
+=======================================================================
 
-The pinned analog-db manifests attribute buf_001_super_follower,
-amp_023_fer_fd2s, ldo_008_fer_mirror_ota and ldo_009_fer_5t_pass
-to Arcadia-1/ferrosim, designer Token Zhang, under MIT. No copyright year is supplied in those
-records. This section retains that attribution and the standard MIT terms;
-it is not a verbatim copy of an independently retrieved ferrosim license.
-The normalized analog-db derivatives also retain the PolyForm terms above.
+The direct source is MacAnalog/spicexplorer-release analog-db at commit
+263d0322f8900dc331536fbbe6c0e804514fc454. Its circuit.yaml manifests record
+Arcadia-1/ferrosim (imported via netlist-crawler), designer Token Zhang, and
+license: MIT for the following entries:
 
-MIT License
+- https://github.com/MacAnalog/spicexplorer-release/blob/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/buf_001_super_follower/circuit.yaml
+- https://github.com/MacAnalog/spicexplorer-release/blob/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/amp_022_fer_two_stage/circuit.yaml
+- https://github.com/MacAnalog/spicexplorer-release/blob/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/amp_023_fer_fd2s/circuit.yaml
+- https://github.com/MacAnalog/spicexplorer-release/blob/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/ldo_008_fer_mirror_ota/circuit.yaml
+- https://github.com/MacAnalog/spicexplorer-release/blob/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/ldo_009_fer_5t_pass/circuit.yaml
 
-Author attribution: Token Zhang (Arcadia-1/ferrosim), as recorded by analog-db.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+This attribution follows the direct source's declarations. The distributed
+normalized derivatives also retain the analog-db PolyForm terms above.
+The MIT label and author attribution above are reproduced from those manifests;
+no separate ferrosim license text is supplied by them.
 
 
 Component terms: AnalogGym circuits
@@ -388,8 +375,9 @@ Component terms: AnalogGym circuits
 
 The amp_024_smcnr, amp_003_fan_smc, amp_002_alfio_raffc, amp_008_leung_nmcf,
 amp_009_leung_nmcnr, amp_005_hoilee_affc, amp_006_leung_dfcfc1,
-amp_007_leung_dfcfc2, amp_010_peng_acbc, amp_012_peng_tcfc, amp_015_sau_cfcc
-and ldo_001_analoggym_basic topologies are attributed to CODA-Team AnalogGym
+amp_007_leung_dfcfc2, amp_010_peng_acbc, amp_012_peng_tcfc, amp_015_sau_cfcc,
+amp_013_qu2017_azc, amp_021_yan_az and ldo_001_analoggym_basic topologies are
+attributed to CODA-Team AnalogGym
 in the fixed analog-db snapshot. Normalized derivatives also retain the PolyForm terms.
 
 BSD 3-Clause License

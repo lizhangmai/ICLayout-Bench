@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # Five-Transistor OTA Core with Bias Mirror
 
@@ -22,127 +22,80 @@ outside the declared scope.
 | File | Role |
 | --- | --- |
 | [problem.md](problem.md) | Complete solver-facing requirements and scoring |
-| [case.toml](case.toml) | Inputs, physical checks, RC/simulation plan and frozen limits |
+| [case.toml](case.toml) | Inputs, physical checks, RC/simulation plan and frozen scoring and functional checks |
 | [materials/circuit.cdl](materials/circuit.cdl) | Authoritative native LVS circuit with taps |
-| [materials/circuit.spice](materials/circuit.spice) | Same circuit as ngspice model calls, for source calibration |
+| [materials/circuit.spice](materials/circuit.spice) | Same circuit as ngspice model calls, for the source baseline |
 | [materials/testbench.spice](materials/testbench.spice) | Shared source/post-layout AC/DC testbench |
 | [reference/amp_001_5t.gds](reference/amp_001_5t.gds) | Independently constructed witness; not a solver input |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The authoritative netlist, simulation decks and evaluation requirements are unchanged.
+
 ## Reference Results
 
-The reference passes artifact, main/extra DRC without waivers, strict named-port
-LVS, geometry, candidate-derived distributed RC extraction and all six nominal
-electrical requirements through the published case plan. Its functional
-bounding-box area is 3675.0499 um2. This demonstrates feasibility at the declared
-conditions, not optimum area or a model score.
+Reference results use the pinned IHP SG13G2 ciel release described in
+[resource preparation](../../../../../docs/tools.md#ihp-physical-check-profiles).
 
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| Low-frequency gain | dB | 33.11524 | 33.10943 |
-| Unity-gain bandwidth | Hz | 1,211,382 | 1,206,185 |
-| Phase margin | deg | 83.80139 | 83.71266 |
-| Output bias | V | 0.79870636 | 0.798673565 |
-| Bias voltage | V | 0.41466120 | 0.41529479 |
-| Supply power, including reference branch | W | 0.00005928993 | 0.00005925994 |
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-The acceptance bands target a 30 dB, 1 MHz amplifier with at least 60 degrees
-phase margin and a 65 uW supply budget. They are supported by the same-condition
-source/post-layout measurements above, not inherited from upstream datasheet
-claims. Bias bands surround the intended 0.8 V operating point and nominal
-reference mirror bias. See the problem for the full bands and zero boundaries.
-The reference fits within the 100 by 40 um nominal routing budget.
-The absolute area target is that routing budget (4000 um2); area utility
-falls to zero at 8000 um2. These fixed budgets are independent of a submitted
-candidate or a reference-area ratio. The coefficient is 4 for a complete compact
+Measured `layout-v2` score: **57.088550**, with electrical quality
+**E = 0.99948801** and area quality **Q = 0.32607721**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **3675.0499 um2**.
+
+Area reference: **1198.35 um2**. 8 expanded device instances; sum of device/contact envelopes 754.0020 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `low_frequency_gain` | dB | 33.11524 | 33.10943 | 0.99933132 |
+| `unity_gain_bandwidth` | Hz | 1211382 | 1206185 | 0.99570986 |
+| `phase_margin` | deg | 83.80139 | 83.71266 | 0.9995073 |
+| `output_bias` | V | 0.79870636 | 0.79867355 | 0.99997813 |
+| `bias_voltage` | V | 0.4146612 | 0.41529479 | 0.99957779 |
+| `supply_power` | W | 5.9289935e-05 | 5.9259936e-05 | 1.0005062 |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
+
+The coefficient is 4 for a complete compact
 amplifier with bias and load matching.
-
-Physical LVS includes explicit well/substrate tap devices. Magic retains its
-candidate-derived external RC network but does not emit the separate tap compact
-models used by the source. This is a nominal model boundary, not a substrate
-noise or statistical matching model.
-A source-only control with ideal rail-connected bodies changes bandwidth by
-8 Hz and phase margin by 0.00021 degrees at these conditions; the reproduction
-below includes that control. This does not qualify substrate noise behavior.
 
 ## Reproduce
 
-These operator commands require the installed `ICLayout-Bench-Private` package.
-Run preparation from the Public checkout; run any `tests/integration/` commands
-from the Private checkout using that environment.
-
-From the repository root, follow the shared [tool setup](../../../../../docs/tools.md)
-and run the no-model preview:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.preview quickstart --case amp_001_5t \
-  --output build/runs/analog-db-ota-preview
+python -m benchmarking.engine.preview prepare \
+  --case ihp-sg13g2.analog-db.amp_001_5t --image iclayout-bench-tools:local \
+  --output build/runs/amp_001_5t-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/amp_001_5t-prepared \
+  --output build/runs/amp_001_5t-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'amp_001_5t'
 ```
 
-Add `--skip-build` when the maintained tools image already exists. This command
-creates the prepared case/resources and the reference report under the selected
-output directory. Use a fresh output directory for each run.
-
-To reproduce source calibration with that prepared toolchain and the same
-published testbench:
-
-```bash
-uv run --locked python - <<'PY'
-import json
-from pathlib import Path
-from benchmarking.evaluation import parse_evaluation
-from layout_eval.evaluate import run_evaluation
-from benchmarking.tasks import load_task
-from layout_eval.toolchains import load_toolchain
-from benchmarking.files import Asset
-
-config = Path('build/runs/analog-db-ota-preview/prepared/case/case.toml')
-task = load_task(config)
-plan = task.evaluation.description()
-plan['mode'] = 'characterization'
-plan.pop('scoring', None)
-plan['jobs'] = [j for j in plan['jobs'] if j['stage'] == 'simulate']
-for job in plan['jobs']:
-    job['inputs']['dut'] = 'input:simulation'
-    job.pop('requires', None)
-plan['metrics'] = [m for m in plan['metrics'] if m['category'] == 'performance']
-for metric in plan['metrics']:
-    for key in ('dimension', 'zero_lower', 'zero_upper'):
-        metric.pop(key, None)
-report = run_evaluation(parse_evaluation(json.dumps(plan).encode(), file_format='json'),
-                        task.evaluation_inputs(), load_toolchain(config),
-                        Path('build/runs/analog-db-ota-source'), task_sha256=task.digest)
-assert report['outcome'] == 'passed', report
-
-# Isolate the finite-tap compact-model boundary, without changing MOS sizes.
-inputs = task.evaluation_inputs()
-lines = []
-for line in inputs['input:simulation'].content.decode().splitlines():
-    if line.startswith('XR'):
-        continue
-    if line.startswith('XM'):
-        fields = line.split()
-        fields[4] = 'vdd' if 'pmos' in fields[5] else 'vss'
-        line = ' '.join(fields)
-    lines.append(line)
-inputs['input:simulation'] = Asset(('\n'.join(lines) + '\n').encode(), 'spice')
-control = run_evaluation(parse_evaluation(json.dumps(plan).encode(), file_format='json'),
-                         inputs, load_toolchain(config),
-                         Path('build/runs/analog-db-ota-ideal-body'), task_sha256=task.digest)
-assert control['outcome'] == 'passed', control
-PY
-```
-
-This creates reports under `build/runs/analog-db-ota-source/` and
-`build/runs/analog-db-ota-ideal-body/`; both are characterization,
-not scored layout results. The same catalog-driven witness/empty-candidate
-regressions used by other public cases apply:
-
-```bash
-python -m pytest tests/integration/test_public_references.py -k amp_001_5t
-```
-
-Generated preparation/run directories are local outputs, not redistribution
-packages. Retain the collection LICENSE and NOTICE when distributing case materials.
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

@@ -5,13 +5,14 @@ For agent-assisted case authoring, use the repository's
 across process technologies and toolchains; this guide remains the authority
 for task contracts, documentation templates, scoring and qualification.
 
-See the [comparator case](../tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/comparator/case.toml) for an executable task and its embedded toolchain, constraints, and evaluation plan. The selected public IHP and TO_Apr2025 cases are listed in [`tasks/ihp-sg13g2/IHP-AnalogAcademy/catalog.toml`](../tasks/ihp-sg13g2/IHP-AnalogAcademy/catalog.toml) and [`tasks/ihp-sg13g2/TO_Apr2025/catalog.toml`](../tasks/ihp-sg13g2/TO_Apr2025/catalog.toml). Promotion freezes inputs, constraints, evaluation, tool bindings, and independent qualification; shipping a reference layout is optional, and witness-less cases disclose their limits' basis as described under [qualification](#qualification). Models, budgets, repetitions, and access policy belong to the outer [run plan](running.md).
+See the [comparator case](../tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/comparator/case.toml) for an executable task and its embedded toolchain, constraints, and evaluation plan. The selected public IHP and TO_Apr2025 cases are listed in [`tasks/ihp-sg13g2/IHP-AnalogAcademy/catalog.toml`](../tasks/ihp-sg13g2/IHP-AnalogAcademy/catalog.toml) and [`tasks/ihp-sg13g2/TO_Apr2025/catalog.toml`](../tasks/ihp-sg13g2/TO_Apr2025/catalog.toml). Promotion freezes inputs, constraints, evaluation, tool bindings, and independent qualification; shipping a reference layout is optional, and witness-less cases disclose their limits' basis as described under [qualification](#qualification). Model selection, repetitions and access policy belong to the outer [run plan](running.md).
+Each case owns its solve budget through `[task].hours`.
 
 Catalogs index maintained cases; source attribution is a URL in each case.
 Use `candidate` for incomplete or unvalidated cases and `qualified` after the
 [per-case checks](#qualification) pass. Executable cases ship ready-to-use inputs;
 source-only circuit inventories do not constitute runnable layout tasks.
-The [GF180 collections](tools.md#gf180) contain fifteen qualified, executable cases
+The [GF180 collections](tools.md#gf180) contain twenty-seven qualified, executable cases
 with passing references, nominal RC evaluation and calibrated scoring, including
 the [analog-db regulator core](../tasks/gf180mcuD/analog-db/README.md) with
 supply/load, dropout and load-step coverage. The same collection also adds
@@ -57,7 +58,7 @@ receives. The comparator materializes the problem, netlist and testbench; its pr
 includes tool instructions and the complete scoring rules. Inline constraints and
 evaluation are published in `/protocol/task.json` and supplied to the evaluator
 from the same frozen definitions. The case configuration, reference GDS and case README stay
-outside solver inputs. Public qualified cases use the unified `layout-v1`
+outside solver inputs. Public qualified cases use the unified `layout-v2`
 score described under [task scoring](#task-scoring). Case directories may retain
 their manifest-declared paths.
 
@@ -65,7 +66,8 @@ their manifest-declared paths.
 
 ### Case Documentation Templates
 
-Use the following headings, in order, for every case. Write in English and
+Include the following headings in this relative order for every case; additional
+circuit-specific sections are allowed. Write in English and
 describe the current circuit and validated scope. Use descriptive circuit names;
 a source directory's frequency or noise label is not a specification. Keep case
 IDs and manifest paths stable when improving display names.
@@ -88,9 +90,15 @@ IDs and manifest paths stable when improving display names.
 | Inputs and Interface | Declared input files and their roles; ordered ports and their functions. |
 | Operating Conditions | Model corners, temperature, rails, bias, loads, stimuli, sweeps and measurement windows. |
 | Physical Requirements | Artifact limits, DRC scope, LVS port policy, functional outline and included layers, candidate extraction and relevant model boundaries. |
-| Electrical Requirements and Scoring | A metric/definition/unit/acceptance table, measurement conventions, diagnostic metrics, continuous scoring boundaries, dimension assignments and area targets. State that every required operating point must pass and that incomplete evaluation cannot establish success. |
+| Electrical Requirements and Scoring | A metric/definition/unit table, functional bounds, measurement conventions, diagnostic metrics, paired source baselines and normalization rules, dimension assignments and area targets. State that every required operating point must satisfy functional checks and that incomplete evaluation cannot establish success. |
 | Tools and Submission | Runtime task, resource and harness discovery, supported feedback, GDS destination and explicit submission procedure. |
 
+Publish the budget as `Solve budget: **<hours> hours**.` in Tools and Submission;
+the catalog regression compares it with `[task].hours`.
+
+The structured task configuration owns numerical budgets, limits and scoring
+parameters. Publish them here using generated text or consistency checks; explain
+measurement meaning and functional-bound rationale alongside them.
 Keep acceptance limits here and in their structured configuration. The solver
 must be able to understand every requirement from its declared inputs and
 runtime protocol; maintainer READMEs, reference results and host configuration
@@ -164,7 +172,7 @@ the derivative's intended function and acceptance limits before qualification.
 
 ### Sources, Licenses, and Visibility
 
-Record the source, license, and permitted use and distribution scope separately for each design, PDK, EDA tool, model, and derived artifact. The framework's MIT license does not cover third-party assets; retain each license with its corresponding asset. A public package must preserve required license, copyright, and modification notices rather than summarizing all files under an upstream top-level license.
+Record the source, license, and permitted use and distribution scope separately for each design, PDK, EDA tool, model, and derived artifact. The framework's MIT license does not cover third-party assets; retain each license with its corresponding asset. The [repository licensing index](../LICENSING.md) identifies collection scopes, including the noncommercial analog-db materials. Public visibility and technical qualification are not license grants. A public package must preserve required license, copyright, and modification notices rather than summarizing all files under an upstream top-level license.
 
 | Material | Storage and runtime visibility |
 |---|---|
@@ -173,7 +181,7 @@ Record the source, license, and permitted use and distribution scope separately 
 | Preparation source records | May be referenced by `provenance`; not materialized for the Agent automatically |
 | Process and tool materials | Declared, frozen read-only PDK source/support bundles; full PDK sources are permitted, but benchmark/circuit-answer repositories and local Git metadata are excluded; see [Agent PDK resources](tools.md#agent-pdk-resources) |
 
-Hidden tasks use only independently authored or authorized unpublished designs. Their inputs, reference solutions, qualification materials, and raw run evidence are held by the evaluator and do not enter public Git, images, or CI. Every requirement that affects the current task must be provided to the running Agent; hidden data must not become an undisclosed scoring rule. Restricted originals stay in approved environments. Private Git and zero-data-retention endpoints do not by themselves grant permission to store, process, or transmit the data. Bind the specific approval record through the [admission interface](admission.md).
+Hidden tasks use only independently authored or authorized unpublished designs. Their inputs, reference solutions, qualification materials, and raw run evidence are held by the evaluator and do not enter public Git, images, or CI. Every requirement that affects the current task must be provided to the running Agent; hidden data must not become an undisclosed scoring rule. Restricted originals stay in approved environments. Private Git and zero-data-retention endpoints do not by themselves grant permission to store, process, or transmit the data. Bind the specific approval record through the [admission interface](architecture.md#verified-reruns-and-disclosure).
 
 <a id="task-configuration"></a>
 
@@ -185,6 +193,7 @@ Hidden tasks use only independently authored or authorized unpublished designs. 
 |---|---|
 | `schema_version`, `kind` | Currently `1` and `netlist_to_gds`; unsupported versions or kinds are rejected |
 | `id`, `title`, `family`, `status` | Task identity, display name, statistics family, and `candidate` / `qualified` status |
+| `hours` | Positive finite solve wall-clock hours, explicitly maintained per executable case and published in the task description. The server converts this to protocol seconds; participant settings and service CLI cannot override it. Legacy evaluation-only fixtures may omit it, but cannot be served without an explicit budget |
 | `coefficient` | Integer difficulty coefficient from 1 through 10; default 1 for general task fixtures. Public scored cases declare it explicitly. It is frozen with the task and used only when aggregating independent tasks |
 | `environment` | Required process and tool configuration identity; the actual run also records image and PDK-view digests |
 | `inputs.netlist` | `path`, `sha256`, and target `subcircuit` |
@@ -288,14 +297,15 @@ an optional `scoring` declaration. Public qualified tasks declare scoring:
 | `parameters` | A parameter table interpreted by the backend, such as measurement names and units, load, temperature, seed, or output filename. The core only checks that it can freeze the table as JSON; it does not interpret EDA syntax |
 | `metrics[]` | Unique `id`, `category` (`physical` / `performance`), `observations` (`<job>:<measurement>`), `unit`, `direction` (`minimize` / `maximize` / `target`), and `aggregation` (`min` / `max`); optional `lower` and `upper` |
 | `metrics[].dimension` | For every scored performance requirement: `response`, `bias` or `supply` |
-| `metrics[].zero_lower`, `metrics[].zero_upper` | Zero-score boundaries for each declared acceptance side, in the metric's own unit; lower-side zero must be at or below `lower`, upper-side zero at or above `upper` |
-| `scoring` | `method = "layout-v1"`, `area_metric` naming the physical area metric produced by the candidate constraint check, and positive `area_target < area_zero` in that metric's area unit |
+| `metrics[].baseline`, `normalization`, `scale` | Same-condition source observations paired with `observations`, normalization rule and optional scale as defined below |
+| `metrics[].zero_lower`, `metrics[].zero_upper` | Historical `layout-v1` zero-score boundaries only |
+| `scoring` | `method = "layout-v2"`, `area_metric` naming the physical area metric produced by the candidate constraint check, and positive fixed `area_target` in that metric's area unit |
 
 Physical metrics may consume a measurement from a successful `check` step, such as area reported by a geometry check. Performance metrics must still come from `simulate` or `measure`; a check status cannot stand in for performance.
 
 The KLayout DRC adapter accepts an optional case-local `parameters.waivers` list. Each entry must name one report `category`, exact report `cell`, a nonempty list of exact textual `markers`, and a nonempty `reason`. Only those marker items are accepted; the native DRC report and raw violation count remain archived, and any unmatched item still fails the check. Keep waivers in the digest-bound case evaluation plan, never in the shared PDK deck, and use them only for reviewed, intentional structures.
 
-Use separate named jobs for different conditions, and archive their parameters, models, and inputs with the result. **Evaluate limits observation by observation.** `aggregation` controls only how a summary is displayed; an average or one passing condition cannot hide an out-of-limit condition. Report metrics without limits as values only; `target` requires both lower and upper bounds. Units must match exactly. There is currently no implicit unit conversion; missing measurements, non-finite values, and unit mismatches are evaluation errors.
+Use separate named jobs for different conditions, and archive their parameters, models, and inputs with the result. **Evaluate limits observation by observation.** `aggregation` controls only how a summary is displayed; an average or one passing condition cannot hide an out-of-limit condition. Report metrics without limits as values only; unscored `target` requires both lower and upper bounds; a baseline-scored target uses its source observation and scale. Units must match exactly. There is currently no implicit unit conversion; missing measurements, non-finite values, and unit mismatches are evaluation errors.
 
 A `post_layout` plan must declare at least one limited performance metric. Its performance observations must come from simulation or a post-simulation measurement step, and the simulation must actually consume artifacts extracted from the candidate GDS. Reject plans that sort results after PEX but continue simulating the schematic netlist. `extract` denotes the post-layout extraction stage and must depend on the three physical-validity gates. Dependency-graph checks ensure that materials flow correctly; backend qualification remains responsible for whether the extracted content is correct.
 
@@ -305,58 +315,79 @@ Backends read conventions such as `output.top_cell` and `netlist_subcircuit` fro
 
 ### Unified Task Score
 
-`layout-v1` is the single scored post-layout contract. Check jobs do not earn
-points, and metric observations do not carry independent weights. A frozen
-evaluation declares its area anchors and each required performance metric's
-scoring dimension and zero-score boundaries. Physical and characterization
-plans remain measurement workflows without a benchmark score.
+`layout-v2` scores electrical quality relative to source simulation and area
+relative to a frozen compact footprint. **100 is a reference, not a maximum.**
+Physical and characterization plans do not produce benchmark scores.
 
 ```text
-S = G * (60 * E + 20 * H + 20 * H * Q)
+Q = area_target / candidate_functional_area
+E = geometric_mean(applicable response, bias, supply dimension scores)
+S = 100 * sqrt(E * Q)
 ```
 
-| Component | Definition |
-|---|---|
-| G | Artifact, DRC, LVS and hard constraints pass, and the required extraction, simulations and measurements complete with valid results |
-| E | Mean attainment across the applicable response, bias and supply dimensions; each dimension takes its worst metric, and each metric takes its worst observation |
-| H | All declared electrical acceptance requirements pass |
-| Q | Area utility: clip((area_zero - area) / (area_zero - area_target), 0, 1) |
+Artifact, DRC, named-interface LVS, hard geometry and declared functional bounds
+are prerequisites. A completed rejection scores zero; missing, nonfinite,
+wrong-unit or unusable source evidence gives an unknown (`null`) score. An
+independently established physical rejection remains zero even if an unrelated
+tool errors. There is no electrical acceptance bonus or fixed percentage of
+permitted degradation. Passing functionality does not imply a score of 100.
 
-A completed validity rejection scores 0. A valid physical candidate with an
-electrical violation receives less than 60; full electrical acceptance earns
-80 plus up to 20 area points. Evaluator or missing-measurement errors that
-prevent scoring produce `null`, not a guessed model failure. An independently
-established validity rejection remains a conclusive zero even if an unrelated
-tool also errors. Partial progress is a decomposition of this score, not a
-second scoring system.
+Each quality observation `x` names a same-condition source observation `b` in
+`baseline`, paired in order. Source jobs consume the declared source circuit,
+independently of the candidate. The paired jobs use the same operation,
+parameters, testbench and backend/model resources. The source values are computed
+and archived during evaluation; they are not fitted to submitted results.
 
-Within its inclusive acceptance interval, an observation has attainment 1.
-Outside a lower bound, attainment increases linearly from `zero_lower` to
-`lower`; outside an upper bound, it decreases linearly from `upper` to
-`zero_upper`. Values beyond a zero boundary receive 0. A zero boundary equal
-to its corresponding acceptance bound explicitly declares a hard cliff, useful
-for physically invalid negative delay or supplied power. Only declared sides
-of an interval participate. All values use the metric's declared unit; there
-is no ratio normalization of signed quantities or implicit conversion of dB.
+| Normalization | Quality q | Use |
+| --- | --- | --- |
+| `ratio`, maximize | `(x+s)/(b+s)` | Positive gain, bandwidth and other increasing benefits |
+| `ratio`, minimize | `(b+s)/(x+s)` | Delay, power, error and other decreasing costs |
+| `db20` | `10^((x-b)/20)` for maximize; inverse for minimize | Amplitude gain or rejection in dB; never divide dB values |
+| `target` | `1/(1+abs(x-b)/s)` | Preserve a bias, signed transfer or intended operating point |
 
-Use `response` for transfer, delay, decision margin, stability and linearity;
-`bias` for operating points and balance; and `supply` for supplied power or
-current. Dimension assignments are frozen with the task. Repeated samples or
-additional easy requirements cannot dilute the worst requirement within a
-dimension. A task with no bias requirement averages its applicable response
-and supply dimensions without receiving a free bias score.
+For ratios, optional `scale=s` is a positive numerical floor (default zero),
+not an allowed degradation. Candidate and source values must be nonnegative and
+the denominator positive. Zero error measurements need a declared floor.
+For target normalization, `scale` is a required positive physical normalization
+unit; identify its basis in the problem. `db20` cannot specify a scale. Target
+quality is at most one; directional and area improvements can exceed one.
 
-Area anchors are fixed absolute values, calibrated with feasible layouts and
-published in the problem. They are not calculated from the submitted layout,
-the current model population or a reference-layout ratio. Use a complete
-functional footprint that includes device and routing layers; decorative
-annotations do not contribute. Verify that geometry outside the footprint
-cannot conceal functional routing. The acceptance limits continue to govern
-all scored candidates, including ones smaller than the full-score target.
+A metric uses its **worst paired quality**, independently of the displayed
+`aggregation`. Group comparable timing arcs into one delay metric and one output
+transition metric so an easy arc cannot dilute a degraded critical arc. Each dimension uses the geometric mean of its scored metrics;
+`E` uses the geometric mean of applicable dimensions, with no free points for an
+absent dimension. Freeze metric selection and dimensions before evaluation:
+adding redundant metrics changes their relative influence. Use `response` for
+transfer/timing/stability, `bias` for operating points and `supply` for power.
+Functional checks and diagnostic observations do not add quality points.
+
+Use the full functional bounding rectangle, including devices, wells, contacts
+and routing, with explicitly documented annotation exclusions. Standard cells
+use the declared standard reference layout's measured area. Other circuits use
+a fixed engineering estimate based on declared device sizes/multiplicities,
+contact/isolation envelopes and routing allowance, with the calculation published
+in the problem. An estimate is not a foundry minimum or a demonstrated optimum.
+Freeze it before model evaluation; never derive it from the candidate. Fixed row
+height, width grid and named supply-rail continuity are standard-cell hard checks.
+The current standard-cell timing tasks use one declared input slew and output
+load; they do not claim full Liberty/PVT characterization or neighbor abutment.
+
+Reports retain `method="layout-v2"`, `reference=100`, `maximum=null`, raw source
+and candidate observations, metric ratios, dimensions, area and `G/E/Q` components.
+A reference-equivalent electrical result at the area reference earns 100. The
+root benchmark version **3** identifies the migrated contracts. Old results must
+keep their frozen task, evaluator and scoring version; rerunning is a new result.
+
+Historical `layout-v1` remains readable and recomputable with its original
+`maximum=100` envelope and `S=G*(60E+20H+20HQ)` formula: bounded linear attainment,
+worst metrics within each dimension, equal dimension mean, acceptance bonus and
+clipped area utility between `area_target` and `area_zero`. Only v1 accepts
+`zero_lower`, `zero_upper` and `area_zero`. It is not used for newly authored
+public cases. Do not reinterpret its scores on the new scale.
 
 The task coefficient is an integer from 1 through 10. It expresses the capability
 needed to implement the fixed circuit under its declared environment and acceptance
-contract, independently of the candidate's `layout-v1` score.
+contract, independently of the candidate's task score.
 
 | Coefficient | Capability scope |
 |---:|---|
@@ -385,9 +416,9 @@ not regrade existing ones. Changing coefficients, score boundaries, task members
 or tools creates a different benchmark identity; historical results retain their
 frozen coefficients and must not be silently reweighted.
 
-The root benchmark version `2` uses this scale for its unchanged 16 representatives
-(total coefficient 92). The 52-case catalog contains 1, 1, 3, 9, 13, 7, 6, 8, 3 and 1
-cases at grades 1 through 10, respectively. The task score formula and electrical
+The root benchmark version `3` uses this scale for its unchanged 16 representatives
+(total coefficient 92). The catalog contains 81 executable qualified tasks.
+PAM4 includes native CC extraction and source-paired RF/tone scoring. The task score formula and electrical
 acceptance limits are independent of this grading scale.
 
 <a id="evaluation"></a>
@@ -410,12 +441,15 @@ DRC/LVS establishes physical validity under the selected rules and extraction co
 | `error` | A crash, timeout, missing measurement, or similar condition prevented a valid result |
 | `blocked` | A prerequisite did not pass, so the current step was not run |
 
-Reports store `physical_valid`, `specs_pass`, and `task_success` separately; unknown or not applicable is `null`. Even when a `physical` or `characterization` run passes overall, `task_success` remains `null`. An out-of-limit performance result is a failure; a simulation crash is an evaluation error. Raw metrics may be saved for a physically valid candidate, while the primary quality report summarizes only successful candidates and discloses coverage. See [statistics](tasks.md#task-scoring) for the policy.
+Reports store `physical_valid`, `specs_pass`, and `task_success` separately; unknown or not applicable is `null`. Even when a `physical` or `characterization` run passes overall, `task_success` remains `null`. An out-of-limit functional result is a failure; a simulation crash or invalid
+measurement window is an evaluation error. Testbench validity checks must abort
+with a nonzero simulator exit before reporting invalid observations. Keep their
+reported residuals diagnostic, without electrical acceptance bounds. Raw metrics may be saved for a physically valid candidate, while the primary quality report summarizes only successful candidates and discloses coverage. See [statistics](tasks.md#task-scoring) for the policy.
 
 Independent re-evaluation does not run the Agent. `evaluate` and `run` use the case's `[toolchain]` by default. An explicit `--toolchain` selects an independent configuration instead, which remains required for cases without an embedded toolchain. `load_toolchain` also accepts a case TOML directly. Existing backend path semantics remain unchanged: relative `support` paths resolve from the launch working directory. With Public installed, run from the Public checkout with a new output directory:
 
 ```text
-python -m layout_eval.cli evaluate <case.toml> <candidate.gds> --output <new-output-directory>
+python -m benchmarking.engine.cli evaluate <case.toml> <candidate.gds> --output <new-output-directory>
 ```
 
 <a id="qualification"></a>
@@ -423,8 +457,17 @@ python -m layout_eval.cli evaluate <case.toml> <candidate.gds> --output <new-out
 ## 5. Validate Cases and Shared Evaluation
 
 Case qualification means that the maintained materials are consistent and usable
-under their declared conditions. Shared regression tests establish the evaluator's
-rejection, scoring and error behavior. Apply the following division of work.
+under their declared conditions, including trustworthy candidate-derived
+measurements and scoring. It does not certify an upstream data sheet or require
+the reference layout to score at least 100. Upstream results provide provenance
+and comparison context; same-condition source simulation supplies the electrical
+quality baseline. Performance differences affect continuous quality unless a
+separately justified functional constraint is violated. The
+[case development standard](../tasks/AGENTS.md#1-circuit-contract-and-scope)
+defines the source relationship and authoring decisions.
+
+Shared regression tests establish the evaluator's rejection, scoring and error
+behavior. Apply the following division of work.
 
 ### Per-case validation
 
@@ -440,6 +483,8 @@ For each executable case:
 - When a reference is supplied, evaluate its ready-to-use GDS through the actual
   declared toolchain. It must pass artifact, DRC, LVS and geometry checks, then
   candidate-derived extraction and every required post-layout measurement.
+  Measurements must be valid and declared functional bounds must pass; quality
+  observations need not attain upstream performance targets.
 - Publish measured results, relevant limitations and reproduction commands in the
   README. Generated reports retain task, input, candidate, tool and resource
   identities under `build/runs/`; per-case evidence archives are unnecessary.
@@ -449,7 +494,7 @@ materials, inconsistent requirements, a failing supplied reference, or an
 unvalidated case-specific capability. A reference-free case may qualify when its
 inputs and evaluation are validated, but must disclose that post-layout
 feasibility is undemonstrated and explain the basis of its limits and area anchors.
-Formal [admission](admission.md) separately requires a witness.
+Formal [admission](architecture.md#verified-reruns-and-disclosure) separately requires a witness.
 
 Pre/post-layout calibration is required when it establishes a performance limit,
 explains a material discrepancy, or validates a new model/extraction boundary.

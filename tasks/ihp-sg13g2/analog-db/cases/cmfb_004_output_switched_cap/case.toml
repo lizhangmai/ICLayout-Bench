@@ -4,7 +4,22 @@ id = "ihp-sg13g2.analog-db.cmfb_004_output_switched_cap"
 title = "MIM Switched-Capacitor Common-Mode Sampler"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "890b2a1887c85b84f902ff5d658903650c678bc295d3e49f51c2bba8f2bd973b"
+
+[[assets]]
+path = "reference/cmfb_004_output_switched_cap.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "6b2a539f70bd2cf14f9d38776608673c32ff1a680333f0d58bc0ac82187f9775"
+
 [task]
+hours = 3
 coefficient = 5
 kind = "netlist_to_gds"
 family = "ihp-sg13g2_cmfb_004_output_switched_cap"
@@ -13,7 +28,7 @@ environment = "ihp-sg13g2-cmfb_004_output_switched_cap-nominal-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "6c80dbdd1d9ee6169fa31ae6cae550e7fab77f85843f7b5a0b2e797df14f3ccb"
+sha256 = "6de265889c2a550331910daee57f5b0c2867c1055c3c556efaf858aede4e71ac"
 
 [task.inputs.netlist]
 path = "materials/circuit.cdl"
@@ -232,10 +247,9 @@ schema_version = 1
 mode = "post_layout"
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 22000
-area_zero = 88000
+area_target = 5263.8
 
 [[task.evaluation.jobs]]
 id = "artifact"
@@ -446,6 +460,131 @@ hold_drift_v = "V"
 [task.evaluation.jobs.parameters.exports]
 transient = "transient.raw"
 
+[[task.evaluation.jobs]]
+id = "source_condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.65
+diff_v = 0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.65
+diff_v = 0.1
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.75
+diff_v = 0.1
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.85
+diff_v = 0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_4"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.85
+diff_v = 0.1
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -470,10 +609,17 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.49
-upper = 0.71
-zero_lower = 0.3
-zero_upper = 0.9
+baseline = [
+    "source_condition_0:output_v",
+    "source_condition_1:output_v",
+    "source_condition_2:output_v",
+    "source_condition_3:output_v",
+    "source_condition_4:output_v",
+]
+normalization = "target"
+scale = 1.5
+lower = 0
+upper = 1.5
 
 [[task.evaluation.metrics]]
 id = "sample_error_v"
@@ -487,12 +633,18 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:sample_error_v",
+    "source_condition_1:sample_error_v",
+    "source_condition_2:sample_error_v",
+    "source_condition_3:sample_error_v",
+    "source_condition_4:sample_error_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.005
-zero_lower = 0
-zero_upper = 0.02
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "hold_drift_v"
@@ -506,12 +658,18 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:hold_drift_v",
+    "source_condition_1:hold_drift_v",
+    "source_condition_2:hold_drift_v",
+    "source_condition_3:hold_drift_v",
+    "source_condition_4:hold_drift_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.0005
-zero_lower = 0
-zero_upper = 0.005
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "clock_power_w"
@@ -525,12 +683,18 @@ observations = [
 ]
 unit = "W"
 dimension = "supply"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:clock_power_w",
+    "source_condition_1:clock_power_w",
+    "source_condition_2:clock_power_w",
+    "source_condition_3:clock_power_w",
+    "source_condition_4:clock_power_w",
+]
+normalization = "ratio"
 lower = 0
-upper = 4e-08
-zero_lower = 0
-zero_upper = 8e-08
+scale = 1e-12
 
 [toolchain]
 schema_version = 1
@@ -609,13 +773,6 @@ support = "analog-models"
 image = "iclayout-bench-tools:local"
 support = "build/support/input-pair-models"
 timeout_seconds = 600
-
-[[assets]]
-path = "reference/cmfb_004_output_switched_cap.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "6b2a539f70bd2cf14f9d38776608673c32ff1a680333f0d58bc0ac82187f9775"
 
 [qualification]
 reference = "reference/cmfb_004_output_switched_cap.gds"

@@ -1,3 +1,5 @@
 **
 !pyproject.toml
 !uv.lock
+!scripts/
+!scripts/build_ngspice.sh

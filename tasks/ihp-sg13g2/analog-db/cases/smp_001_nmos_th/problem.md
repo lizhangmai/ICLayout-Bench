@@ -69,61 +69,60 @@ fabrication signoff are outside this contract.
 
 ## Electrical Requirements and Scoring
 
-Point values below use linear interpolation of saved transient samples.
-Extrema use simulator samples in the stated windows. No smoothing, offset
-correction or clock-edge blanking modifies the reported storage voltage.
-Let T be SRC at 180 ns; it equals the commanded sampled level. Define:
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-- `track_v`: VOUT at 180 ns. `track_error_v`: maximum |VOUT−T| over 80–190 ns,
-  requiring sustained acquisition after the finite input transition.
-- `held_v`: VOUT at 220 ns. `pedestal_v=held_v−track_v`, with scored
-  `pedestal_abs_v=abs(pedestal_v)`. It includes actual clock turn-off injection.
-- `before_input_v` and `after_input_v`: VOUT at 390 and 450 ns.
-  `feedthrough_v=after_input_v−before_input_v` is diagnostic;
-  `feedthrough_peak_v` is maximum |VOUT−before_input_v| over 400–450 ns,
-  including the input transition while the switch is off.
-- `hold_start_v` and `hold_end_v`: VOUT at 1 and 11 us.
-  `drift_v=hold_end_v−hold_start_v` is signed drift over a quiet 10 us interval;
-  `hold_drift_v=abs(drift_v)` is scored. The input is fixed during this interval.
-- `hold_error_v`: maximum |VOUT−T| over 220 ns–11 us, including pedestal,
-  off-state input coupling and retention error.
-- `reacquired_v`: VOUT at 11.65 us. `reacquire_error_v`: maximum |VOUT−T|
-  over 11.48–11.69 us, after input restoration and switch closure.
-- `clock_energy_j`: integral of `max(−V(CLK)*I(VCLK),0)` over 0–11.7 us.
-  This is positive supplied clock energy for the finite high/low/high sequence,
-  excluding initial DC charging and without crediting returned energy. It is
-  not periodic average power or the full energy of a physical clock driver.
+For a post-layout observation x and its source observation b:
 
-The named point voltages, signed differences and T (`target`) are diagnostics.
-Every scored bound must hold independently at all sixteen conditions.
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
 
-| Metric | Unit | Acceptance | Lower / upper zero-score boundaries | Dimension |
-| --- | --- | --- | --- | --- |
-| `track_error_v` | V | 0–0.002 | 0 / 0.1 | response |
-| `pedestal_abs_v` | V | 0–0.009 | 0 / 0.05 | response |
-| `feedthrough_peak_v` | V | 0–0.00075 | 0 / 0.01 | response |
-| `hold_drift_v` | V | 0–0.013 | 0 / 0.1 | response |
-| `hold_error_v` | V | 0–0.022 | 0 / 0.15 | response |
-| `reacquire_error_v` | V | 0–0.0001 | 0 / 0.02 | response |
-| `clock_energy_j` | J | 0–2e-14 | 0 / 1e-13 | supply |
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
 
-Coefficient **5** represents a complete compact loaded sampling block whose
-stored-charge behavior must survive acquisition, isolation and reacquisition.
-Unified `layout-v1` scoring is `G × (60E + 20H + 20HQ)`: G requires physical
-validity and complete measurements, E averages worst attainment in response
-and supply, and H requires every electrical bound. Each attainment falls
-linearly between its acceptance edge and zero-score boundary. Fixed area
-anchors are 1400/5600 um²: `Q=clip((5600−area)/4200,0,1)`. Physical rejection
-scores zero; incomplete measurements cannot establish success or an invented
-score. An aggregate cannot conceal a failed condition.
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `track_error_v` | condition_0:track_error_v, condition_1:track_error_v, condition_2:track_error_v, condition_3:track_error_v, condition_4:track_error_v, condition_5:track_error_v, condition_6:track_error_v, condition_7:track_error_v, condition_8:track_error_v, condition_9:track_error_v, condition_10:track_error_v, condition_11:track_error_v, condition_12:track_error_v, condition_13:track_error_v, condition_14:track_error_v, condition_15:track_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `pedestal_abs_v` | condition_0:pedestal_abs_v, condition_1:pedestal_abs_v, condition_2:pedestal_abs_v, condition_3:pedestal_abs_v, condition_4:pedestal_abs_v, condition_5:pedestal_abs_v, condition_6:pedestal_abs_v, condition_7:pedestal_abs_v, condition_8:pedestal_abs_v, condition_9:pedestal_abs_v, condition_10:pedestal_abs_v, condition_11:pedestal_abs_v, condition_12:pedestal_abs_v, condition_13:pedestal_abs_v, condition_14:pedestal_abs_v, condition_15:pedestal_abs_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `feedthrough_peak_v` | condition_0:feedthrough_peak_v, condition_1:feedthrough_peak_v, condition_2:feedthrough_peak_v, condition_3:feedthrough_peak_v, condition_4:feedthrough_peak_v, condition_5:feedthrough_peak_v, condition_6:feedthrough_peak_v, condition_7:feedthrough_peak_v, condition_8:feedthrough_peak_v, condition_9:feedthrough_peak_v, condition_10:feedthrough_peak_v, condition_11:feedthrough_peak_v, condition_12:feedthrough_peak_v, condition_13:feedthrough_peak_v, condition_14:feedthrough_peak_v, condition_15:feedthrough_peak_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `hold_drift_v` | condition_0:hold_drift_v, condition_1:hold_drift_v, condition_2:hold_drift_v, condition_3:hold_drift_v, condition_4:hold_drift_v, condition_5:hold_drift_v, condition_6:hold_drift_v, condition_7:hold_drift_v, condition_8:hold_drift_v, condition_9:hold_drift_v, condition_10:hold_drift_v, condition_11:hold_drift_v, condition_12:hold_drift_v, condition_13:hold_drift_v, condition_14:hold_drift_v, condition_15:hold_drift_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `hold_error_v` | condition_0:hold_error_v, condition_1:hold_error_v, condition_2:hold_error_v, condition_3:hold_error_v, condition_4:hold_error_v, condition_5:hold_error_v, condition_6:hold_error_v, condition_7:hold_error_v, condition_8:hold_error_v, condition_9:hold_error_v, condition_10:hold_error_v, condition_11:hold_error_v, condition_12:hold_error_v, condition_13:hold_error_v, condition_14:hold_error_v, condition_15:hold_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `reacquire_error_v` | condition_0:reacquire_error_v, condition_1:reacquire_error_v, condition_2:reacquire_error_v, condition_3:reacquire_error_v, condition_4:reacquire_error_v, condition_5:reacquire_error_v, condition_6:reacquire_error_v, condition_7:reacquire_error_v, condition_8:reacquire_error_v, condition_9:reacquire_error_v, condition_10:reacquire_error_v, condition_11:reacquire_error_v, condition_12:reacquire_error_v, condition_13:reacquire_error_v, condition_14:reacquire_error_v, condition_15:reacquire_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `clock_energy_j` | condition_0:clock_energy_j, condition_1:clock_energy_j, condition_2:clock_energy_j, condition_3:clock_energy_j, condition_4:clock_energy_j, condition_5:clock_energy_j, condition_6:clock_energy_j, condition_7:clock_energy_j, condition_8:clock_energy_j, condition_9:clock_energy_j, condition_10:clock_energy_j, condition_11:clock_energy_j, condition_12:clock_energy_j, condition_13:clock_energy_j, condition_14:clock_energy_j, condition_15:clock_energy_j | J | minimize / ratio | 0 … +∞ | 1e-21 |
+| `target` | condition_0:target, condition_1:target, condition_2:target, condition_3:target, condition_4:target, condition_5:target, condition_6:target, condition_7:target, condition_8:target, condition_9:target, condition_10:target, condition_11:target, condition_12:target, condition_13:target, condition_14:target, condition_15:target | V | diagnostic | −∞ … +∞ | — |
+| `track_v` | condition_0:track_v, condition_1:track_v, condition_2:track_v, condition_3:track_v, condition_4:track_v, condition_5:track_v, condition_6:track_v, condition_7:track_v, condition_8:track_v, condition_9:track_v, condition_10:track_v, condition_11:track_v, condition_12:track_v, condition_13:track_v, condition_14:track_v, condition_15:track_v | V | diagnostic | −∞ … +∞ | — |
+| `held_v` | condition_0:held_v, condition_1:held_v, condition_2:held_v, condition_3:held_v, condition_4:held_v, condition_5:held_v, condition_6:held_v, condition_7:held_v, condition_8:held_v, condition_9:held_v, condition_10:held_v, condition_11:held_v, condition_12:held_v, condition_13:held_v, condition_14:held_v, condition_15:held_v | V | diagnostic | −∞ … +∞ | — |
+| `before_input_v` | condition_0:before_input_v, condition_1:before_input_v, condition_2:before_input_v, condition_3:before_input_v, condition_4:before_input_v, condition_5:before_input_v, condition_6:before_input_v, condition_7:before_input_v, condition_8:before_input_v, condition_9:before_input_v, condition_10:before_input_v, condition_11:before_input_v, condition_12:before_input_v, condition_13:before_input_v, condition_14:before_input_v, condition_15:before_input_v | V | diagnostic | −∞ … +∞ | — |
+| `after_input_v` | condition_0:after_input_v, condition_1:after_input_v, condition_2:after_input_v, condition_3:after_input_v, condition_4:after_input_v, condition_5:after_input_v, condition_6:after_input_v, condition_7:after_input_v, condition_8:after_input_v, condition_9:after_input_v, condition_10:after_input_v, condition_11:after_input_v, condition_12:after_input_v, condition_13:after_input_v, condition_14:after_input_v, condition_15:after_input_v | V | diagnostic | −∞ … +∞ | — |
+| `hold_start_v` | condition_0:hold_start_v, condition_1:hold_start_v, condition_2:hold_start_v, condition_3:hold_start_v, condition_4:hold_start_v, condition_5:hold_start_v, condition_6:hold_start_v, condition_7:hold_start_v, condition_8:hold_start_v, condition_9:hold_start_v, condition_10:hold_start_v, condition_11:hold_start_v, condition_12:hold_start_v, condition_13:hold_start_v, condition_14:hold_start_v, condition_15:hold_start_v | V | diagnostic | −∞ … +∞ | — |
+| `hold_end_v` | condition_0:hold_end_v, condition_1:hold_end_v, condition_2:hold_end_v, condition_3:hold_end_v, condition_4:hold_end_v, condition_5:hold_end_v, condition_6:hold_end_v, condition_7:hold_end_v, condition_8:hold_end_v, condition_9:hold_end_v, condition_10:hold_end_v, condition_11:hold_end_v, condition_12:hold_end_v, condition_13:hold_end_v, condition_14:hold_end_v, condition_15:hold_end_v | V | diagnostic | −∞ … +∞ | — |
+| `reacquired_v` | condition_0:reacquired_v, condition_1:reacquired_v, condition_2:reacquired_v, condition_3:reacquired_v, condition_4:reacquired_v, condition_5:reacquired_v, condition_6:reacquired_v, condition_7:reacquired_v, condition_8:reacquired_v, condition_9:reacquired_v, condition_10:reacquired_v, condition_11:reacquired_v, condition_12:reacquired_v, condition_13:reacquired_v, condition_14:reacquired_v, condition_15:reacquired_v | V | diagnostic | −∞ … +∞ | — |
+| `pedestal_v` | condition_0:pedestal_v, condition_1:pedestal_v, condition_2:pedestal_v, condition_3:pedestal_v, condition_4:pedestal_v, condition_5:pedestal_v, condition_6:pedestal_v, condition_7:pedestal_v, condition_8:pedestal_v, condition_9:pedestal_v, condition_10:pedestal_v, condition_11:pedestal_v, condition_12:pedestal_v, condition_13:pedestal_v, condition_14:pedestal_v, condition_15:pedestal_v | V | diagnostic | −∞ … +∞ | — |
+| `feedthrough_v` | condition_0:feedthrough_v, condition_1:feedthrough_v, condition_2:feedthrough_v, condition_3:feedthrough_v, condition_4:feedthrough_v, condition_5:feedthrough_v, condition_6:feedthrough_v, condition_7:feedthrough_v, condition_8:feedthrough_v, condition_9:feedthrough_v, condition_10:feedthrough_v, condition_11:feedthrough_v, condition_12:feedthrough_v, condition_13:feedthrough_v, condition_14:feedthrough_v, condition_15:feedthrough_v | V | diagnostic | −∞ … +∞ | — |
+| `drift_v` | condition_0:drift_v, condition_1:drift_v, condition_2:drift_v, condition_3:drift_v, condition_4:drift_v, condition_5:drift_v, condition_6:drift_v, condition_7:drift_v, condition_8:drift_v, condition_9:drift_v, condition_10:drift_v, condition_11:drift_v, condition_12:drift_v, condition_13:drift_v, condition_14:drift_v, condition_15:drift_v | V | diagnostic | −∞ … +∞ | — |
 
-This contract establishes model-based retention for the specified 10 us quiet
-hold and finite sequence. Higher sampled voltages and longer holds are not
-qualified. It does not establish precision ADC resolution, capacitor dielectric
-leakage, measured-silicon retention, noise, aperture jitter, distortion, process
-corners, statistical mismatch, arbitrary source impedance or clock slopes.
+Area reference: **661.39 um2**. 3 expanded device instances; sum of device/contact envelopes 407.6560 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **5**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Use `/protocol/task.json`, `/protocol/resources.json` and `/protocol/harness.json`
 for the frozen inputs, requirements, reviewed IHP primitives and harness

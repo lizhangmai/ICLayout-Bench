@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # MIM-Compensated Local-Feedback Source Follower
 
@@ -19,81 +19,76 @@ VDD = 1.5 V; VSS = 0 V; a 20 uA current source from VDD into ibias. VIN = 0.55 V
 | [materials/testbench.spice](materials/testbench.spice) | Source/post-layout measurements |
 | [reference/buf_001_super_follower.gds](reference/buf_001_super_follower.gds) | Independently constructed witness, excluded from solver inputs |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The authoritative netlist, simulation decks and evaluation requirements are unchanged.
+
 ## Reference Results
 
-Reference functional area: 4928.6770 um2. The independent witness passes artifact, IHP main and maximal DRC, with density and antenna outside this standalone scope; strict named-port LVS; geometry, candidate-derived distributed RC and all 27 electrical observations. No DRC waivers are used.
+Reference results use the pinned IHP SG13G2 ciel release described in
+[resource preparation](../../../../../docs/tools.md#ihp-physical-check-profiles).
 
-Ranges below cover all 3 declared conditions. Both columns use the same maintained testbench; they are nominal calibration, not statistical accuracy claims.
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| `output_v` | V | 0.13800078 | 0.1373654 |
-| `bias_v` | V | 0.39406997 | 0.39915676 |
-| `power_w` | W | 0.00034650957 | 0.00033967943 |
-| `gain_vv` | V/V | 0.8375134 | 0.8370302 |
-| `bandwidth_hz` | Hz | 1.986676e+08 to 4.328583e+08 | 1.737159e+08 to 3.822466e+08 |
-| `step_gain` | V/V | 0.833601 | 0.833981 |
-| `recovery_up_v` | V | 3.65123e-08 to 3.651418e-08 | 5.77449e-09 to 5.775515e-09 |
-| `recovery_down_v` | V | 1.619487e-08 to 1.62009e-08 | 3.044659e-09 to 3.045383e-09 |
-| `mean_power_w` | W | 0.0003466058 to 0.0003466118 | 0.0003397777 to 0.0003397826 |
+Measured `layout-v2` score: **50.212422**, with electrical quality
+**E = 0.99982388** and area quality **Q = 0.25217315**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **4928.677 um2**.
 
-A coefficient of 5 reflects local feedback, internal compensation and loaded transient behavior. Targets require 0.78–0.90 small/large-signal gain, at least 20 MHz bandwidth, 100 uV recovered step error and 400 uW supply power. Acceptance and zero-score boundaries are calibrated against independent source/RC measurements, not upstream scoreboards. Area target 5500 um2 and zero-utility budget 22000 um2 are fixed absolute anchors supported by the witness, not changing reference-area ratios or claimed optima. Typical IHP low-voltage MOS and resistor models and typical capacitor models; explicit finite physical tap models and a 1e12 ohm ngspice numerical shunt at each node. Candidate Magic RC is extracted with zero coupling-capacitance threshold. Fabrication signoff is outside scope.
+Area reference: **1242.88 um2**. 20 expanded device instances; sum of device/contact envelopes 782.8540 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-Halving the transient step from 0.2 to 0.1 ns preserves all limits. Step gain and average power are unchanged at reported precision; recovered-error changes are below 11 pV. These tiny residual differences are numerical, not an accuracy guarantee.
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `output_v` | V | 0.13800078 | 0.1373654 | 0.99957659 |
+| `bias_v` | V | 0.39406997 | 0.39915676 | 0.99662027 |
+| `power_w` | W | 0.00034650957 | 0.00033967943 | 1.0201076 |
+| `gain_vv` | V/V | 0.8375134 | 0.8370302 | 0.99951703 |
+| `bandwidth_hz` | Hz | 1.986676e+08 … 4.328583e+08 | 1.737159e+08 … 3.822466e+08 | 0.87440478 |
+| `step_gain` | V/V | 0.833601 | 0.833981 | 0.99962014 |
+| `recovery_up_v` | V | 3.65123e-08 … 3.651418e-08 | 6.128534e-09 … 6.129687e-09 | 1.0301982 |
+| `recovery_down_v` | V | 1.619487e-08 … 1.62009e-08 | 3.378466e-09 … 3.379001e-09 | 1.0127733 |
+| `mean_power_w` | W | 0.0003466058 … 0.0003466118 | 0.0003397777 … 0.0003397826 | 1.0200958 |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
+
+Capability coefficient: **5** for the fixed circuit and its declared functional scope.
 
 ## Reproduce
 
-From the repository root, follow the [shared tool preparation](../../../../../docs/tools.md#manual-tools), then prepare/reuse this case's profiles:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.prepare_support   third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#klayout build/support/input-pair-klayout
-python -m layout_eval.prepare_support   third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#magic build/support/input-pair-magic
-python -m layout_eval.prepare_support   third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#analog-models build/support/input-pair-models
-python -m layout_eval.cli evaluate \
-  tasks/ihp-sg13g2/analog-db/cases/buf_001_super_follower/case.toml \
-  tasks/ihp-sg13g2/analog-db/cases/buf_001_super_follower/reference/buf_001_super_follower.gds \
-  --output build/runs/analog-db-buf_001_super_follower-reference
-uv run --locked --group eda pytest tests/integration/test_public_references.py -k buf_001_super_follower
+python -m benchmarking.engine.preview prepare \
+  --case ihp-sg13g2.analog-db.buf_001_super_follower --image iclayout-bench-tools:local \
+  --output build/runs/buf_001_super_follower-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/buf_001_super_follower-prepared \
+  --output build/runs/buf_001_super_follower-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'buf_001_super_follower'
 ```
 
-Reuse verified support destinations; preparation refuses an existing directory. These commands generate the reader's reports/waveforms under `build/runs/`; choose fresh output directories. The catalog regression accepts the reference and rejects an empty layout.
-
-Reproduce Pre-layout with the [source-calibration recipe](../../../../../docs/tools.md#gf180-source-calibration), replacing its case/output paths with this case and a fresh run directory. For this two-representation case, set `job["inputs"]["dut"] = "input:simulation"` in that recipe; native CDL remains the physical LVS input. The characterization keeps every condition and does not produce a layout score.
-
-
-Reproduce the step-halving check without changing the maintained case. This
-creates a local case snapshot with a new deck digest;
-it evaluates the same witness and every declared condition:
-
-```bash
-uv run --locked python - <<'PYCODE'
-import hashlib
-import shutil
-import tomllib
-from pathlib import Path
-import tomli_w
-
-source = Path("tasks/ihp-sg13g2/analog-db/cases/buf_001_super_follower")
-copy = Path("build/runs/analog-db-buf_001_super_follower-half-case")
-shutil.copytree(source, copy)  # destination must be new
-config = copy / "case.toml"
-data = tomllib.loads(config.read_text())
-entry = data["task"]["inputs"]["performance"]
-deck = copy / entry["path"]
-text = deck.read_text()
-assert "tran 0.2n" in text
-deck.write_text(text.replace("tran 0.2n", "tran 0.1n"))
-entry["sha256"] = hashlib.sha256(deck.read_bytes()).hexdigest()
-data["status"] = "candidate"
-config.write_text(tomli_w.dumps(data))
-PYCODE
-python -m layout_eval.cli evaluate \
-  build/runs/analog-db-buf_001_super_follower-half-case/case.toml \
-  build/runs/analog-db-buf_001_super_follower-half-case/reference/buf_001_super_follower.gds \
-  --output build/runs/analog-db-buf_001_super_follower-half-reference
-```
-
-Retain collection LICENSE and NOTICE with material distributions. They, the reference, source records and host configuration stay outside declared solver inputs.
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

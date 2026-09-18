@@ -4,13 +4,10 @@ The score is intentionally independent of any runner or report writer.  A
 sealed evaluation report can be passed to :func:`recompute_score` by a report
 consumer and checked against the score written by ``evaluate.py``.
 
-For a scored post-layout plan the value is
-
-``G * (60 * E + 20 * H + 20 * H * Q)``.
-
-``G`` is the validity gate, ``E`` is the electrical attainment, ``H`` says
-whether every bounded performance requirement passes, and ``Q`` is the
-functional-area attainment.  The score has no job or metric weights.
+Current ``layout-v2`` quality is ``100 * sqrt(E * Q)`` after physical and
+functional gates, with same-condition source simulation defining electrical
+quality 1 and a frozen area reference defining Q. Scores are uncapped.
+Historical ``layout-v1`` retains its original bounded attainment and bonuses.
 
 The evaluator's metric summaries are display data.  The scoring core derives
 observation values and statuses from the raw job measurements so a report
@@ -75,7 +72,7 @@ def _report_status(report: Mapping[str, Any] | None) -> str | None:
 
 
 def _job_state(plan: EvaluationPlan, jobs: Mapping[str, Any],
-               physical_valid: bool | None = None) -> float | None:
+               physical_valid: bool | None = None, *, baseline_jobs=frozenset()) -> float | None:
     """Resolve G while preserving known-invalid versus evaluator-error states."""
 
     gate_jobs = [job for job in plan.jobs if job.gate in {"artifact", "drc", "lvs", "constraint"}]
@@ -93,7 +90,8 @@ def _job_state(plan: EvaluationPlan, jobs: Mapping[str, Any],
     # completed rejection is a known-invalid candidate; an error or a blocked
     # dependent is an evaluator state and cannot be converted into a score.
     statuses = [_report_status(jobs.get(job.id)) for job in plan.jobs]
-    if _FAILED in statuses:
+    if any(_report_status(jobs.get(job.id)) == _FAILED
+           for job in plan.jobs if job.id not in baseline_jobs):
         return 0.0
     if any(status in _UNKNOWN or status is None for status in statuses):
         return None
@@ -124,7 +122,7 @@ def _raw_observation(metric: Metric, jobs: Mapping[str, Any], reference: str) ->
 
 def _empty_score(gate: float | None, *, area: dict | None = None) -> dict:
     return {
-        "method": SCORING_METHOD,
+        "method": "layout-v1",
         "value": 0.0 if gate == 0.0 else None,
         "maximum": MAXIMUM,
         "components": {"G": gate, "E": None, "H": None, "Q": None},
@@ -134,9 +132,9 @@ def _empty_score(gate: float | None, *, area: dict | None = None) -> dict:
     }
 
 
-def score_layout_v1(plan: EvaluationPlan, jobs: Mapping[str, Any],
+def score_layout(plan: EvaluationPlan, jobs: Mapping[str, Any],
                     metrics: Mapping[str, Any], physical_valid: bool | None) -> dict | None:
-    """Compute the frozen layout-v1 score from an evaluation report.
+    """Compute the frozen versioned layout score from an evaluation report.
 
     ``None`` is returned for plans without a scoring declaration or for
     characterization/physical plans.  For a scored post-layout plan the
@@ -146,6 +144,9 @@ def score_layout_v1(plan: EvaluationPlan, jobs: Mapping[str, Any],
     derived report summaries; raw job statuses and measurements are used for
     the score itself.
     """
+
+    if plan.scoring is not None and plan.scoring.method == SCORING_METHOD:
+        return score_layout_v2(plan, jobs)
 
     spec = plan.scoring
     if spec is None or plan.mode != "post_layout":
@@ -238,7 +239,7 @@ def score_layout_v1(plan: EvaluationPlan, jobs: Mapping[str, Any],
     if requirement == 0.0 and value >= 60.0:
         value = math.nextafter(60.0, 0.0)
     return {
-        "method": SCORING_METHOD,
+        "method": "layout-v1",
         "value": value,
         "maximum": MAXIMUM,
         "components": {"G": 1.0, "E": electrical, "H": requirement, "Q": quality},
@@ -246,6 +247,88 @@ def score_layout_v1(plan: EvaluationPlan, jobs: Mapping[str, Any],
         "metrics": dict(sorted(metric_scores.items())),
         "area": area_details,
     }
+
+
+def score_layout_v2(plan: EvaluationPlan, jobs: Mapping[str, Any]) -> dict:
+    """Reference-relative quality; baseline 100, no maximum or acceptance bonus.
+
+    Each scored metric takes its worst paired observation; dimensions and then
+    electrical/area quality use geometric means. Functional failure is a zero,
+    missing evidence is unknown. Candidate and source use the same testbench.
+    """
+    baseline_jobs = {ref.split(":")[0] for metric in plan.metrics for ref in metric.baseline}
+    gate = _job_state(plan, jobs, baseline_jobs=baseline_jobs)
+    score = {"method": SCORING_METHOD, "value": None, "maximum": None,
+             "reference": 100, "components": {"G": gate, "E": None, "Q": None},
+             "dimensions": {}, "metrics": {}, "area": None}
+    if gate == 0:
+        score["value"] = 0.0
+        return score
+    ratios: dict[str, list[float]] = {}
+    observed = {metric.id: [_raw_observation(metric, jobs, ref) for ref in metric.observations]
+                for metric in plan.metrics}
+    if any(status == "failed" for values in observed.values() for status, _ in values):
+        score["value"] = 0.0
+        score["components"]["G"] = 0.0
+        return score
+    if gate is None or any(status != "passed" for values in observed.values() for status, _ in values):
+        return score
+    try:
+        for metric in plan.metrics:
+            observations = observed[metric.id]
+            if metric.id == plan.scoring.area_metric:
+                area = observations[0][1]
+                if area <= 0:
+                    return score
+                quality = plan.scoring.area_target / area
+                if not math.isfinite(quality) or quality <= 0:
+                    return score
+                score["area"] = {"metric": metric.id, "value": area,
+                                 "target": plan.scoring.area_target, "Q": quality}
+                score["components"]["Q"] = quality
+            if not metric.baseline:
+                continue
+            values = []
+            for (_, value), ref in zip(observations, metric.baseline, strict=True):
+                status, baseline = _raw_observation(metric, jobs, ref)
+                if status != "passed":
+                    return score
+                if metric.normalization == "target":
+                    ratio = 1 / (1 + abs(value - baseline) / metric.scale)
+                elif metric.normalization == "db20":
+                    delta = (value - baseline) / 20
+                    ratio = 10 ** (delta if metric.direction == "maximize" else -delta)
+                else:
+                    offset = metric.scale or 0.0
+                    if min(value, baseline) < 0:
+                        return score
+                    numerator, denominator = ((value + offset, baseline + offset)
+                                              if metric.direction == "maximize"
+                                              else (baseline + offset, value + offset))
+                    if denominator <= 0:
+                        return score
+                    ratio = numerator / denominator
+                if not math.isfinite(ratio) or ratio < 0:
+                    return score
+                values.append(ratio)
+            attainment = min(values)
+            score["metrics"][metric.id] = attainment
+            ratios.setdefault(metric.dimension, []).append(attainment)
+        def geometric(values):
+            if any(value == 0 for value in values):
+                return 0.0
+            return math.exp(sum(math.log(v) for v in values) / len(values))
+        score["dimensions"] = {name: geometric(values) for name, values in sorted(ratios.items())}
+        electrical = geometric(list(score["dimensions"].values()))
+        quality = score["components"]["Q"]
+        value = 100 * geometric([electrical, quality])
+        if math.isfinite(value):
+            score["components"]["E"] = electrical
+            score["value"] = value
+    except (OverflowError, ZeroDivisionError, TypeError, ValueError):
+        # No finite, physically meaningful reference ratio can be established.
+        pass
+    return score
 
 
 def _within(metric: Metric, value: Any) -> bool:
@@ -263,4 +346,8 @@ def recompute_score(plan: EvaluationPlan, report: Mapping[str, Any]) -> dict | N
     jobs = report.get("jobs", {})
     if not isinstance(jobs, Mapping):
         raise TypeError("Evaluation report jobs must be a mapping")
-    return score_layout_v1(plan, jobs, {}, None)
+    return score_layout(plan, jobs, {}, None)
+
+
+# Retain the former public entry point for historical report consumers.
+score_layout_v1 = score_layout

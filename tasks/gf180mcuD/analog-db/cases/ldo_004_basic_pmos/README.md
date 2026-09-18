@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # Externally Biased 1.8 V PMOS Regulator Core
 
@@ -33,87 +33,84 @@ PVT, mismatch, noise, EM, thermal behavior or fabrication signoff.
 | [materials/dropout.spice](materials/dropout.spice) | Distinct low-supply DC sweep and crossing measurement |
 | [reference/ldo_004_basic_pmos.gds](reference/ldo_004_basic_pmos.gds) | Ready-to-use physical witness, excluded from solver inputs |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The schematic depicts the authoritative netlist; the current layout requirements
+and evaluation settings are declared in the task.
+
 ## Reference Results
 
-The reference passes artifact, GF180 variant-D DRC including antenna checks
-without waivers, strict named-port LVS, geometry, distributed RC extraction
-and all 67 required electrical observations. Its functional bounding-box area
-is 78921.752 um2. The extracted circuit contains 104 MOS devices and the two
-physical resistor devices, with candidate-derived wiring RC.
+GF180 resources come from the pinned ciel prebuilt distribution, including its
+current KLayout rules, nominal models and variant-D Magic extraction.
+The reference uses a 0.001 um GDS database unit; dummy COMP fill is included
+where required by the rule deck.
+See [resource preparation](../../../../../docs/tools.md) and the process manifest
+for source pins, scope and reproducible preparation.
 
-The first six rows below are ranges across all nine supply/load combinations.
-Transient rows are ranges across the three supplies for the same 0.1 to 5 to
-0.1 mA load sequence. Dropout uses the separate 5 mA sweep and the 1.75 V
-output crossing defined in the problem. Both columns use the published decks.
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| Output voltage | V | 1.799798 to 1.806099 | 1.800711 to 1.806237 |
-| Tail voltage | V | 0.086371 to 0.092771 | 0.084234 to 0.090594 |
-| Quiescent current | uA | 208.875 to 209.088 | 208.876 to 209.081 |
-| Input power, including load | mW | 0.679592 to 17.189540 | 0.679584 to 17.189510 |
-| Supply rejection at 1 kHz | dB | 61.37198 to 104.8581 | 53.56660 to 100.5256 |
-| Output impedance peaking | dB | 0 | 0 to 4.07205 |
-| Peak absolute output error, 0.9 to 3 ms | mV | 5.909084 to 6.098814 | 6.042273 to 6.237447 |
-| High-load settled error, 1.2 to 1.9 ms | mV | 0.073800 to 0.292420 | 0.711200 to 1.356709 |
-| Low-load settled error, 2.2 to 3 ms | mV | 5.909084 to 6.098814 | 6.042273 to 6.237447 |
-| Transient minimum tail voltage | V | 0.086371 to 0.091123 | 0.084181 to 0.088947 |
-| Dropout at 5 mA | mV | 49.365 | 135.254 |
+Measured `layout-v2` score: **26.669807**, with electrical quality
+**E = 0.73888364** and area quality **Q = 0.096263955**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **78921.752 um2**.
 
-The acceptance bands specify a 1.8 V output within 20 mV, at most 250 uA core
-quiescent current, 18 mW input-power budget, at least 40 dB rejection at 1 kHz,
-at most 6 dB impedance peaking, and at most 200 mV dropout. The 25 mV load-step
-error and 10 mV settled bands require recovery within 200 us. Tail limits check
-positive bias headroom rather than accepting regulation with an unphysical
-negative tail voltage. These are maintained design targets calibrated against
-the measurements above, not imported upstream datasheet claims. See the
-problem for all acceptance and zero-score boundaries.
+Area reference: **7597.32 um2**. 106 expanded device instances; sum of device/contact envelopes 4876.0000 um2, per-side envelope allowance 1 um, 50% routing allowance and outer margin 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `output_v` | V | 1.7997982 … 1.8060988 | 1.8007112 … 1.8062375 | 0.99967758 |
+| `tail_v` | V | 0.086371187 … 0.092771005 | 0.084233607 … 0.090594193 | 0.99933962 |
+| `quiescent_a` | A | 0.00020887493 … 0.00020908752 | 0.00020887555 … 0.00020908095 | 0.99999505 |
+| `power_w` | W | 0.000679592 … 0.01718954 | 0.00067958366 … 0.01718951 | 0.9999998 |
+| `psrr_db` | dB | 61.37198 … 104.8581 | 53.5666 … 100.5262 | 0.29472705 |
+| `peaking_db` | dB | 0 | 0 … 4.0718907 | 0.62575664 |
+| `peak_error_v` | V | 0.005909084 … 0.006098814 | 0.006042282 … 0.006237456 | 0.97777623 |
+| `high_settled_error_v` | V | 7.380036e-05 … 0.0002924197 | 0.0007112089 … 0.001356717 | 0.067177947 |
+| `low_settled_error_v` | V | 0.005909084 … 0.006098814 | 0.006042282 … 0.006237456 | 0.97777623 |
+| `tail_min_v` | V | 0.08637119 … 0.09112281 | 0.08418127 … 0.08894713 | 0.99933683 |
+| `dropout_v` | V | 0.049365 | 0.135254 | 0.36498466 |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
 
 The coefficient is 7 for closed-loop regulation combining amplifier, pass-array
-and passive feedback behavior over multiple regimes. The absolute area target
-is an 800 by 100 um routing budget (80000 um2), feasible for the independently
-constructed one-row pass array and long poly resistors. Area utility reaches
-zero at four times that budget (320000 um2). Neither anchor changes with a
-submitted candidate or reference-area ratio; this witness is not an area optimum.
-
-The RC model retains distributed metal resistance and coupling capacitance;
-it does not model a distributed silicon substrate. The dropout increase and
-impedance peaking show sensitivity to the physical implementation. The
-load-step test starts from an operating point and is not a startup test.
-Closed-loop impedance peaking and recovery do not establish full loop phase
-margin. Saved node/current waveforms permit independent reconstruction of every
-reported electrical observation with the definitions in the problem.
+and passive feedback behavior over multiple regimes.
 
 ## Reproduce
 
-From the repository root, prepare the image and three resource bundles using
-the shared [GF180 instructions](../../../../../docs/tools.md#gf180), then run:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.cli evaluate \
-  tasks/gf180mcuD/analog-db/cases/ldo_004_basic_pmos/case.toml \
-  tasks/gf180mcuD/analog-db/cases/ldo_004_basic_pmos/reference/ldo_004_basic_pmos.gds \
-  --output build/runs/analog-db-ldo-reference
+python -m benchmarking.engine.preview prepare \
+  --case gf180mcuD.analog-db.ldo_004_basic_pmos --image iclayout-bench-tools:local \
+  --output build/runs/ldo_004_basic_pmos-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/ldo_004_basic_pmos-prepared \
+  --output build/runs/ldo_004_basic_pmos-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'ldo_004_basic_pmos'
 ```
 
-This creates the reader's identity-bound report and saved waveforms under
-`build/runs/analog-db-ldo-reference/`. Use a fresh output directory for each run.
-For the Pre-layout column, run the shared
-[source-calibration recipe](../../../../../docs/tools.md#gf180-source-calibration)
-with this case path and `build/runs/analog-db-ldo-source` as the output argument.
-It retains all 13 simulation jobs and replaces only the extracted DUT input
-with the published physical source netlist; it is unscored characterization.
-
-The catalog-driven regression prepares isolated inputs/resources and verifies
-both the published witness and rejection of an empty layout:
-
-```bash
-uv run --locked --group eda pytest tests/integration/test_public_references.py \
-  -k ldo_004_basic_pmos
-```
-
-Keep collection LICENSE and NOTICE with redistributed materials. Prepared solve
-and run directories are generated local outputs, not redistribution packages.
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

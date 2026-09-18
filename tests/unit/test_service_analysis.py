@@ -31,6 +31,7 @@ def sample(sid, kind="official", outcome="pass", score=80):
         "limits": {},
         "tool_identity": {},
         "verification_level": "local_development",
+        "provenance": {"usage": "unknown"},
         "state": "complete",
         "outcome": outcome,
         "score": {"value": score},
@@ -63,3 +64,34 @@ def test_unknown_errors_do_not_become_zero_or_merge_custom_conditions(tmp_path):
 def test_protocol_simulator_cannot_be_analyzed_as_measurement(tmp_path):
     with pytest.raises(ValueError, match="real protocol"):
         export_results([sample("simulation") | {"test_only": True}], tmp_path / "out")
+
+
+def test_observation_is_read_only_and_keeps_participant_claims_separate(tmp_path):
+    """Protect source labels and pagination, absent from existing result-table tests.
+
+    A fake read interface is sufficient: observation must not need mutation or a
+    model provider. Its trace claims must never replace service usage/trust.
+    """
+    import json
+
+    from benchmarking.observe import export_observation
+
+    class Observed:
+        def observations(self, sid, *, offset=0):
+            return {'session_id': sid, 'provenance': 'server_observed', 'available': True,
+                    'events': [{'sequence': offset, 'kind': 'fixture', 'data': {}}],
+                    'next_offset': offset + 1, 'has_more': offset == 0}
+
+        def result(self, sid):
+            return sample(sid)
+
+    trace = tmp_path / 'agent.jsonl'
+    trace.write_text('{"claim":"pass", "usage":{"input_tokens":123}}\n')
+    manifest = export_observation(Observed(), 's', tmp_path / 'observation', participant_files=[trace])
+    assert manifest['service']['next_offset'] == 2
+    assert manifest['participant']['provenance'] == 'participant_reported'
+    assert manifest['service']['verification_level'] == 'local_development'
+    assert manifest['usage'] == sample('s')['usage']
+    assert (tmp_path / 'observation/participant/agent.jsonl').read_bytes() == trace.read_bytes()
+    result = json.loads((tmp_path / 'observation/service-result.json').read_bytes())
+    assert result == sample('s')

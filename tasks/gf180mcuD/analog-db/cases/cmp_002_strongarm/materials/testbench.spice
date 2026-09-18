@@ -1,0 +1,30 @@
+* StrongARM: positive and negative decisions, output slew and energy.
+* SPDX-License-Identifier: MIT
+.include support/models.spice
+.include dut.spice
+.include parameters.spice
+.temp 27
+VPOL pol 0 {polarity}
+VDD vdd 0 3.3
+VCLK clk 0 PULSE(0 3.3 10n .1n .1n 10n 20n)
+VP vinp 0 {common_v+polarity*.01}
+VN vinn 0 {common_v-polarity*.01}
+CP voutp 0 50f
+CN voutn 0 50f
+XDUT vdd voutp voutn vinp vinn clk 0 cmp_002_strongarm
+.control
+set noaskquit
+set numdgt=12
+tran .01n 100n
+let decision=v(pol)*(v(voutp)-v(voutn))
+meas tran decision_v find decision at=99n
+let pwr=-3.3*i(vdd)
+meas tran power_w avg pwr from=20n to=100n
+meas tran delay_s trig v(clk) val=1.65 rise=1 td=80n targ decision val=1.65 rise=1 td=80n
+meas tran slew_s trig decision val=.33 rise=1 td=80n targ decision val=2.97 rise=1 td=80n
+meas tran reset_p_v find v(voutp) at=89n
+meas tran reset_n_v find v(voutn) at=89n
+write transient.raw
+quit
+.endc
+.end

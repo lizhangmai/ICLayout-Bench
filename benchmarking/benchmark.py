@@ -88,7 +88,7 @@ def load_benchmark(path):
             raise ValueError("Catalog and benchmark case identity disagree")
         if (task.status != "qualified" or task.evaluation is None
                 or task.evaluation.mode != "post_layout" or task.evaluation.scoring is None
-                or task.evaluation.scoring.method != "layout-v1"):
+                or task.evaluation.scoring.method not in {"layout-v1", "layout-v2"}):
             raise ValueError(f"Benchmark case must be qualified with scored post_layout evaluation: {name}")
         configs.append(config)
         contracts[name] = task_contract(task)

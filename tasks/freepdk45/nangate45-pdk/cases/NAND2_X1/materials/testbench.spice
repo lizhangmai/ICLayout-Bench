@@ -19,6 +19,14 @@ VA2 A2 0 PWL(0 0 0.500n 0 0.510n 1 1.000n 1 1.010n 1 1.500n 1 1.510n 0 2.000n 0 
 .meas tran state_7 find v(ZN) at=3.610n
 .meas tran state_8 find v(ZN) at=4.110n
 .meas tran supply avg par('-v(vdd)*i(Vdd)') from=0 to=4.400n
+.meas tran delay_a1_fall_2 trig v(A1) val=0.5 rise=1 td=1n targ v(ZN) val=0.5 fall=1 td=1n
+.meas tran transition_a1_fall_2 trig v(ZN) val=0.8 fall=1 td=1n targ v(ZN) val=0.2 fall=1 td=1n
+.meas tran delay_a2_rise_3 trig v(A2) val=0.5 fall=1 td=1.5n targ v(ZN) val=0.5 rise=1 td=1.5n
+.meas tran transition_a2_rise_3 trig v(ZN) val=0.2 rise=1 td=1.5n targ v(ZN) val=0.8 rise=1 td=1.5n
+.meas tran delay_a2_fall_6 trig v(A2) val=0.5 rise=1 td=3n targ v(ZN) val=0.5 fall=1 td=3n
+.meas tran transition_a2_fall_6 trig v(ZN) val=0.8 fall=1 td=3n targ v(ZN) val=0.2 fall=1 td=3n
+.meas tran delay_a1_rise_7 trig v(A1) val=0.5 fall=1 td=3.5n targ v(ZN) val=0.5 rise=1 td=3.5n
+.meas tran transition_a1_rise_7 trig v(ZN) val=0.2 rise=1 td=3.5n targ v(ZN) val=0.8 rise=1 td=3.5n
 .control
 run
 write waveform.raw v(A1) v(A2) v(ZN) v(VDD) i(Vdd)

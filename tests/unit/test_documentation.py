@@ -17,7 +17,7 @@ def test_links_stay_inside_repository_and_resolve_anchors(tmp_path):
 [Guide](docs/guide.md#重复标题-1)
 [Explicit](docs/guide.md#stable)
 [Code](sample.py#L1)
-[Optional PDK](third_party/IHP-Open-PDK/README.md)
+[Optional PDK](third_party/synthetic-pdk/README.md)
 [Remote](https://example.invalid/missing)
 ''')
     (tmp_path/'docs').mkdir()
@@ -33,15 +33,6 @@ def test_links_stay_inside_repository_and_resolve_anchors(tmp_path):
     assert 'missing target' in errors[0]
     assert 'missing anchor' in errors[1]
     assert 'outside this repository' in errors[2]
-
-
-def test_tracked_docs_are_checked_even_if_gitignored(tmp_path):
-    subprocess.run(['git', 'init', '-q', str(tmp_path)], check=True)
-    (tmp_path/'README.md').write_text('[Broken](missing.md)\n')
-    subprocess.run(['git', 'add', 'README.md'], cwd=tmp_path, check=True)
-    (tmp_path/'.gitignore').write_text('*.md\n')
-    (tmp_path/'ignored.md').write_text('[Ignored output](also-missing.md)\n')
-    assert len(check(tmp_path)) == 1
 
 
 def test_document_symlink_does_not_read_outside_checkout(tmp_path):

@@ -75,38 +75,54 @@ signoff are outside scope.
 
 ## Electrical Requirements and Scoring
 
-Every observation in every condition must be finite and satisfy its inclusive
-acceptance band. Aggregation cannot hide a failing condition. Temperature
-measurements use the complete sampled sweep; startup measurements use the
-explicit final window. Saved operating-point, temperature and transient
-waveforms support independent reconstruction.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-| Metric | Definition | Unit | Acceptance | Zero-score boundaries | Dimension |
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
 | --- | --- | --- | --- | --- | --- |
-| `output_v` | DC output at the selected supply and temperature | V | 0.1 to 0.19 | <= 0 or >= 0.3 | bias |
-| `power_w` | DC delivered supply power, -V(vdd)*I(VDD), including startup bias | W | 0 to 8e-05 | < 0 or >= 0.00016 | supply |
-| `cold_v` | Output at -20 C | V | 0.11 to 0.13 | <= 0 or >= 0.25 | bias |
-| `hot_v` | Output at 100 C | V | 0.16 to 0.18 | <= 0 or >= 0.3 | bias |
-| `slope_v_per_c` | (hot_v - cold_v)/120 C | V/C | 0.0004 to 0.00047 | <= 0.0002 or >= 0.0006 | response |
-| `curvature_v` | Maximum absolute deviation from the endpoint line at all 121 temperatures | V | 0 to 0.003 | < 0 or >= 0.01 | response |
-| `minimum_slope` | Minimum ngspice deriv(output) over temperature | V/C | 0.0003 to 0.00055 | <= 0 or >= 0.001 | response |
-| `maximum_slope` | Maximum ngspice deriv(output) over temperature | V/C | 0.0003 to 0.00055 | <= 0 or >= 0.001 | response |
-| `peak_power_w` | Maximum delivered supply power over temperature | W | 0 to 8e-05 | < 0 or >= 0.00016 | supply |
-| `startup_error_v` | Maximum absolute output error against the selected DC operating point during 90–100 us | V | 0 to 0.001 | < 0 or >= 0.02 | response |
-| `ripple_v` | Maximum minus minimum output during 90–100 us | V | 0 to 0.001 | < 0 or >= 0.02 | response |
-| `final_power_w` | Time-average delivered supply power during 90–100 us | W | 0 to 8e-05 | < 0 or >= 0.00016 | supply |
+| `output_v` | DC output at the selected supply and temperature | V | target / target | 0 … 3.3 | 3.3 |
+| `power_w` | DC delivered supply power, -V(vdd)*I(VDD), including startup bias | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `cold_v` | Output at -20 C | V | target / target | 0 … 3.3 | 3.3 |
+| `hot_v` | Output at 100 C | V | target / target | 0 … 3.3 | 3.3 |
+| `slope_v_per_c` | (hot_v - cold_v)/120 C | V/C | target / target | −∞ … +∞ | 0.00047 |
+| `curvature_v` | Maximum absolute deviation from the endpoint line at all 121 temperatures | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `minimum_slope` | Minimum ngspice deriv(output) over temperature | V/C | target / target | −∞ … +∞ | 0.00055 |
+| `maximum_slope` | Maximum ngspice deriv(output) over temperature | V/C | target / target | −∞ … +∞ | 0.00055 |
+| `peak_power_w` | Maximum delivered supply power over temperature | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `startup_error_v` | Maximum absolute output error against the selected DC operating point during 90–100 us | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `ripple_v` | Maximum minus minimum output during 90–100 us | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `final_power_w` | Time-average delivered supply power during 90–100 us | W | minimize / ratio | 0 … +∞ | 1e-12 |
 
-Scoring is `S = G * (60*E + 20*H + 20*H*Q)`. `G` requires passing physical
-checks and complete extraction/measurements. `E` averages response, bias and
-supply, each using its worst observation's attainment. Attainment is 1 in the
-acceptance band and decreases linearly to its zero boundary. `H` is 1 only
-when all electrical observations pass.
-`Q = clip((56000 - area_um2)/(56000 - 14000), 0, 1)` uses fixed absolute
-area anchors. Physical rejection scores 0; blocking evaluator errors have no
-score. Coefficient 6 reflects coupled startup, temperature behavior and
-isolated-body physical implementation.
+Area reference: **529.13 um2**. 8 expanded device instances; sum of device/contact envelopes 303.6200 um2, per-side envelope allowance 1 um, 50% routing allowance and outer margin 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **6**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Use the reviewed GF180 resources in `/protocol/resources.json`. KLayout checks
 physical validity and geometry, Magic extracts RC and ngspice simulates the
@@ -114,3 +130,5 @@ circuit. `/protocol/task.json` provides frozen requirements and
 `/protocol/harness.json` describes the harness. When `process-feedback.v1` is
 exposed, use its published helper for interim checks. Write
 `/workspace/output/final.gds`, then submit with `python -I /protocol/submit.py`.
+
+Use a GDS database unit of 0.001 um, as required by the GF180MCU DRC deck.

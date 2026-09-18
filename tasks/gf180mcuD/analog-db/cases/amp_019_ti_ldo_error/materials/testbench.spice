@@ -1,0 +1,41 @@
+* Independently authored Bench measurements; SPDX-License-Identifier: MIT
+.include support/models.spice
+.include dut.spice
+.include parameters.spice
+.temp 27
+.options reltol=1e-6 abstol=1e-13 vntol=1e-9
+VDD vdd 0 3.3
+VSS vss 0 0
+VIN vinp 0 dc {common_v} ac 1 pulse({common_v} {common_v+.01} 20u 10n 10n 40u 200u)
+IB vdd ibias 1m
+CL vout vss {load_f}
+XDUT vdd vout vinp vout ibias vss amp_019_ti_ldo_error
+.control
+set numdgt=15
+set measdgt=15
+op
+let output_v=v(vout)
+let power_w=-v(vdd)*i(vdd)
+let kcl_a=abs(i(vdd)+i(vss)+i(vin))
+print output_v power_w kcl_a
+write op.raw all
+ac dec 100 1 100Meg
+let gain=mag(v(vout))
+meas ac gain_1hz find gain at=1
+meas ac gain_1mhz find gain at=1Meg
+write ac.raw all
+tran 10n 100u 0 10n
+let err=abs(v(vout)-v(vinp))
+let pw=-v(vdd)*i(vdd)
+meas tran quiet_v avg v(vout) from=10u to=20u
+meas tran high_v avg v(vout) from=50u to=60u
+meas tran recovery_v avg v(vout) from=90u to=100u
+meas tran ripple_v pp v(vout) from=90u to=100u
+meas tran tracking_error_v avg err from=20u to=100u
+meas tran mean_power_w avg pw from=20u to=100u
+let step_response_v=high_v-quiet_v
+print step_response_v
+write transient.raw all
+quit
+.endc
+.end

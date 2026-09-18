@@ -95,3 +95,73 @@ config_path = "cases/ldo_001_analoggym_basic/case.toml"
 [[cases]]
 id = "ihp-sg13g2.analog-db.vref_001_vgs"
 config_path = "cases/vref_001_vgs/case.toml"
+
+
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.drv_001_pam4_sige_dac"
+config_path = "cases/drv_001_pam4_sige_dac/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_027_fan_rrl_ota"
+config_path = "cases/amp_027_fan_rrl_ota/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_026_fan_chopper_ota"
+config_path = "cases/amp_026_fan_chopper_ota/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.ia_002_fan_chopper_simple"
+config_path = "cases/ia_002_fan_chopper_simple/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.ia_003_fan_chopper_pf"
+config_path = "cases/ia_003_fan_chopper_pf/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_014_ramos_pfc"
+config_path = "cases/amp_014_ramos_pfc/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_011_peng_iac"
+config_path = "cases/amp_011_peng_iac/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_016_song_dacfc"
+config_path = "cases/amp_016_song_dacfc/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_013_qu2017_azc"
+config_path = "cases/amp_013_qu2017_azc/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_021_yan_az"
+config_path = "cases/amp_021_yan_az/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_034_fan_chopper_cmfb"
+config_path = "cases/amp_034_fan_chopper_cmfb/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_035_fan_chopper_cmfb_dual"
+config_path = "cases/amp_035_fan_chopper_cmfb_dual/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_022_fer_two_stage"
+config_path = "cases/amp_022_fer_two_stage/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.amp_029_two_stage_miller_comp"
+config_path = "cases/amp_029_two_stage_miller_comp/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.cmfb_002_5t_pmos_input"
+config_path = "cases/cmfb_002_5t_pmos_input/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.sw_001_transmission_gate_pair"
+config_path = "cases/sw_001_transmission_gate_pair/case.toml"
+
+[[cases]]
+id = "ihp-sg13g2.analog-db.adc_001_inv1b"
+config_path = "cases/adc_001_inv1b/case.toml"

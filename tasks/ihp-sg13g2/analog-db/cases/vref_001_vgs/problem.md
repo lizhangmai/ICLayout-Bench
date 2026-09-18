@@ -72,53 +72,60 @@ The external 100 fF load is additional to candidate capacitance.
 
 ## Electrical Requirements and Scoring
 
-Every observation must be finite and satisfy its own inclusive limits. The
-reference for transient errors is that job's unloaded DC VREF, not a fitted
-waveform or the candidate's last transient sample. Errors are maxima over
-the entire stated interval, including interpolated endpoints.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-| Metric | Definition | Unit | Acceptance | Zero boundaries |
-| --- | --- | --- | --- | --- |
-| `reference_v` | Unloaded DC VREF | V | 0.35–0.37 | 0.30 / 0.42 |
-| `supply_a` | Unloaded DC −I(VDD) | A | 5e-12–3e-9 | 0 / 6e-9 |
-| `power_w` | Unloaded DC −VDD·I(VDD) | W | 0–5e-9 | 0 / 1e-8 |
-| `startup_error_v` | Maximum absolute reference error, 8–9 ms | V | ≤1e-5 | upper 1e-3 |
-| `load_error_v` | Same, 18–19 ms under +1 pA | V | ≤0.004 | upper 0.012 |
-| `release_error_v` | Same, 28–29 ms | V | ≤1e-5 | upper 1e-3 |
-| `injection_error_v` | Same, 38–39 ms under −1 pA | V | ≤0.004 | upper 0.012 |
-| `return_error_v` | Same, 48–49 ms | V | ≤1e-5 | upper 1e-3 |
-| `minimum_v` / `maximum_v` | Full transient VREF extrema | V | ≥−1e-5 / ≤0.375 | lower −0.01 / upper 0.42 |
-| `line_min_v` / `line_max_v` | Supply-sweep VREF extrema | V | ≥0.35 / ≤0.37 | lower 0.30 / upper 0.42 |
-| `line_span_v` | Supply-sweep maximum minus minimum | V | 0–0.012 | 0 / 0.03 |
-| `temperature_min_v` / `temperature_max_v` | Temperature-sweep VREF extrema | V | ≥0.35 / ≤0.37 | lower 0.30 / upper 0.42 |
-| `temperature_span_v` | Temperature-sweep maximum minus minimum | V | 0–0.003 | 0 / 0.01 |
-| `loaded_reference_v` | DC VREF at +1 pA | V | 0.35–0.37 | 0.30 / 0.42 |
-| `output_resistance_ohm` | (Unloaded DC VREF − DC VREF at +1 pA)/1 pA | ohm | 0–4e9 | 0 / 1e10 |
+For a post-layout observation x and its source observation b:
 
-Output resistance is a finite-load secant, not broadband impedance. Supply
-power excludes external load injection and bias-generator overhead. This
-two-transistor self-biased reference has no separate amplifier/CMFB loop or
-declared crossover metric; startup, DC sensitivity and finite load recovery
-are its observable feedback checks. No exhaustive internal-pole claim is made.
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
 
-Use the single `layout-v1` score `S=G·(60E+20H+20H·Q)`. G requires passing
-artifact, DRC, LVS, hard geometry and complete valid extraction/simulation.
-A conclusive physical rejection scores zero; an evaluator error that prevents
-grading gives null. H is one only when every electrical bound passes. E is
-the mean of the response, bias and supply dimensions, each taking its worst
-metric and each metric its worst observation. Transient errors, line/temperature
-spans and output resistance belong to response; power belongs to supply;
-all other metrics belong to bias. Attainment is one within acceptance and
-falls linearly to each stated zero boundary outside it, clipped to [0,1].
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
 
-`Q=clip((6400−area)/(6400−1600),0,1)` with area in um². The fixed 1600 um²
-full-area target accommodates a legal two-device mixed-process layout with
-both body contacts and complete routing; 6400 um² is the zero-utility boundary.
-Area earns points only after full electrical acceptance. Coefficient 5 reflects
-a complete compact self-biased block with stringent leakage, load and startup
-requirements. It is not a claim of precision, optimal area or fabrication signoff.
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `reference_v` | Unloaded DC VREF | V | target / target | 0 … 1.5 | 1.5 |
+| `supply_a` | Unloaded DC −I(VDD) | A | minimize / ratio | 0 … +∞ | 1e-12 |
+| `power_w` | Unloaded DC −VDD·I(VDD) | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `startup_error_v` | Maximum absolute reference error, 8–9 ms | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `load_error_v` | Same, 18–19 ms under +1 pA | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `release_error_v` | Same, 28–29 ms | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `injection_error_v` | Same, 38–39 ms under −1 pA | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `return_error_v` | Same, 48–49 ms | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `minimum_v` | tm20_v10:minimum_v, tm20_v12:minimum_v, tm20_v15:minimum_v, t27_v10:minimum_v, t27_v12:minimum_v, t27_v15:minimum_v, t85_v10:minimum_v, t85_v12:minimum_v, t85_v15:minimum_v | V | target / target | −∞ … +∞ | 1.5 |
+| `maximum_v` | tm20_v10:maximum_v, tm20_v12:maximum_v, tm20_v15:maximum_v, t27_v10:maximum_v, t27_v12:maximum_v, t27_v15:maximum_v, t85_v10:maximum_v, t85_v12:maximum_v, t85_v15:maximum_v | V | target / target | 0 … 1.5 | 1.5 |
+| `line_min_v` | tm20_v10:line_min_v, tm20_v12:line_min_v, tm20_v15:line_min_v, t27_v10:line_min_v, t27_v12:line_min_v, t27_v15:line_min_v, t85_v10:line_min_v, t85_v12:line_min_v, t85_v15:line_min_v | V | target / target | 0 … 1.5 | 1.5 |
+| `line_max_v` | tm20_v10:line_max_v, tm20_v12:line_max_v, tm20_v15:line_max_v, t27_v10:line_max_v, t27_v12:line_max_v, t27_v15:line_max_v, t85_v10:line_max_v, t85_v12:line_max_v, t85_v15:line_max_v | V | target / target | 0 … 1.5 | 1.5 |
+| `line_span_v` | Supply-sweep maximum minus minimum | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `temperature_min_v` | tm20_v10:temperature_min_v, tm20_v12:temperature_min_v, tm20_v15:temperature_min_v, t27_v10:temperature_min_v, t27_v12:temperature_min_v, t27_v15:temperature_min_v, t85_v10:temperature_min_v, t85_v12:temperature_min_v, t85_v15:temperature_min_v | V | target / target | 0 … 1.5 | 1.5 |
+| `temperature_max_v` | tm20_v10:temperature_max_v, tm20_v12:temperature_max_v, tm20_v15:temperature_max_v, t27_v10:temperature_max_v, t27_v12:temperature_max_v, t27_v15:temperature_max_v, t85_v10:temperature_max_v, t85_v12:temperature_max_v, t85_v15:temperature_max_v | V | target / target | 0 … 1.5 | 1.5 |
+| `temperature_span_v` | Temperature-sweep maximum minus minimum | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `output_resistance_ohm` | (Unloaded DC VREF − DC VREF at +1 pA)/1 pA | ohm | minimize / ratio | 0 … +∞ | 1e-06 |
+| `loaded_reference_v` | DC VREF at +1 pA | V | target / target | 0 … 1.5 | 1.5 |
+
+Area reference: **210.61 um2**. 3 expanded device instances; sum of device/contact envelopes 121.7863 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **5**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Use the supplied task, process resources and runtime protocol. Write
 `/workspace/output/final.gds` and submit it through `python -I /protocol/submit.py`.

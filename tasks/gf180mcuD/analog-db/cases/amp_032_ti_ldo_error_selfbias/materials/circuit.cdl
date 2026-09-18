@@ -1,0 +1,45 @@
+* Derived from pinned analog-db; Copyright 2026 Danial Noori Zadeh.
+* See collection license; 5 nm geometry, physical R/C, explicit interface.
+.subckt amp_032_ti_ldo_error_selfbias vdd vout vinp vinn vss
+CC_0 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_1 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_2 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_3 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_4 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_5 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_6 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_7 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_8 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_9 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_10 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_11 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_12 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_13 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_14 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_15 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_16 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_17 ncz vout cap_mim_2f0fF w=20u l=19.735u
+CC_18 ncz vout cap_mim_2f0fF w=20u l=19.735u
+RND_0 na RND_seg1 vss ppolyf_u_1k w=1u l=50u
+RND_1 RND_seg1 RND_seg2 vss ppolyf_u_1k w=1u l=50u
+RND_2 RND_seg2 RND_seg3 vss ppolyf_u_1k w=1u l=50u
+RND_3 RND_seg3 RND_seg4 vss ppolyf_u_1k w=1u l=50u
+RND_4 RND_seg4 RND_seg5 vss ppolyf_u_1k w=1u l=50u
+RND_5 RND_seg5 RND_seg6 vss ppolyf_u_1k w=1u l=50u
+RND_6 RND_seg6 RND_seg7 vss ppolyf_u_1k w=1u l=50u
+RND_7 RND_seg7 RND_seg8 vss ppolyf_u_1k w=1u l=50u
+RND_8 RND_seg8 RND_seg9 vss ppolyf_u_1k w=1u l=50u
+RND_9 RND_seg9 nd vss ppolyf_u_1k w=1u l=50u
+RZ_0 nb ncz vss ppolyf_u_1k w=1u l=10u
+MM1_0 na vinn tail vss nfet_06v0 w=68.54u l=0.7u
+MM2_0 nb vinp tail vss nfet_06v0 w=68.54u l=0.7u
+MM3_0 na nd vdd vdd pfet_06v0 w=69.545u l=0.55u
+MM4_0 nlev na nd vdd pfet_06v0 w=10u l=0.55u
+MM5_0 nb nd vdd vdd pfet_06v0 w=69.545u l=0.55u
+MM6_0 vout nb vdd vdd pfet_06v0 w=60u l=1u
+MMB0_0 ibias ibias vss vss nfet_06v0 w=34.535u l=2u
+MMBC_0 tail ibias vss vss nfet_06v0 w=34.535u l=2u
+MMBF_0 nlev ibias vss vss nfet_06v0 w=5u l=2u
+MMBO_0 vout ibias vss vss nfet_06v0 w=34.535u l=2u
+MMBP_0 ibias ibias vdd vdd pfet_06v0 w=6.31u l=2u
+.ends amp_032_ti_ldo_error_selfbias

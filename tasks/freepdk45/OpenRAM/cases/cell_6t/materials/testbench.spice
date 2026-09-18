@@ -16,12 +16,22 @@ Vpre pre 0 PWL(0 0 600p 0 610p 1 990p 1 1n 0 1.5n 0 1.51n 1 1.99n 1 2n 0 4.6n 0 
 Spl bl vdd pre 0 sw
 Spr br vdd pre 0 sw
 Vwl wl 0 PWL(0 1 490p 1 500p 0 1n 0 1.01n 1 1.3n 1 1.31n 0 2n 0 2.01n 1 2.3n 1 2.31n 0 4n 0 4.02n 1 4.49n 1 4.5n 0 5n 0 5.01n 1 5.3n 1 5.31n 0 6n 0 6.01n 1 6.3n 1 6.31n 0)
+Bdiff0 diff0 0 v=v(br)-v(bl)
+Bdiff1 diff1 0 v=v(bl)-v(br)
 .tran 1p 7n
 .meas tran read0 find par('v(br)-v(bl)') at=1110p
 .meas tran repeat0 find par('v(br)-v(bl)') at=2110p
 .meas tran read1 find par('v(bl)-v(br)') at=5110p
 .meas tran repeat1 find par('v(bl)-v(br)') at=6110p
 .meas tran supply avg par('-v(vdd)*i(Vdd)') from=0 to=7n
+
+.meas tran read_delay_0_1 trig v(wl) val=.5 rise=1 td=1n targ v(diff0) val=.1 rise=1 td=1n
+
+.meas tran read_delay_0_2 trig v(wl) val=.5 rise=1 td=2n targ v(diff0) val=.1 rise=1 td=2n
+
+.meas tran read_delay_1_5 trig v(wl) val=.5 rise=1 td=5n targ v(diff1) val=.1 rise=1 td=5n
+
+.meas tran read_delay_1_6 trig v(wl) val=.5 rise=1 td=6n targ v(diff1) val=.1 rise=1 td=6n
 
 .control
 run

@@ -1,0 +1,62 @@
+# Folded-Cascode LDO Layout Task
+
+## Objective
+
+Implement `ldo_002_analoggym_folded_cascode` as a GDS layout preserving the complete declared circuit. Nine-MOS folded-cascode error amplifier and a PMOS pass array, with direct output feedback, series RZ/CC and the physical minimum-load bleed. The fixed GF180 6 V binding expands to 259 MOS, three 2 fF/um2 MIM units, one nulling resistor and two series bleed segments. VB1, VB2 and VREF remain external sources; the original 0 V VLP measurement marker becomes a wire.
+
+## Inputs and Interface
+
+- `materials/circuit.cdl`: authoritative physical circuit and ordered named interface.
+- `materials/circuit.spice`: equivalent source simulation, including physical passives.
+- `materials/testbench.spice`: performance observations.
+- `materials/startup.spice`: startup observations.
+- `materials/regulation.spice`: regulation observations.
+- `problem.md`: this contract.
+
+Ordered ports: `vdd vout vss vb1 vb2 vref`. `vss` is ground, `vdd` the positive rail; signal/output and bias/reference ports have the functions and directions specified below. Every named interface must be preserved. Device multipliers are explicitly expanded; series/parallel passive realizations are already declared in the circuit. The reference layout and development source are not solver inputs.
+
+## Operating Conditions
+
+Nominal supply 2.0 V, external reference 1.8 V, VB1=1.0 V and VB2=0.025 V; 27 C, typical GF180 models with statistical variation disabled. Native 6 V DRC requires NMOS L>=0.70 um and PMOS L>=0.55 um; only undersized lengths are increased to those physical minima. All default widths and the 250-fold 10 um pass-device multiplier are retained. R_bleed is 100 kohm inside the physical DUT and consumes Vout^2/R power; external 1/2 mA load currents are additional, not replacements. CC=2 pF and RZ=3 kohm retain their original connections. External output capacitance is 1 nF with 0.1 ohm series ESR. Evaluate no disturbance, 1-to-2 mA load pulse, and +0.1 V input pulse, plus independent DC points at nominal+0.1 V/1 mA and nominal/2 mA. Pulses start at 100 us, have 1 us edges and 100 us high width; restoration finishes at 202 us. Observe 0–400 us with 10 ns maximum step; pre-step/high/recovery windows are 80–100/180–200/380–400 us. Supply rejection is measured at 1 kHz from a 1 V AC supply input (100 samples/decade, 1 Hz–100 MHz). Ascending DC sweeps cover nominal supply to nominal+0.1 V in 10 mV increments at 1 mA and 1–2 mA load in 0.1 mA increments at nominal supply; adjustment metrics are absolute endpoint slopes. These are finite ranges, not dropout measurements. Startup ramps VDD from zero to nominal in 10 us with fixed external references and a resistive 1 mA nominal load (target voltage/1 mA); it uses the ordinary initial DC solution, no UIC or forced initial output, and observes through 400 us. Startup extrema and late-window output/ripple are diagnostics. No dropout, loop gain or phase margin is claimed. Source and candidate use identical decks and parameters; no numerical shunt is used.
+
+## Physical Requirements
+
+GF180MCU D native standalone-block FEOL/BEOL, connectivity, grid, dummy and antenna rules; chip density/seal-ring rules are outside this block boundary. Named-port LVS and candidate-derived distributed Magic RC are required. Functional area includes active/poly, passives and all routing metal/vias. Capacitor substrate and resistor terminal models follow the frozen PDK profile. No DRC waivers are declared. The core topology, body connections and physical compensation are fixed. Geometrically equivalent implementations must retain the named ports and device parameters. Functional bounds are 20000 by 2000 um; they bound the supported block footprint, not electrical quality.
+
+## Electrical Requirements and Scoring
+
+| Metric | Unit | Definition | Assignment |
+|---|---|---|---|
+| output_v | V | DC output | bias; target (scale 1.8) |
+| regulation_error_v | V | Absolute DC setpoint error | response; ratio (scale 0.001) |
+| power_w | W | Total input rail DC power, including physical bleed/divider and external current bias | supply; ratio (scale 1e-12) |
+| psrr_db | dB | Input supply rejection at 1 kHz | response; db20 |
+| quiet_ripple_v | V | Peak-to-peak pre-perturbation output 80–100 us | response; ratio (scale 0.001) |
+| recovery_ripple_v | V | Peak-to-peak recovered output 380–400 us | response; ratio (scale 0.001) |
+| excursion_v | V | Full output range 100–400 us | response; ratio (scale 0.001) |
+| late_error_v | V | Mean absolute setpoint error 380–400 us | response; ratio (scale 0.001) |
+| mean_power_w | W | Mean input rail power 0–400 us | supply; ratio (scale 1e-12) |
+| quiet_v | V | Finite-window quiet_v | diagnostic; unscored |
+| high_v | V | Finite-window high_v | diagnostic; unscored |
+| recovery_v | V | Finite-window recovery_v | diagnostic; unscored |
+| startup_final_v | V | 10 us input ramp with resistive load: startup_final_v | diagnostic; unscored |
+| startup_ripple_v | V | 10 us input ramp with resistive load: startup_ripple_v | diagnostic; unscored |
+| startup_min_v | V | 10 us input ramp with resistive load: startup_min_v | diagnostic; unscored |
+| startup_max_v | V | 10 us input ramp with resistive load: startup_max_v | diagnostic; unscored |
+| line_reg_v_per_v | V/V | Absolute ascending supply-sweep endpoint slope, nominal to nominal + 0.1 V, 1 mA load | response; ratio (scale 0.001) |
+| load_reg_ohm | ohm | Absolute ascending load-sweep endpoint slope, 1 to 2 mA, nominal supply | response; ratio (scale 1) |
+| kcl_a | A | Absolute external DC current-balance residual; numerical validity bound 10 nA | diagnostic; unscored |
+
+All required jobs must finish with finite valid measurements. The 10 nA DC KCL residual bounds numerical validity; nonnegative power/error/range bounds follow their physical definitions. Additional fixture validity bounds are stated above and in runtime task metadata. There are no data-sheet gain, regulation-accuracy or speed gates. Failed extraction, invalid measurements and missing jobs cannot be replaced by low scores.
+
+Use `layout-v2`: physical validity G gates the score; electrical E is the geometric mean of the bias/response/supply dimension geometric means, and compactness Q is area_target/functional_area. Score is 100*G*sqrt(E*Q). Each scored candidate observation is paired with the independent source observation in the identical condition. Ratio-minimize uses (source+scale)/(candidate+scale); target uses scale/(scale+abs(candidate-source)); db20-maximize uses 10^((candidate-source)/20). Scores are continuous and not capped at 100. Each metric uses its worst same-condition paired quality. Diagnostics are unscored. Source results, not the reference GDS, define performance normalization. The 1 mV error/ripple floors and 1 pW power floors regularize zero values; they are not acceptance tolerances. Target scales use the stated rail/output voltage or differential step amplitude.
+
+Area anchor: 29211.12 um2. 1.5 times the sum over expanded physical MOS, resistor and capacitor units of (W + 4 um)*(L + 4 um). The 4 um allowances cover local contacts/isolation; 50% covers compact routing. Body taps are covered by the allowance, not counted twice. For ordinary GF180 resistors this envelope conservatively uses the sheet-only length before contact correction; the explicit parallel 1-ohm bank uses its native dimensions. This is an analytical compact-area anchor, not the witness footprint.
+
+Coefficient 7 covers regulation, frequency response and recovery across loads. The provenance chain distinguishes the Apache-2.0 sky130_ldo_rl netlist from the BSD-3-Clause AnalogGym sizing/testbench; the actual circuit is the pinned MacAnalog GF180 binding, not another reference implementation.
+
+## Tools and Submission
+
+Solve budget: **8 hours**.
+
+Use the runtime task/resource discovery interface for the frozen tool image, PDK and declared feedback operations. The evaluator checks the submitted GDS independently and extracts its parasitics. Submit `output/final.gds`, top cell `ldo_002_analoggym_folded_cascode`; do not submit a source netlist in place of a layout. Keep all named ports. The resource bundle contains the approved open PDK and native EDA tools.

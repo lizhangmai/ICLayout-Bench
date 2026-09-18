@@ -20,6 +20,10 @@ Rr br mid 100k
 .meas tran z_br find v(br) at=11.9n
 .meas tran supply avg par('-v(vdd)*i(Vdd)') from=0 to=2n
 
+.meas tran data_delay_bl trig v(din) val=.5 rise=1 td=.5n targ v(bl) val=.5 rise=1 td=.5n
+
+.meas tran data_delay_br trig v(din) val=.5 rise=1 td=.5n targ v(br) val=.5 fall=1 td=.5n
+
 .control
 run
 write waveform.raw v(din) v(bl) v(br) v(wen) v(vdd) i(Vdd)

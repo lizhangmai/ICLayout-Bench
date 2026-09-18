@@ -1,0 +1,29 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Fixed IHP binding; external bias ports and native physical taps.
+.subckt amp_029_two_stage_miller_comp vinp vinn voutp voutn vdd vss ref vbl
+RT0 vss sub ptap1 A=4e-12 P=8e-6
+MM1 stg1p vinp tail sub sg13_lv_nmos w=10u l=0.5u m=1
+RT1 vss sub ptap1 A=4e-12 P=8e-6
+MM10 voutn ref vss sub sg13_lv_nmos w=6u l=1u m=1
+RT2 vss sub ptap1 A=4e-12 P=8e-6
+MM2 stg1n vinn tail sub sg13_lv_nmos w=10u l=0.5u m=1
+RT3 vdd well_3 ntap1 A=4e-12 P=8e-6
+MM3 stg1p vbl vdd well_3 sg13_lv_pmos w=10u l=1u m=1
+RT4 vdd well_4 ntap1 A=4e-12 P=8e-6
+MM4 stg1n vbl vdd well_4 sg13_lv_pmos w=10u l=1u m=1
+RT5 vdd well_5 ntap1 A=4e-12 P=8e-6
+MM5 voutp stg1p vdd well_5 sg13_lv_pmos w=12u l=0.5u m=1
+RT6 vss sub ptap1 A=4e-12 P=8e-6
+MM6 ref ref vss sub sg13_lv_nmos w=2u l=1u m=1
+RT7 vss sub ptap1 A=4e-12 P=8e-6
+MM7 voutp ref vss sub sg13_lv_nmos w=6u l=1u m=1
+RT8 vss sub ptap1 A=4e-12 P=8e-6
+MM8 tail ref vss sub sg13_lv_nmos w=2u l=1u m=1
+RT9 vdd well_9 ntap1 A=4e-12 P=8e-6
+MM9 voutn stg1n vdd well_9 sg13_lv_pmos w=12u l=0.5u m=1
+RTSUB vss sub ptap1 A=4e-12 P=8e-6
+C1_0 mill_p voutp cap_cmim w=16.28u l=16.28u m=1
+C2_0 mill_n voutn cap_cmim w=16.28u l=16.28u m=1
+RR1_0 stg1p mill_p sub rhigh w=.5u l=10.04u m=1 b=0
+RR2_0 stg1n mill_n sub rhigh w=.5u l=10.04u m=1 b=0
+.ends amp_029_two_stage_miller_comp

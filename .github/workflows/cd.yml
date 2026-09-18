@@ -31,7 +31,7 @@ jobs:
           version: '0.11.2'
           python-version: '3.12'
           enable-cache: true
-      - run: uv sync --locked
+      - run: uv sync --locked --extra results
       - run: uv run --locked ruff check .
       - run: uv run --locked python scripts/check_docs.py
       - run: uv run --locked pytest -m unit
@@ -49,7 +49,9 @@ jobs:
         run: |
           package_venv="$RUNNER_TEMP/iclayout-bench-package"
           python -m venv "$package_venv"
-          "$package_venv/bin/python" -m pip install build/dist/*.whl
+          for bench_wheel in build/dist/*.whl; do
+            "$package_venv/bin/python" -m pip install "${bench_wheel}[results]"
+          done
           "$package_venv/bin/python" -I - <<'PY'
           import importlib.util
           import subprocess
@@ -57,16 +59,19 @@ jobs:
           from importlib.resources import files
           from pathlib import Path
 
-          for name in ("benchmarking", "layout_eval", "layout_service"):
-              module = __import__(name)
+          for name in ("benchmarking", "benchmarking.engine", "benchmarking.service", "benchmarking.participants"):
+              module = importlib.import_module(name)
               assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
-          assert importlib.util.find_spec("layout_operator") is None
+          assert importlib.util.find_spec("iclayout_bench_private") is None
           assert files("benchmarking").joinpath("model_configs.yaml").is_file()
-          assert files("layout_eval").joinpath("sg13g2_view.json").is_file()
-          from layout_eval.source import implementation_identity
+          assert importlib.util.find_spec("layout_eval") is None
+          assert importlib.util.find_spec("layout_service") is None
+          assert files("benchmarking.engine").joinpath("sg13g2_view.json").is_file()
+          assert importlib.util.find_spec("benchmarking.web") is None
+          from benchmarking.engine.source import implementation_identity
           assert implementation_identity().startswith("sha256:")
-          for name in ("benchmarking.client", "benchmarking.official", "layout_eval.cli",
-                       "layout_eval.preview", "layout_service"):
+          for name in ("benchmarking.client", "benchmarking.observe", "benchmarking.run", "benchmarking.engine.cli",
+                       "benchmarking.engine.preview", "benchmarking.service", "benchmarking.results"):
               subprocess.run([sys.executable, "-I", "-m", name, "--help"], check=True)
           PY
       - name: Upload distributions

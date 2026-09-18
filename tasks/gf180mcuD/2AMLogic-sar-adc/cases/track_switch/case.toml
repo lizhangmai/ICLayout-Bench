@@ -4,7 +4,22 @@ id = "gf180mcuD.2AMLogic-sar-adc.track_switch"
 title = "Dummy-Compensated Track Switch"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "2bac6589da335a1adc6711da421d21092cffc97c1c224cf202b6588b29f2bca0"
+
+[[assets]]
+path = "reference/adc_tgate_dum.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "ac42852033a1e1372d70dbd6fab92e35c668fda8c2ede932e71ef47511cc9db2"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "gf180_track_switch"
 coefficient = 4
@@ -13,7 +28,7 @@ environment = "gf180mcuD-typical-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "26a9cc4a39f342170509784586b34da7b6dfce1e9ebbbb416ed752a3ac59ef3c"
+sha256 = "707606ecaeb8ff26708a79910466a545c755e0b0e3c5a9982ae91f3e9ee69e5f"
 
 [task.inputs.netlist]
 path = "materials/circuit.spice"
@@ -541,6 +556,30 @@ settle_s = "s"
 [task.evaluation.jobs.parameters.exports]
 waveform = "waveform.raw"
 
+[[task.evaluation.jobs]]
+id = "source_nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+track_high = "V"
+track_again = "V"
+track_low = "V"
+hold_error_v = "V"
+settle_s = "s"
+
+[task.evaluation.jobs.parameters.values]
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -561,11 +600,8 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 2.48
 upper = 2.52
-zero_lower = 1.5
-zero_upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "low"
@@ -576,11 +612,8 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.48
 upper = 0.52
-zero_lower = 0
-zero_upper = 1.5
 
 [[task.evaluation.metrics]]
 id = "hold"
@@ -589,11 +622,16 @@ observations = [
     "nominal:hold_error_v",
 ]
 unit = "V"
-direction = "minimize"
+direction = "target"
 aggregation = "max"
 dimension = "response"
-upper = 0.04
-zero_upper = 0.3
+baseline = [
+    "source_nominal:hold_error_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "settling"
@@ -602,19 +640,20 @@ observations = [
     "nominal:settle_s",
 ]
 unit = "s"
-direction = "maximize"
+direction = "minimize"
 aggregation = "min"
 dimension = "response"
+baseline = [
+    "source_nominal:settle_s",
+]
+normalization = "ratio"
 lower = 0
-upper = 1e-09
-zero_lower = 0
-zero_upper = 1e-08
+scale = 1e-15
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 4000
-area_zero = 16000
+area_target = 702.46
 
 [toolchain]
 schema_version = 1
@@ -648,7 +687,7 @@ image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 180
 support = "build/support/gf180-physical-v2"
-profile = "lvs-vss.json"
+profile = "lvs.json"
 
 [toolchain.backends.lvs.support_profiles]
 support = "physical"
@@ -698,13 +737,6 @@ support = "models"
 
 [origin]
 url = "https://github.com/2AMLogic/gf180-sar-adc/tree/c32c8da53e52fbb7d75f6f628b8cc9f6f45a13fc/design/adc-top/adc_top.spice"
-
-[[assets]]
-path = "reference/adc_tgate_dum.gds"
-role = "reference"
-visibility = "maintainer"
-format = "gds"
-sha256 = "963f03587232e4fa163add5aaeb73d4c65ba673f2024b6bd32d0d3827b49bb69"
 
 [qualification]
 reference = "reference/adc_tgate_dum.gds"

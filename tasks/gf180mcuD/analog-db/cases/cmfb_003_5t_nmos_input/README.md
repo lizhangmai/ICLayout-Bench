@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # Segmented-Resistor NMOS Common-Mode Controller
 
@@ -18,77 +18,80 @@ VDD = 3.3 V; VSS = 0 V; VREF = 1.65 V. The external first-order inverting plant 
 | [materials/testbench.spice](materials/testbench.spice) | Source/post-layout measurements |
 | [reference/cmfb_003_5t_nmos_input.gds](reference/cmfb_003_5t_nmos_input.gds) | Independently constructed witness, excluded from solver inputs |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The schematic depicts the authoritative netlist; the current layout requirements
+and evaluation settings are declared in the task.
+
 ## Reference Results
 
-Reference functional area: 266260.9950 um2. The independent witness passes artifact, GF180 variant-D DRC including antenna, with chip-level density and seal-ring closure outside scope; strict named-port LVS; geometry, candidate-derived distributed RC and all 24 electrical observations. No DRC waivers are used.
+GF180 resources come from the pinned ciel prebuilt distribution, including its
+current KLayout rules, nominal models and variant-D Magic extraction.
+The reference uses a 0.001 um GDS database unit; dummy COMP fill is included
+where required by the rule deck.
+See [resource preparation](../../../../../docs/tools.md) and the process manifest
+for source pins, scope and reproducible preparation.
 
-Ranges below cover all 3 declared conditions. Both columns use the same maintained testbench; they are nominal calibration, not statistical accuracy claims.
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| `output_v` | V | 1.6521036 | 1.6519569 to 1.6519574 |
-| `error_v` | V | 0.0021036363 to 0.0021036363 | 0.0019568884 to 0.0019574266 |
-| `power_w` | W | 0.00016284625 | 0.00016202185 |
-| `recovery_up_v` | V | 0.001780462 | 0.001634297 to 0.001634836 |
-| `recovery_down_v` | V | 0.002431036 | 0.00228474 to 0.002285278 |
-| `recovery_zero_v` | V | 0.002103118 | 0.001956893 to 0.001957431 |
-| `peak_error_v` | V | 0.2011193 | 0.200973 to 0.2009735 |
-| `mean_power_w` | W | 0.0001628409 | 0.0001620166 |
+Measured `layout-v2` score: **68.515449**, with electrical quality
+**E = 1.0213409** and area quality **Q = 0.45962782**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **266260.995 um2**.
 
-A coefficient of 6 reflects interacting physical sensing, feedback and recovery requirements. The targets require at most 3 mV steady/recovered common-mode error, 220 mV peak disturbance error and 180 uW controller power; external plant power is not controller power. Acceptance and zero-score boundaries are calibrated against independent source/RC measurements, not upstream scoreboards. Area target 280000 um2 and zero-utility budget 1120000 um2 are fixed absolute anchors supported by the witness, not changing reference-area ratios or claimed optima. Typical GF180 3.3 V MOS and high-resistance poly models, statistical variation disabled. The substrate is not a distributed silicon resistance network. Fabrication signoff is outside scope.
+Area reference: **122380.96 um2**. 47 expanded device instances; sum of device/contact envelopes 80826.5000 um2, per-side envelope allowance 1 um, 50% routing allowance and outer margin 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-Halving the transient step from 10 to 5 us preserves all limits. The largest peak-error change is 12.3 uV; recovered errors are unchanged at reported precision and average controller power changes by at most 0.1 nW.
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `output_v` | V | 1.6521036 | 1.6519569 … 1.6519574 | 0.99995553 |
+| `error_v` | V | 0.0021036363 … 0.0021036363 | 0.0019568744 … 0.0019574126 | 1.0746644 |
+| `power_w` | W | 0.00016284625 | 0.00016202185 | 1.0050882 |
+| `recovery_up_v` | V | 0.001780462 | 0.001634283 … 0.001634822 | 1.0890317 |
+| `recovery_down_v` | V | 0.002431036 | 0.002284726 … 0.002285264 | 1.0637599 |
+| `recovery_zero_v` | V | 0.002103118 | 0.001956879 … 0.001957417 | 1.0743973 |
+| `peak_error_v` | V | 0.2011193 | 0.2009729 … 0.2009735 | 1.0007255 |
+| `mean_power_w` | W | 0.0001628409 | 0.0001620166 | 1.0050878 |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
+
+Capability coefficient: **6** for the fixed circuit and its declared functional scope.
 
 ## Reproduce
 
-From the repository root, follow the [shared tool preparation](../../../../../docs/tools.md#gf180), then prepare/reuse this case's profiles:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.cli evaluate \
-  tasks/gf180mcuD/analog-db/cases/cmfb_003_5t_nmos_input/case.toml \
-  tasks/gf180mcuD/analog-db/cases/cmfb_003_5t_nmos_input/reference/cmfb_003_5t_nmos_input.gds \
-  --output build/runs/analog-db-cmfb_003_5t_nmos_input-reference
-uv run --locked --group eda pytest tests/integration/test_public_references.py -k cmfb_003_5t_nmos_input
+python -m benchmarking.engine.preview prepare \
+  --case gf180mcuD.analog-db.cmfb_003_5t_nmos_input --image iclayout-bench-tools:local \
+  --output build/runs/cmfb_003_5t_nmos_input-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/cmfb_003_5t_nmos_input-prepared \
+  --output build/runs/cmfb_003_5t_nmos_input-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'cmfb_003_5t_nmos_input'
 ```
 
-Reuse verified support destinations; preparation refuses an existing directory. These commands generate the reader's reports/waveforms under `build/runs/`; choose fresh output directories. The catalog regression accepts the reference and rejects an empty layout.
-
-Reproduce Pre-layout with the [source-calibration recipe](../../../../../docs/tools.md#gf180-source-calibration), replacing its case/output paths with this case and a fresh run directory. The characterization keeps every condition and does not produce a layout score.
-
-
-Reproduce the step-halving check without changing the maintained case. This
-creates a local case snapshot with a new deck digest;
-it evaluates the same witness and every declared condition:
-
-```bash
-uv run --locked python - <<'PYCODE'
-import hashlib
-import shutil
-import tomllib
-from pathlib import Path
-import tomli_w
-
-source = Path("tasks/gf180mcuD/analog-db/cases/cmfb_003_5t_nmos_input")
-copy = Path("build/runs/analog-db-cmfb_003_5t_nmos_input-half-case")
-shutil.copytree(source, copy)  # destination must be new
-config = copy / "case.toml"
-data = tomllib.loads(config.read_text())
-entry = data["task"]["inputs"]["performance"]
-deck = copy / entry["path"]
-text = deck.read_text()
-assert "tran 10u" in text
-deck.write_text(text.replace("tran 10u", "tran 5u"))
-entry["sha256"] = hashlib.sha256(deck.read_bytes()).hexdigest()
-data["status"] = "candidate"
-config.write_text(tomli_w.dumps(data))
-PYCODE
-python -m layout_eval.cli evaluate \
-  build/runs/analog-db-cmfb_003_5t_nmos_input-half-case/case.toml \
-  build/runs/analog-db-cmfb_003_5t_nmos_input-half-case/reference/cmfb_003_5t_nmos_input.gds \
-  --output build/runs/analog-db-cmfb_003_5t_nmos_input-half-reference
-```
-
-Retain collection LICENSE and NOTICE with material distributions. They, the reference, source records and host configuration stay outside declared solver inputs.
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

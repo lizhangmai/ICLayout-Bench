@@ -29,21 +29,76 @@ Text and nonfunctional boundary layers 0/0 and 63/0 are excluded from area. Func
 
 LVS checks device topology, dimensions, body connections and every named top-level pin (case insensitive). Supply and substrate/well contacts must be physical. Distinct electrical nets must not be joined by touching silicided diffusion. After validity and geometry gates, extract the submitted candidate's devices and distributed interconnect resistance and capacitance. Simulations use that extracted circuit. The substrate compact-model boundary is one equipotential bulk domain with explicit well/body contacts; this does not model a distributed silicon substrate network. Unreliable extraction, absent named ports or incomplete measurements cannot establish success.
 
+
+The standard-cell functional frame has fixed height 6.35 um and width on a 0.005 um grid. Coordinates below are relative to its lower-left functional bound; global translation remains allowed. Supply rails must be continuous on metal1 and bound by LVS to the named supply.
+
+- `VDD`: centre y = 6 um, thickness at least 0.23 um, from left + 0 um to right − 0 um.
+- `VSS`: centre y = 0.35 um, thickness at least 0.23 um, from left + 0 um to right − 0 um.
+
 ## Electrical Requirements and Scoring
 
-Every row applies to every indicated sample and operating point. Values below are in the stated units and limits are inclusive. The zero interval/bound marks complete loss of that metric's partial attainment, not an additional acceptance range.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-| Metric | Definition | Unit | Acceptance | Zero boundary | Dimension |
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
 | --- | --- | --- | --- | --- | --- |
-| `low` | Q at 19, 59, 89, 99 and 139 ns; the 89 ns sample checks asynchronous reset before the next rising clock. | V | <= 0.33 | <= 1.65 | response |
-| `high` | Q at 39, 79 and 119 ns, exercising functional and scan data. | V | >= 2.97 | >= 1.65 | response |
-| `delay` | Clock rising 1.65 V crossing after 100 ns to Q reaching 2.97 V. | s | [0, 2e-09] | [0, 9e-09] | response |
-| `supply` | Average VDD power over 20–140 ns. | W | [0, 7.5e-05] | [0, 0.0003] | supply |
+| `low` | Q at 19, 59, 89, 99 and 139 ns; the 89 ns sample checks asynchronous reset before the next rising clock. | V | functional check | −∞ … 0.33 | — |
+| `high` | Q at 39, 79 and 119 ns, exercising functional and scan data. | V | functional check | 2.97 … +∞ | — |
+| `propagation_delay` | Worst paired quality over: delay_data_rise, delay_data_fall, delay_scan_rise, delay_scan_fall, delay_reset_fall. | s | minimize / ratio | 0 … +∞ | — |
+| `output_transition` | Worst paired quality over: slew_data_rise, slew_data_fall, slew_scan_rise, slew_scan_fall, slew_reset_fall. | s | minimize / ratio | 0 … +∞ | — |
+| `supply` | Average VDD power over 20–140 ns. | W | minimize / ratio | 0 … +∞ | 1e-12 |
 
-The score is `S = G*(60*E + 20*H + 20*H*Q)`: G requires valid physical checks and complete measurements; E averages the applicable response/bias/supply attainments after taking the worst requirement in each dimension; H requires all electrical limits; Q is the clipped linear area utility from 200 um2 (full area utility) to 800 um2 (zero area utility). Attainment is one inside each acceptance interval and changes linearly to zero at its declared zero boundaries. A zero boundary equal to the acceptance boundary is a hard cliff. Completed physical rejection scores zero; an evaluator error without an independently established rejection has no score.
+Area reference: **175.5775 um2**. Complete functional bounding rectangle of the declared standard-cell reference GDS: 27.65 by 6.35 um = 175.577 um2. Reference SHA-256: ffd6654d5505bf6340acbb3061ad81fab36951badda45b3bd3a8448be0fa00ab. This footprint includes the maintained explicit taps and routing.
 
-The coefficient is **5**, reflecting the declared circuit capability, and is independent of the 0–100 task score. The absolute area anchors are frozen block-area budgets supported by a feasible layout; no submitted-layout or reference-layout ratio is used. Calibration uses the declared source stimuli and an independently evaluated layout, preserving the same electrical limits for all candidates.
+The capability coefficient remains **5**; it is independent of
+the reference-relative task score.
+
+### Standard-cell design guidance
+
+Plan the device rows, power rails and signal access before routing. Represent
+pull-up and pull-down connectivity as transistor-edge graphs; explore compatible
+Euler trails and alternative orderings to share diffusion and reduce breaks.
+Choose among legal orderings using routing length, parasitic loading and signal
+access, rather than diffusion sharing alone. Preserve the fixed netlist sizes,
+models and connectivity; size optimization is outside this task.
+
+Use the task's declared row height, grid and rail geometry. Keep local routes
+compact, leave signal pins accessible, and avoid consuming extra routing layers
+without benefit. Check DRC and named-port LVS, then extract the candidate and
+compare both transition directions and power with the source simulation. Iterate
+on measured parasitic effects rather than visual compactness alone. These are
+optional techniques, not a mandated algorithm or reference placement.
+
+Adapted from Xu et al., *Standard Cell Library Design and Optimization Methodology
+for ASAP7 PDK*, Sections 2–3 (https://arxiv.org/abs/1807.11396). Its FinFET sizing,
+track counts and process-specific dimensions do not apply to this task.
 
 ## Tools and Submission
 
+Solve budget: **3 hours**.
+
 Use runtime task, resource and harness discovery to locate the delivered inputs and reviewed GF180 resources. Trusted feedback runs the declared physical and post-layout evaluation; source-only simulation is useful for design but is not acceptance. Write the final GDS to `/workspace/output/final.gds` and explicitly submit it using the harness submission interface. A generated file or successful standalone simulation alone does not complete the task.
+
+Use a GDS database unit of 0.001 um, as required by the GF180MCU DRC deck.

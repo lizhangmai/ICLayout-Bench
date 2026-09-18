@@ -4,8 +4,22 @@ id = "module_3_8_bit_SAR_ADC.part_5_analog_layout.comparator"
 title = "IHP AnalogAcademy comparator"
 status = "qualified"
 
-# Solver inputs, answer contract, and scoring entry point.
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "68a595bbfcb796766ea25f5b07718c81c298ba24055337a4bf00bfb7e4758ba4"
+
+[[assets]]
+path = "reference/DIFF_COMPARATOR.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "9f2548f157ccfc4448820dbd71f26c60d9a0525043e86d8928ea448cf56d7279"
+
 [task]
+hours = 3
 coefficient = 6
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_analog_comparator"
@@ -13,7 +27,7 @@ environment = "ihp-sg13g2-comparator-rc-tt"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "b17e966560107979e3a422cabc41fea094a44031248dd931b2e8497dff74c814"
+sha256 = "1795c3c7ea4e97d3729f01417c6fb238a8cdd57b3d8027a9916131c7e7956a9b"
 format = "text"
 
 [task.inputs.netlist]
@@ -34,25 +48,193 @@ format = "spice"
 
 [task.constraints]
 schema_version = 1
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
 
 [[task.constraints.hard]]
 id = "outline"
 type = "bbox_max"
 functional_layers = [
-  [1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0],
-  [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0],
-  [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0],
-  [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0],
-  [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0],
-  [133, 0], [134, 0], [139, 0], [152, 0],
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
 ]
 max_width_um = 45
 max_height_um = 45
-
-[[task.constraints.quality]]
-id = "area"
-type = "functional_bbox_area"
-layers_from = "outline"
 
 [task.output]
 path = "output/final.gds"
@@ -60,65 +242,117 @@ format = "gds"
 top_cell = "DIFF_COMPARATOR"
 max_bytes = 10485760
 
-# Public scoring procedure and requirements.
 [task.evaluation]
 schema_version = 1
 mode = "post_layout"
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 1700
-area_zero = 2025
+area_target = 502.96
 
 [[task.evaluation.jobs]]
 id = "artifact"
 stage = "check"
 operation = "layout.artifact"
 gate = "artifact"
-inputs = { layout = "candidate", task = "task" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
 
 [[task.evaluation.jobs]]
 id = "drc"
 stage = "check"
 operation = "layout.drc"
 gate = "drc"
-inputs = { layout = "candidate", task = "task" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
 
 [[task.evaluation.jobs]]
 id = "lvs"
 stage = "check"
 operation = "layout.lvs"
 gate = "lvs"
-inputs = { layout = "candidate", task = "task", netlist = "input:netlist" }
-outputs = { database = "klayout-lvs", binding = "json" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
 
 [[task.evaluation.jobs]]
 id = "geometry"
 stage = "check"
 operation = "layout.geometry"
 gate = "constraint"
-requires = ["artifact", "drc", "lvs"]
-inputs = { layout = "candidate", task = "task", constraints = "input:constraints", database = "job:lvs:database", binding = "job:lvs:binding" }
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
 
 [[task.evaluation.jobs]]
 id = "parasitics"
 stage = "extract"
 operation = "layout.extract_rc"
-requires = ["artifact", "drc", "lvs", "geometry"]
-inputs = { layout = "candidate" }
-outputs = { netlist = "spice" }
-parameters = { top_cell = "DIFF_COMPARATOR", ports = ["vdd", "gnd", "V+", "V-", "clk", "out-", "out+", "vbias"] }
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+top_cell = "DIFF_COMPARATOR"
+ports = [
+    "vdd",
+    "gnd",
+    "V+",
+    "V-",
+    "clk",
+    "out-",
+    "out+",
+    "vbias",
+]
 
 [[task.evaluation.jobs]]
 id = "negative_5mv"
 stage = "simulate"
 operation = "circuit.simulate"
-inputs = { deck = "input:performance", dut = "job:parasitics:netlist" }
-outputs = { waveform = "ngspice-raw" }
-[task.evaluation.jobs.parameters]
-values = { input_difference = -0.005, polarity = -1 }
-exports = { waveform = "comparator.raw" }
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_difference = -0.005
+polarity = -1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "comparator.raw"
+
 [task.evaluation.jobs.parameters.measurements]
 supply_power = "W"
 delay_c02 = "s"
@@ -142,11 +376,21 @@ margin_c09 = "V"
 id = "negative_3mv"
 stage = "simulate"
 operation = "circuit.simulate"
-inputs = { deck = "input:performance", dut = "job:parasitics:netlist" }
-outputs = { waveform = "ngspice-raw" }
-[task.evaluation.jobs.parameters]
-values = { input_difference = -0.003, polarity = -1 }
-exports = { waveform = "comparator.raw" }
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_difference = -0.003
+polarity = -1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "comparator.raw"
+
 [task.evaluation.jobs.parameters.measurements]
 supply_power = "W"
 delay_c02 = "s"
@@ -170,11 +414,21 @@ margin_c09 = "V"
 id = "positive_3mv"
 stage = "simulate"
 operation = "circuit.simulate"
-inputs = { deck = "input:performance", dut = "job:parasitics:netlist" }
-outputs = { waveform = "ngspice-raw" }
-[task.evaluation.jobs.parameters]
-values = { input_difference = 0.003, polarity = 1 }
-exports = { waveform = "comparator.raw" }
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_difference = 0.003
+polarity = 1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "comparator.raw"
+
 [task.evaluation.jobs.parameters.measurements]
 supply_power = "W"
 delay_c02 = "s"
@@ -198,11 +452,173 @@ margin_c09 = "V"
 id = "positive_5mv"
 stage = "simulate"
 operation = "circuit.simulate"
-inputs = { deck = "input:performance", dut = "job:parasitics:netlist" }
-outputs = { waveform = "ngspice-raw" }
-[task.evaluation.jobs.parameters]
-values = { input_difference = 0.005, polarity = 1 }
-exports = { waveform = "comparator.raw" }
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_difference = 0.005
+polarity = 1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "comparator.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+supply_power = "W"
+delay_c02 = "s"
+margin_c02 = "V"
+delay_c03 = "s"
+margin_c03 = "V"
+delay_c04 = "s"
+margin_c04 = "V"
+delay_c05 = "s"
+margin_c05 = "V"
+delay_c06 = "s"
+margin_c06 = "V"
+delay_c07 = "s"
+margin_c07 = "V"
+delay_c08 = "s"
+margin_c08 = "V"
+delay_c09 = "s"
+margin_c09 = "V"
+
+[[task.evaluation.jobs]]
+id = "source_negative_5mv"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_difference = -0.005
+polarity = -1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "comparator.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+supply_power = "W"
+delay_c02 = "s"
+margin_c02 = "V"
+delay_c03 = "s"
+margin_c03 = "V"
+delay_c04 = "s"
+margin_c04 = "V"
+delay_c05 = "s"
+margin_c05 = "V"
+delay_c06 = "s"
+margin_c06 = "V"
+delay_c07 = "s"
+margin_c07 = "V"
+delay_c08 = "s"
+margin_c08 = "V"
+delay_c09 = "s"
+margin_c09 = "V"
+
+[[task.evaluation.jobs]]
+id = "source_negative_3mv"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_difference = -0.003
+polarity = -1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "comparator.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+supply_power = "W"
+delay_c02 = "s"
+margin_c02 = "V"
+delay_c03 = "s"
+margin_c03 = "V"
+delay_c04 = "s"
+margin_c04 = "V"
+delay_c05 = "s"
+margin_c05 = "V"
+delay_c06 = "s"
+margin_c06 = "V"
+delay_c07 = "s"
+margin_c07 = "V"
+delay_c08 = "s"
+margin_c08 = "V"
+delay_c09 = "s"
+margin_c09 = "V"
+
+[[task.evaluation.jobs]]
+id = "source_positive_3mv"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_difference = 0.003
+polarity = 1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "comparator.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+supply_power = "W"
+delay_c02 = "s"
+margin_c02 = "V"
+delay_c03 = "s"
+margin_c03 = "V"
+delay_c04 = "s"
+margin_c04 = "V"
+delay_c05 = "s"
+margin_c05 = "V"
+delay_c06 = "s"
+margin_c06 = "V"
+delay_c07 = "s"
+margin_c07 = "V"
+delay_c08 = "s"
+margin_c08 = "V"
+delay_c09 = "s"
+margin_c09 = "V"
+
+[[task.evaluation.jobs]]
+id = "source_positive_5mv"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_difference = 0.005
+polarity = 1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "comparator.raw"
+
 [task.evaluation.jobs.parameters.measurements]
 supply_power = "W"
 delay_c02 = "s"
@@ -225,7 +641,9 @@ margin_c09 = "V"
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
-observations = ["geometry:area"]
+observations = [
+    "geometry:area",
+]
 unit = "um2"
 direction = "minimize"
 aggregation = "max"
@@ -234,125 +652,161 @@ aggregation = "max"
 id = "worst_delay"
 category = "performance"
 observations = [
-  "negative_5mv:delay_c02",
-  "negative_5mv:delay_c03",
-  "negative_5mv:delay_c04",
-  "negative_5mv:delay_c05",
-  "negative_5mv:delay_c06",
-  "negative_5mv:delay_c07",
-  "negative_5mv:delay_c08",
-  "negative_5mv:delay_c09",
-  "negative_3mv:delay_c02",
-  "negative_3mv:delay_c03",
-  "negative_3mv:delay_c04",
-  "negative_3mv:delay_c05",
-  "negative_3mv:delay_c06",
-  "negative_3mv:delay_c07",
-  "negative_3mv:delay_c08",
-  "negative_3mv:delay_c09",
-  "positive_3mv:delay_c02",
-  "positive_3mv:delay_c03",
-  "positive_3mv:delay_c04",
-  "positive_3mv:delay_c05",
-  "positive_3mv:delay_c06",
-  "positive_3mv:delay_c07",
-  "positive_3mv:delay_c08",
-  "positive_3mv:delay_c09",
-  "positive_5mv:delay_c02",
-  "positive_5mv:delay_c03",
-  "positive_5mv:delay_c04",
-  "positive_5mv:delay_c05",
-  "positive_5mv:delay_c06",
-  "positive_5mv:delay_c07",
-  "positive_5mv:delay_c08",
-  "positive_5mv:delay_c09",
+    "negative_5mv:delay_c02",
+    "negative_5mv:delay_c03",
+    "negative_5mv:delay_c04",
+    "negative_5mv:delay_c05",
+    "negative_5mv:delay_c06",
+    "negative_5mv:delay_c07",
+    "negative_5mv:delay_c08",
+    "negative_5mv:delay_c09",
+    "negative_3mv:delay_c02",
+    "negative_3mv:delay_c03",
+    "negative_3mv:delay_c04",
+    "negative_3mv:delay_c05",
+    "negative_3mv:delay_c06",
+    "negative_3mv:delay_c07",
+    "negative_3mv:delay_c08",
+    "negative_3mv:delay_c09",
+    "positive_3mv:delay_c02",
+    "positive_3mv:delay_c03",
+    "positive_3mv:delay_c04",
+    "positive_3mv:delay_c05",
+    "positive_3mv:delay_c06",
+    "positive_3mv:delay_c07",
+    "positive_3mv:delay_c08",
+    "positive_3mv:delay_c09",
+    "positive_5mv:delay_c02",
+    "positive_5mv:delay_c03",
+    "positive_5mv:delay_c04",
+    "positive_5mv:delay_c05",
+    "positive_5mv:delay_c06",
+    "positive_5mv:delay_c07",
+    "positive_5mv:delay_c08",
+    "positive_5mv:delay_c09",
 ]
 unit = "s"
 direction = "minimize"
 aggregation = "max"
-lower = 0
-upper = 3e-9
 dimension = "response"
-zero_lower = 0
-zero_upper = 4e-09
+baseline = [
+    "source_negative_5mv:delay_c02",
+    "source_negative_5mv:delay_c03",
+    "source_negative_5mv:delay_c04",
+    "source_negative_5mv:delay_c05",
+    "source_negative_5mv:delay_c06",
+    "source_negative_5mv:delay_c07",
+    "source_negative_5mv:delay_c08",
+    "source_negative_5mv:delay_c09",
+    "source_negative_3mv:delay_c02",
+    "source_negative_3mv:delay_c03",
+    "source_negative_3mv:delay_c04",
+    "source_negative_3mv:delay_c05",
+    "source_negative_3mv:delay_c06",
+    "source_negative_3mv:delay_c07",
+    "source_negative_3mv:delay_c08",
+    "source_negative_3mv:delay_c09",
+    "source_positive_3mv:delay_c02",
+    "source_positive_3mv:delay_c03",
+    "source_positive_3mv:delay_c04",
+    "source_positive_3mv:delay_c05",
+    "source_positive_3mv:delay_c06",
+    "source_positive_3mv:delay_c07",
+    "source_positive_3mv:delay_c08",
+    "source_positive_3mv:delay_c09",
+    "source_positive_5mv:delay_c02",
+    "source_positive_5mv:delay_c03",
+    "source_positive_5mv:delay_c04",
+    "source_positive_5mv:delay_c05",
+    "source_positive_5mv:delay_c06",
+    "source_positive_5mv:delay_c07",
+    "source_positive_5mv:delay_c08",
+    "source_positive_5mv:delay_c09",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "decision_margin"
 category = "performance"
 observations = [
-  "negative_5mv:margin_c02",
-  "negative_5mv:margin_c03",
-  "negative_5mv:margin_c04",
-  "negative_5mv:margin_c05",
-  "negative_5mv:margin_c06",
-  "negative_5mv:margin_c07",
-  "negative_5mv:margin_c08",
-  "negative_5mv:margin_c09",
-  "negative_3mv:margin_c02",
-  "negative_3mv:margin_c03",
-  "negative_3mv:margin_c04",
-  "negative_3mv:margin_c05",
-  "negative_3mv:margin_c06",
-  "negative_3mv:margin_c07",
-  "negative_3mv:margin_c08",
-  "negative_3mv:margin_c09",
-  "positive_3mv:margin_c02",
-  "positive_3mv:margin_c03",
-  "positive_3mv:margin_c04",
-  "positive_3mv:margin_c05",
-  "positive_3mv:margin_c06",
-  "positive_3mv:margin_c07",
-  "positive_3mv:margin_c08",
-  "positive_3mv:margin_c09",
-  "positive_5mv:margin_c02",
-  "positive_5mv:margin_c03",
-  "positive_5mv:margin_c04",
-  "positive_5mv:margin_c05",
-  "positive_5mv:margin_c06",
-  "positive_5mv:margin_c07",
-  "positive_5mv:margin_c08",
-  "positive_5mv:margin_c09",
+    "negative_5mv:margin_c02",
+    "negative_5mv:margin_c03",
+    "negative_5mv:margin_c04",
+    "negative_5mv:margin_c05",
+    "negative_5mv:margin_c06",
+    "negative_5mv:margin_c07",
+    "negative_5mv:margin_c08",
+    "negative_5mv:margin_c09",
+    "negative_3mv:margin_c02",
+    "negative_3mv:margin_c03",
+    "negative_3mv:margin_c04",
+    "negative_3mv:margin_c05",
+    "negative_3mv:margin_c06",
+    "negative_3mv:margin_c07",
+    "negative_3mv:margin_c08",
+    "negative_3mv:margin_c09",
+    "positive_3mv:margin_c02",
+    "positive_3mv:margin_c03",
+    "positive_3mv:margin_c04",
+    "positive_3mv:margin_c05",
+    "positive_3mv:margin_c06",
+    "positive_3mv:margin_c07",
+    "positive_3mv:margin_c08",
+    "positive_3mv:margin_c09",
+    "positive_5mv:margin_c02",
+    "positive_5mv:margin_c03",
+    "positive_5mv:margin_c04",
+    "positive_5mv:margin_c05",
+    "positive_5mv:margin_c06",
+    "positive_5mv:margin_c07",
+    "positive_5mv:margin_c08",
+    "positive_5mv:margin_c09",
 ]
 unit = "V"
 direction = "maximize"
 aggregation = "min"
 lower = 1.0
-dimension = "response"
-zero_lower = 0
 
 [[task.evaluation.metrics]]
 id = "supply_power"
 category = "performance"
 observations = [
-  "negative_5mv:supply_power",
-  "negative_3mv:supply_power",
-  "positive_3mv:supply_power",
-  "positive_5mv:supply_power",
+    "negative_5mv:supply_power",
+    "negative_3mv:supply_power",
+    "positive_3mv:supply_power",
+    "positive_5mv:supply_power",
 ]
 unit = "W"
 direction = "minimize"
 aggregation = "max"
-lower = 0
-upper = 80e-6
-
-# Trusted evaluator bindings; not materialized for the solver.
 dimension = "supply"
-zero_lower = 0
-zero_upper = 0.00012
+baseline = [
+    "source_negative_5mv:supply_power",
+    "source_negative_3mv:supply_power",
+    "source_positive_3mv:supply_power",
+    "source_positive_5mv:supply_power",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
 
 [toolchain]
 schema_version = 1
 
 [toolchain.backends.artifact]
 type = "klayout-docker"
+
 [toolchain.backends.artifact.settings]
 image = "iclayout-bench-tools:local"
 check = "artifact"
 
 [toolchain.backends.drc]
 type = "klayout-docker"
+
 [toolchain.backends.drc.support_profiles]
 support = "klayout"
+
 [toolchain.backends.drc.settings]
 image = "iclayout-bench-tools:local"
 check = "drc"
@@ -362,8 +816,10 @@ timeout_seconds = 600
 
 [toolchain.backends.lvs]
 type = "klayout-docker"
+
 [toolchain.backends.lvs.support_profiles]
 support = "klayout"
+
 [toolchain.backends.lvs.settings]
 image = "iclayout-bench-tools:local"
 check = "lvs"
@@ -373,13 +829,17 @@ timeout_seconds = 600
 
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
+
 [toolchain.backends.geometry.settings]
 image = "iclayout-bench-tools:local"
 timeout_seconds = 120
 
 [toolchain.backends.rc]
 type = "magic-rc-docker"
-support_profiles = { support = "magic" }
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
 [toolchain.backends.rc.settings]
 image = "iclayout-bench-tools:local"
 support = "build/support/comparator-magic"
@@ -391,7 +851,10 @@ timeout_seconds = 600
 
 [toolchain.backends.simulation]
 type = "ngspice-docker"
-support_profiles = { support = "analog-models" }
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-models"
+
 [toolchain.backends.simulation.settings]
 image = "iclayout-bench-tools:local"
 support = "build/support/comparator-analog-models"
@@ -405,17 +868,9 @@ timeout_seconds = 600
 "layout.extract_rc" = "rc"
 "circuit.simulate" = "simulation"
 
-# Maintainer-only source, repair, and qualification metadata.
 [qualification]
 evidence = "README.md"
 reference = "reference/DIFF_COMPARATOR.gds"
 
 [origin]
 url = "https://github.com/IHP-GmbH/IHP-AnalogAcademy/tree/133ecf657572e021b5921b5a1b7693abfb209623/modules/module_3_8_bit_SAR_ADC/part_5_analog_layout/comparator"
-
-[[assets]]
-path = "reference/DIFF_COMPARATOR.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "9f2548f157ccfc4448820dbd71f26c60d9a0525043e86d8928ea448cf56d7279"

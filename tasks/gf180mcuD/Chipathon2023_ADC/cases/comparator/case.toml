@@ -4,7 +4,22 @@ id = "gf180mcuD.Chipathon2023_ADC.comparator"
 title = "Dynamic Comparator"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "c0676fde83e350f5478e94149a534fd46d89fbaa71d24c583aa81f39a402f3d3"
+
+[[assets]]
+path = "reference/comp_20240331.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "6f48088208f611c25dcb6874006b1ac07903745b48689f025cd6765afd09123e"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "gf180_comparator"
 coefficient = 6
@@ -13,7 +28,7 @@ environment = "gf180mcuD-typical-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "0cf037ae67ce6b8d5b15395c76d91a49972a447872f9fd31635bd7ca6432e3dc"
+sha256 = "c49583cfa897f3815744c9897ab9190605cb38e53ea1887585d6b3aa9ac1e329"
 
 [task.inputs.netlist]
 path = "materials/circuit.spice"
@@ -564,6 +579,52 @@ polarity = 1
 [task.evaluation.jobs.parameters.exports]
 waveform = "waveform.raw"
 
+[[task.evaluation.jobs]]
+id = "source_negative"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+decision_v = "V"
+delay_s = "s"
+power_w = "W"
+
+[task.evaluation.jobs.parameters.values]
+polarity = -1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "source_positive"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+decision_v = "V"
+delay_s = "s"
+power_w = "W"
+
+[task.evaluation.jobs.parameters.values]
+polarity = 1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -584,9 +645,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 2.97
-zero_lower = 0
 
 [[task.evaluation.metrics]]
 id = "delay"
@@ -596,13 +655,15 @@ observations = [
     "positive:delay_s",
 ]
 unit = "s"
-direction = "maximize"
+direction = "minimize"
 aggregation = "min"
 dimension = "response"
+baseline = [
+    "source_negative:delay_s",
+    "source_positive:delay_s",
+]
+normalization = "ratio"
 lower = 0
-upper = 4e-09
-zero_lower = 0
-zero_upper = 9e-09
 
 [[task.evaluation.metrics]]
 id = "supply"
@@ -612,19 +673,21 @@ observations = [
     "positive:power_w",
 ]
 unit = "W"
-direction = "maximize"
+direction = "minimize"
 aggregation = "min"
 dimension = "supply"
+baseline = [
+    "source_negative:power_w",
+    "source_positive:power_w",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.0003
-zero_lower = 0
-zero_upper = 0.001
+scale = 1e-12
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 4000
-area_zero = 16000
+area_target = 301.49
 
 [toolchain]
 schema_version = 1
@@ -658,7 +721,7 @@ image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 180
 support = "build/support/gf180-physical-v2"
-profile = "lvs-VSS.json"
+profile = "lvs.json"
 
 [toolchain.backends.lvs.support_profiles]
 support = "physical"
@@ -708,13 +771,6 @@ support = "models"
 
 [origin]
 url = "https://github.com/ishi-kai/Chipathon2023_ADC/tree/3dce439b2125a9d628e43be40c65cf8fce5d795c/gitefu/comp_20240331/comp_20240331.sch"
-
-[[assets]]
-path = "reference/comp_20240331.gds"
-role = "reference"
-visibility = "maintainer"
-format = "gds"
-sha256 = "0e5cc9b458c395b2435734e166ed3f0ea05532a6d309d1fd48f2203655e45b05"
 
 [qualification]
 reference = "reference/comp_20240331.gds"

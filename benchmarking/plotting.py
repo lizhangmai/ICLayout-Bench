@@ -31,13 +31,14 @@ def render_figures(output, scores, task_scores, failures):
         values = [row["value"] if row["value"] is not None else 0 for row in scores]
         axis.barh(range(len(scores)), values, color="#326e9b")
         axis.set_yticks(range(len(scores)), [label(row) for row in scores])
-        axis.set_xlim(0, scores[0]["maximum"])
+        limit = max([100, *values]) * 1.1
+        axis.set_xlim(0, limit)
         axis.set_xlabel("BenchScore")
         axis.set_title("Fixed-suite score — NA means missing or unknown results")
         for index, row in enumerate(scores):
             value = row["value"]
             axis.text(
-                1 if value is None else min(value + 1, row["maximum"] - 8),
+                1 if value is None else min(value + 1, limit - 8),
                 index,
                 "NA" if value is None else f"{value:.2f}",
                 va="center",
@@ -61,7 +62,7 @@ def render_figures(output, scores, task_scores, failures):
         )
         palette = plt.get_cmap("viridis").with_extremes(bad="#d9d9d9")
         chart = axis.imshow(
-            matrix, cmap=palette, vmin=0, vmax=scores[0]["maximum"], aspect="auto"
+            matrix, cmap=palette, vmin=0, vmax=max(100, float(np.nanmax(matrix))) if np.isfinite(matrix).any() else 100, aspect="auto"
         )
         axis.set_xticks(
             range(len(cohorts)), [label(row) for row in scores], rotation=30, ha="right"

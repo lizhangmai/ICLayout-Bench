@@ -1,0 +1,80 @@
+* Signoff-point physical PAM4 core: external tail biases, nominal TT at 27 C.
+* Adapted from the pinned upstream RF decks; all DUT devices remain physical.
+.include circuit.spice
+.lib "/workspace/support/models/cornerHBT.lib" hbt_typ
+.lib "/workspace/support/models/cornerRES.lib" res_typ
+.lib "/workspace/support/models/cornerCAP.lib" cap_typ
+.temp 27
+Vcc vcc 0 DC 4 PWL(0 0 8n 4)
+Vcasc vcasc 0 DC 3.35 PWL(0 0 8n 3.35)
+Vcmb vcmb 0 DC 1.9 PWL(0 0 8n 1.9)
+Vbias bias 0 DC 15 PWL(0 0 8n 15)
+Vsub sub 0 DC 0
+Gtlsb0 tlsb0 0 bias 0 1m
+Gtmsb0 tmsb0 0 bias 0 1m
+Gtmsb1 tmsb1 0 bias 0 1m
+XDUT lsbp lsbn msbp msbn outp outn vcc vcasc vcmb tmsb0 tlsb0 tmsb1 sub pam4drv_pam4_lay
+Vslsbp slsbp 0 DC 1.9 AC 0.5 SIN(1.9 0.8 1e9 9n)
+Vslsbn slsbn 0 DC 1.9 AC -0.5 SIN(1.9 -0.8 1e9 9n)
+Vsmsbp smsbp 0 DC 1.9 AC 0 SIN(1.9 0.8 1e9 9n)
+Vsmsbn smsbn 0 DC 1.9 AC 0 SIN(1.9 -0.8 1e9 9n)
+Rslsbp slsbp lsbp 50
+Rslsbn slsbn lsbn 50
+Rsmsbp smsbp msbp 50
+Rsmsbn smsbn msbn 50
+Vop sop vcc DC 0 AC 0
+Von son vcc DC 0 AC 0
+Rlp outp sop 50
+Rln outn son 50
+.options gmin=1e-12 reltol=1e-3
+.control
+set filetype=ascii
+op
+let power_mw = -4000*i(vcc)
+print power_mw
+ac dec 20 1e8 1e11
+let s21db=db(2*(v(outp)-v(outn)))
+meas ac lsb_gain_db find s21db at=1e9
+meas ac lsb_g50_db find s21db at=50e9
+let lsb_rel50_db=lsb_g50_db-lsb_gain_db
+print lsb_rel50_db
+write lsb.raw all
+alter @vslsbp[acmag]=0
+alter @vslsbn[acmag]=0
+alter @vsmsbp[acmag]=0.5
+alter @vsmsbn[acmag]=-0.5
+ac dec 20 1e8 1e11
+let s21db=db(2*(v(outp)-v(outn)))
+let vidiff=v(msbp)-v(msbn)
+let zin=100*vidiff/(1-vidiff)
+let s11db=db((zin-100)/(zin+100))
+meas ac msb_gain_db find s21db at=1e9
+meas ac msb_g50_db find s21db at=50e9
+meas ac s11_32g_db find s11db at=32e9
+let msb_rel50_db=msb_g50_db-msb_gain_db
+let dac_weight_db=msb_gain_db-ac1.lsb_gain_db
+print msb_rel50_db dac_weight_db
+write msb.raw all
+alter @vsmsbp[acmag]=0
+alter @vsmsbn[acmag]=0
+alter @vop[acmag]=0.5
+alter @von[acmag]=-0.5
+ac dec 20 1e8 1e11
+let vodiff=v(outp)-v(outn)
+let zout=100*vodiff/(1-vodiff)
+let s22db=db((zout-100)/(zout+100))
+meas ac s22_50g_db find s22db at=50e9
+write s22.raw all
+reset
+tran 0.0166667n 21n 16n uic
+let vod=v(outp)-v(outn)
+let cc=cos(2*3.14159265358979*1e9*time)
+let ss=sin(2*3.14159265358979*1e9*time)
+let a=2*mean(vod*cc)
+let b=2*mean(vod*ss)
+let swing_vpp=2*sqrt(a*a+b*b)
+print swing_vpp
+write swing.raw all
+.endc
+.GLOBAL GND
+.end

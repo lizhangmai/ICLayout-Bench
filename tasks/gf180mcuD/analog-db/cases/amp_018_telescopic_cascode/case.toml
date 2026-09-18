@@ -4,7 +4,22 @@ id = "gf180mcuD.analog-db.amp_018_telescopic_cascode"
 title = "Tail-Referenced Telescopic Cascode Amplifier"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "6ee1dc46a8ebdb523cb840b4c7e758ff7cb9e3e8a5226fe2387244cd3bf3511f"
+
+[[assets]]
+path = "reference/amp_018_telescopic_cascode.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "dbf410346ccf527af61122c7e2d27edd3480b2fd23de2054497ab00819c121da"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "gf180mcuD_amp_018_telescopic_cascode"
 coefficient = 5
@@ -13,7 +28,7 @@ environment = "gf180mcuD-amp_018_telescopic_cascode-nominal-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "2f45fc6c23d77a1b1f3b1f79024c19b42049030c19e7a6034df900f6844c454f"
+sha256 = "8e215af59f6b8c96d5e27ddbe9517e58b70978943dd98218feb68eb0c6359b0d"
 
 [task.inputs.netlist]
 path = "materials/circuit.spice"
@@ -42,18 +57,386 @@ quality = [
 id = "outline"
 type = "bbox_max"
 functional_layers = [
-  [5, 0], [11, 17], [11, 39], [12, 0], [13, 17], [21, 0], [22, 0], [22, 4],
-  [24, 0], [24, 5], [30, 0], [30, 4], [31, 0], [32, 0], [33, 0], [34, 0],
-  [34, 3], [34, 4], [34, 5], [35, 0], [36, 0], [36, 3], [36, 4], [36, 5],
-  [37, 0], [38, 0], [40, 0], [41, 0], [42, 0], [42, 3], [42, 4], [42, 5],
-  [46, 0], [46, 3], [46, 4], [46, 5], [49, 0], [53, 0], [53, 3], [53, 4],
-  [53, 5], [55, 0], [62, 0], [75, 0], [80, 5], [81, 0], [81, 3], [81, 4],
-  [81, 5], [82, 0], [86, 17], [88, 17], [96, 1], [100, 5], [100, 7], [100, 8],
-  [108, 5], [110, 5], [110, 11], [110, 12], [110, 13], [110, 14], [110, 15], [110, 16],
-  [111, 5], [112, 1], [115, 5], [116, 5], [117, 5], [117, 10], [118, 5], [119, 5],
-  [122, 5], [123, 5], [124, 5], [125, 5], [127, 5], [128, 17], [137, 5], [151, 5],
-  [152, 5], [153, 51], [166, 5], [167, 5], [173, 5], [178, 0], [183, 0], [184, 0],
-  [185, 0], [204, 0], [210, 0], [220, 0], [226, 0], [227, 0], [241, 0],
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
 ]
 max_width_um = 140
 max_height_um = 100
@@ -242,6 +625,96 @@ phase_margin = "deg"
 op = "op.raw"
 ac = "ac.raw"
 
+[[task.evaluation.jobs]]
+id = "source_condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+load_f = 1e-12
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+bias_v = "V"
+tail_v = "V"
+power_w = "W"
+gain_db = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+load_f = 3e-12
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+bias_v = "V"
+tail_v = "V"
+power_w = "W"
+gain_db = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+load_f = 5e-12
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+bias_v = "V"
+tail_v = "V"
+power_w = "W"
+gain_db = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -264,10 +737,15 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 1.7
-zero_lower = 1.5
-upper = 1.8
-zero_upper = 2.0
+baseline = [
+    "source_condition_0:output_v",
+    "source_condition_1:output_v",
+    "source_condition_2:output_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "bias_v"
@@ -281,10 +759,15 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.75
-zero_lower = 0.5
-upper = 0.85
-zero_upper = 1.1
+baseline = [
+    "source_condition_0:bias_v",
+    "source_condition_1:bias_v",
+    "source_condition_2:bias_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "tail_v"
@@ -298,10 +781,15 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.53
-zero_lower = 0.3
-upper = 0.62
-zero_upper = 0.9
+baseline = [
+    "source_condition_0:tail_v",
+    "source_condition_1:tail_v",
+    "source_condition_2:tail_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "power_w"
@@ -313,12 +801,16 @@ observations = [
 ]
 unit = "W"
 dimension = "supply"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:power_w",
+    "source_condition_1:power_w",
+    "source_condition_2:power_w",
+]
+normalization = "ratio"
 lower = 0
-zero_lower = 0
-upper = 0.00013
-zero_upper = 0.00026
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "gain_db"
@@ -332,8 +824,12 @@ unit = "dB"
 dimension = "response"
 direction = "maximize"
 aggregation = "min"
-lower = 14
-zero_lower = 0
+baseline = [
+    "source_condition_0:gain_db",
+    "source_condition_1:gain_db",
+    "source_condition_2:gain_db",
+]
+normalization = "db20"
 
 [[task.evaluation.metrics]]
 id = "unity_hz"
@@ -347,8 +843,13 @@ unit = "Hz"
 dimension = "response"
 direction = "maximize"
 aggregation = "min"
-lower = 90000
-zero_lower = 0
+baseline = [
+    "source_condition_0:unity_hz",
+    "source_condition_1:unity_hz",
+    "source_condition_2:unity_hz",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "phase_margin"
@@ -360,16 +861,22 @@ observations = [
 ]
 unit = "deg"
 dimension = "response"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
-lower = 80
-zero_lower = 0
+baseline = [
+    "source_condition_0:phase_margin",
+    "source_condition_1:phase_margin",
+    "source_condition_2:phase_margin",
+]
+normalization = "target"
+scale = 180
+lower = 0
+upper = 180
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 11000
-area_zero = 44000
+area_target = 544.15
 
 [toolchain]
 schema_version = 1
@@ -403,7 +910,7 @@ image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 180
 support = "build/support/gf180-physical-v2"
-profile = "lvs-vss.json"
+profile = "lvs.json"
 
 [toolchain.backends.lvs.support_profiles]
 support = "physical"
@@ -453,13 +960,6 @@ support = "models"
 
 [origin]
 url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/amp_018_telescopic_cascode"
-
-[[assets]]
-path = "reference/amp_018_telescopic_cascode.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "ea78368dd5718361a22c511d5a27c1d3aee4fbadccc9299e095f6c4fcd738c5c"
 
 [qualification]
 reference = "reference/amp_018_telescopic_cascode.gds"

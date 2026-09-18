@@ -1,0 +1,42 @@
+* Same-condition finite-window amplifier observations. SPDX-License-Identifier: MIT
+.include support/models.spice
+.include parameters.spice
+.include dut.spice
+.temp 27
+.save v(vdd) v(vout) v(vp) v(vm) v(net1) i(VDD)
+.option klu reltol=1e-5 abstol=1e-12 vntol=1e-8 method=gear maxord=2 itl4=1000
+VDD vdd 0 1.8
+VIN vp 0 dc 0.3 ac 0.5
+IBIAS net1 0 2.32803e-06
+LFB vout basem 1T
+CFB basem 0 1
+VNEG vm basem dc 0 ac 0.5 180
+XDUT 0 vdd vm vp vout net1 amp_017_tan_clia
+CLOAD vout 0 {load_f}
+.control
+set noaskquit
+set num_threads=1
+set numdgt=15
+op
+let dc_feedback_error_v=abs(v(vout)-v(vm))
+print dc_feedback_error_v
+if dc_feedback_error_v > 1e-6
+  echo Error: invalid DC feedback operating point
+  quit 1
+end
+write op.raw all
+ac dec 200 1 1g
+let transfer=v(vout)/(v(vp)-v(vm))
+let gain_db_vec=db(transfer)
+let fixture_cm_max=vecmax(mag((v(vp)+v(vm))/2))
+meas ac gain_db find gain_db_vec at=1
+meas ac gain_10khz_db find gain_db_vec at=10k
+print fixture_cm_max
+if fixture_cm_max > 1e-6
+  echo Error: invalid differential AC excitation
+  quit 1
+end
+write ac.raw all
+quit
+.endc
+.end

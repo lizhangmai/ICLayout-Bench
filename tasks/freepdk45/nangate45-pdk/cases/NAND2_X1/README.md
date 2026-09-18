@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # Two-Input NAND
 
@@ -16,88 +16,87 @@ The reference adds explicit well/substrate taps and extends rails to them, exten
 | [problem.md](problem.md) | Solver objective, interface, physical and electrical requirements, and scoring |
 | [case.toml](case.toml) | Single case configuration, input digests, toolchain, constraints, and evaluation plan |
 | [materials/circuit.spice](materials/circuit.spice) | Authoritative LVS and pre-layout simulator netlist |
+| [materials/schematic.svg](materials/schematic.svg) | Analog Canvas transistor schematic for result browsing; presentation asset, excluded from solver inputs |
 | [materials/testbench.spice](materials/testbench.spice) | Stimuli, loads, transient analysis, and measurements |
 | [Collection LICENSE](../../LICENSE), [NOTICE](../../NOTICE) | Collection distribution terms; excluded from solver inputs |
 | [reference/NAND2_X1.gds](reference/NAND2_X1.gds) | Passing feasibility witness, excluded from standard solver inputs |
 
+The schematic preserves the authoritative netlist’s ordered ports, device models,
+W/L values and D/G/S/B connections. It was exported with Analog Canvas at commit
+`cbc18ee76ef91d88dd3e2dea9b47dd6d759f2d8f` and checked by SPICE round-trip
+and its ERC/visual diagnostics. Its SVG metadata binds the source netlist digest.
+The schematic depicts the authoritative netlist used by both simulation paths.
+
 ## Reference Results
 
-Conditions: **1.0 V, 27 C, nominal FreePDK45 BSIM4**; use the problem's loads and
-stimuli. Tool scope: KLayout 0.30.11, Magic 8.3.678 and ngspice 42 from the shared
-Dockerfile. The witness has zero reported DRC violations with all implemented
-checks enabled, no waivers, strict named-port LVS and explicit body connections.
-The reference GDS DBU is **0.0001 um**.
-Its RC network also matches the source transistor graph after removing capacitors
-and shorting parasitic resistors. Simulation consumes the original RC network,
-including extracted junction geometry; this explains differences from the source
-netlist, which omits layout junction areas and wire parasitics.
+FreePDK45 resources come from the pinned community installation, with the
+explicit Magic model, marker and length-unit adaptations described in the tools guide.
+Parasitics use the community technology's estimated coefficients.
+See [resource preparation](../../../../../docs/tools.md) and the process manifest
+for source pins, scope and reproducible preparation.
 
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| `functional_area` | um2 | N/A | 1.6789 |
-| `state_0` | V | 0.9999975 | 0.9999975 |
-| `state_1` | V | 0.9999739 | 0.9999733 |
-| `state_2` | V | 0.0001741408 | 0.0001909625 |
-| `state_3` | V | 0.9998214 | 0.9998236 |
-| `state_4` | V | 0.999999 | 0.9999989 |
-| `state_5` | V | 0.9999582 | 0.9999583 |
-| `state_6` | V | 0.0001756712 | 0.000193759 |
-| `state_7` | V | 0.9999739 | 0.9999733 |
-| `state_8` | V | 0.9999406 | 0.9999395 |
-| `supply` | W | 3.425277e-06 | 3.571584e-06 |
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-All electrical requirements pass. Reference score: **100/100**.
-The absolute area target is **1.7 um2**, a rounded feasible
-compact envelope witnessed by this **1.6789 um2** layout. The fixed zero-utility
-anchor is **3.4 um2**, allowing additional functional routing
-before area utility vanishes. These anchors are frozen absolute requirements;
-the evaluator never divides by a reference layout area.
+Measured `layout-v2` score: **83.235024**, with electrical quality
+**E = 0.69280692** and area quality **Q = 1**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **1.6789 um2**.
 
-Electrical thresholds express rail-valid logic or read margin at fixed deadlines
-and a nominal supply budget. Zero boundaries distinguish an indeterminate logic
-level (0.5 V), absent bitline differential (0 V), or excessive power (five times
-the accepted budget). The response and supply dimensions each use their worst observation.
+Area reference: **1.6789 um2**. Complete functional bounding rectangle of the declared standard-cell reference GDS: 1.03 by 1.63 um = 1.6789 um2. Reference SHA-256: d077499ea242e1c8506c7a992ce713d46ea513c52b80073a2b7ae6d6515f2d3f. This footprint includes the maintained explicit taps and routing.
 
-The reference regression evaluates the supplied GDS against the case's public
-acceptance conditions and verifies that an empty candidate is rejected. It does
-not prescribe a reference score or construct circuit-specific geometry variants.
-Scope excludes PVT, mismatch, array abutment and substrate-noise qualification;
-the open DRC deck and predictive RC fit are not foundry signoff.
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `state_0` | V | 0.9999975 | 0.9999975 | functional |
+| `state_1` | V | 0.9999739 | 0.9999733 | functional |
+| `state_2` | V | 0.0001741408 | 0.0008770521 | functional |
+| `state_3` | V | 0.9998214 | 0.9998028 | functional |
+| `state_4` | V | 0.999999 | 0.9999989 | functional |
+| `state_5` | V | 0.9999582 | 0.9999578 | functional |
+| `state_6` | V | 0.0001756712 | 0.0009153661 | functional |
+| `state_7` | V | 0.9999739 | 0.9999731 | functional |
+| `state_8` | V | 0.9999406 | 0.9999397 | functional |
+| `supply` | W | 3.425277e-06 | 4.878972e-06 | 0.70204898 |
+| `propagation_delay` | s | 9.335134e-12 … 1.515943e-11 | 1.333601e-11 … 2.138194e-11 | 0.6897296 |
+| `output_transition` | s | 9.668356e-12 … 1.658675e-11 | 1.42665e-11 … 2.429691e-11 | 0.67769642 |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
+
+Capability coefficient: **1** for the fixed circuit and its declared functional scope.
 
 ## Reproduce
 
-Prepare the image and resources using the
-[tools guide](../../../../../docs/tools.md#freepdk45). From the repository root,
-choose a fresh output directory:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.cli evaluate \
-  tasks/freepdk45/nangate45-pdk/cases/NAND2_X1/case.toml \
-  tasks/freepdk45/nangate45-pdk/cases/NAND2_X1/reference/NAND2_X1.gds \
-  --output build/runs/freepdk45-NAND2_X1-reference-evaluation
-uv run --locked --group eda pytest tests/integration/test_public_references.py \
-  -k NAND2_X1
+python -m benchmarking.engine.preview prepare \
+  --case freepdk45.nangate45-pdk.NAND2_X1 --image iclayout-bench-tools:local \
+  --output build/runs/NAND2_X1-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/NAND2_X1-prepared \
+  --output build/runs/NAND2_X1-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'NAND2_X1'
 ```
 
-The evaluation command generates `report.json`, native reports, extracted netlists
-and simulation evidence under the selected run directory. The regression creates
-fresh temporary directories and prepares resources from the case's PDK profiles.
-It uses the same catalog-driven workflow for every process and circuit.
-
-To reproduce the Pre-layout column, use the shared
-[source-calibration recipe](../../../../../docs/tools.md#gf180-source-calibration)
-with `tasks/freepdk45/nangate45-pdk/cases/NAND2_X1/case.toml` and a fresh output directory such as
-`build/runs/freepdk45-NAND2_X1-source-calibration`. The recipe selects this
-case's authoritative SPICE netlist, retains every simulation condition and
-measurement, and produces an unscored characterization report. Compare its
-measurements with the Pre-layout column above; the GDS evaluation produces the
-Post-layout column.
-
-The distributed reference GDS is ready to use. Input consistency and actual
-reference acceptance support this case's qualified status. Shared evaluator
-regressions cover common rejection and scoring behavior; new extraction or
-judging capabilities require targeted validation under the
-[task guide](../../../../../docs/tasks.md#qualification).
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

@@ -1,17 +1,21 @@
 """Real simulator qualification with analytical expectations, not layout scores."""
 
 import math
+import os
 import re
+import tomllib
 from pathlib import Path
 
 import pytest
+import tomli_w
 from helpers.spice_raw import read_raw
 from helpers.stimuli import command, number
 
+from benchmarking.engine.evaluate import run_evaluation
+from benchmarking.engine.ngspice import NgspiceDocker
+from benchmarking.engine.toolchains import load_toolchain
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
-from layout_eval.evaluate import run_evaluation
-from layout_eval.toolchains import load_toolchain
 
 pytestmark = pytest.mark.integration
 FIXTURES = Path(__file__).resolve().parents[2] / "tests/fixtures/characterization"
@@ -31,9 +35,24 @@ def rc_inputs():
             "input:ac": asset("rc_ac.spice")}
 
 
-def test_rc_transient_and_ac_match_analytic_values_and_retain_waveforms(tmp_path, backends):
-    plan = parse_evaluation((FIXTURES / "rc.toml").read_bytes())
-    report = run_evaluation(plan, rc_inputs(), backends, tmp_path / "rc")
+@pytest.mark.parametrize("formulation", ["conductance", "branch"])
+def test_rc_transient_and_ac_match_analytic_values_and_retain_waveforms(tmp_path, formulation):
+    config = tomllib.loads((FIXTURES / "rc.toml").read_text())
+    inputs = rc_inputs()
+    # Branch compilation supports literal extracted resistances. Bind this
+    # existing analytical fixture's declared R value separately for each job.
+    for job in config["jobs"]:
+        role = "dut_" + job["id"]
+        resistance = job["parameters"]["values"]["r_series"]
+        inputs["input:" + role] = Asset(asset("rc.spice").content.replace(
+            b"{r_series}", str(resistance).encode()), "spice")
+        job["inputs"]["dut"] = "input:" + role
+    del inputs["input:dut"]
+    plan = parse_evaluation(tomli_w.dumps(config).encode())
+    backend = NgspiceDocker(
+        image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local"),
+        resistor_formulation=formulation)
+    report = run_evaluation(plan, inputs, {"circuit.simulate": backend}, tmp_path / "rc")
     assert report["outcome"] == "passed", report["jobs"]
     assert report["task_success"] is None
     pulse = [number(token) for token in re.search(r'PULSE\(([^)]+)\)',
@@ -87,3 +106,85 @@ def test_simulator_exit_success_without_measurement_is_an_error(tmp_path, backen
     job = report["jobs"]["operating_point"]
     assert job["measurements"] == {}
     assert job["evidence"]["log"]["bytes"] > 0
+
+
+@pytest.mark.parametrize("case", ["ia_002_fan_chopper_simple", "ia_003_fan_chopper_pf"])
+@pytest.mark.parametrize("limit_multiple,expected", [(0, "passed"), (1, "passed"), (2, "error")])
+def test_lock_in_window_validity_is_a_tool_error(tmp_path, case, limit_multiple, expected):
+    # Exercise the published validity guard with controlled endpoint errors;
+    # the existing divider supplies finite measurements without an expensive PEX run.
+    root = FIXTURES.parents[2]
+    case_path = root / "tasks/ihp-sg13g2/analog-db/cases" / case
+    problem = (case_path / "problem.md").read_text()
+    limit_ps = re.search(r"summed endpoint error must not exceed ([\d.]+) ps", problem)
+    assert limit_ps, "The solver contract must publish the measurement-validity limit"
+    boundary_error = limit_multiple * float(limit_ps[1]) * 1e-12
+    deck = (case_path / "materials/testbench.spice").read_text()
+    guard = deck.split("let boundary_error_s=", 1)[1].split("\n", 1)[1].split("let dm=", 1)[0]
+    control = f"let boundary_error_s={boundary_error}\n{guard}"
+    probe = Asset(asset("divider_dc.spice").content.replace(b"print ratio power",
+                  control.encode() + b"print ratio power"), "spice")
+    backend = NgspiceDocker(image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local"))
+    report = run_evaluation(parse_evaluation((FIXTURES / "divider.toml").read_bytes()),
+                            {"input:dut": asset("divider.spice"), "input:dc": probe},
+                            {"circuit.simulate": backend}, tmp_path / "window")
+    assert report["outcome"] == expected
+    if expected == "error":
+        assert report["specs_pass"] is None
+        assert report["jobs"]["operating_point"]["measurements"] == {}
+
+
+def test_branch_resistors_preserve_picoampere_kcl(tmp_path):
+    """A metal segment must not erase a high-impedance node's conductance.
+
+    TSN RC diagnosis reduced the failure to this matrix stamp: adding 1e-12 S
+    to 1/0.1895 S loses significant digits in ordinary resistor nodal equations.
+    Independent oracle: KCL gives Vout=I*Rload, regardless of series Rmetal.
+    This analytical control verifies numerical formulation, not circuit signoff.
+    """
+    backend = NgspiceDocker(
+        image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local"),
+        resistor_formulation="branch")
+    plan = parse_evaluation(b'''schema_version = 1
+mode = "characterization"
+[[jobs]]
+id = "op"
+stage = "simulate"
+operation = "circuit.simulate"
+inputs = {deck = "input:deck", dut = "input:dut"}
+parameters = {measurements = {output_v = "V"}}
+[[metrics]]
+id = "output_v"
+category = "performance"
+observations = ["op:output_v"]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+''')
+    dut = Asset(b'* Linear numerical control\nRmetal a b 0.1895\nRload b 0 1T\n', "spice")
+    deck = Asset(b'''* Picoampere conservation control
+.include dut.spice
+.options gmin=1e-18 reltol=1e-7 abstol=1e-18 vntol=1e-10
+IIN 0 a 1p
+.control
+set numdgt=15
+op
+let output_v=v(b)
+print output_v
+quit
+.endc
+.end
+''', "spice")
+    report = run_evaluation(plan, {"input:deck": deck, "input:dut": dut},
+                            {"circuit.simulate": backend}, tmp_path / "branch")
+    assert report["outcome"] == "passed", report["jobs"]
+    measured = report["jobs"]["op"]["measurements"]["output_v"]["value"]
+    assert measured == pytest.approx(1e-12 * 1e12, rel=1e-8, abs=0)
+
+    assert report["jobs"]["op"]["inputs"]["dut"]["sha256"] == dut.sha256
+    assert report["jobs"]["op"]["evidence"]["effective_dut"]["sha256"] != dut.sha256
+    noisy = Asset(deck.content.replace(b"op\n", b"noise v(b) IIN dec 10 1 100\n"), "spice")
+    rejected = run_evaluation(plan, {"input:deck": noisy, "input:dut": dut},
+                              {"circuit.simulate": backend}, tmp_path / "noise")
+    assert rejected["outcome"] == "error"
+    assert "noise" in rejected["jobs"]["op"]["reason"]

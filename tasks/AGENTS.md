@@ -10,6 +10,29 @@ standard. A schema-valid directory is not, by itself, a conforming or qualified 
 
 ## 1. Circuit Contract and Scope
 
+Build cases that let Bench evaluate layout work on real circuits: consistent
+inputs, native physical checks, candidate-derived parasitics, reproducible
+electrical observations and meaningful scores. Case qualification establishes
+that this evaluation is usable under its declared conditions. Reproducing an
+upstream product's advertised performance is a separate question.
+
+Keep these authorities distinct:
+
+| Material | Authority |
+|---|---|
+| Upstream source | Design provenance, circuit intent, implementation examples and reported results; retain attribution and distinguish reports from independent measurements. |
+| Maintained case | The actual circuit, interface, conditions, physical requirements, measurements and scoring contract delivered to Bench. |
+| Source simulation | The independent same-condition electrical baseline for scoring the extracted candidate; it is not a copied upstream result or the reference GDS's score. |
+| Reference layout | A witness that the maintained case can be physically implemented and evaluated; it need not attain upstream targets, optimal quality or a score of 100. |
+
+Declare the relationship to the source: a faithful implementation or an
+explicitly authorized adaptation. Preserve the requested design intent and
+topology; necessary process, format and tool adaptations must remain consistent
+across the maintained materials. Permission to establish a Bench scoring
+contract does not authorize substituting another circuit or redesigning the DUT
+to improve its score. Where faithful reproduction is requested, verify that
+fidelity independently of whether measured performance matches upstream claims.
+
 Before creating files, establish the circuit's function, authoritative topology,
 models and device parameters, ordered ports, supply/body connections, permitted
 layout equivalences, operating conditions, and observable success criteria.
@@ -41,9 +64,9 @@ that purpose; a template or generator producing it is not such a reason.
 | PDK | `pdk.toml` defines reviewed tool/model preparation profiles; source collection directories hold the cases. Keep shared preparation instructions in the tools guide. |
 | Collection | `catalog.toml` indexes cases; `README.md` provides collection navigation and scope; retain required collection licenses/notices. |
 | Case | `case.toml`, `problem.md`, `README.md`, declared `materials/`, and optional `reference/` as defined below. |
-| Framework | Public task/schema/scoring definitions in `benchmarking/`; shared preparation, evaluation and EDA backends in Public `layout_eval/`. Circuit-specific dispatch stays outside the runner, scoring core, and harness. |
-| Tests | Regressions and fixtures admitted under the [test conventions](../tests/AGENTS.md#before-adding-a-regression). Circuit-specific witness assets and results belong with the case; exploratory circuits and generators remain local development materials. |
-| Local development | Fresh `build/runs/` outputs, prepared bundles under `build/support/`, and development history in Git. Generated reports, netlists, waveforms and their archives stay here; case READMEs publish results and commands to reproduce them. |
+| Framework | Public task/schema/scoring definitions in `benchmarking/`; shared preparation, evaluation and EDA backends in Public `benchmarking/engine/`. Circuit-specific dispatch stays outside the runner, scoring core, and harness. |
+| Tests | Regressions and fixtures admitted under the [test conventions](../tests/AGENTS.md#before-adding-a-regression). Circuit-specific witness assets and results belong with the case; exploratory circuits and generators remain maintainer development materials, outside solver inputs. |
+| Maintainer development | Version-controlled design recipes, source inputs and probes may live in an independent design repository. Bench consumes reviewed static deliveries and does not import that repository. Fresh `build/runs/` outputs and prepared bundles under `build/support/` remain disposable; case READMEs publish results and reproduction commands. |
 
 Keep case configuration consolidated: tool instructions belong in `problem.md`,
 backend bindings in `case.toml`, and constraints/scoring in its inline task tables.
@@ -61,7 +84,8 @@ layouts does not define the authoring convention.
 | `materials/circuit.<format>` | Authoritative circuit, using the actual format suffix (`.cdl` or `.spice`, for example); input role `netlist`. A separate simulator representation, when required, uses role `simulation` and must describe the same circuit. |
 | `materials/testbench.spice` | Main SPICE simulation testbench; input role `performance`. Supplies stimuli, bias, loads, analyses, measurements, and waveform export. |
 | Collection `LICENSE` and required upstream notices | Store shared terms once at collection level, outside solver inputs. Preserve applicable terms with repository distributions and material exports; retain separate component attribution where required. |
-| `materials/` supporting files | Only required declared inputs, named by their function and format. Use configuration parameters for operating-point variants of one testbench; separate decks are justified by distinct analyses or tool requirements. |
+| `materials/schematic.svg` | Optional maintained presentation asset, declared as a maintainer `schematic` SVG in `[[assets]]`; bind its digest and embedded provenance to the authoritative netlist. Keep it outside `task.inputs`. |
+| `materials/` supporting files | Required declared solver inputs or explicitly recorded maintainer assets, named by their function and format. Use configuration parameters for operating-point variants of one testbench; separate decks are justified by distinct analyses or tool requirements. |
 | `reference/` | Ready-to-use witness GDS when supplied. Record qualification results and reproduction in the README; generated run evidence stays under `build/runs/`. Name GDS files by circuit/top-cell identity and declare them in the case's asset records. |
 
 Use role-based names consistently; a new PDK or author preference is not a reason
@@ -88,7 +112,10 @@ source checkouts, witnesses, generators, and qualification answers remain outsid
 that input set. Read the [historical asset exclusion checklist](../docs/tasks.md#input-isolation)
 before inspecting source assets or earlier outputs.
 
-Use one frozen definition for executable requirements and evaluator inputs. The
+Use one frozen definition for executable requirements and evaluator inputs.
+The task tables own numerical limits, budgets and scoring parameters. Publish
+them in the problem using generated text or consistency checks; keep measurement
+meaning and the reasons for functional bounds next to those published values. The
 problem describes that same contract; the README reports measured results. Host
 paths, backend implementation details, and evidence archives cannot carry an
 otherwise undisclosed solver requirement.
@@ -98,8 +125,14 @@ otherwise undisclosed solver requirement.
 Keep case attribution to the upstream circuit URL under the
 [source and rights rules](../docs/tasks.md#task-design). Bind digests to maintained
 inputs and references; catalogs only index cases. Publish ready-to-use materials;
-keep authoring scripts, intermediate schematics and export logs in development
-history. Resource preparation only assembles PDK/tool bundles.
+keep temporary conversion scripts, intermediate exports and export logs in development
+history. Maintained editable schematic projects are source assets, not disposable
+intermediates; their workspace location and authoring instructions belong to the
+workspace route. Published SVGs must follow the
+[presentation binding contract](../docs/running.md#task-presentations-and-interactive-layouts).
+Update project provenance, SVG metadata and the declared asset digest together.
+The authoritative circuit remains the maintained netlist, not an editor export.
+Resource preparation only assembles PDK/tool bundles.
 Distinguish untouched upstream assets from case-owned derivatives; retain required
 copyright, license, and modification notices with the corresponding exported assets.
 Store shared terms once per collection and keep the framework license separate
@@ -137,13 +170,14 @@ Follow the [evaluation plan](../docs/tasks.md#evaluation-plan) and
 - Artifact, DRC, named-interface LVS, and hard geometry checks on the submitted GDS;
   any intentional waiver is explicit, justified, and bound to the case plan.
 - Candidate-derived parasitic extraction followed by simulation consuming that
-  extracted circuit. Source simulation provides pre-layout calibration only.
+  extracted circuit. Source simulation supplies the independent same-condition quality baseline.
 - For every required observation: operating point, stimuli/load, measurement and
-  time/frequency window, unit, limits, scoring dimension, and zero-score boundary.
+  time/frequency window, unit, functional bounds, scoring dimension, source baseline
+  pairing and normalization.
   Evaluate every required condition; aggregation cannot hide a failure.
 - A complete functional footprint, including relevant device and routing layers,
-  with explicit exclusions; fixed absolute area anchors supported by feasible
-  layout evidence, independently of a changing witness or submitted layout area.
+  with explicit exclusions; a frozen area reference from the standard-cell reference layout or a documented
+  device-size-based compact estimate for other circuits, independent of submissions.
 - An explicit integer coefficient justified by the capability rubric, frozen before
   model evaluation; physical rejection, electrical failure, full acceptance, and
   evaluator error must retain the unified score's distinct meanings.
@@ -152,12 +186,33 @@ Structural conventions are shared; model classes, layers, rule choices, supply,
 loads, tolerances, and limits must be derived for the actual circuit and process.
 Copying another case's numerical settings or waivers is not calibration.
 
+Use gain, bandwidth, return loss, power and similar performance observations for
+continuous source-paired quality by default. Every hard electrical bound needs
+a reason tied to functional validity, a physical measurement domain or an
+explicitly required task constraint. An upstream specification or a measured
+reference value alone is not such a reason. Record that reason alongside the
+contract; do not invent a performance floor merely to supply a pass threshold.
+A functional bound rejects a valid measurement of circuit behavior. A check of
+measurement validity (such as integration-window alignment or numerical
+conservation) must report an evaluator error when it cannot establish a valid
+observation; it is not a candidate performance bound.
+
+When local measurements differ from upstream, check conditions, models, units,
+measurement definitions and extraction to establish trustworthy observations.
+Once the evaluation is sound, publish the difference and let the scoring rule
+express its quality cost. Such a difference alone neither blocks qualification
+nor calls for circuit optimization. Missing/nonfinite measurements, tool errors,
+wrong-circuit simulation and invalid extraction remain evaluation defects.
+
 ## 7. Qualification and Published Evidence
 
 Apply the [case and evaluator validation rules](../docs/tasks.md#qualification).
-Each case must have consistent, independently usable inputs and a passing actual
-evaluation of its supplied reference. Keep measured results, limitations and
-reproduction commands in the README; generated evidence belongs under `build/runs/`.
+Each case must have consistent, independently usable inputs. When a reference
+is supplied, its actual evaluation must pass the maintained Bench contract.
+Apply the distinction between qualification, functional gates and continuous
+quality in the sections above; upstream performance claims are not implicit
+qualification gates. Keep measured results, limitations and reproduction commands
+in the README; generated evidence belongs under `build/runs/`.
 
 Common rejection, scoring, error, transformation and repeatability checks belong
 in shared regression tests. For new devices, extraction methods or special judging
@@ -167,13 +222,18 @@ or fixtures. Calibrate when needed to establish limits or
 validate a new flow; reuse established coverage elsewhere. Per-case area variants
 and complete counterexample matrices are not status prerequisites.
 
+Contract inconsistencies, invalid evaluation and failing references block
+qualification. Editorial deviations that leave inputs and executable semantics
+consistent require documentation correction, not electrical requalification.
+
 Set `qualified` after the applicable per-case checks pass; keep `candidate` for
 actual material, consistency, execution or capability gaps. Reference-free cases
 follow the guide's feasibility disclosures. Formal admission remains separate.
 
 ## 8. Documentation
 
-Write in English using the exact [case documentation templates](../docs/tasks.md#case-documentation).
+Write in English using the required [case documentation sections](../docs/tasks.md#case-documentation).
+Additional circuit-specific sections are allowed.
 The problem must be self-contained for a solver. The README must map maintained
 files to their roles and report reference measurements with units, conditions,
 scoring/calibration basis, limitations, and commands runnable from a clean checkout.
@@ -188,13 +248,25 @@ Treat additions, promotions, renames, removals, and semantic changes as case cha
 |---|---|
 | New case or PDK | Assign file ownership, use the role conventions, register catalog/resources, and complete contract, materialization, and qualification checks. |
 | Rename or move | Update callers, configuration, docs, and affected digests; verify delivered inputs and preserve circuit/scoring semantics. Check task identity even when file contents are unchanged. |
+| Documentation-only change | Check the published contract against configuration and declared materials, refresh affected description digests, and verify loading, materialization and links. Reuse electrical evidence only for unchanged electrical requirements and evaluation. |
+| Presentation-only schematic change | Verify case/netlist binding, asset digests and preview loading; keep recorded task/score identities and solver inputs unchanged. A topology or netlist change still requires case qualification. |
 | Circuit, judge, resource, or scoring change | Rerun affected case checks and shared mechanism regressions; calibrate when the changed limits or flow require it. |
 | Removal | Update catalogs, navigation, selectors and regression dependencies; retain resources/controls still required by other cases under their correct owner. |
 
-Preserve previous evidence in development history. When a change invalidates its
-identity binding, generate evidence for the new task; do not relabel old reports as
-new executions. Pure documentation changes require only the affected checks from
-[CONTRIBUTING](../CONTRIBUTING.md#verification), plus any input/identity updates.
+Classify changes by their effect on the contract, not by file extension. A problem
+edit that changes a required operating condition, acceptance limit or scoring rule
+is a semantic change even when no TOML has yet changed.
+
+Preserve previous reports with their original task and input identities. A
+wording-only description change updates its digest and task identity, but does
+not by itself require a new EDA run. Prior electrical results may support an
+unchanged circuit, testbench, evaluation, resources and requirements when clearly
+identified as prior validation; they are not executions of the new identity.
+Semantic changes require affected validation under the revised contract. Any
+workflow requiring evidence bound to the new identity must obtain a fresh run;
+never relabel an old report. Select checks using
+[CONTRIBUTING](../CONTRIBUTING.md#verification) and the
+[qualification guide](../docs/tasks.md#qualification).
 
 Before handoff, verify all of the following against the actual files and results:
 

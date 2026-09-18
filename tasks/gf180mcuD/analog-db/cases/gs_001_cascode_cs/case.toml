@@ -4,7 +4,22 @@ id = "gf180mcuD.analog-db.gs_001_cascode_cs"
 title = "Self-Biased Cascode Common-Source Gain Stage"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "4271b87a5277a21e9665d964c8ad3039b71327cf37683cc246ae235cbd151a2a"
+
+[[assets]]
+path = "reference/gs_001_cascode_cs.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "045f0d29479fe5fcaf8955ca6205d10ee8b0f6286b734abe0d38a5891702d0ff"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "gf180_cascode_common_source"
 coefficient = 4
@@ -13,7 +28,7 @@ environment = "gf180mcuD-typical-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "467e4db6ff1b46b1600c1a8c59f5b765679a55a69d228c675004f61c35a5d3eb"
+sha256 = "5c29de30cb24a2655430d7d6b94cd887354f5356b539930a081f25101f8adceb"
 
 [task.inputs.netlist]
 path = "materials/circuit.spice"
@@ -42,18 +57,386 @@ quality = [
 id = "outline"
 type = "bbox_max"
 functional_layers = [
-  [5, 0], [11, 17], [11, 39], [12, 0], [13, 17], [21, 0], [22, 0], [22, 4],
-  [24, 0], [24, 5], [30, 0], [30, 4], [31, 0], [32, 0], [33, 0], [34, 0],
-  [34, 3], [34, 4], [34, 5], [35, 0], [36, 0], [36, 3], [36, 4], [36, 5],
-  [37, 0], [38, 0], [40, 0], [41, 0], [42, 0], [42, 3], [42, 4], [42, 5],
-  [46, 0], [46, 3], [46, 4], [46, 5], [49, 0], [53, 0], [53, 3], [53, 4],
-  [53, 5], [55, 0], [62, 0], [75, 0], [80, 5], [81, 0], [81, 3], [81, 4],
-  [81, 5], [82, 0], [86, 17], [88, 17], [96, 1], [100, 5], [100, 7], [100, 8],
-  [108, 5], [110, 5], [110, 11], [110, 12], [110, 13], [110, 14], [110, 15], [110, 16],
-  [111, 5], [112, 1], [115, 5], [116, 5], [117, 5], [117, 10], [118, 5], [119, 5],
-  [122, 5], [123, 5], [124, 5], [125, 5], [127, 5], [128, 17], [137, 5], [151, 5],
-  [152, 5], [153, 51], [166, 5], [167, 5], [173, 5], [178, 0], [183, 0], [184, 0],
-  [185, 0], [204, 0], [210, 0], [220, 0], [226, 0], [227, 0], [241, 0],
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
 ]
 max_width_um = 220
 max_height_um = 120
@@ -229,6 +612,87 @@ bandwidth_hz = "Hz"
 op = "op.raw"
 ac = "ac.raw"
 
+[[task.evaluation.jobs]]
+id = "source_condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+bias_v = "V"
+gain_db = "dB"
+bandwidth_hz = "Hz"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+bias_v = "V"
+gain_db = "dB"
+bandwidth_hz = "Hz"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+bias_v = "V"
+gain_db = "dB"
+bandwidth_hz = "Hz"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -251,10 +715,15 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.68
-zero_lower = 0.5
-upper = 0.76
-zero_upper = 0.95
+baseline = [
+    "source_condition_0:output_v",
+    "source_condition_1:output_v",
+    "source_condition_2:output_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "bias_v"
@@ -268,10 +737,15 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.4
-zero_lower = 0
-upper = 1.15
-zero_upper = 1.5
+baseline = [
+    "source_condition_0:bias_v",
+    "source_condition_1:bias_v",
+    "source_condition_2:bias_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "power_w"
@@ -285,10 +759,14 @@ unit = "W"
 dimension = "supply"
 direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:power_w",
+    "source_condition_1:power_w",
+    "source_condition_2:power_w",
+]
+normalization = "ratio"
 lower = 0
-zero_lower = 0
-upper = 0.00022
-zero_upper = 0.0004
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "gain_db"
@@ -302,8 +780,12 @@ unit = "dB"
 dimension = "response"
 direction = "maximize"
 aggregation = "min"
-lower = 30
-zero_lower = 0
+baseline = [
+    "source_condition_0:gain_db",
+    "source_condition_1:gain_db",
+    "source_condition_2:gain_db",
+]
+normalization = "db20"
 
 [[task.evaluation.metrics]]
 id = "bandwidth_hz"
@@ -317,14 +799,18 @@ unit = "Hz"
 dimension = "response"
 direction = "maximize"
 aggregation = "min"
-lower = 450000
-zero_lower = 0
+baseline = [
+    "source_condition_0:bandwidth_hz",
+    "source_condition_1:bandwidth_hz",
+    "source_condition_2:bandwidth_hz",
+]
+normalization = "ratio"
+lower = 0
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 7000
-area_zero = 28000
+area_target = 394.4
 
 [toolchain]
 schema_version = 1
@@ -358,7 +844,7 @@ image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 180
 support = "build/support/gf180-physical-v2"
-profile = "lvs-vss.json"
+profile = "lvs.json"
 
 [toolchain.backends.lvs.support_profiles]
 support = "physical"
@@ -408,13 +894,6 @@ support = "models"
 
 [origin]
 url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/gs_001_cascode_cs"
-
-[[assets]]
-path = "reference/gs_001_cascode_cs.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "4e56e8e83aeaa6ad3aec16a2010314a3506c775e97840db8e3d5c80a3ae2b08d"
 
 [qualification]
 reference = "reference/gs_001_cascode_cs.gds"

@@ -4,7 +4,22 @@ id = "freepdk45.OpenRAM.write_driver"
 title = "Complementary SRAM Write Driver"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "03d1aadfc9076f4c361878d2ccf8920ec987395dcab3699a95db4aa7173a79f0"
+
+[[assets]]
+path = "reference/write_driver.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "2465c2b5293b138226ebc396cc13dd19bca4b8aba3268dfead8f83893316ba78"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "freepdk45_write_driver"
 coefficient = 3
@@ -12,7 +27,7 @@ environment = "freepdk45-nominal-predictive-rc"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "7256b724869b75f28d0542997ce11762c5448a7b9a710097ef1aa5432ffa8d38"
+sha256 = "925528aecb1b0cd13e29aab7fc092aadd62e7b08ad05d38e8577bc71a7af7638"
 format = "text"
 
 [task.inputs.netlist]
@@ -24,7 +39,7 @@ subcircuit = "write_driver"
 [task.inputs.performance]
 path = "materials/testbench.spice"
 format = "spice"
-sha256 = "8825201af7b376e9b9699bf1a79c615dc78155ed4961d80d75ad793f7fca30d3"
+sha256 = "a07fc802d7506c35db325b6aa8256ec558c5d606003547a22e9e8b5236a98ecf"
 
 [task.constraints]
 schema_version = 1
@@ -270,6 +285,34 @@ br_low = "V"
 z_bl = "V"
 z_br = "V"
 supply = "W"
+data_delay_bl = "s"
+data_delay_br = "s"
+
+[[task.evaluation.jobs]]
+id = "source_nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+bl_low = "V"
+br_high = "V"
+bl_high = "V"
+br_low = "V"
+z_bl = "V"
+z_br = "V"
+supply = "W"
+data_delay_bl = "s"
+data_delay_br = "s"
 
 [[task.evaluation.metrics]]
 id = "functional_area"
@@ -290,9 +333,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "br_high"
@@ -303,9 +344,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "bl_high"
@@ -316,9 +355,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "br_low"
@@ -329,9 +366,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "z_bl"
@@ -342,11 +377,8 @@ observations = [
 unit = "V"
 direction = "target"
 aggregation = "max"
-dimension = "response"
 lower = 0.45
 upper = 0.55
-zero_lower = 0
-zero_upper = 1
 
 [[task.evaluation.metrics]]
 id = "z_br"
@@ -357,11 +389,8 @@ observations = [
 unit = "V"
 direction = "target"
 aggregation = "max"
-dimension = "response"
 lower = 0.45
 upper = 0.55
-zero_lower = 0
-zero_upper = 1
 
 [[task.evaluation.metrics]]
 id = "supply"
@@ -373,16 +402,35 @@ unit = "W"
 direction = "minimize"
 aggregation = "max"
 dimension = "supply"
+baseline = [
+    "source_nominal:supply",
+]
+normalization = "ratio"
 lower = 0
-upper = 6e-05
-zero_lower = 0
-zero_upper = 0.00030000000000000003
+scale = 1e-12
+
+[[task.evaluation.metrics]]
+id = "data_delay"
+category = "performance"
+observations = [
+    "nominal:data_delay_bl",
+    "nominal:data_delay_br",
+]
+baseline = [
+    "source_nominal:data_delay_bl",
+    "source_nominal:data_delay_br",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+normalization = "ratio"
+lower = 0.0
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 3.6
-area_zero = 7.2
+area_target = 3.36
 
 [toolchain]
 schema_version = 1
@@ -435,7 +483,7 @@ type = "magic-rc-docker"
 image = "iclayout-bench-tools:local"
 support = "build/support/freepdk45-magic-vtg"
 technology = "freepdk45.tech"
-tech_name = "nangate45"
+tech_name = "freepdk45"
 style = "spice3(sim)"
 gds_readonly = false
 case_insensitive_ports = true
@@ -508,13 +556,6 @@ support = "models"
 "layout.geometry" = "geometry"
 "layout.extract_rc" = "rc"
 "circuit.simulate" = "ngspice"
-
-[[assets]]
-path = "reference/write_driver.gds"
-role = "reference"
-visibility = "maintainer"
-format = "gds"
-sha256 = "2465c2b5293b138226ebc396cc13dd19bca4b8aba3268dfead8f83893316ba78"
 
 [qualification]
 reference = "reference/write_driver.gds"

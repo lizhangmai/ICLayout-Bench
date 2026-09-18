@@ -56,6 +56,9 @@ class Metric:
     dimension: str | None = None
     zero_lower: float | None = None
     zero_upper: float | None = None
+    baseline: tuple[str, ...] = ()
+    normalization: str | None = None
+    scale: float | None = None
 
     @property
     def is_requirement(self) -> bool:
@@ -104,10 +107,11 @@ class ScoringSpec:
     method: str
     area_metric: str
     area_target: float
-    area_zero: float
+    area_zero: float | None = None
 
 
-SCORING_METHOD = "layout-v1"
+SCORING_METHOD = "layout-v2"
+SCORING_METHODS = frozenset({"layout-v1", SCORING_METHOD})
 SCORING_DIMENSIONS = frozenset({"response", "bias", "supply"})
 
 
@@ -204,7 +208,8 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
         raise TypeError("Metrics must be a list")
     for entry in data["metrics"]:
         keys(entry, {"id", "category", "observations", "unit", "direction", "aggregation"},
-             {"lower", "upper", "dimension", "zero_lower", "zero_upper"}, "metric")
+             {"lower", "upper", "dimension", "zero_lower", "zero_upper",
+              "baseline", "normalization", "scale"}, "metric")
         name = identifier(entry["id"])
         if name in seen:
             raise ValueError(f"Duplicate metric: {name}")
@@ -230,7 +235,7 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
         upper = number(entry["upper"]) if "upper" in entry else None
         if lower is not None and upper is not None and lower > upper:
             raise ValueError(f"Inverted bounds: {name}")
-        if entry["direction"] == "target" and (lower is None or upper is None):
+        if entry["direction"] == "target" and not entry.get("baseline") and (lower is None or upper is None):
             raise ValueError("Target metrics require lower and upper bounds")
         dimension = entry.get("dimension")
         if dimension is not None:
@@ -239,8 +244,8 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
                 raise ValueError(f"Only performance metrics may declare a dimension: {name}")
             if dimension not in SCORING_DIMENSIONS:
                 raise ValueError(f"Unknown scoring dimension: {dimension}")
-            if lower is None and upper is None:
-                raise ValueError(f"Metric dimension requires an acceptance bound: {name}")
+            if lower is None and upper is None and not entry.get("baseline"):
+                raise ValueError(f"Metric dimension requires a bound or baseline: {name}")
         zero_lower = number(entry["zero_lower"]) if "zero_lower" in entry else None
         zero_upper = number(entry["zero_upper"]) if "zero_upper" in entry else None
         if entry["category"] != "performance" and (zero_lower is not None or zero_upper is not None):
@@ -253,24 +258,69 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
             raise ValueError(f"zero_lower must not exceed the lower bound: {name}")
         if upper is not None and zero_upper is not None and zero_upper < upper:
             raise ValueError(f"zero_upper must not be below the upper bound: {name}")
+        baseline = entry.get("baseline", [])
+        normalization = entry.get("normalization")
+        scale = number(entry["scale"]) if "scale" in entry else None
+        if not isinstance(baseline, list) or (baseline and len(baseline) != len(refs)):
+            raise ValueError(f"Baseline must match observations one to one: {name}")
+        if baseline:
+            if entry["category"] != "performance" or dimension is None:
+                raise ValueError(f"Baseline requires a performance dimension: {name}")
+            if normalization not in {"ratio", "db20", "target"}:
+                raise ValueError(f"Unknown baseline normalization: {name}")
+            if normalization == "target" and (entry["direction"] != "target" or scale is None or scale <= 0):
+                raise ValueError(f"Target normalization needs target direction and positive scale: {name}")
+            if normalization != "target" and entry["direction"] == "target":
+                raise ValueError(f"Target direction requires target normalization: {name}")
+            if normalization == "db20" and entry["unit"] != "dB":
+                raise ValueError(f"db20 requires amplitude dB: {name}")
+            if scale is not None and (scale <= 0 or normalization == "db20"):
+                raise ValueError(f"Invalid normalization scale: {name}")
+            for paired_ref, ref in zip(refs, baseline, strict=True):
+                parts = text(ref, "baseline observation").split(":")
+                if len(parts) != 2 or parts[0] not in jobs or jobs[parts[0]].stage != "simulate":
+                    raise ValueError(f"Baseline must be a source simulation: {ref}")
+                identifier(parts[1])
+                source = jobs[parts[0]]
+                if data_ancestors[source.id] or "candidate" in dict(source.inputs).values():
+                    raise ValueError(f"Baseline must be independent of the candidate: {ref}")
+                if not ({"input:netlist", "input:simulation"} & set(dict(source.inputs).values())):
+                    raise ValueError(f"Baseline must consume the declared source circuit: {ref}")
+                paired = jobs[paired_ref.split(":")[0]]
+                if source.operation != paired.operation or source.parameters != paired.parameters:
+                    raise ValueError(f"Baseline and candidate simulation settings differ: {name}")
+                if paired_ref.split(":")[1] != parts[1]:
+                    raise ValueError(f"Baseline and candidate measurement names differ: {name}")
+                if dict(source.inputs).get("deck") != dict(paired.inputs).get("deck"):
+                    raise ValueError(f"Baseline and candidate testbench differ: {name}")
+                source_inputs, paired_inputs = dict(source.inputs), dict(paired.inputs)
+                if source_inputs.keys() != paired_inputs.keys() or any(
+                    paired_inputs[role] != ref and not (
+                        ref in {"input:netlist", "input:simulation"}
+                        and paired_inputs[role].startswith("job:"))
+                    for role, ref in source_inputs.items()
+                ):
+                    raise ValueError(f"Baseline and candidate non-circuit inputs differ: {name}")
+        elif normalization is not None or scale is not None:
+            raise ValueError(f"Normalization requires baseline observations: {name}")
         metrics.append(Metric(name, entry["category"], tuple(refs), text(entry["unit"], "unit"),
                               entry["direction"], entry["aggregation"], lower, upper,
-                              dimension, zero_lower, zero_upper))
+                              dimension, zero_lower, zero_upper, tuple(baseline), normalization, scale))
 
     scoring = None
     scoring_data = data.get("scoring")
     if scoring_data is not None:
-        keys(scoring_data, {"method", "area_metric", "area_target", "area_zero"}, set(),
-             "evaluation.scoring")
-        method = text(scoring_data["method"], "scoring method")
-        if method != SCORING_METHOD:
+        method = text(scoring_data.get("method"), "scoring method")
+        if method not in SCORING_METHODS:
             raise ValueError(f"Unsupported scoring method: {method}")
+        keys(scoring_data, {"method", "area_metric", "area_target"} |
+             ({"area_zero"} if method == "layout-v1" else set()), set(), "evaluation.scoring")
         area_metric = identifier(scoring_data["area_metric"])
         area_target = number(scoring_data["area_target"])
-        area_zero = number(scoring_data["area_zero"])
+        area_zero = number(scoring_data["area_zero"]) if "area_zero" in scoring_data else None
         if area_target <= 0:
             raise ValueError("scoring.area_target must be positive")
-        if area_zero <= area_target:
+        if area_zero is not None and area_zero <= area_target:
             raise ValueError("scoring.area_zero must exceed area_target")
         scoring = ScoringSpec(method, area_metric, area_target, area_zero)
 
@@ -301,12 +351,12 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
                         raise ValueError(f"Simulation must consume candidate extraction: {simulation.id}")
 
     if scoring is None:
-        if any(metric.dimension is not None or metric.zero_lower is not None
+        if any(metric.baseline or metric.dimension is not None or metric.zero_lower is not None
                or metric.zero_upper is not None for metric in metrics):
             raise ValueError("Scoring metric metadata requires evaluation.scoring")
     else:
         if data["mode"] != "post_layout":
-            raise ValueError("layout-v1 scoring requires post_layout evaluation")
+            raise ValueError("Layout scoring requires post_layout evaluation")
         by_id = {metric.id: metric for metric in metrics}
         area = by_id.get(scoring.area_metric)
         if area is None:
@@ -331,6 +381,17 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
                     if metric.category == "performance" and metric.is_requirement]
         if not required:
             raise ValueError("Scored layout evaluation needs a bounded performance metric")
+        if scoring.method == "layout-v2":
+            if not any(metric.baseline for metric in metrics):
+                raise ValueError("layout-v2 requires pre-layout baselines")
+            for metric in metrics:
+                if metric.zero_lower is not None or metric.zero_upper is not None:
+                    raise ValueError("layout-v2 uses baselines, not zero-score boundaries")
+                if metric.dimension and not metric.baseline:
+                    raise ValueError(f"Scored metric needs a baseline: {metric.id}")
+            required = []
+        elif any(metric.baseline for metric in metrics):
+            raise ValueError("layout-v1 cannot use baseline normalization")
         for metric in required:
             if metric.dimension not in SCORING_DIMENSIONS:
                 raise ValueError(f"Required performance metric needs a scoring dimension: {metric.id}")

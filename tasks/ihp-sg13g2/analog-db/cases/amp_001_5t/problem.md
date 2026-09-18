@@ -55,29 +55,48 @@ PVT, noise, distortion, transient settling, EM or manufacturing signoff.
 
 ## Electrical Requirements and Scoring
 
-Every observation below must be finite and within its inclusive acceptance band.
-Missing measurements, including a missing descending unity-gain crossing, cannot
-establish success. Transfer is `V(vout)/(V(vinp)-V(vinn))`.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-| Metric | Definition | Unit | Acceptance | Zero-score boundaries | Dimension |
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
 | --- | --- | --- | --- | --- | --- |
-| Low-frequency gain | 20 log10 of transfer magnitude at 1 Hz | dB | >= 30 | <= 0 | response |
-| Unity-gain bandwidth | First descending 0 dB crossing | Hz | >= 1,000,000 | <= 100,000 | response |
-| Phase margin | 180 degrees plus unwrapped transfer phase at that crossing | deg | 60 to 90 | <= 0 or >= 120 | response |
-| Output bias | DC output voltage in the feedback configuration | V | 0.78 to 0.82 | <= 0.6 or >= 1.0 | bias |
-| Bias voltage | DC reference-current input voltage | V | 0.39 to 0.44 | <= 0.2 or >= 0.6 | bias |
-| Supply power | -V(vdd) times current through VDD | W | 0 to 0.000065 | < 0 or >= 0.0001 | supply |
+| `low_frequency_gain` | nominal:low_frequency_gain | dB | maximize / db20 | −∞ … +∞ | — |
+| `unity_gain_bandwidth` | nominal:unity_gain_bandwidth | Hz | maximize / ratio | 0 … +∞ | — |
+| `phase_margin` | nominal:phase_margin | deg | target / target | 0 … 180 | 180 |
+| `output_bias` | nominal:output_bias | V | target / target | 0 … 1.5 | 1.5 |
+| `bias_voltage` | nominal:bias_voltage | V | target / target | 0 … 1.5 | 1.5 |
+| `supply_power` | nominal:supply_power | W | minimize / ratio | 0 … +∞ | 1e-12 |
 
-Scoring is `S = G * (60*E + 20*H + 20*H*Q)`. `G` requires valid physical checks
-and completed extraction/measurements. `E` averages response, bias and supply
-attainment, taking the worst metric in each dimension; attainment is 1 within
-the acceptance band and falls linearly toward each zero boundary. `H` is 1
-only when every electrical requirement passes.
-`Q = clip((8000 - area_um2)/(8000 - 4000), 0, 1)` uses fixed absolute area anchors.
-Physical rejection scores 0; a blocking evaluator error produces no score.
-The case coefficient is 4: a complete compact amplifier with bias and mirror loads.
+Area reference: **1198.35 um2**. 8 expanded device instances; sum of device/contact envelopes 754.0020 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **4**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Use the reviewed IHP PDK/EDA resources exposed through `/protocol/resources.json`;
 KLayout and Magic support layout checking and extraction, and ngspice supports

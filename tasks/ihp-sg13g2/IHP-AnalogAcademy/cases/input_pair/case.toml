@@ -4,7 +4,22 @@ id = "module_1_bandgap_reference.part_3_layout.OTA_layout.input_pair"
 title = "IHP AnalogAcademy input_pair"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "65b0ecccf48d9ee5be65c51195bc9196963714f323b15141e0fad99476235417"
+
+[[assets]]
+path = "reference/input_common_centroid.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "b28969621e1ec84dfe1ae5336ae5e85af0e1aa9b16068c430748ef105f122be2"
+
 [task]
+hours = 3
 coefficient = 3
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_pmos_input_pair"
@@ -12,7 +27,7 @@ environment = "ihp-sg13g2-input-pair-rc-tt"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "6e6a595890ce1e2c0052cca88264a0b56c5da26d417c5c6965017bbd0c71c403"
+sha256 = "2300132b56ccb88eba1fbc544cc4c56eaa37aa1256b85bde4b30c22198f4a4ae"
 format = "text"
 
 [task.inputs.netlist]
@@ -33,25 +48,193 @@ format = "spice"
 
 [task.constraints]
 schema_version = 1
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
 
 [[task.constraints.hard]]
 id = "outline"
 type = "bbox_max"
 functional_layers = [
-  [1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0],
-  [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0],
-  [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0],
-  [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0],
-  [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0],
-  [133, 0], [134, 0], [139, 0], [152, 0],
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
 ]
 max_width_um = 45
 max_height_um = 40
-
-[[task.constraints.quality]]
-id = "area"
-type = "functional_bbox_area"
-layers_from = "outline"
 
 [task.output]
 path = "output/final.gds"
@@ -64,59 +247,113 @@ schema_version = 1
 mode = "post_layout"
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 1300
-area_zero = 1800
+area_target = 1236.14
 
 [[task.evaluation.jobs]]
 id = "artifact"
 stage = "check"
 operation = "layout.artifact"
 gate = "artifact"
-inputs = { layout = "candidate", task = "task" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
 
 [[task.evaluation.jobs]]
 id = "drc"
 stage = "check"
 operation = "layout.drc"
 gate = "drc"
-inputs = { layout = "candidate", task = "task" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
 
 [[task.evaluation.jobs]]
 id = "lvs"
 stage = "check"
 operation = "layout.lvs"
 gate = "lvs"
-inputs = { layout = "candidate", task = "task", netlist = "input:netlist" }
-outputs = { database = "klayout-lvs", binding = "json" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
 
 [[task.evaluation.jobs]]
 id = "geometry"
 stage = "check"
 operation = "layout.geometry"
 gate = "constraint"
-requires = ["artifact", "drc", "lvs"]
-inputs = { layout = "candidate", task = "task", constraints = "input:constraints", database = "job:lvs:database", binding = "job:lvs:binding" }
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
 
 [[task.evaluation.jobs]]
 id = "parasitics"
 stage = "extract"
 operation = "layout.extract_rc"
-requires = ["artifact", "drc", "lvs", "geometry"]
-inputs = { layout = "candidate" }
-outputs = { netlist = "spice" }
-parameters = { top_cell = "input_common_centroid", ports = ["v-", "v+", "vdd", "dn3", "dn4", "tail"] }
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+top_cell = "input_common_centroid"
+ports = [
+    "v-",
+    "v+",
+    "vdd",
+    "dn3",
+    "dn4",
+    "tail",
+]
 
 [[task.evaluation.jobs]]
 id = "pre"
 stage = "simulate"
 operation = "circuit.simulate"
-inputs = { deck = "input:performance", dut = "input:simulation" }
-outputs = { ac = "ngspice-raw", op = "ngspice-raw" }
-[task.evaluation.jobs.parameters]
-values = { tail_current = 2e-5, common_mode = 0.5, drain_load = 50000 }
-exports = { ac = "input-ac.raw", op = "input-op.raw" }
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+op = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+tail_current = 2e-05
+common_mode = 0.5
+drain_load = 50000
+
+[task.evaluation.jobs.parameters.exports]
+ac = "input-ac.raw"
+op = "input-op.raw"
+
 [task.evaluation.jobs.parameters.measurements]
 tail_voltage = "V"
 drain_balance = "V"
@@ -129,12 +366,87 @@ differential_gain_high = "V/V"
 id = "nominal"
 stage = "simulate"
 operation = "circuit.simulate"
-requires = ["parasitics"]
-inputs = { deck = "input:performance", dut = "job:parasitics:netlist" }
-outputs = { ac = "ngspice-raw", op = "ngspice-raw" }
-[task.evaluation.jobs.parameters]
-values = { tail_current = 2e-5, common_mode = 0.5, drain_load = 50000 }
-exports = { ac = "input-ac.raw", op = "input-op.raw" }
+requires = [
+    "parasitics",
+]
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+op = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+tail_current = 2e-05
+common_mode = 0.5
+drain_load = 50000
+
+[task.evaluation.jobs.parameters.exports]
+ac = "input-ac.raw"
+op = "input-op.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+tail_voltage = "V"
+drain_balance = "V"
+common_drain = "V"
+supply_power = "W"
+differential_gain = "V/V"
+differential_gain_high = "V/V"
+
+[[task.evaluation.jobs]]
+id = "source_pre"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+op = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+tail_current = 2e-05
+common_mode = 0.5
+drain_load = 50000
+
+[task.evaluation.jobs.parameters.exports]
+ac = "input-ac.raw"
+op = "input-op.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+tail_voltage = "V"
+drain_balance = "V"
+common_drain = "V"
+supply_power = "W"
+differential_gain = "V/V"
+differential_gain_high = "V/V"
+
+[[task.evaluation.jobs]]
+id = "source_nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+op = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+tail_current = 2e-05
+common_mode = 0.5
+drain_load = 50000
+
+[task.evaluation.jobs.parameters.exports]
+ac = "input-ac.raw"
+op = "input-op.raw"
+
 [task.evaluation.jobs.parameters.measurements]
 tail_voltage = "V"
 drain_balance = "V"
@@ -146,7 +458,9 @@ differential_gain_high = "V/V"
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
-observations = ["geometry:area"]
+observations = [
+    "geometry:area",
+]
 unit = "um2"
 direction = "minimize"
 aggregation = "max"
@@ -154,76 +468,101 @@ aggregation = "max"
 [[task.evaluation.metrics]]
 id = "differential_gain"
 category = "performance"
-observations = ["nominal:differential_gain"]
+observations = [
+    "nominal:differential_gain",
+]
 unit = "V/V"
 direction = "maximize"
 aggregation = "min"
-lower = 1.5
 dimension = "response"
-zero_lower = 0
+baseline = [
+    "source_nominal:differential_gain",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "differential_gain_high"
 category = "performance"
-observations = ["nominal:differential_gain_high"]
+observations = [
+    "nominal:differential_gain_high",
+]
 unit = "V/V"
 direction = "maximize"
 aggregation = "min"
-lower = 1.0
 dimension = "response"
-zero_lower = 0
+baseline = [
+    "source_nominal:differential_gain_high",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "tail_voltage"
 category = "performance"
-observations = ["nominal:tail_voltage"]
+observations = [
+    "nominal:tail_voltage",
+]
 unit = "V"
 direction = "target"
 aggregation = "min"
-lower = 1.15
-upper = 1.23
 dimension = "bias"
-zero_lower = 1.05
-zero_upper = 1.3
+baseline = [
+    "source_nominal:tail_voltage",
+]
+normalization = "target"
+scale = 1.2
 
 [[task.evaluation.metrics]]
 id = "common_drain"
 category = "performance"
-observations = ["nominal:common_drain"]
+observations = [
+    "nominal:common_drain",
+]
 unit = "V"
 direction = "target"
 aggregation = "min"
-lower = 0.45
-upper = 0.55
 dimension = "bias"
-zero_lower = 0.25
-zero_upper = 0.75
+baseline = [
+    "source_nominal:common_drain",
+]
+normalization = "target"
+scale = 1.2
+lower = 0
+upper = 1.2
 
 [[task.evaluation.metrics]]
 id = "drain_balance"
 category = "performance"
-observations = ["nominal:drain_balance"]
+observations = [
+    "nominal:drain_balance",
+]
 unit = "V"
 direction = "target"
 aggregation = "min"
-lower = -0.02
-upper = 0.02
 dimension = "bias"
-zero_lower = -0.05
-zero_upper = 0.05
+baseline = [
+    "source_nominal:drain_balance",
+]
+normalization = "target"
+scale = 1.2
 
 [[task.evaluation.metrics]]
 id = "supply_power"
 category = "performance"
-observations = ["nominal:supply_power"]
+observations = [
+    "nominal:supply_power",
+]
 unit = "W"
 direction = "minimize"
 aggregation = "max"
-lower = 0
-upper = 35e-6
 dimension = "supply"
-zero_lower = 0
-zero_upper = 4.8e-05
+baseline = [
+    "source_nominal:supply_power",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
 
 [toolchain]
 schema_version = 1
@@ -238,6 +577,7 @@ schema_version = 1
 
 [toolchain.backends.artifact]
 type = "klayout-docker"
+
 [toolchain.backends.artifact.settings]
 image = "iclayout-bench-tools:local"
 check = "artifact"
@@ -245,8 +585,10 @@ timeout_seconds = 600
 
 [toolchain.backends.drc]
 type = "klayout-docker"
+
 [toolchain.backends.drc.support_profiles]
 support = "klayout"
+
 [toolchain.backends.drc.settings]
 image = "iclayout-bench-tools:local"
 check = "drc"
@@ -256,8 +598,10 @@ timeout_seconds = 600
 
 [toolchain.backends.lvs]
 type = "klayout-docker"
+
 [toolchain.backends.lvs.support_profiles]
 support = "klayout"
+
 [toolchain.backends.lvs.settings]
 image = "iclayout-bench-tools:local"
 check = "lvs"
@@ -267,7 +611,10 @@ timeout_seconds = 600
 
 [toolchain.backends.rc]
 type = "magic-rc-docker"
-support_profiles = { support = "magic" }
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
 [toolchain.backends.rc.settings]
 image = "iclayout-bench-tools:local"
 support = "build/support/input-pair-magic"
@@ -279,24 +626,21 @@ timeout_seconds = 600
 
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
+
 [toolchain.backends.geometry.settings]
 image = "iclayout-bench-tools:local"
 timeout_seconds = 120
 
 [toolchain.backends.simulation]
 type = "ngspice-docker"
-support_profiles = { support = "analog-models" }
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-models"
+
 [toolchain.backends.simulation.settings]
 image = "iclayout-bench-tools:local"
 support = "build/support/input-pair-models"
 timeout_seconds = 600
-
-[[assets]]
-path = "reference/input_common_centroid.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "b28969621e1ec84dfe1ae5336ae5e85af0e1aa9b16068c430748ef105f122be2"
 
 [qualification]
 evidence = "README.md"

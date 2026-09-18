@@ -51,26 +51,48 @@ and meet its inclusive band. Aggregation cannot hide a failing condition;
 missing crossings or incomplete extraction/simulation cannot establish success.
 Saved waveforms provide the inputs for independently reconstructing observations.
 
-| Metric | Definition | Unit | Acceptance | Zero-score boundaries | Dimension |
-| --- | --- | --- | --- | --- | --- |
-| `rising_input` | Interpolated VINP at the first rising VOUT = 1.65 V crossing | V | 1.67 to 1.72 | <= 1.6 or >= 1.8 | response |
-| `falling_input` | Interpolated VINP at the first falling VOUT = 1.65 V crossing | V | 1.65 to 1.71 | <= 1.55 or >= 1.8 | response |
-| `hysteresis_v` | Rising-input threshold minus falling-input threshold | V | 0.008 to 0.02 | <= 0 or >= 0.05 | response |
-| `mean_power_w` | Time-average -V(vdd)*I(VDD) over the full 0–2.3 ms transient | W | 0 to 0.00065 | < 0 or >= 0.0013 | supply |
-| `low_v` | Maximum VOUT over 0.02–0.08 ms | V | 0 to 0.1 | < 0 or >= 0.8 | response |
-| `high_v` | Minimum VOUT over 1.12–1.18 ms | V | 3.2 to 3.31 | <= 2.5 or >= 3.5 | response |
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-Scoring is `S = G * (60*E + 20*H + 20*H*Q)`. `G` requires passing physical
-checks and complete extraction/measurements. `E` averages the applicable
-response, bias and supply dimensions, each using its worst observation's
-attainment. Attainment is 1 inside a band and falls linearly to its zero
-boundary. `H` is 1 only when every electrical requirement passes.
-`Q = clip((260000 - area_um2)/(260000 - 65000), 0, 1)` uses fixed absolute area
-budgets. Physical rejection scores 0; blocking evaluator errors produce no
-score. The coefficient is 5; it describes the circuit's required capability,
-not its source device count or observed model performance.
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `rising_input` | Interpolated VINP at the first rising VOUT = 1.65 V crossing | V | target / target | 0 … 3.3 | 3.3 |
+| `falling_input` | Interpolated VINP at the first falling VOUT = 1.65 V crossing | V | target / target | 0 … 3.3 | 3.3 |
+| `hysteresis_v` | Rising-input threshold minus falling-input threshold | V | target / target | 0 … 3.3 | 3.3 |
+| `mean_power_w` | Time-average -V(vdd)*I(VDD) over the full 0–2.3 ms transient | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `low_v` | Maximum VOUT over 0.02–0.08 ms | V | functional check | 0 … 0.1 | — |
+| `high_v` | Minimum VOUT over 1.12–1.18 ms | V | functional check | 3.2 … 3.31 | — |
+
+Area reference: **8386.58 um2**. 31 expanded device instances; sum of device/contact envelopes 5392.5600 um2, per-side envelope allowance 1 um, 50% routing allowance and outer margin 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **5**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Use the reviewed GF180 resources listed in `/protocol/resources.json`.
 KLayout checks the layout, Magic extracts RC and ngspice simulates the circuit.
@@ -79,3 +101,5 @@ KLayout checks the layout, Magic extracts RC and ngspice simulates the circuit.
 exposed, use its published helper for interim checks. Write
 `/workspace/output/final.gds`, then explicitly submit with
 `python -I /protocol/submit.py`.
+
+Use a GDS database unit of 0.001 um, as required by the GF180MCU DRC deck.

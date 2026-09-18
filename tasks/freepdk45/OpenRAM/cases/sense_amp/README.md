@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # Clocked SRAM Sense Amplifier
 
@@ -20,77 +20,74 @@ Six overlapping duplicate contacts are removed; transistor and active geometry a
 | [Collection LICENSE](../../LICENSE), [NOTICE](../../NOTICE) | Collection distribution terms; excluded from solver inputs |
 | [reference/sense_amp.gds](reference/sense_amp.gds) | Passing feasibility witness, excluded from standard solver inputs |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The schematic depicts the authoritative netlist used by both simulation paths.
+
 ## Reference Results
 
-Conditions: **1.0 V, 27 C, nominal FreePDK45 BSIM4**; use the problem's loads and
-stimuli. Tool scope: KLayout 0.30.11, Magic 8.3.678 and ngspice 42 from the shared
-Dockerfile. The witness has zero reported DRC violations with all implemented
-checks enabled, no waivers, strict named-port LVS and explicit body connections.
-The reference GDS DBU is **0.0005 um**.
-Its RC network also matches the source transistor graph after removing capacitors
-and shorting parasitic resistors. Simulation consumes the original RC network,
-including extracted junction geometry; this explains differences from the source
-netlist, which omits layout junction areas and wire parasitics.
+FreePDK45 resources come from the pinned community installation, with the
+explicit Magic model, marker and length-unit adaptations described in the tools guide.
+Parasitics use the community technology's estimated coefficients.
+See [resource preparation](../../../../../docs/tools.md) and the process manifest
+for source pins, scope and reproducible preparation.
 
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| `functional_area` | um2 | N/A | 3.785875 |
-| `low` | V | 2.338873e-05 | 9.313756e-05 |
-| `high` | V | 0.999996 | 0.9999945 |
-| `supply` | W | 1.395456e-06 | 1.694263e-06 |
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-All electrical requirements pass. Reference score: **100/100**.
-The absolute area target is **3.8 um2**, a rounded feasible
-compact envelope witnessed by this **3.785875 um2** layout. The fixed zero-utility
-anchor is **7.6 um2**, allowing additional functional routing
-before area utility vanishes. These anchors are frozen absolute requirements;
-the evaluator never divides by a reference layout area.
+Measured `layout-v2` score: **60.085605**, with electrical quality
+**E = 0.48468328** and area quality **Q = 0.74487404**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **3.785875 um2**.
 
-Electrical thresholds express rail-valid logic or read margin at fixed deadlines
-and a nominal supply budget. Zero boundaries distinguish an indeterminate logic
-level (0.5 V), absent bitline differential (0 V), or excessive power (five times
-the accepted budget). The response and supply dimensions each use their worst observation.
+Area reference: **2.82 um2**. 7 expanded device instances; sum of device/contact envelopes 1.4529 um2, per-side envelope allowance 0.12 um, 50% routing allowance and outer margin 0.24 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-The reference regression evaluates the supplied GDS against the case's public
-acceptance conditions and verifies that an empty candidate is rejected. It does
-not prescribe a reference score or construct circuit-specific geometry variants.
-Scope excludes PVT, mismatch, array abutment and substrate-noise qualification;
-the open DRC deck and predictive RC fit are not foundry signoff.
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `low` | V | 2.338873e-05 | 0.051367 | functional |
+| `high` | V | 0.999996 | 0.9995819 | functional |
+| `supply` | W | 1.395456e-06 | 2.031112e-06 | 0.68704055 |
+| `decision_delay_fall` | s | 1.248627e-11 | 3.651733e-11 | 0.34192724 |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
+
+Capability coefficient: **5** for the fixed circuit and its declared functional scope.
 
 ## Reproduce
 
-Prepare the image and resources using the
-[tools guide](../../../../../docs/tools.md#freepdk45). From the repository root,
-choose a fresh output directory:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.cli evaluate \
-  tasks/freepdk45/OpenRAM/cases/sense_amp/case.toml \
-  tasks/freepdk45/OpenRAM/cases/sense_amp/reference/sense_amp.gds \
-  --output build/runs/freepdk45-sense_amp-reference-evaluation
-uv run --locked --group eda pytest tests/integration/test_public_references.py \
-  -k sense_amp
+python -m benchmarking.engine.preview prepare \
+  --case freepdk45.OpenRAM.sense_amp --image iclayout-bench-tools:local \
+  --output build/runs/sense_amp-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/sense_amp-prepared \
+  --output build/runs/sense_amp-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'sense_amp'
 ```
 
-The evaluation command generates `report.json`, native reports, extracted netlists
-and simulation evidence under the selected run directory. The regression creates
-fresh temporary directories and prepares resources from the case's PDK profiles.
-It uses the same catalog-driven workflow for every process and circuit.
-
-To reproduce the Pre-layout column, use the shared
-[source-calibration recipe](../../../../../docs/tools.md#gf180-source-calibration)
-with `tasks/freepdk45/OpenRAM/cases/sense_amp/case.toml` and a fresh output directory such as
-`build/runs/freepdk45-sense_amp-source-calibration`. The recipe selects this
-case's authoritative SPICE netlist, retains every simulation condition and
-measurement, and produces an unscored characterization report. Compare its
-measurements with the Pre-layout column above; the GDS evaluation produces the
-Post-layout column.
-
-The distributed reference GDS is ready to use. Input consistency and actual
-reference acceptance support this case's qualified status. Shared evaluator
-regressions cover common rejection and scoring behavior; new extraction or
-judging capabilities require targeted validation under the
-[task guide](../../../../../docs/tasks.md#qualification).
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

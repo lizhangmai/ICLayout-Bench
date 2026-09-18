@@ -4,7 +4,22 @@ id = "gf180mcuD.analog-db.cmp_001_hyst_diffpair"
 title = "Resistive-Feedback Hysteretic Comparator"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "7eb7d20c428af43aeff483fbcc988e42c6e352d231890f669f9ff383c94e4499"
+
+[[assets]]
+path = "reference/cmp_001_hyst_diffpair.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "7afff35caa5ea847d445950d7d0e6336b255a69806944f3c45bf101cb6e29c22"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "gf180_resistive_hysteretic_comparator"
 coefficient = 5
@@ -13,7 +28,7 @@ environment = "gf180mcuD-typical-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "7d85f29d95e0367a0534ff82b02e12a68762e14ab08c11af45d3110928850726"
+sha256 = "c616f1d73bb94ec177ccd4089c0e9492d9000e8249799c2f674d8d445f2284d0"
 
 [task.inputs.netlist]
 path = "materials/circuit.spice"
@@ -42,18 +57,386 @@ quality = [
 id = "outline"
 type = "bbox_max"
 functional_layers = [
-  [5, 0], [11, 17], [11, 39], [12, 0], [13, 17], [21, 0], [22, 0], [22, 4],
-  [24, 0], [24, 5], [30, 0], [30, 4], [31, 0], [32, 0], [33, 0], [34, 0],
-  [34, 3], [34, 4], [34, 5], [35, 0], [36, 0], [36, 3], [36, 4], [36, 5],
-  [37, 0], [38, 0], [40, 0], [41, 0], [42, 0], [42, 3], [42, 4], [42, 5],
-  [46, 0], [46, 3], [46, 4], [46, 5], [49, 0], [53, 0], [53, 3], [53, 4],
-  [53, 5], [55, 0], [62, 0], [75, 0], [80, 5], [81, 0], [81, 3], [81, 4],
-  [81, 5], [82, 0], [86, 17], [88, 17], [96, 1], [100, 5], [100, 7], [100, 8],
-  [108, 5], [110, 5], [110, 11], [110, 12], [110, 13], [110, 14], [110, 15], [110, 16],
-  [111, 5], [112, 1], [115, 5], [116, 5], [117, 5], [117, 10], [118, 5], [119, 5],
-  [122, 5], [123, 5], [124, 5], [125, 5], [127, 5], [128, 17], [137, 5], [151, 5],
-  [152, 5], [153, 51], [166, 5], [167, 5], [173, 5], [178, 0], [183, 0], [184, 0],
-  [185, 0], [204, 0], [210, 0], [220, 0], [226, 0], [227, 0], [241, 0],
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
 ]
 max_width_um = 1300
 max_height_um = 200
@@ -226,6 +609,84 @@ high_v = "V"
 [task.evaluation.jobs.parameters.exports]
 transient = "transient.raw"
 
+[[task.evaluation.jobs]]
+id = "source_condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-12
+
+[task.evaluation.jobs.parameters.measurements]
+rising_input = "V"
+falling_input = "V"
+hysteresis_v = "V"
+mean_power_w = "W"
+low_v = "V"
+high_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 5e-12
+
+[task.evaluation.jobs.parameters.measurements]
+rising_input = "V"
+falling_input = "V"
+hysteresis_v = "V"
+mean_power_w = "W"
+low_v = "V"
+high_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-11
+
+[task.evaluation.jobs.parameters.measurements]
+rising_input = "V"
+falling_input = "V"
+hysteresis_v = "V"
+mean_power_w = "W"
+low_v = "V"
+high_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -248,10 +709,15 @@ unit = "V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 1.67
-zero_lower = 1.6
-upper = 1.72
-zero_upper = 1.8
+baseline = [
+    "source_condition_0:rising_input",
+    "source_condition_1:rising_input",
+    "source_condition_2:rising_input",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "falling_input"
@@ -265,10 +731,15 @@ unit = "V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 1.65
-zero_lower = 1.55
-upper = 1.71
-zero_upper = 1.8
+baseline = [
+    "source_condition_0:falling_input",
+    "source_condition_1:falling_input",
+    "source_condition_2:falling_input",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "hysteresis_v"
@@ -282,10 +753,15 @@ unit = "V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 0.008
-zero_lower = 0
-upper = 0.02
-zero_upper = 0.05
+baseline = [
+    "source_condition_0:hysteresis_v",
+    "source_condition_1:hysteresis_v",
+    "source_condition_2:hysteresis_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "mean_power_w"
@@ -299,10 +775,14 @@ unit = "W"
 dimension = "supply"
 direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:mean_power_w",
+    "source_condition_1:mean_power_w",
+    "source_condition_2:mean_power_w",
+]
+normalization = "ratio"
 lower = 0
-zero_lower = 0
-upper = 0.00065
-zero_upper = 0.0013
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "low_v"
@@ -313,13 +793,10 @@ observations = [
     "condition_2:low_v",
 ]
 unit = "V"
-dimension = "response"
 direction = "minimize"
 aggregation = "max"
 lower = 0
-zero_lower = 0
 upper = 0.1
-zero_upper = 0.8
 
 [[task.evaluation.metrics]]
 id = "high_v"
@@ -330,19 +807,15 @@ observations = [
     "condition_2:high_v",
 ]
 unit = "V"
-dimension = "response"
 direction = "target"
 aggregation = "max"
 lower = 3.2
-zero_lower = 2.5
 upper = 3.31
-zero_upper = 3.5
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 65000
-area_zero = 260000
+area_target = 8386.58
 
 [toolchain]
 schema_version = 1
@@ -376,7 +849,7 @@ image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 180
 support = "build/support/gf180-physical-v2"
-profile = "lvs-vss.json"
+profile = "lvs.json"
 
 [toolchain.backends.lvs.support_profiles]
 support = "physical"
@@ -426,13 +899,6 @@ support = "models"
 
 [origin]
 url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/cmp_001_hyst_diffpair"
-
-[[assets]]
-path = "reference/cmp_001_hyst_diffpair.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "ba09b4cb2633fa1a6f6abaac50be7b8e2fd7c685faeb38626e0eb3bbaa69173a"
 
 [qualification]
 reference = "reference/cmp_001_hyst_diffpair.gds"

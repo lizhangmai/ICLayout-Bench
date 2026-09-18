@@ -13,6 +13,9 @@ Cl dout 0 .5f
 .meas tran high find v(dout) at=1610p
 .meas tran supply avg par('-v(vdd)*i(Vdd)') from=0 to=2n
 
+.meas tran decision_delay_fall trig v(sclk) val=.5 rise=1 td=0.5n targ v(dout) val=.5 fall=1 td=0.5n
+
+
 .control
 run
 write waveform.raw v(bl) v(br) v(dout) v(sclk) v(vdd) i(Vdd)

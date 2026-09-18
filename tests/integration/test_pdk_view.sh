@@ -5,13 +5,13 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${repo_root}"
 test_tmp="$(mktemp -d "${TMPDIR:-/tmp}/iclayout-bench-pdk.XXXXXX")"
 trap 'rm -rf "${test_tmp}"' EXIT
-uv run --project ../ICLayout-Bench --locked python -m layout_eval.environment ../ICLayout-Bench/third_party/IHP-Open-PDK "${test_tmp}/pdk"
+uv run --project ../ICLayout-Bench --locked python -m benchmarking.engine.environment tasks/ihp-sg13g2/pdk.toml "${test_tmp}/pdk"
 docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
     --memory 1g --cpus 1 --pids-limit 64 -i \
     --mount "type=bind,src=${test_tmp}/pdk,dst=/pdk,readonly" \
     -e PYTHONDONTWRITEBYTECODE=1 -e KLAYOUT=1 \
     -e PYTHONPATH=/pdk/ihp-sg13g2/libs.tech/klayout/python:/pdk/ihp-sg13g2/libs.tech/klayout/python/pycell4klayout-api/source/python \
-    iclayout-bench-tools:local python - <<'PY'
+    "${ICLAYOUT_BENCH_TEST_IMAGE:-iclayout-bench-tools:local}" python - <<'PY'
 import pya
 import sg13g2_pycell_lib
 

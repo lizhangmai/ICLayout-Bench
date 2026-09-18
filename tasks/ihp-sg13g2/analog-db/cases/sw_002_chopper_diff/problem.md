@@ -27,21 +27,51 @@ Every scored simulation consumes the submitted GDS-derived distributed wiring RC
 
 All 4 operating conditions must complete. Every finite observation must meet its inclusive band; aggregation cannot hide a failing condition. Missing measurements/crossings or incomplete extraction do not establish success.
 
-| Metric | Definition | Unit | Acceptance | Zero-score boundaries | Dimension |
-| --- | --- | --- | --- | --- | --- |
-| `ron_p` | Absolute (selected positive-output input minus V(vb_p)) / current through its 10 kohm load | ohm | 0 to 1600 | < 0 or >= 3200 | response |
-| `ron_n` | Absolute (selected negative-output input minus V(vb_n)) / current through its 10 kohm load | ohm | 0 to 1600 | < 0 or >= 3200 | response |
-| `transfer` | DC output differential divided by the selected signed input differential | V/V | 0.88 to 1 | <= 0 or >= 1.2 | response |
-| `common_error_v` | Absolute DC output common-mode minus 0.75 V | V | 0 to 0.003 | < 0 or >= 0.02 | bias |
-| `straight_gain` | Output differential / input differential at 4 us | V/V | 0.88 to 1 | <= 0 or >= 1.2 | response |
-| `crossed_gain` | Output differential / input differential at 9 us | V/V | -1 to -0.88 | <= -1.2 or >= 0 | response |
-| `common_glitch_v` | Maximum absolute output common-mode minus 0.75 V over 1–1.1 us with equal inputs | V | 0 to 0.002 | < 0 or >= 0.02 | response |
-| `differential_glitch_v` | Maximum absolute output differential over 1–1.1 us with equal inputs | V | 0 to 0.003 | < 0 or >= 0.03 | response |
-| `input_charge_c` | Absolute integral of I(VAP)+I(VAN) over 1–1.1 us with equal inputs | C | 0 to 3e-15 | < 0 or >= 3e-14 | response |
-| `clock_power_w` | Average positive supplied power from both clock sources over 2–12 us with equal inputs; returned energy is not credited | W | 0 to 1e-08 | < 0 or >= 2e-08 | supply |
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-The unified score is `S = G * (60*E + 20*H + 20*H*Q)`. `G` requires physical validity and complete extraction/measurements. `E` averages applicable response, bias and supply dimensions, each using its worst observation's attainment. Attainment is 1 inside its band and decreases linearly to its zero boundary. `H` is 1 only when all electrical limits pass. `Q = clip((10000 - area_um2)/(10000 - 2500), 0, 1)`. The fixed absolute area target is 2500 um2 and zero utility is 10000 um2. Physical rejection scores 0; blocking evaluator errors have no score. Coefficient: 5.
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `ron_p` | Absolute (selected positive-output input minus V(vb_p)) / current through its 10 kohm load | ohm | minimize / ratio | 0 … +∞ | 1e-06 |
+| `ron_n` | Absolute (selected negative-output input minus V(vb_n)) / current through its 10 kohm load | ohm | minimize / ratio | 0 … +∞ | 1e-06 |
+| `transfer` | DC output differential divided by the selected signed input differential | V/V | target / target | −∞ … +∞ | 1.0 |
+| `common_error_v` | Absolute DC output common-mode minus 0.75 V | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `straight_gain` | Output differential / input differential at 4 us | V/V | target / target | −∞ … +∞ | 1.0 |
+| `crossed_gain` | Output differential / input differential at 9 us | V/V | target / target | −∞ … +∞ | 1.0 |
+| `common_glitch_v` | Maximum absolute output common-mode minus 0.75 V over 1–1.1 us with equal inputs | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `differential_glitch_v` | Maximum absolute output differential over 1–1.1 us with equal inputs | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `input_charge_c` | Absolute integral of I(VAP)+I(VAN) over 1–1.1 us with equal inputs | C | minimize / ratio | 0 … +∞ | 1e-21 |
+| `clock_power_w` | Average positive supplied power from both clock sources over 2–12 us with equal inputs; returned energy is not credited | W | minimize / ratio | 0 … +∞ | 1e-12 |
+
+Area reference: **459.68 um2**. 10 expanded device instances; sum of device/contact envelopes 278.7760 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **5**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Use reviewed resources from `/protocol/resources.json`. KLayout checks, Magic extracts RC, and ngspice simulates. Frozen constraints and requirements are in `/protocol/task.json`; `/protocol/harness.json` describes the harness. If available, use the published `process-feedback.v1` helper for interim checks. Write `/workspace/output/final.gds` and explicitly submit using `python -I /protocol/submit.py`.

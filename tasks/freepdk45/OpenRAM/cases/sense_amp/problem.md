@@ -26,18 +26,48 @@ Translation, equivalent hierarchy and internal instance renaming are allowed. LV
 
 ## Electrical Requirements and Scoring
 
-Artifact, DRC, LVS and geometry gates precede candidate GDS extraction. Simulation consumes the candidate's Magic RC netlist unchanged; source simulation is calibration only. VTG/VTL device classes are checked by independent LVS before the matching extraction profile is used. Extraction includes poly/metal sheet resistance, contacts/vias, geometry-dependent coupling and ground capacitance, and device junction area/perimeter. Wells are lumped connections; BSIM4 supplies device/junction behavior. Interconnect capacitances use published FreePDK45 ElCap table fits and dielectric overlap terms with Magic's native capacitance placement; this is a predictive approximation, not a field-solver signoff extraction.
+Artifact, DRC, LVS and geometry gates precede candidate GDS extraction. Simulation consumes the candidate's Magic RC netlist unchanged; source simulation supplies the independent scoring baseline. VTG/VTL device classes are checked by independent LVS before the matching extraction profile is used. Extraction includes poly/metal sheet resistance, contacts/vias, geometry-dependent coupling and ground capacitance, and device junction area/perimeter. Wells are lumped connections; BSIM4 supplies device/junction behavior. Interconnect resistance and capacitance use the pinned community FreePDK45 Magic technology's estimated coefficients and native capacitance placement. The extraction adapter binds VTG/VTL models, preserves annotation layers and corrects the technology's dimensional unit conversion. This is a predictive approximation without field-solver signoff accuracy.
 
-Every observation must meet its inclusive bounds. Supply power is in W and voltages are in V. Timing requirements are defined as output or differential voltage at a fixed deadline, so a missing transition remains a measurable failure.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-| Metric | Native ngspice observation | Unit | Acceptance | Zero-score boundaries | Dimension |
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
 | --- | --- | --- | --- | --- | --- |
-| `low` | `find v(dout) at=610p` | V | value <= 0.1 | upper: 0.5 | response |
-| `high` | `find v(dout) at=1610p` | V | 0.9 <= value | lower: 0.5 | response |
-| `supply` | `avg par('-v(vdd)*i(Vdd)') from=0 to=2n` | W | 0 <= value <= 1e-05 | lower: 0, upper: 5e-05 | supply |
+| `low` | `find v(dout) at=610p` | V | functional check | −∞ … 0.1 | — |
+| `high` | `find v(dout) at=1610p` | V | functional check | 0.9 … +∞ | — |
+| `supply` | `avg par('-v(vdd)*i(Vdd)') from=0 to=2n` | W | minimize / ratio | 0 … +∞ | 1e-12 |
 
-Use the unified score `S = G * (60*E + 20*H + 20*H*Q)`. G requires all validity gates and complete, valid evaluation; H requires every electrical bound. E averages the applicable response and supply attainments; each dimension uses its worst observation, with linear interpolation to the zero boundaries above. Area utility is `Q = clip((7.6 - area) / (7.6 - 3.8), 0, 1)` using absolute um2 anchors. Electrical acceptance earns 80–100 points; a physical pass with an electrical failure earns less than 60; conclusive invalidity earns zero. Evaluator errors give a null score when no independent validity rejection is established. Coefficient: **5**.
+| `decision_delay_fall` | SCLK 50% to Dout 50% decision delay; see testbench window. | s | minimize / ratio | 0.0 … +∞ | — |
+
+Area reference: **2.82 um2**. 7 expanded device instances; sum of device/contact envelopes 1.4529 um2, per-side envelope allowance 0.12 um, 50% routing allowance and outer margin 0.24 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **5**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
 
-Use the reviewed FreePDK45 KLayout, Magic and ngspice resources from `/protocol/resources.json`. Runtime `/protocol/task.json` publishes the same constraints, measurements and scoring. Only declared inputs appear under `/task`. Write `/workspace/output/final.gds`, then explicitly submit with `python -I /protocol/submit.py`. A harness that declares `process-feedback.v1` uses the same frozen plan and backend identities for process checks; those snapshots do not count as final submissions.
+Solve budget: **3 hours**.
+
+Use the reviewed FreePDK45 KLayout, Magic and ngspice resources from `/protocol/resources.json`. For Magic RC extraction, use `/resources/support/magic-vtg/freepdk45.tech`, which includes the required model and unit adaptations. Runtime `/protocol/task.json` publishes the same constraints, measurements and scoring. Only declared inputs appear under `/task`. Write `/workspace/output/final.gds`, then explicitly submit with `python -I /protocol/submit.py`. A harness that declares `process-feedback.v1` uses the same frozen plan and backend identities for process checks; those snapshots do not count as final submissions.

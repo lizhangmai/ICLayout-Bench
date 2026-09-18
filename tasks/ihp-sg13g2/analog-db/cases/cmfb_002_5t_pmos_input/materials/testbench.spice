@@ -1,0 +1,58 @@
+* Independently authored Bench measurements; SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include dut.spice
+.include parameters.spice
+.temp 27
+.options reltol=1e-6 abstol=1e-13 vntol=1e-9
+VDD vdd 0 1.5
+VSS vss 0 0
+VCM cm 0 dc {common_v} ac {ac_cm} pulse({common_v} {common_v+step_cm} 20u 100n 100n 40u 200u)
+VDIFF diff 0 dc 0 ac {ac_diff} pulse(0 {step_diff} 20u 100n 100n 40u 200u)
+EP vinp 0 POLY(2) cm 0 diff 0 0 1 .5
+EN vinn 0 POLY(2) cm 0 diff 0 0 1 -.5
+VREF vref 0 dc {common_v} ac {ac_ref} pulse({common_v} {common_v+step_ref} 20u 100n 100n 40u 200u)
+CL vcmfb 0 1p
+RL vcmfb cm 10Meg
+XDUT vinp vinn vcmfb vref vdd vss cmfb_002_5t_pmos_input
+.control
+set numdgt=15
+set measdgt=15
+op
+let output_v=v(vcmfb)
+let power_w=-v(vdd)*i(vdd)
+print output_v power_w
+write op.raw all
+let center=v(cm)
+let lower=center-.001
+let upper=center+.001
+ac dec 100 1 100Meg
+let signed=real(v(vcmfb))
+let response=mag(v(vcmfb))
+meas ac signed_gain find signed at=1
+meas ac gain_1khz find response at=1k
+meas ac gain_100khz find response at=100k
+write ac.raw all
+dc VCM $&op1.lower $&op1.upper .0001
+let cm_low=v(vcmfb)[0]
+let cm_high=v(vcmfb)[length(v(vcmfb))-1]
+let dc_cm_slope=(cm_high-cm_low)/.002
+print dc_cm_slope
+write cm_dc.raw all
+dc VREF $&op1.lower $&op1.upper .0001
+let ref_low=v(vcmfb)[0]
+let ref_high=v(vcmfb)[length(v(vcmfb))-1]
+let dc_ref_slope=(ref_high-ref_low)/.002
+print dc_ref_slope
+write ref_dc.raw all
+tran 20n 100u 0 20n
+meas tran quiet_v avg v(vcmfb) from=10u to=20u
+meas tran high_v avg v(vcmfb) from=50u to=60u
+meas tran recovery_v avg v(vcmfb) from=90u to=100u
+meas tran ripple_v pp v(vcmfb) from=90u to=100u
+let step_response_v=high_v-quiet_v
+print step_response_v
+write transient.raw all
+quit
+.endc
+.end

@@ -22,81 +22,71 @@ differential-input settings in [problem.md](problem.md).
 | [Collection LICENSE](../../LICENSE) | Collection distribution terms; excluded from solver inputs |
 | [reference/DIFF_COMPARATOR.gds](reference/DIFF_COMPARATOR.gds) | Passing feasibility witness, excluded from standard solver inputs |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The authoritative netlist, simulation decks and evaluation requirements are unchanged.
+
 ## Reference Results
 
-The reference GDS passes artifact, DRC, strict named-port LVS, functional
-geometry, candidate-derived RC extraction, and post-layout simulation. The
-table reports the pre-layout simulator netlist and the extracted reference after
-layout; performance values are worst-case over the four differential-input
-settings.
+Reference results use the pinned IHP SG13G2 ciel release described in
+[resource preparation](../../../../../docs/tools.md#ihp-physical-check-profiles).
 
-| Metric | Unit | Pre-layout | Post-layout |
-|---|---|---:|---:|
-| Functional area | µm² | — | 1,662.396 |
-| Task score (`layout-v1`) | points / 100 | — | 100 |
-| Worst decision delay | ns | 1.872 | 2.542 |
-| Minimum decision margin | V | 1.199971 | 1.198178 |
-| Maximum average supply power | µW | 58.152 | 64.153 |
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-The post-layout values satisfy every individual cycle and operating-point limit
-in [problem.md](problem.md#electrical-requirements-and-scoring). The extracted
-RC model uses a compact-device body boundary with ideal model rails; explicit
-taps are still checked by LVS. Well/substrate sheet resistance, body coupling,
-and noise are outside this qualification scope. The finite-source-tap versus
-ideal-body calibration changes pre-layout delay by at most 8.4 × 10⁻¹⁴ s
-and average supply power by at most 1.85 × 10⁻⁹ W; margin is unchanged at printed
-precision.
+Measured `layout-v2` score: **49.648076**, with electrical quality
+**E = 0.81471533** and area quality **Q = 0.30255126**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **1662.396 um2**.
 
-The `layout-v1` scoring boundaries are published in
-[problem.md](problem.md#electrical-requirements-and-scoring). Response zero
-anchors describe loss of useful response; bias and supply anchors define the
-outer grading ranges around the intended operating point and budget. These
-are explicit grading choices, with the acceptance limits checked separately.
-The fixed absolute area target is a feasible envelope demonstrated by the
-reference layout, rather than a ratio to the reference or a claim of optimality.
+Area reference: **502.96 um2**. 24 expanded device instances; sum of device/contact envelopes 306.3377 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-The regression checks acceptance, waveform measurements, input rejection and
-permitted equivalent transformations. Common evaluator tests verify area utility
-against independently chosen synthetic values. Input consistency and actual
-reference acceptance support this case’s `qualified` status. A separate area
-variant is not required for each case.
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `worst_delay` | s | 1.779459e-09 … 1.871706e-09 | 2.163719e-09 … 2.541667e-09 | 0.73640882 |
+| `decision_margin` | V | 1.199971 … 1.199985 | 1.198178 … 1.199435 | functional |
+| `supply_power` | W | 5.667991e-05 … 5.815247e-05 | 6.009035e-05 … 6.415317e-05 | 0.9013486 |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
 
 Coefficient 6 reflects clocked input sensing and regenerative decision stages,
 whose interconnect parasitics affect loaded decision delay and margin.
 
 ## Reproduce
 
-These operator commands require the installed `ICLayout-Bench-Private` package.
-Run preparation from the Public checkout; run any `tests/integration/` commands
-from the Private checkout using that environment.
-
-Prepare the image and PDK resources using the shared
-[tools guide](../../../../../docs/tools.md#manual-tools). Run from the repository
-root and choose a fresh output directory for each reproduction:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.preview prepare \
-  --case comparator \
-  --output build/runs/public-preview-comparator-01/prepared \
-  --image iclayout-bench-tools:local
-python -m layout_eval.preview run \
-  --prepared build/runs/public-preview-comparator-01/prepared \
-  --output build/runs/public-preview-comparator-01/run
+python -m benchmarking.engine.preview prepare \
+  --case module_3_8_bit_SAR_ADC.part_5_analog_layout.comparator --image iclayout-bench-tools:local \
+  --output build/runs/comparator-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/comparator-prepared \
+  --output build/runs/comparator-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'comparator'
 ```
 
-These commands generate the reference evaluation report at
-`build/runs/public-preview-comparator-01/run/reference/report.json`.
-To reproduce pre-layout/post-layout calibration and the reference acceptance
-regressions, run:
-
-```bash
-python -m pytest -m acceptance_eda \
-  tests/integration/test_comparator.py
-```
-
-The tests create fresh temporary output directories. Reference layouts and
-results are available for reproduction and are excluded from standard solver
-inputs.
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

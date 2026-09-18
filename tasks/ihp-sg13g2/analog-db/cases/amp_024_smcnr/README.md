@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # Series-Nulling-Resistor Two-Stage OTA
 
@@ -33,141 +33,80 @@ Only the problem and three materials files are solver inputs. Collection
 licenses/notices accompany distributions separately from solver materialization.
 No upstream layout, generator, DSL, tuning history or scoreboard is required.
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The authoritative netlist, simulation decks and evaluation requirements are unchanged.
+
 ## Reference Results
 
-The reference passes native main/maximal DRC without waivers, strict named-port
-LVS, functional geometry, candidate RC extraction and all electrical bounds.
-Its functional bounding-box area is 36886.7985000 um², with a score of 100. Absolute
-area anchors are 38000/152000 um²: the target accommodates the independently
-constructed 27-MOS witness, two MIM units, four poly segments, taps and complete
-routing. They remain fixed when a witness changes. Coefficient 7 reflects the
+Reference results use the pinned IHP SG13G2 ciel release described in
+[resource preparation](../../../../../docs/tools.md#ihp-physical-check-profiles).
+
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
+
+Measured `layout-v2` score: **39.854811**, with electrical quality
+**E = 0.99817898** and area quality **Q = 0.15913037**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **36886.7985 um2**.
+
+Area reference: **5869.81 um2**. 35 expanded device instances; sum of device/contact envelopes 3813.4378 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `output_v` | V | 0.49990888 | 0.49991164 | 0.9999977 |
+| `bias_v` | V | 0.58972819 | 0.58968053 | 0.99996029 |
+| `power_w` | W | 1.55793e-06 | 1.5580081e-06 | 0.99994986 |
+| `dc_gain_db` | dB | 69.28808 | 69.2781 | 0.99885167 |
+| `unity_hz` | Hz | 123342.7 … 165259.3 | 122410.5 … 164094.7 | 0.99209841 |
+| `phase_margin_deg` | deg | 45.1515 … 71.4584 | 44.7027 … 70.6319 | 0.99542932 |
+| `recovery_up_v` | V | 6.292729e-05 … 6.619118e-05 | 6.637927e-05 … 7.01806e-05 | 0.94395355 |
+| `recovery_down_v` | V | 9.112525e-05 … 9.129919e-05 | 8.836366e-05 … 8.85765e-05 | 1.0303951 |
+| `step_gain` | V/V | 1.00077 | 1.000774 | 0.999996 |
+| `mean_power_w` | W | 1.532992e-06 … 1.533232e-06 | 1.533066e-06 … 1.533308e-06 | 0.99995043 |
+| `peak_v` | V | 0.7012933 … 0.769071 | 0.7021363 … 0.7699192 | 0.99882455 |
+| `trough_v` | V | 0.4816025 … 0.4997009 | 0.4808844 … 0.4994896 | 0.99940194 |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
+
+Coefficient 7 reflects the
 coupled compensation, stability and closed-loop response requirements.
-
-The table reports ranges across 5/10/20 pF; identical values are shown once.
-Power is VDD-supplied power, including the on-chip bias mirror but excluding
-external bias-generator overhead. See the problem for every window and limit.
-
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| `output_v` | V | 0.4999089 | 0.4999116 |
-| `bias_v` | V | 0.5897282 | 0.5896805 |
-| `power_w` | W | 1.55793e-06 | 1.558008e-06 |
-| `dc_gain_db` | dB | 69.28808 | 69.2781 |
-| `unity_hz` | Hz | 123342.7–165259.3 | 122410.5–164094.7 |
-| `phase_margin_deg` | deg | 45.1515–71.4584 | 44.7027–70.6319 |
-| `recovery_up_v` | V | 6.292729e-05–6.619118e-05 | 6.637928e-05–7.018053e-05 |
-| `recovery_down_v` | V | 9.112525e-05–9.129919e-05 | 8.836365e-05–8.857658e-05 |
-| `step_gain` | V/V | 1.00077 | 1.000774 |
-| `mean_power_w` | W | 1.532992e-06–1.533232e-06 | 1.533066e-06–1.533308e-06 |
-| `peak_v` | V | 0.7012933–0.769071 | 0.7021363–0.7699192 |
-| `trough_v` | V | 0.4816025–0.4997009 | 0.4808844–0.4994896 |
-
-Post-layout unity frequencies are 164.095/148.157/122.411 kHz and phase margins
-70.632/58.142/44.703 degrees in load order. Recovery is maximum absolute
-tracking error over sustained windows approximately 30 us after each edge,
-not the first crossing of a tolerance band. The peak/trough bounds separately
-limit the intervening excursion.
-
-The candidate RC graph retains all 27 MOS, two physical MIM units and four
-physical resistor segments. Removing only parasitic capacitors, collapsing
-interconnect resistors and applying the declared ideal-tap boundary yields
-the source device graph with distinct supply and return. Native LVS additionally
-checks physical taps and device dimensions. Magic idealizes well/substrate
-ties; source simulation retains finite tap models. Distributed substrate
-resistance/noise is unqualified. The `analog-res-models` resource profile adds
-the already pinned R3_CMC OSDI resistor model to MOS/MIM support; it changes no
-runner, scorer, extraction rule or existing case profile.
-
-At all three loads, halving maximum transient step from 50 to 25 ns changes
-peak/trough by at most 26 uV and the recovery-window error by less than 0.04 uV.
-A separate check tightens reltol/abstol/vntol tenfold, raises the numerical
-shunt from 1e12 to 1e13 ohm, and doubles AC sampling to 300 points/decade.
-It changes unity frequency by less than 0.02%, phase margin by less than
-0.002 degrees, DC output by less than 3 uV and recovery error by less than
-4 uV. Every declared bound remains satisfied. These checks establish this
-measurement scope, not universal numerical accuracy.
 
 ## Reproduce
 
-These operator commands require the installed `ICLayout-Bench-Private` package.
-Run preparation from the Public checkout; run any `tests/integration/` commands
-from the Private checkout using that environment.
-
-Run from the repository root with the [shared tool setup](../../../../../docs/tools.md#manual-tools).
-Reuse verified bundles or prepare them in new destinations. The new combined
-model profile is required for physical high-poly resistance:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.preview prepare \
-  --case amp_024_smcnr --image iclayout-bench-tools:local \
-  --output build/runs/smcnr-prepared
-python -m layout_eval.preview run \
-  --prepared build/runs/smcnr-prepared --output build/runs/smcnr-reference
+python -m benchmarking.engine.preview prepare \
+  --case ihp-sg13g2.analog-db.amp_024_smcnr --image iclayout-bench-tools:local \
+  --output build/runs/amp_024_smcnr-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/amp_024_smcnr-prepared \
+  --output build/runs/amp_024_smcnr-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'amp_024_smcnr'
 ```
 
-Preview preparation assembles all declared profiles, including the combined
-resistor model support. These commands create
-the reader's own reports, extraction and waveforms, rather than retrieving a
-maintainer run directory. Use fresh output paths. Reference/empty-layout regression:
-
-```bash
-python -m pytest tests/integration/test_public_references.py \
-  -k amp_024_smcnr
-```
-
-After the preview reference run, the following reproduces source calibration
-and the two numerical checks using its frozen inputs, prepared models and
-candidate RC. It does not alter the scored case. Each characterization retains
-all three loads and acceptance bounds.
-
-```bash
-uv run --locked python - <<'PYCODE'
-import copy
-import json
-import tomllib
-from pathlib import Path
-from benchmarking.tasks import load_task
-from layout_eval.toolchains import load_toolchain
-from benchmarking.evaluation import parse_evaluation
-from layout_eval.evaluate import run_evaluation
-from benchmarking.files import Asset
-
-case = Path('build/runs/smcnr-prepared/case/case.toml')
-reference = Path('build/runs/smcnr-reference/reference')
-task = load_task(case)
-report = json.loads((reference / 'report.json').read_text())
-assert report['task_success']
-rc = Asset((reference / report['jobs']['parasitics']['outputs']['netlist']['path']).read_bytes(), 'spice')
-base = tomllib.loads(case.read_text())['task']['evaluation']
-for variant in ('source', 'half-step', 'tight'):
-    plan = copy.deepcopy(base)
-    plan['mode'] = 'characterization'
-    plan.pop('scoring')
-    plan['jobs'] = [j for j in plan['jobs'] if j['stage'] == 'simulate']
-    for job in plan['jobs']:
-        job['inputs']['dut'] = 'input:simulation'
-    plan['metrics'] = [m for m in plan['metrics'] if m['category'] == 'performance']
-    for metric in plan['metrics']:
-        for key in ('dimension', 'zero_lower', 'zero_upper'):
-            metric.pop(key, None)
-    inputs = task.evaluation_inputs()
-    if variant != 'source':
-        inputs['input:simulation'] = rc
-    deck = inputs['input:performance'].content.decode()
-    if variant == 'half-step':
-        deck = deck.replace('tran 50n 180u 0 50n', 'tran 25n 180u 0 25n')
-    if variant == 'tight':
-        deck = deck.replace('rshunt=1e12 reltol=1e-5 abstol=1e-14 vntol=1e-8',
-                            'rshunt=1e13 reltol=1e-6 abstol=1e-15 vntol=1e-9')
-        deck = deck.replace('ac dec 150', 'ac dec 300')
-    inputs['input:performance'] = Asset(deck.encode(), 'spice')
-    result = run_evaluation(
-        parse_evaluation(json.dumps(plan).encode(), file_format='json'),
-        inputs, load_toolchain(case), Path('build/runs') / ('smcnr-' + variant),
-    )
-    assert result['outcome'] == 'passed', result
-PYCODE
-```
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

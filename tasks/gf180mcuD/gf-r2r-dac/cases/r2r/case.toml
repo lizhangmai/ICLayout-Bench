@@ -4,7 +4,22 @@ id = "gf180mcuD.gf-r2r-dac.r2r"
 title = "Eight-Bit R-2R DAC Core"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "35de5e906a4a235bbe4321ad773982bc8d560283397b0c047aba6f97b25cec1c"
+
+[[assets]]
+path = "reference/r2r.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "d78ed01ef438f1770385b5fd6233853e3a9bdde1973ccf7a2b7e4f5c59f9c3c7"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "gf180_r2r"
 coefficient = 4
@@ -13,7 +28,7 @@ environment = "gf180mcuD-typical-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "07fcedd6f8d2a03ade166b9afe9600076290612c9d0323ed2de947b3c0539fd6"
+sha256 = "90b13d60e0ba763f5119276cdf0ab2a493e184087dde886a64cc6c6073c266ad"
 
 [task.inputs.netlist]
 path = "materials/circuit.spice"
@@ -811,6 +826,296 @@ bit7 = 1
 [task.evaluation.jobs.parameters.exports]
 waveform = "waveform.raw"
 
+[[task.evaluation.jobs]]
+id = "source_code0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "source_code1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 1
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "source_code2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 1
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "source_code4"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 1
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "source_code8"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 1
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "source_code16"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 1
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "source_code32"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 1
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "source_code64"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 1
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "source_code128"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "source_code255"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 1
+bit1 = 1
+bit2 = 1
+bit3 = 1
+bit4 = 1
+bit5 = 1
+bit6 = 1
+bit7 = 1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -840,8 +1145,21 @@ unit = "V"
 direction = "minimize"
 aggregation = "max"
 dimension = "response"
-upper = 0.0001
-zero_upper = 0.01
+baseline = [
+    "source_code0:error_v",
+    "source_code1:error_v",
+    "source_code2:error_v",
+    "source_code4:error_v",
+    "source_code8:error_v",
+    "source_code16:error_v",
+    "source_code32:error_v",
+    "source_code64:error_v",
+    "source_code128:error_v",
+    "source_code255:error_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "settling"
@@ -862,14 +1180,26 @@ unit = "V"
 direction = "minimize"
 aggregation = "max"
 dimension = "response"
-upper = 0.001
-zero_upper = 0.1
+baseline = [
+    "source_code0:settling_error_v",
+    "source_code1:settling_error_v",
+    "source_code2:settling_error_v",
+    "source_code4:settling_error_v",
+    "source_code8:settling_error_v",
+    "source_code16:settling_error_v",
+    "source_code32:settling_error_v",
+    "source_code64:settling_error_v",
+    "source_code128:settling_error_v",
+    "source_code255:settling_error_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 4000
-area_zero = 16000
+area_target = 8727.76
 
 [toolchain]
 schema_version = 1
@@ -903,7 +1233,7 @@ image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 180
 support = "build/support/gf180-physical-v2"
-profile = "lvs-VGND.json"
+profile = "lvs.json"
 
 [toolchain.backends.lvs.support_profiles]
 support = "physical"
@@ -953,13 +1283,6 @@ support = "models"
 
 [origin]
 url = "https://github.com/mattvenn/gf-r2r-dac/tree/1c5c8ddec54fc4e70ce03a19510d4d7461b919e9/xschem/simulation/r2r.spice"
-
-[[assets]]
-path = "reference/r2r.gds"
-role = "reference"
-visibility = "maintainer"
-format = "gds"
-sha256 = "d78ed01ef438f1770385b5fd6233853e3a9bdde1973ccf7a2b7e4f5c59f9c3c7"
 
 [qualification]
 reference = "reference/r2r.gds"

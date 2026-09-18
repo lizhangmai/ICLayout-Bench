@@ -4,7 +4,22 @@ id = "freepdk45.OpenRAM.cell_6t"
 title = "Six-Transistor SRAM Bitcell"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "b80ad3cc07a30ef0c08493b812b7f79ab52b3d3fd8f1634e6fa47d75b62fdc83"
+
+[[assets]]
+path = "reference/cell_6t.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "400d0f5640f07266e4b17b4d3d765ca04ffbabe03dd1122195f277e5ea558fdc"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "freepdk45_cell_6t"
 coefficient = 6
@@ -12,7 +27,7 @@ environment = "freepdk45-nominal-predictive-rc"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "968b1b1a6e6466d85f91989459c4d807b8cfd6179d833f6c2dc754d7431acfa9"
+sha256 = "3a1db7999c00ba27de4f91693354b39c4b60eab4ec2a83bf6fdac2d89125692c"
 format = "text"
 
 [task.inputs.netlist]
@@ -24,7 +39,7 @@ subcircuit = "cell_6t"
 [task.inputs.performance]
 path = "materials/testbench.spice"
 format = "spice"
-sha256 = "e5189d070fcb4bfd9d3910f299c8a2ec475d4047b3b5edbfd4cd244514816701"
+sha256 = "bc0034d4bde558134f21b5ad453623f4cd93862d8fe7761a1a8752ba21051006"
 
 [task.constraints]
 schema_version = 1
@@ -267,6 +282,36 @@ repeat0 = "V"
 read1 = "V"
 repeat1 = "V"
 supply = "W"
+read_delay_0_1 = "s"
+read_delay_0_2 = "s"
+read_delay_1_5 = "s"
+read_delay_1_6 = "s"
+
+[[task.evaluation.jobs]]
+id = "source_nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+read0 = "V"
+repeat0 = "V"
+read1 = "V"
+repeat1 = "V"
+supply = "W"
+read_delay_0_1 = "s"
+read_delay_0_2 = "s"
+read_delay_1_5 = "s"
+read_delay_1_6 = "s"
 
 [[task.evaluation.metrics]]
 id = "functional_area"
@@ -287,9 +332,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.3
-zero_lower = 0
 
 [[task.evaluation.metrics]]
 id = "repeat0"
@@ -300,9 +343,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.3
-zero_lower = 0
 
 [[task.evaluation.metrics]]
 id = "read1"
@@ -313,9 +354,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.3
-zero_lower = 0
 
 [[task.evaluation.metrics]]
 id = "repeat1"
@@ -326,9 +365,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.3
-zero_lower = 0
 
 [[task.evaluation.metrics]]
 id = "supply"
@@ -340,16 +377,39 @@ unit = "W"
 direction = "minimize"
 aggregation = "max"
 dimension = "supply"
+baseline = [
+    "source_nominal:supply",
+]
+normalization = "ratio"
 lower = 0
-upper = 2e-05
-zero_lower = 0
-zero_upper = 0.0001
+scale = 1e-12
+
+[[task.evaluation.metrics]]
+id = "read_delay"
+category = "performance"
+observations = [
+    "nominal:read_delay_0_1",
+    "nominal:read_delay_0_2",
+    "nominal:read_delay_1_5",
+    "nominal:read_delay_1_6",
+]
+baseline = [
+    "source_nominal:read_delay_0_1",
+    "source_nominal:read_delay_0_2",
+    "source_nominal:read_delay_1_5",
+    "source_nominal:read_delay_1_6",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+normalization = "ratio"
+lower = 0.0
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 1.4
-area_zero = 2.8
+area_target = 1.46
 
 [toolchain]
 schema_version = 1
@@ -402,7 +462,7 @@ type = "magic-rc-docker"
 image = "iclayout-bench-tools:local"
 support = "build/support/freepdk45-magic-vtg"
 technology = "freepdk45.tech"
-tech_name = "nangate45"
+tech_name = "freepdk45"
 style = "spice3(sim)"
 gds_readonly = false
 case_insensitive_ports = true
@@ -475,13 +535,6 @@ support = "models"
 "layout.geometry" = "geometry"
 "layout.extract_rc" = "rc"
 "circuit.simulate" = "ngspice"
-
-[[assets]]
-path = "reference/cell_6t.gds"
-role = "reference"
-visibility = "maintainer"
-format = "gds"
-sha256 = "400d0f5640f07266e4b17b4d3d765ca04ffbabe03dd1122195f277e5ea558fdc"
 
 [qualification]
 reference = "reference/cell_6t.gds"

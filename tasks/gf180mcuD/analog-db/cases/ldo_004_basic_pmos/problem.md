@@ -75,36 +75,53 @@ Every required observation must be finite and satisfy its inclusive band;
 aggregation cannot hide a failing operating point. A missing dropout crossing
 or incomplete extraction/simulation cannot establish success.
 
-| Metric | Definition | Unit | Acceptance | Zero-score boundaries | Dimension |
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
+
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
 | --- | --- | --- | --- | --- | --- |
-| Output voltage | DC VOUT at each of nine operating points | V | 1.78 to 1.82 | <= 1.5 or >= 2.1 | bias |
-| Tail voltage | DC V(ibias) at each operating point | V | 0.05 to 0.15 | <= 0 or >= 0.3 | bias |
-| Quiescent current | Supply input current minus measured load current | A | 0 to 0.00025 | < 0 or >= 0.0005 | supply |
-| Input power | Power delivered by VDD plus external VREF | W | 0 to 0.018 | < 0 or >= 0.025 | supply |
-| Supply rejection | -20 log10(abs(VOUT/VDD)) at 1 kHz | dB | >= 40 | <= 0 | response |
-| Output impedance peaking | 20 log10(max(abs(Zout))/abs(Zout at 1 Hz)), 1 Hz to 100 MHz | dB | 0 to 6 | < 0 or >= 20 | response |
-| Peak output error | Maximum abs(VOUT - 1.8 V), 0.9 to 3 ms | V | 0 to 0.025 | < 0 or >= 0.1 | response |
-| High-load settled error | Maximum abs(VOUT - 1.8 V), 1.2 to 1.9 ms | V | 0 to 0.010 | < 0 or >= 0.05 | response |
-| Low-load settled error | Maximum abs(VOUT - 1.8 V), 2.2 to 3 ms | V | 0 to 0.010 | < 0 or >= 0.05 | response |
-| Transient tail minimum | Minimum V(ibias), 0.9 to 3 ms | V | >= 0.05 | <= 0 | bias |
-| Dropout voltage | Input-output difference at the defined 1.75 V crossing | V | 0 to 0.2 | < 0 or >= 0.5 | response |
+| `output_v` | dc_0_0:output_v, dc_0_1:output_v, dc_0_2:output_v, dc_1_0:output_v, dc_1_1:output_v, dc_1_2:output_v, dc_2_0:output_v, dc_2_1:output_v, dc_2_2:output_v | V | target / target | 0 … 3.3 | 3.3 |
+| `tail_v` | dc_0_0:tail_v, dc_0_1:tail_v, dc_0_2:tail_v, dc_1_0:tail_v, dc_1_1:tail_v, dc_1_2:tail_v, dc_2_0:tail_v, dc_2_1:tail_v, dc_2_2:tail_v | V | target / target | 0 … 3.3 | 3.3 |
+| `quiescent_a` | dc_0_0:quiescent_a, dc_0_1:quiescent_a, dc_0_2:quiescent_a, dc_1_0:quiescent_a, dc_1_1:quiescent_a, dc_1_2:quiescent_a, dc_2_0:quiescent_a, dc_2_1:quiescent_a, dc_2_2:quiescent_a | A | minimize / ratio | 0 … +∞ | 1e-12 |
+| `power_w` | dc_0_0:power_w, dc_0_1:power_w, dc_0_2:power_w, dc_1_0:power_w, dc_1_1:power_w, dc_1_2:power_w, dc_2_0:power_w, dc_2_1:power_w, dc_2_2:power_w | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `psrr_db` | dc_0_0:psrr_db, dc_0_1:psrr_db, dc_0_2:psrr_db, dc_1_0:psrr_db, dc_1_1:psrr_db, dc_1_2:psrr_db, dc_2_0:psrr_db, dc_2_1:psrr_db, dc_2_2:psrr_db | dB | maximize / db20 | −∞ … +∞ | — |
+| `peaking_db` | dc_0_0:peaking_db, dc_0_1:peaking_db, dc_0_2:peaking_db, dc_1_0:peaking_db, dc_1_1:peaking_db, dc_1_2:peaking_db, dc_2_0:peaking_db, dc_2_1:peaking_db, dc_2_2:peaking_db | dB | minimize / db20 | −∞ … +∞ | — |
+| `peak_error_v` | step_0:peak_error_v, step_1:peak_error_v, step_2:peak_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `high_settled_error_v` | step_0:high_settled_error_v, step_1:high_settled_error_v, step_2:high_settled_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `low_settled_error_v` | step_0:low_settled_error_v, step_1:low_settled_error_v, step_2:low_settled_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `tail_min_v` | step_0:tail_min_v, step_1:tail_min_v, step_2:tail_min_v | V | target / target | 0 … 3.3 | 3.3 |
+| `dropout_v` | dropout:dropout_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
 
-Input power includes the delivered load power. Quiescent current includes the
-core tail path and divider; it excludes the external load. The external tail
-sink absorbs power already supplied through VDD. Output impedance peaking is
-an observable closed-loop response metric, not a loop phase-margin measurement.
+Area reference: **7597.32 um2**. 106 expanded device instances; sum of device/contact envelopes 4876.0000 um2, per-side envelope allowance 1 um, 50% routing allowance and outer margin 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-Scoring is `S = G * (60*E + 20*H + 20*H*Q)`. `G` requires passing physical
-checks and complete extraction/measurements. `E` averages response, bias and
-supply attainment, using the worst observation in each dimension. Attainment
-is 1 inside each band and falls linearly toward its zero boundary. `H` is 1
-only if every electrical requirement passes.
-`Q = clip((320000 - area_um2)/(320000 - 80000), 0, 1)` uses fixed absolute area
-anchors. Physical rejection scores 0; blocking evaluator errors produce no
-score. The coefficient is 7 for a closed-loop regulator combining amplification,
-a power-device array, feedback passives and multiple operating regimes.
+The capability coefficient remains **7**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Use the reviewed GF180 PDK/EDA resources listed in `/protocol/resources.json`.
 KLayout checks the layout, Magic extracts RC and ngspice simulates the circuit.
@@ -113,3 +130,5 @@ KLayout checks the layout, Magic extracts RC and ngspice simulates the circuit.
 is exposed, use its published helper for interim checks. Write
 `/workspace/output/final.gds`, then explicitly submit the snapshot with
 `python -I /protocol/submit.py`.
+
+Use a GDS database unit of 0.001 um, as required by the GF180MCU DRC deck.

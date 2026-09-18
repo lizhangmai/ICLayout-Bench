@@ -35,3 +35,51 @@ config_path = "cases/cmfb_003_5t_nmos_input/case.toml"
 [[cases]]
 id = "gf180mcuD.analog-db.tsn_002_ptat_classic"
 config_path = "cases/tsn_002_ptat_classic/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.amp_032_ti_ldo_error_selfbias"
+config_path = "cases/amp_032_ti_ldo_error_selfbias/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.amp_033_ti_ldo_ref_selfbias"
+config_path = "cases/amp_033_ti_ldo_ref_selfbias/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.ldo_005_buffered_ref"
+config_path = "cases/ldo_005_buffered_ref/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.cmp_002_strongarm"
+config_path = "cases/cmp_002_strongarm/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.amp_017_tan_clia"
+config_path = "cases/amp_017_tan_clia/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.ldo_002_analoggym_folded_cascode"
+config_path = "cases/ldo_002_analoggym_folded_cascode/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.ldo_007_pmos"
+config_path = "cases/ldo_007_pmos/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.amp_019_ti_ldo_error"
+config_path = "cases/amp_019_ti_ldo_error/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.ldo_003_analoggym_simple"
+config_path = "cases/ldo_003_analoggym_simple/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.sup_001_vcm_detector"
+config_path = "cases/sup_001_vcm_detector/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.tsn_001_ptat_2t"
+config_path = "cases/tsn_001_ptat_2t/case.toml"
+
+[[cases]]
+id = "gf180mcuD.analog-db.ldo_006_stub"
+config_path = "cases/ldo_006_stub/case.toml"

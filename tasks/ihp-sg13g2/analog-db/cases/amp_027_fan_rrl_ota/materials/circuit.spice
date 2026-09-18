@@ -1,0 +1,37 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Fixed IHP binding; external bias ports and native physical taps.
+.subckt amp_027_fan_rrl_ota vinp vinn voutp voutn vdd vss vb1 vb2 vb3 vb4
+XT0 vdd well_0 ntap1 A=4e-12 P=8e-6
+XM1 tail vb3 vdd well_0 sg13_lv_pmos w=20u l=1u m=1
+XT1 vdd well_1 ntap1 A=4e-12 P=8e-6
+XM10 voutp vb1 d1p well_1 sg13_lv_pmos w=10u l=0.3u m=1
+XT2 vss sub ptap1 A=4e-12 P=8e-6
+XM11 voutn vb2 csrc_n sub sg13_lv_nmos w=5u l=0.3u m=1
+XT3 vss sub ptap1 A=4e-12 P=8e-6
+XM12 voutp vb2 csrc_p sub sg13_lv_nmos w=5u l=0.3u m=1
+XT4 vss sub ptap1 A=4e-12 P=8e-6
+XM13 csrc_n cm_bias vss sub sg13_lv_nmos w=6u l=1u m=1
+XT5 vss sub ptap1 A=4e-12 P=8e-6
+XM14 csrc_p cm_bias vss sub sg13_lv_nmos w=6u l=1u m=1
+XT6 vss sub ptap1 A=4e-12 P=8e-6
+XM15 cm_bias cm_bias vss sub sg13_lv_nmos w=2u l=1u m=1
+XT7 vss sub ptap1 A=4e-12 P=8e-6
+XM16 cm_sense cm_sense vss sub sg13_lv_nmos w=2u l=1u m=1
+XT8 vdd well_8 ntap1 A=4e-12 P=8e-6
+XM2 d1n vinp tail well_8 sg13_lv_pmos w=20u l=0.5u m=1
+XT9 vdd well_9 ntap1 A=4e-12 P=8e-6
+XM3 d1p vinn tail well_9 sg13_lv_pmos w=20u l=0.5u m=1
+XT10 vdd well_10 ntap1 A=4e-12 P=8e-6
+XM4 cm_tail vb3 vdd well_10 sg13_lv_pmos w=10u l=1u m=1
+XT11 vdd well_11 ntap1 A=4e-12 P=8e-6
+XM5 cm_sense voutn cm_tail well_11 sg13_lv_pmos w=4u l=0.5u m=1
+XT12 vdd well_12 ntap1 A=4e-12 P=8e-6
+XM6 cm_bias vb4 cm_tail well_12 sg13_lv_pmos w=4u l=0.5u m=1
+XT13 vdd well_13 ntap1 A=4e-12 P=8e-6
+XM7 cm_sense voutp cm_tail well_13 sg13_lv_pmos w=4u l=0.5u m=1
+XT14 vdd well_14 ntap1 A=4e-12 P=8e-6
+XM8 cm_bias vb4 cm_tail well_14 sg13_lv_pmos w=4u l=0.5u m=1
+XT15 vdd well_15 ntap1 A=4e-12 P=8e-6
+XM9 voutn vb1 d1n well_15 sg13_lv_pmos w=10u l=0.3u m=1
+XTSUB vss sub ptap1 A=4e-12 P=8e-6
+.ends amp_027_fan_rrl_ota

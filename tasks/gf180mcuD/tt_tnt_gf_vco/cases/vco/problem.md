@@ -31,24 +31,52 @@ LVS checks device topology, dimensions, body connections and every named top-lev
 
 ## Electrical Requirements and Scoring
 
-Every row applies to every indicated sample and operating point. Values below are in the stated units and limits are inclusive. The zero interval/bound marks complete loss of that metric's partial attainment, not an additional acceptance range.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-| Metric | Definition | Unit | Acceptance | Zero boundary | Dimension |
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
 | --- | --- | --- | --- | --- | --- |
-| `low_control_frequency` | Inverse period between the first two out_0 rising 1.65 V crossings after 400 ns at ctrl=1.65 V. | Hz | [1e+07, 1.5e+08] | [1e+06, 3e+08] | response |
-| `high_control_frequency` | The same frequency measurement at ctrl=2.10 V. | Hz | [3e+07, 3e+08] | [1e+06, 6e+08] | response |
-| `tuning` | Frequency at 2.10 V divided by frequency at 1.65 V. | 1 | >= 2 | >= 1 | response |
-| `quadrature90` | First out_90 versus out_0 rising-crossing displacement after 400 ns, divided by period and reduced modulo one cycle. | 1 | [0.2, 0.3] | [0.05, 0.45] | response |
-| `quadrature180` | The same phase measurement for out_180. | 1 | [0.45, 0.55] | [0.3, 0.7] | response |
-| `quadrature270` | The same phase measurement for out_270. | 1 | [0.7, 0.8] | [0.55, 0.95] | response |
-| `low` | Minimum voltage on each output over 400–600 ns at each control voltage. | V | <= 0.33 | <= 1.65 | response |
-| `high` | Maximum voltage on each output over 400–600 ns at each control voltage. | V | >= 2.97 | >= 1.65 | response |
-| `supply` | Average delivered supply power over 400–600 ns, separately for each control voltage. | W | [0, 0.003] | [0, 0.01] | supply |
+| `low_control_frequency` | Inverse period between the first two out_0 rising 1.65 V crossings after 400 ns at ctrl=1.65 V. | Hz | target / target | 0 … +∞ | 150000000.0 |
+| `high_control_frequency` | The same frequency measurement at ctrl=2.10 V. | Hz | target / target | 0 … +∞ | 300000000.0 |
+| `tuning` | Frequency at 2.10 V divided by frequency at 1.65 V. | 1 | maximize / ratio | 0 … +∞ | — |
+| `quadrature90` | First out_90 versus out_0 rising-crossing displacement after 400 ns, divided by period and reduced modulo one cycle. | 1 | target / target | −∞ … +∞ | 1.0 |
+| `quadrature180` | The same phase measurement for out_180. | 1 | target / target | −∞ … +∞ | 1.0 |
+| `quadrature270` | The same phase measurement for out_270. | 1 | target / target | −∞ … +∞ | 1.0 |
+| `low` | Minimum voltage on each output over 400–600 ns at each control voltage. | V | functional check | −∞ … 0.33 | — |
+| `high` | Maximum voltage on each output over 400–600 ns at each control voltage. | V | functional check | 2.97 … +∞ | — |
+| `supply` | Average delivered supply power over 400–600 ns, separately for each control voltage. | W | minimize / ratio | 0 … +∞ | 1e-12 |
 
-The score is `S = G*(60*E + 20*H + 20*H*Q)`: G requires valid physical checks and complete measurements; E averages the applicable response/bias/supply attainments after taking the worst requirement in each dimension; H requires all electrical limits; Q is the clipped linear area utility from 36000 um2 (full area utility) to 144000 um2 (zero area utility). Attainment is one inside each acceptance interval and changes linearly to zero at its declared zero boundaries. A zero boundary equal to the acceptance boundary is a hard cliff. Completed physical rejection scores zero; an evaluator error without an independently established rejection has no score.
+Area reference: **907.08 um2**. 47 expanded device instances; sum of device/contact envelopes 540.0800 um2, per-side envelope allowance 1 um, 50% routing allowance and outer margin 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-The coefficient is **8**, reflecting the declared circuit capability, and is independent of the 0–100 task score. The absolute area anchors are frozen block-area budgets supported by a feasible layout; no submitted-layout or reference-layout ratio is used. Calibration uses the declared source stimuli and an independently evaluated layout, preserving the same electrical limits for all candidates.
+The capability coefficient remains **8**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
 
+Solve budget: **3 hours**.
+
 Use runtime task, resource and harness discovery to locate the delivered inputs and reviewed GF180 resources. Trusted feedback runs the declared physical and post-layout evaluation; source-only simulation is useful for design but is not acceptance. Write the final GDS to `/workspace/output/final.gds` and explicitly submit it using the harness submission interface. A generated file or successful standalone simulation alone does not complete the task.
+
+Use a GDS database unit of 0.001 um, as required by the GF180MCU DRC deck.

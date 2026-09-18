@@ -1,6 +1,6 @@
 schema_version = 1
 id = "iclayout-bench"
-version = "2"
+version = "3"
 
 # Fixed functional representatives, not every qualified catalog entry.
 # Case contracts and coefficients remain authoritative in their case.toml.

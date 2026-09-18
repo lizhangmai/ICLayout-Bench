@@ -1,0 +1,92 @@
+{
+  "origin": "https://github.com/MacAnalog/spicexplorer-release",
+  "commit": "263d0322f8900dc331536fbbe6c0e804514fc454",
+  "files": {
+    "materials/upstream/circuit.yaml": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/circuit.yaml",
+      "git_blob": "b4898642e4d5e7bb98a37891151c31aa8ec8e346",
+      "sha256": "92420c12fbb461938459797fbb2159033798e13827a72f218596818f01ca034b"
+    },
+    "materials/upstream/datasheet.yaml": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/datasheet.yaml",
+      "git_blob": "ce1e1eb4d8d05bc822bc6eac60dae02f5c087f0e",
+      "sha256": "19a5ac43dc5041b8e54d50a5b3e8cfad30a5681d24f6fa3eed39a22692a25cc7"
+    },
+    "materials/upstream/abstract/params.yaml": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/abstract/params.yaml",
+      "git_blob": "6190edbc356ae79f2db1ec9914bb513814323e0d",
+      "sha256": "8172c026e922770e079f2d62b5e1709341b314883c374c574acdd19706547574"
+    },
+    "materials/upstream/pdk/ihp-sg13g2/netlist.spice": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/netlist.spice",
+      "git_blob": "a3e6e356c13f85fae9fd9a1320a08d35c2e8c9c9",
+      "sha256": "cd2e2440b0856783ab28b66525fb626374fcfea5fdefe07deacd3522633435ce"
+    },
+    "materials/upstream/pdk/ihp-sg13g2/sizing.yaml": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/sizing.yaml",
+      "git_blob": "36d012119792ffb4b2de2f2648c74be696df78ee",
+      "sha256": "ea29506686940e2c8442eabe3137bb732f6c6b69e7422b232688cff57be796ea"
+    },
+    "materials/upstream/pdk/ihp-sg13g2/corners.yaml": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/corners.yaml",
+      "git_blob": "dd5899881cf759720307f88c56771f8190ced1a8",
+      "sha256": "a7a7c751cfdb5184dd86da6e1106deb97c5c1dcc40e52d2722de236519aa960e"
+    },
+    "materials/upstream/pdk/ihp-sg13g2/layout-001-inductorless-cascode/layout.yaml": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/layout-001-inductorless-cascode/layout.yaml",
+      "git_blob": "501d8c085d6dc6aacbc78a11615fe79905a48ea9",
+      "sha256": "1b0222cd7ff6621ce990a1727de43df38b8ba1c8dee41d40323e3da92f54e4f3"
+    },
+    "materials/upstream/pdk/ihp-sg13g2/layout-001-inductorless-cascode/out/dut_pam4_sim.spice": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/layout-001-inductorless-cascode/out/dut_pam4_sim.spice",
+      "git_blob": "7fa632cde513c534fa67f7628ef4392666e1abf6",
+      "sha256": "54e5da9d47efea6a63e92298f62b20b24f4c6654b21f48fcadf88bf1dfdeda3a"
+    },
+    "materials/upstream/pdk/ihp-sg13g2/layout-001-inductorless-cascode/out/dut_pam4_lvs.spice": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/layout-001-inductorless-cascode/out/dut_pam4_lvs.spice",
+      "git_blob": "9f25584959872dcb9edf5ebabc83d0bea79bc383",
+      "sha256": "956e007f757835e994777a1e30e55a2b1df678831e8da41bc86c16a40e9f06e4"
+    },
+    "materials/upstream/testbenches/.spiceinit": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/testbenches/.spiceinit",
+      "git_blob": "aaf70f6861a1ffdef043d6e4b3c445c212d90e33",
+      "sha256": "7bc18341ee5c7854a263b671fa9273bf42ca2d66580c90f91ea0bda2d043216a"
+    },
+    "materials/upstream/testbenches/dut.spice": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/testbenches/dut.spice",
+      "git_blob": "256876b3ebf7ddf8d9b6e61ef93da9f1cd38d04b",
+      "sha256": "803c7bd8d6affb39b1f98518d3c39c8973738386195d8f78600b5f28c00747fa"
+    },
+    "materials/upstream/testbenches/tb_bias.spice": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/testbenches/tb_bias.spice",
+      "git_blob": "d906bc7b4c94e6d691a429500ad8fa9ba59d95e6",
+      "sha256": "19079d7ffe444119fe9ad8d805fc2db336e5b8c5a181772616075a52ecdfbbce"
+    },
+    "materials/upstream/testbenches/tb_gain_lsb.spice": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/testbenches/tb_gain_lsb.spice",
+      "git_blob": "e5c682d967ee91536705027666f282eb1c676a4e",
+      "sha256": "ad03e54695165725b0817a4b0b8736ff57c1d99e8a72e40ff8053dbedabddf36"
+    },
+    "materials/upstream/testbenches/tb_gain_msb.spice": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/testbenches/tb_gain_msb.spice",
+      "git_blob": "58a3d22984313ea58992ea685f04eda02b09f629",
+      "sha256": "c8cef8fd20c48a410bd7519bee1cbeef5468cad36b74777f91a75c7ca48ede1c"
+    },
+    "materials/upstream/testbenches/tb_s11.spice": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/testbenches/tb_s11.spice",
+      "git_blob": "936262f2b37855a73569d529d485732c8dc0125b",
+      "sha256": "7bb6a74b89b65b925be4b44bffa9a4df07038d3b26939cb7036fa472aef12ffb"
+    },
+    "materials/upstream/testbenches/tb_s22.spice": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/testbenches/tb_s22.spice",
+      "git_blob": "5e7955acf4d4d4c20e53306df2b63d3899f013e0",
+      "sha256": "78169d798a27efa6847bb7db38204f7cba31e215b341db8b5f5a5696d3a8c6e6"
+    },
+    "materials/upstream/testbenches/tb_swing.spice": {
+      "source_path": "analog-db/circuits/drv_001_pam4_sige_dac/pdk/ihp-sg13g2/testbenches/tb_swing.spice",
+      "git_blob": "aa2406588778743fed65ae0f9a21bb4beaba2940",
+      "sha256": "8bf9f563b72ce67a98505d19c2793cf42d04bb677f27959fc83cc2a0cd5ed56e"
+    }
+  },
+  "adaptations": "Executable materials select layout-001 FINAL_LAYOUT and FINAL_BIASES (4 V, 3.35 V, 1.9 V, 15 mA/cell). The source simulator netlist is byte-identical to the pinned signoff netlist. Native LVS adds the same resistor substrate terminals and converts AE/PE/M to we/le/Nx/m. The RF deck preserves the data-sheet endpoint requirements; source-only static records retain their distinct defaults."
+}

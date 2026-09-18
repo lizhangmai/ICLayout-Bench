@@ -4,8 +4,22 @@ id = "TO_Apr2025.DC_to_130_GHz_TIA.design_1"
 title = "Two-stage SiGe HBT TIA with nominal AC/DC requirements"
 status = "qualified"
 
-# Solver inputs, answer contract and functional post-layout evaluation.
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "aa03420f5e6a52f2dd1195cb6d817ed2a36210673c4568fb8a25a621a3caa6f1"
+
+[[assets]]
+path = "reference/FMD_QNC_03a_TIA_1.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "c2b3674d59c51b79ab3c1c36e7dc4a648cbd79bb02d1100694c962f48a3b4411"
+
 [task]
+hours = 3
 coefficient = 4
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_hbt_tia"
@@ -13,7 +27,7 @@ environment = "ihp-sg13g2-to-design1-functional"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "6f2f5b8a2c537a9efe4dd3077a304620cfaf7a61f4814be3ad0d5078eac4426f"
+sha256 = "73164a977359ede4b9625262f86695656dff753c69bac9931cf8975ab6a0507b"
 format = "text"
 
 [task.inputs.netlist]
@@ -34,25 +48,193 @@ format = "spice"
 
 [task.constraints]
 schema_version = 1
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
 
 [[task.constraints.hard]]
 id = "outline"
 type = "bbox_max"
 functional_layers = [
-  [1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0],
-  [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0],
-  [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0],
-  [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0],
-  [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0],
-  [133, 0], [134, 0], [139, 0], [152, 0],
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
 ]
 max_width_um = 720
 max_height_um = 860
-
-[[task.constraints.quality]]
-id = "area"
-type = "functional_bbox_area"
-layers_from = "outline"
 
 [task.output]
 path = "output/final.gds"
@@ -65,10 +247,9 @@ schema_version = 1
 mode = "post_layout"
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 590000
-area_zero = 619200
+area_target = 3852.28
 
 [[task.evaluation.jobs]]
 id = "artifact"
@@ -237,6 +418,93 @@ transimpedance_high = "ohm"
 op = "operating_point.raw"
 ac = "frequency_response.raw"
 
+[[task.evaluation.jobs]]
+id = "source_negative"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_current = -0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+
+[[task.evaluation.jobs]]
+id = "source_zero"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_current = 0
+
+[task.evaluation.jobs.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+
+[[task.evaluation.jobs]]
+id = "source_positive"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_current = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -256,13 +524,16 @@ observations = [
     "positive:transimpedance_low",
 ]
 unit = "ohm"
-direction = "target"
+direction = "maximize"
 aggregation = "min"
-lower = 150
-upper = 350
 dimension = "response"
-zero_lower = 0
-zero_upper = 700
+baseline = [
+    "source_negative:transimpedance_low",
+    "source_zero:transimpedance_low",
+    "source_positive:transimpedance_low",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "transimpedance_high"
@@ -273,13 +544,16 @@ observations = [
     "positive:transimpedance_high",
 ]
 unit = "ohm"
-direction = "target"
+direction = "maximize"
 aggregation = "min"
-lower = 150
-upper = 350
 dimension = "response"
-zero_lower = 0
-zero_upper = 700
+baseline = [
+    "source_negative:transimpedance_high",
+    "source_zero:transimpedance_high",
+    "source_positive:transimpedance_high",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "input_bias"
@@ -292,11 +566,16 @@ observations = [
 unit = "V"
 direction = "target"
 aggregation = "min"
-lower = 0.85
-upper = 1.05
 dimension = "bias"
-zero_lower = 0.75
-zero_upper = 1.15
+baseline = [
+    "source_negative:input_bias",
+    "source_zero:input_bias",
+    "source_positive:input_bias",
+]
+normalization = "target"
+scale = 2.0
+lower = 0
+upper = 2.0
 
 [[task.evaluation.metrics]]
 id = "output_bias"
@@ -309,11 +588,16 @@ observations = [
 unit = "V"
 direction = "target"
 aggregation = "min"
-lower = 0.9
-upper = 1.7
 dimension = "bias"
-zero_lower = 0.7
-zero_upper = 1.9
+baseline = [
+    "source_negative:output_bias",
+    "source_zero:output_bias",
+    "source_positive:output_bias",
+]
+normalization = "target"
+scale = 2.0
+lower = 0
+upper = 2.0
 
 [[task.evaluation.metrics]]
 id = "supply_power"
@@ -326,18 +610,15 @@ observations = [
 unit = "W"
 direction = "minimize"
 aggregation = "max"
-lower = 0.03
-upper = 0.08
 dimension = "supply"
-zero_lower = 0.015
-zero_upper = 0.12
-
-[[assets]]
-path = "reference/FMD_QNC_03a_TIA_1.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "c2b3674d59c51b79ab3c1c36e7dc4a648cbd79bb02d1100694c962f48a3b4411"
+baseline = [
+    "source_negative:supply_power",
+    "source_zero:supply_power",
+    "source_positive:supply_power",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
 
 [qualification]
 evidence = "README.md"
@@ -356,12 +637,14 @@ schema_version = 1
 
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
+
 [toolchain.backends.geometry.settings]
 image = "iclayout-bench-tools:local"
 timeout_seconds = 120
 
 [toolchain.backends.lvs]
 type = "klayout-docker"
+
 [toolchain.backends.lvs.settings]
 image = "iclayout-bench-tools:local"
 check = "lvs"
@@ -371,7 +654,10 @@ timeout_seconds = 180
 
 [toolchain.backends.simulation]
 type = "ngspice-docker"
-support_profiles = { support = "hbt-models" }
+
+[toolchain.backends.simulation.support_profiles]
+support = "hbt-models"
+
 [toolchain.backends.simulation.settings]
 image = "iclayout-bench-tools:local"
 support = "build/support/to-design1-models"
@@ -379,6 +665,7 @@ timeout_seconds = 60
 
 [toolchain.backends.artifact]
 type = "klayout-docker"
+
 [toolchain.backends.artifact.settings]
 image = "iclayout-bench-tools:local"
 check = "artifact"
@@ -386,6 +673,7 @@ timeout_seconds = 60
 
 [toolchain.backends.drc]
 type = "klayout-docker"
+
 [toolchain.backends.drc.settings]
 image = "iclayout-bench-tools:local"
 check = "drc"
@@ -395,7 +683,11 @@ timeout_seconds = 600
 
 [toolchain.backends.parasitics]
 type = "sg13g2-hbt-rc-docker"
-support_profiles = { klayout_support = "klayout", magic_support = "magic" }
+
+[toolchain.backends.parasitics.support_profiles]
+klayout_support = "klayout"
+magic_support = "magic"
+
 [toolchain.backends.parasitics.settings]
 image = "iclayout-bench-tools:local"
 klayout_support = "build/support/to-design1-klayout"

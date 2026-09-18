@@ -24,19 +24,45 @@ The candidate GDS must pass artifact, DRC, LVS and hard geometry before extracti
 
 ## Electrical Requirements and Scoring
 
-Every observation at every declared condition must meet its inclusive limits; aggregation cannot hide a failing code or condition. Endpoints use simulator interpolation. The zero interval gives lower/upper zero-attainment boundaries, separately from acceptance.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-| Metric | Definition | Unit | Acceptance | Dimension | Zero interval |
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
 | --- | --- | --- | --- | --- | --- |
-| `output_v` | V(out) at 95 us | V | [0.49, 0.71] | bias | [0.3, 0.9] |
-| `sample_error_v` | Maximum absolute V(out) minus [0.6 V + (V(vinp)+V(vinn))/2 - 0.75 V], over 92–95 us | V | [0, 0.005] | response | [0, 0.02] |
-| `hold_drift_v` | Maximum absolute V(out) minus its 95 us sample, over 96.1–99 us | V | [0, 0.0005] | response | [0, 0.005] |
-| `clock_power_w` | Mean of max(0,-V(phi) I(VPH)) + max(0,-V(phin) I(VPL)), over 80–100 us; returned energy is not credited | W | [0, 4e-08] | supply | [0, 8e-08] |
+| `output_v` | V(out) at 95 us | V | target / target | 0 … 1.5 | 1.5 |
+| `sample_error_v` | Maximum absolute V(out) minus [0.6 V + (V(vinp)+V(vinn))/2 - 0.75 V], over 92–95 us | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `hold_drift_v` | Maximum absolute V(out) minus its 95 us sample, over 96.1–99 us | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `clock_power_w` | Mean of max(0,-V(phi) I(VPH)) + max(0,-V(phin) I(VPL)), over 80–100 us; returned energy is not credited | W | minimize / ratio | 0 … +∞ | 1e-12 |
 
-Coefficient 5 reflects periodic charge transfer, independent clock routing and interacting floating capacitors. The 5 mV sampling limit resolves a 100 mV common-mode disturbance, and the 0.5 mV hold limit constrains clock feedthrough during disconnection. Clock-power acceptance is 40 nW. It measures the two clock drivers, not total energy supplied by all reference/input sources. Fixed area target/zero anchors are 22000 / 88000 um2: the target accommodates a feasible complete MOS/MIM implementation and routing, while the zero anchor removes area credit at four times that absolute budget. Anchors are fixed values, not a candidate/reference area ratio.
+Area reference: **5263.8 um2**. 22 expanded device instances; sum of device/contact envelopes 3414.7414 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-The single score is `S = G * (60 E + 20 H + 20 H Q)`. G requires complete physical validity and evaluation; H is one only if every electrical acceptance passes. Each metric takes its worst observation; each dimension takes its worst metric; E averages the applicable dimensions. Attainment is 1 in acceptance, linearly falling to zero at the corresponding zero boundary. Q is `clip((88000-area)/(88000-22000),0,1)`. A completed physical rejection scores 0; a physically valid electrical violation scores below 60; full acceptance earns 80–100. Evaluation errors yield null rather than a guessed score. The coefficient is 5 and does not alter per-case scoring.
+The capability coefficient remains **5**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Use the reviewed SG13G2 device/rule/model resources supplied through `/protocol/resources.json` and the task definitions in `/protocol/task.json`. KLayout supplies layout and physical checks; Magic supplies candidate RC; ngspice consumes the declared deck. Discover available feedback through the runtime harness protocol. Write `output/final.gds` in the workspace and explicitly submit that GDS through the submission protocol. Reference layouts, source checkouts and authoring scripts are not solver inputs.

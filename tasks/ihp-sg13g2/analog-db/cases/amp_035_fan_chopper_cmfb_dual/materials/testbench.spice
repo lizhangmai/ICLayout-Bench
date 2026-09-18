@@ -1,0 +1,474 @@
+* Physical CMFB observations; external differential feedback only. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include parameters.spice
+.include dut.spice
+.temp 27
+.save v(vdd) v(vb1) v(vb2) v(vb3) v(ref) v(icm) v(sig) v(inp) v(inn) v(fp) v(fn) v(outp) v(outn) v(s1p) v(s1n) v(ctl) i(VDD) i(VB1) i(VB2) i(VB3) i(VREF) v(rs) v(ctl1) i(VRS)
+.options rshunt=1e14 pivtol=1e-18 reltol=1e-6 abstol=1e-14 vntol=1e-9 method=gear maxord=2
+VDD vdd 0 1.2
+VB1 vb1 0 .3983759766
+VB2 vb2 0 .65
+VB3 vb3 0 .45
+VREF ref 0 pulse(.5 {.5+ref_step} 50u 20n 20n 15u 200u)
+VRS rs 0 pulse(.3265 {.3265+s1_step} 110u 20n 20n 15u 200u)
+VSIG sig 0 dc 0 ac 1 pulse(0 {step_v} 10u 20n 20n 10u 200u)
+VCM icm 0 pulse(.6 {.6+icm_step} 75u 20n 20n 15u 200u)
+EFP fp icm value={(v(sig)-v(outp)+v(outn))/2}
+EFN fn icm value={-(v(sig)-v(outp)+v(outn))/2}
+VP inp fp dc 0
+VN inn fn dc 0
+CP outp 0 {load_f}
+CN outn 0 {load_f}
+IP 0 outp pulse(0 {kick_a} 30u 20n 20n 2u 200u)
+IN 0 outn pulse(0 {kick_a} 30u 20n 20n 2u 200u)
+XDUT inp inn outp outn vdd 0 vb1 vb2 vb3 ref rs s1p s1n ctl ctl1 amp_035_fan_chopper_cmfb_dual
+.control
+set noaskquit
+set num_threads=1
+set numdgt=15
+set measdgt=15
+op
+let cm_bias_v=(v(outp)+v(outn))/2
+let s1_bias_v=(v(s1p)+v(s1n))/2
+let dm_bias_v=v(outp)-v(outn)
+let power_w=-v(vdd)*i(VDD)-v(vb1)*i(VB1)-v(vb2)*i(VB2)-v(vb3)*i(VB3)-v(ref)*i(VREF)-v(rs)*i(VRS)
+print cm_bias_v s1_bias_v dm_bias_v power_w
+write op.raw all
+ac dec 200 1 1g
+let closed=db(v(outp)-v(outn))
+meas ac closed_gain_10khz_db find closed at=10k
+write ac.raw all
+tran 2n 150u 0 2n
+let end_time=time[length(time)-1]
+if abs(end_time-150u) > 1e-12
+ echo Error: incomplete transient window
+ quit 1
+end
+let sample_index=vector(length(time))
+meas tran edge_0u find sample_index at=0u
+let edge_0u=floor(edge_0u)
+if edge_0u >= length(time)-1
+ let edge_0u=length(time)-2
+end
+if time[edge_0u] > 0u
+ let edge_0u=edge_0u-1
+end
+if time[edge_0u+1] < 0u
+ let edge_0u=edge_0u+1
+end
+let frac_edge_0u=(0u-time[edge_0u])/(time[edge_0u+1]-time[edge_0u])
+meas tran edge_120u find sample_index at=120u
+let edge_120u=floor(edge_120u)
+if edge_120u >= length(time)-1
+ let edge_120u=length(time)-2
+end
+if time[edge_120u] > 120u
+ let edge_120u=edge_120u-1
+end
+if time[edge_120u+1] < 120u
+ let edge_120u=edge_120u+1
+end
+let frac_edge_120u=(120u-time[edge_120u])/(time[edge_120u+1]-time[edge_120u])
+meas tran edge_124u find sample_index at=124u
+let edge_124u=floor(edge_124u)
+if edge_124u >= length(time)-1
+ let edge_124u=length(time)-2
+end
+if time[edge_124u] > 124u
+ let edge_124u=edge_124u-1
+end
+if time[edge_124u+1] < 124u
+ let edge_124u=edge_124u+1
+end
+let frac_edge_124u=(124u-time[edge_124u])/(time[edge_124u+1]-time[edge_124u])
+meas tran edge_145u find sample_index at=145u
+let edge_145u=floor(edge_145u)
+if edge_145u >= length(time)-1
+ let edge_145u=length(time)-2
+end
+if time[edge_145u] > 145u
+ let edge_145u=edge_145u-1
+end
+if time[edge_145u+1] < 145u
+ let edge_145u=edge_145u+1
+end
+let frac_edge_145u=(145u-time[edge_145u])/(time[edge_145u+1]-time[edge_145u])
+meas tran edge_149u find sample_index at=149u
+let edge_149u=floor(edge_149u)
+if edge_149u >= length(time)-1
+ let edge_149u=length(time)-2
+end
+if time[edge_149u] > 149u
+ let edge_149u=edge_149u-1
+end
+if time[edge_149u+1] < 149u
+ let edge_149u=edge_149u+1
+end
+let frac_edge_149u=(149u-time[edge_149u])/(time[edge_149u+1]-time[edge_149u])
+meas tran edge_150u find sample_index at=150u
+let edge_150u=floor(edge_150u)
+if edge_150u >= length(time)-1
+ let edge_150u=length(time)-2
+end
+if time[edge_150u] > 150u
+ let edge_150u=edge_150u-1
+end
+if time[edge_150u+1] < 150u
+ let edge_150u=edge_150u+1
+end
+let frac_edge_150u=(150u-time[edge_150u])/(time[edge_150u+1]-time[edge_150u])
+meas tran edge_18u find sample_index at=18u
+let edge_18u=floor(edge_18u)
+if edge_18u >= length(time)-1
+ let edge_18u=length(time)-2
+end
+if time[edge_18u] > 18u
+ let edge_18u=edge_18u-1
+end
+if time[edge_18u+1] < 18u
+ let edge_18u=edge_18u+1
+end
+let frac_edge_18u=(18u-time[edge_18u])/(time[edge_18u+1]-time[edge_18u])
+meas tran edge_19u find sample_index at=19u
+let edge_19u=floor(edge_19u)
+if edge_19u >= length(time)-1
+ let edge_19u=length(time)-2
+end
+if time[edge_19u] > 19u
+ let edge_19u=edge_19u-1
+end
+if time[edge_19u+1] < 19u
+ let edge_19u=edge_19u+1
+end
+let frac_edge_19u=(19u-time[edge_19u])/(time[edge_19u+1]-time[edge_19u])
+meas tran edge_25u find sample_index at=25u
+let edge_25u=floor(edge_25u)
+if edge_25u >= length(time)-1
+ let edge_25u=length(time)-2
+end
+if time[edge_25u] > 25u
+ let edge_25u=edge_25u-1
+end
+if time[edge_25u+1] < 25u
+ let edge_25u=edge_25u+1
+end
+let frac_edge_25u=(25u-time[edge_25u])/(time[edge_25u+1]-time[edge_25u])
+meas tran edge_28u find sample_index at=28u
+let edge_28u=floor(edge_28u)
+if edge_28u >= length(time)-1
+ let edge_28u=length(time)-2
+end
+if time[edge_28u] > 28u
+ let edge_28u=edge_28u-1
+end
+if time[edge_28u+1] < 28u
+ let edge_28u=edge_28u+1
+end
+let frac_edge_28u=(28u-time[edge_28u])/(time[edge_28u+1]-time[edge_28u])
+meas tran edge_29u find sample_index at=29u
+let edge_29u=floor(edge_29u)
+if edge_29u >= length(time)-1
+ let edge_29u=length(time)-2
+end
+if time[edge_29u] > 29u
+ let edge_29u=edge_29u-1
+end
+if time[edge_29u+1] < 29u
+ let edge_29u=edge_29u+1
+end
+let frac_edge_29u=(29u-time[edge_29u])/(time[edge_29u+1]-time[edge_29u])
+meas tran edge_30u find sample_index at=30u
+let edge_30u=floor(edge_30u)
+if edge_30u >= length(time)-1
+ let edge_30u=length(time)-2
+end
+if time[edge_30u] > 30u
+ let edge_30u=edge_30u-1
+end
+if time[edge_30u+1] < 30u
+ let edge_30u=edge_30u+1
+end
+let frac_edge_30u=(30u-time[edge_30u])/(time[edge_30u+1]-time[edge_30u])
+meas tran edge_33u find sample_index at=33u
+let edge_33u=floor(edge_33u)
+if edge_33u >= length(time)-1
+ let edge_33u=length(time)-2
+end
+if time[edge_33u] > 33u
+ let edge_33u=edge_33u-1
+end
+if time[edge_33u+1] < 33u
+ let edge_33u=edge_33u+1
+end
+let frac_edge_33u=(33u-time[edge_33u])/(time[edge_33u+1]-time[edge_33u])
+meas tran edge_45u find sample_index at=45u
+let edge_45u=floor(edge_45u)
+if edge_45u >= length(time)-1
+ let edge_45u=length(time)-2
+end
+if time[edge_45u] > 45u
+ let edge_45u=edge_45u-1
+end
+if time[edge_45u+1] < 45u
+ let edge_45u=edge_45u+1
+end
+let frac_edge_45u=(45u-time[edge_45u])/(time[edge_45u+1]-time[edge_45u])
+meas tran edge_49u find sample_index at=49u
+let edge_49u=floor(edge_49u)
+if edge_49u >= length(time)-1
+ let edge_49u=length(time)-2
+end
+if time[edge_49u] > 49u
+ let edge_49u=edge_49u-1
+end
+if time[edge_49u+1] < 49u
+ let edge_49u=edge_49u+1
+end
+let frac_edge_49u=(49u-time[edge_49u])/(time[edge_49u+1]-time[edge_49u])
+meas tran edge_5u find sample_index at=5u
+let edge_5u=floor(edge_5u)
+if edge_5u >= length(time)-1
+ let edge_5u=length(time)-2
+end
+if time[edge_5u] > 5u
+ let edge_5u=edge_5u-1
+end
+if time[edge_5u+1] < 5u
+ let edge_5u=edge_5u+1
+end
+let frac_edge_5u=(5u-time[edge_5u])/(time[edge_5u+1]-time[edge_5u])
+meas tran edge_60u find sample_index at=60u
+let edge_60u=floor(edge_60u)
+if edge_60u >= length(time)-1
+ let edge_60u=length(time)-2
+end
+if time[edge_60u] > 60u
+ let edge_60u=edge_60u-1
+end
+if time[edge_60u+1] < 60u
+ let edge_60u=edge_60u+1
+end
+let frac_edge_60u=(60u-time[edge_60u])/(time[edge_60u+1]-time[edge_60u])
+meas tran edge_64u find sample_index at=64u
+let edge_64u=floor(edge_64u)
+if edge_64u >= length(time)-1
+ let edge_64u=length(time)-2
+end
+if time[edge_64u] > 64u
+ let edge_64u=edge_64u-1
+end
+if time[edge_64u+1] < 64u
+ let edge_64u=edge_64u+1
+end
+let frac_edge_64u=(64u-time[edge_64u])/(time[edge_64u+1]-time[edge_64u])
+meas tran edge_85u find sample_index at=85u
+let edge_85u=floor(edge_85u)
+if edge_85u >= length(time)-1
+ let edge_85u=length(time)-2
+end
+if time[edge_85u] > 85u
+ let edge_85u=edge_85u-1
+end
+if time[edge_85u+1] < 85u
+ let edge_85u=edge_85u+1
+end
+let frac_edge_85u=(85u-time[edge_85u])/(time[edge_85u+1]-time[edge_85u])
+meas tran edge_89u find sample_index at=89u
+let edge_89u=floor(edge_89u)
+if edge_89u >= length(time)-1
+ let edge_89u=length(time)-2
+end
+if time[edge_89u] > 89u
+ let edge_89u=edge_89u-1
+end
+if time[edge_89u+1] < 89u
+ let edge_89u=edge_89u+1
+end
+let frac_edge_89u=(89u-time[edge_89u])/(time[edge_89u+1]-time[edge_89u])
+meas tran edge_9u find sample_index at=9u
+let edge_9u=floor(edge_9u)
+if edge_9u >= length(time)-1
+ let edge_9u=length(time)-2
+end
+if time[edge_9u] > 9u
+ let edge_9u=edge_9u-1
+end
+if time[edge_9u+1] < 9u
+ let edge_9u=edge_9u+1
+end
+let frac_edge_9u=(9u-time[edge_9u])/(time[edge_9u+1]-time[edge_9u])
+let dm=v(outp)-v(outn)
+let cm=(v(outp)+v(outn))/2
+let s1=(v(s1p)+v(s1n))/2
+let dmerror=abs(dm-v(sig))
+let int_cm_quiet_v=integ(cm)
+let val_cm_quiet_v=cm
+let a_cm_quiet_v=int_cm_quiet_v[edge_5u]+(5u-time[edge_5u])*(val_cm_quiet_v[edge_5u]+0.5*frac_edge_5u*(val_cm_quiet_v[edge_5u+1]-val_cm_quiet_v[edge_5u]))
+let b_cm_quiet_v=int_cm_quiet_v[edge_9u]+(9u-time[edge_9u])*(val_cm_quiet_v[edge_9u]+0.5*frac_edge_9u*(val_cm_quiet_v[edge_9u+1]-val_cm_quiet_v[edge_9u]))
+let cm_quiet_v=(b_cm_quiet_v-a_cm_quiet_v)/(9u-5u)
+print cm_quiet_v
+let int_cm_pre_kick_v=integ(cm)
+let val_cm_pre_kick_v=cm
+let a_cm_pre_kick_v=int_cm_pre_kick_v[edge_28u]+(28u-time[edge_28u])*(val_cm_pre_kick_v[edge_28u]+0.5*frac_edge_28u*(val_cm_pre_kick_v[edge_28u+1]-val_cm_pre_kick_v[edge_28u]))
+let b_cm_pre_kick_v=int_cm_pre_kick_v[edge_29u]+(29u-time[edge_29u])*(val_cm_pre_kick_v[edge_29u]+0.5*frac_edge_29u*(val_cm_pre_kick_v[edge_29u+1]-val_cm_pre_kick_v[edge_29u]))
+let cm_pre_kick_v=(b_cm_pre_kick_v-a_cm_pre_kick_v)/(29u-28u)
+print cm_pre_kick_v
+let int_cm_recovery_v=integ(cm)
+let val_cm_recovery_v=cm
+let a_cm_recovery_v=int_cm_recovery_v[edge_45u]+(45u-time[edge_45u])*(val_cm_recovery_v[edge_45u]+0.5*frac_edge_45u*(val_cm_recovery_v[edge_45u+1]-val_cm_recovery_v[edge_45u]))
+let b_cm_recovery_v=int_cm_recovery_v[edge_49u]+(49u-time[edge_49u])*(val_cm_recovery_v[edge_49u]+0.5*frac_edge_49u*(val_cm_recovery_v[edge_49u+1]-val_cm_recovery_v[edge_49u]))
+let cm_recovery_v=(b_cm_recovery_v-a_cm_recovery_v)/(49u-45u)
+print cm_recovery_v
+let int_cm_ref_v=integ(cm)
+let val_cm_ref_v=cm
+let a_cm_ref_v=int_cm_ref_v[edge_60u]+(60u-time[edge_60u])*(val_cm_ref_v[edge_60u]+0.5*frac_edge_60u*(val_cm_ref_v[edge_60u+1]-val_cm_ref_v[edge_60u]))
+let b_cm_ref_v=int_cm_ref_v[edge_64u]+(64u-time[edge_64u])*(val_cm_ref_v[edge_64u]+0.5*frac_edge_64u*(val_cm_ref_v[edge_64u+1]-val_cm_ref_v[edge_64u]))
+let cm_ref_v=(b_cm_ref_v-a_cm_ref_v)/(64u-60u)
+print cm_ref_v
+let int_cm_input_cm_v=integ(cm)
+let val_cm_input_cm_v=cm
+let a_cm_input_cm_v=int_cm_input_cm_v[edge_85u]+(85u-time[edge_85u])*(val_cm_input_cm_v[edge_85u]+0.5*frac_edge_85u*(val_cm_input_cm_v[edge_85u+1]-val_cm_input_cm_v[edge_85u]))
+let b_cm_input_cm_v=int_cm_input_cm_v[edge_89u]+(89u-time[edge_89u])*(val_cm_input_cm_v[edge_89u]+0.5*frac_edge_89u*(val_cm_input_cm_v[edge_89u+1]-val_cm_input_cm_v[edge_89u]))
+let cm_input_cm_v=(b_cm_input_cm_v-a_cm_input_cm_v)/(89u-85u)
+print cm_input_cm_v
+let int_cm_stage_ref_v=integ(cm)
+let val_cm_stage_ref_v=cm
+let a_cm_stage_ref_v=int_cm_stage_ref_v[edge_120u]+(120u-time[edge_120u])*(val_cm_stage_ref_v[edge_120u]+0.5*frac_edge_120u*(val_cm_stage_ref_v[edge_120u+1]-val_cm_stage_ref_v[edge_120u]))
+let b_cm_stage_ref_v=int_cm_stage_ref_v[edge_124u]+(124u-time[edge_124u])*(val_cm_stage_ref_v[edge_124u]+0.5*frac_edge_124u*(val_cm_stage_ref_v[edge_124u+1]-val_cm_stage_ref_v[edge_124u]))
+let cm_stage_ref_v=(b_cm_stage_ref_v-a_cm_stage_ref_v)/(124u-120u)
+print cm_stage_ref_v
+let int_cm_late_v=integ(cm)
+let val_cm_late_v=cm
+let a_cm_late_v=int_cm_late_v[edge_145u]+(145u-time[edge_145u])*(val_cm_late_v[edge_145u]+0.5*frac_edge_145u*(val_cm_late_v[edge_145u+1]-val_cm_late_v[edge_145u]))
+let b_cm_late_v=int_cm_late_v[edge_149u]+(149u-time[edge_149u])*(val_cm_late_v[edge_149u]+0.5*frac_edge_149u*(val_cm_late_v[edge_149u+1]-val_cm_late_v[edge_149u]))
+let cm_late_v=(b_cm_late_v-a_cm_late_v)/(149u-145u)
+print cm_late_v
+let val_cm_quiet_pp_v=cm
+let win_cm_quiet_pp_v=val_cm_quiet_pp_v[edge_5u+1,edge_9u]
+let end_a_cm_quiet_pp_v=val_cm_quiet_pp_v[edge_5u]+frac_edge_5u*(val_cm_quiet_pp_v[edge_5u+1]-val_cm_quiet_pp_v[edge_5u])
+let end_b_cm_quiet_pp_v=val_cm_quiet_pp_v[edge_9u]+frac_edge_9u*(val_cm_quiet_pp_v[edge_9u+1]-val_cm_quiet_pp_v[edge_9u])
+let min_cm_quiet_pp_v=min(vecmin(win_cm_quiet_pp_v),min(end_a_cm_quiet_pp_v,end_b_cm_quiet_pp_v))
+let max_cm_quiet_pp_v=max(vecmax(win_cm_quiet_pp_v),max(end_a_cm_quiet_pp_v,end_b_cm_quiet_pp_v))
+let cm_quiet_pp_v=max_cm_quiet_pp_v-min_cm_quiet_pp_v
+print cm_quiet_pp_v
+let val_cm_late_pp_v=cm
+let win_cm_late_pp_v=val_cm_late_pp_v[edge_145u+1,edge_149u]
+let end_a_cm_late_pp_v=val_cm_late_pp_v[edge_145u]+frac_edge_145u*(val_cm_late_pp_v[edge_145u+1]-val_cm_late_pp_v[edge_145u])
+let end_b_cm_late_pp_v=val_cm_late_pp_v[edge_149u]+frac_edge_149u*(val_cm_late_pp_v[edge_149u+1]-val_cm_late_pp_v[edge_149u])
+let min_cm_late_pp_v=min(vecmin(win_cm_late_pp_v),min(end_a_cm_late_pp_v,end_b_cm_late_pp_v))
+let max_cm_late_pp_v=max(vecmax(win_cm_late_pp_v),max(end_a_cm_late_pp_v,end_b_cm_late_pp_v))
+let cm_late_pp_v=max_cm_late_pp_v-min_cm_late_pp_v
+print cm_late_pp_v
+let cm_delta=abs(cm-cm_pre_kick_v)
+let val_cm_kick_v=cm_delta
+let win_cm_kick_v=val_cm_kick_v[edge_30u+1,edge_33u]
+let end_a_cm_kick_v=val_cm_kick_v[edge_30u]+frac_edge_30u*(val_cm_kick_v[edge_30u+1]-val_cm_kick_v[edge_30u])
+let end_b_cm_kick_v=val_cm_kick_v[edge_33u]+frac_edge_33u*(val_cm_kick_v[edge_33u+1]-val_cm_kick_v[edge_33u])
+let min_cm_kick_v=min(vecmin(win_cm_kick_v),min(end_a_cm_kick_v,end_b_cm_kick_v))
+let max_cm_kick_v=max(vecmax(win_cm_kick_v),max(end_a_cm_kick_v,end_b_cm_kick_v))
+let cm_kick_v=max_cm_kick_v
+print cm_kick_v
+let int_cm_recovery_error_v=integ(cm_delta)
+let val_cm_recovery_error_v=cm_delta
+let a_cm_recovery_error_v=int_cm_recovery_error_v[edge_45u]+(45u-time[edge_45u])*(val_cm_recovery_error_v[edge_45u]+0.5*frac_edge_45u*(val_cm_recovery_error_v[edge_45u+1]-val_cm_recovery_error_v[edge_45u]))
+let b_cm_recovery_error_v=int_cm_recovery_error_v[edge_49u]+(49u-time[edge_49u])*(val_cm_recovery_error_v[edge_49u]+0.5*frac_edge_49u*(val_cm_recovery_error_v[edge_49u+1]-val_cm_recovery_error_v[edge_49u]))
+let cm_recovery_error_v=(b_cm_recovery_error_v-a_cm_recovery_error_v)/(49u-45u)
+print cm_recovery_error_v
+let int_s1_quiet_v=integ(s1)
+let val_s1_quiet_v=s1
+let a_s1_quiet_v=int_s1_quiet_v[edge_5u]+(5u-time[edge_5u])*(val_s1_quiet_v[edge_5u]+0.5*frac_edge_5u*(val_s1_quiet_v[edge_5u+1]-val_s1_quiet_v[edge_5u]))
+let b_s1_quiet_v=int_s1_quiet_v[edge_9u]+(9u-time[edge_9u])*(val_s1_quiet_v[edge_9u]+0.5*frac_edge_9u*(val_s1_quiet_v[edge_9u+1]-val_s1_quiet_v[edge_9u]))
+let s1_quiet_v=(b_s1_quiet_v-a_s1_quiet_v)/(9u-5u)
+print s1_quiet_v
+let int_s1_pre_kick_v=integ(s1)
+let val_s1_pre_kick_v=s1
+let a_s1_pre_kick_v=int_s1_pre_kick_v[edge_28u]+(28u-time[edge_28u])*(val_s1_pre_kick_v[edge_28u]+0.5*frac_edge_28u*(val_s1_pre_kick_v[edge_28u+1]-val_s1_pre_kick_v[edge_28u]))
+let b_s1_pre_kick_v=int_s1_pre_kick_v[edge_29u]+(29u-time[edge_29u])*(val_s1_pre_kick_v[edge_29u]+0.5*frac_edge_29u*(val_s1_pre_kick_v[edge_29u+1]-val_s1_pre_kick_v[edge_29u]))
+let s1_pre_kick_v=(b_s1_pre_kick_v-a_s1_pre_kick_v)/(29u-28u)
+print s1_pre_kick_v
+let int_s1_recovery_v=integ(s1)
+let val_s1_recovery_v=s1
+let a_s1_recovery_v=int_s1_recovery_v[edge_45u]+(45u-time[edge_45u])*(val_s1_recovery_v[edge_45u]+0.5*frac_edge_45u*(val_s1_recovery_v[edge_45u+1]-val_s1_recovery_v[edge_45u]))
+let b_s1_recovery_v=int_s1_recovery_v[edge_49u]+(49u-time[edge_49u])*(val_s1_recovery_v[edge_49u]+0.5*frac_edge_49u*(val_s1_recovery_v[edge_49u+1]-val_s1_recovery_v[edge_49u]))
+let s1_recovery_v=(b_s1_recovery_v-a_s1_recovery_v)/(49u-45u)
+print s1_recovery_v
+let int_s1_ref_v=integ(s1)
+let val_s1_ref_v=s1
+let a_s1_ref_v=int_s1_ref_v[edge_60u]+(60u-time[edge_60u])*(val_s1_ref_v[edge_60u]+0.5*frac_edge_60u*(val_s1_ref_v[edge_60u+1]-val_s1_ref_v[edge_60u]))
+let b_s1_ref_v=int_s1_ref_v[edge_64u]+(64u-time[edge_64u])*(val_s1_ref_v[edge_64u]+0.5*frac_edge_64u*(val_s1_ref_v[edge_64u+1]-val_s1_ref_v[edge_64u]))
+let s1_ref_v=(b_s1_ref_v-a_s1_ref_v)/(64u-60u)
+print s1_ref_v
+let int_s1_input_cm_v=integ(s1)
+let val_s1_input_cm_v=s1
+let a_s1_input_cm_v=int_s1_input_cm_v[edge_85u]+(85u-time[edge_85u])*(val_s1_input_cm_v[edge_85u]+0.5*frac_edge_85u*(val_s1_input_cm_v[edge_85u+1]-val_s1_input_cm_v[edge_85u]))
+let b_s1_input_cm_v=int_s1_input_cm_v[edge_89u]+(89u-time[edge_89u])*(val_s1_input_cm_v[edge_89u]+0.5*frac_edge_89u*(val_s1_input_cm_v[edge_89u+1]-val_s1_input_cm_v[edge_89u]))
+let s1_input_cm_v=(b_s1_input_cm_v-a_s1_input_cm_v)/(89u-85u)
+print s1_input_cm_v
+let int_s1_stage_ref_v=integ(s1)
+let val_s1_stage_ref_v=s1
+let a_s1_stage_ref_v=int_s1_stage_ref_v[edge_120u]+(120u-time[edge_120u])*(val_s1_stage_ref_v[edge_120u]+0.5*frac_edge_120u*(val_s1_stage_ref_v[edge_120u+1]-val_s1_stage_ref_v[edge_120u]))
+let b_s1_stage_ref_v=int_s1_stage_ref_v[edge_124u]+(124u-time[edge_124u])*(val_s1_stage_ref_v[edge_124u]+0.5*frac_edge_124u*(val_s1_stage_ref_v[edge_124u+1]-val_s1_stage_ref_v[edge_124u]))
+let s1_stage_ref_v=(b_s1_stage_ref_v-a_s1_stage_ref_v)/(124u-120u)
+print s1_stage_ref_v
+let int_s1_late_v=integ(s1)
+let val_s1_late_v=s1
+let a_s1_late_v=int_s1_late_v[edge_145u]+(145u-time[edge_145u])*(val_s1_late_v[edge_145u]+0.5*frac_edge_145u*(val_s1_late_v[edge_145u+1]-val_s1_late_v[edge_145u]))
+let b_s1_late_v=int_s1_late_v[edge_149u]+(149u-time[edge_149u])*(val_s1_late_v[edge_149u]+0.5*frac_edge_149u*(val_s1_late_v[edge_149u+1]-val_s1_late_v[edge_149u]))
+let s1_late_v=(b_s1_late_v-a_s1_late_v)/(149u-145u)
+print s1_late_v
+let val_s1_quiet_pp_v=s1
+let win_s1_quiet_pp_v=val_s1_quiet_pp_v[edge_5u+1,edge_9u]
+let end_a_s1_quiet_pp_v=val_s1_quiet_pp_v[edge_5u]+frac_edge_5u*(val_s1_quiet_pp_v[edge_5u+1]-val_s1_quiet_pp_v[edge_5u])
+let end_b_s1_quiet_pp_v=val_s1_quiet_pp_v[edge_9u]+frac_edge_9u*(val_s1_quiet_pp_v[edge_9u+1]-val_s1_quiet_pp_v[edge_9u])
+let min_s1_quiet_pp_v=min(vecmin(win_s1_quiet_pp_v),min(end_a_s1_quiet_pp_v,end_b_s1_quiet_pp_v))
+let max_s1_quiet_pp_v=max(vecmax(win_s1_quiet_pp_v),max(end_a_s1_quiet_pp_v,end_b_s1_quiet_pp_v))
+let s1_quiet_pp_v=max_s1_quiet_pp_v-min_s1_quiet_pp_v
+print s1_quiet_pp_v
+let val_s1_late_pp_v=s1
+let win_s1_late_pp_v=val_s1_late_pp_v[edge_145u+1,edge_149u]
+let end_a_s1_late_pp_v=val_s1_late_pp_v[edge_145u]+frac_edge_145u*(val_s1_late_pp_v[edge_145u+1]-val_s1_late_pp_v[edge_145u])
+let end_b_s1_late_pp_v=val_s1_late_pp_v[edge_149u]+frac_edge_149u*(val_s1_late_pp_v[edge_149u+1]-val_s1_late_pp_v[edge_149u])
+let min_s1_late_pp_v=min(vecmin(win_s1_late_pp_v),min(end_a_s1_late_pp_v,end_b_s1_late_pp_v))
+let max_s1_late_pp_v=max(vecmax(win_s1_late_pp_v),max(end_a_s1_late_pp_v,end_b_s1_late_pp_v))
+let s1_late_pp_v=max_s1_late_pp_v-min_s1_late_pp_v
+print s1_late_pp_v
+let s1_delta=abs(s1-s1_pre_kick_v)
+let val_s1_kick_v=s1_delta
+let win_s1_kick_v=val_s1_kick_v[edge_30u+1,edge_33u]
+let end_a_s1_kick_v=val_s1_kick_v[edge_30u]+frac_edge_30u*(val_s1_kick_v[edge_30u+1]-val_s1_kick_v[edge_30u])
+let end_b_s1_kick_v=val_s1_kick_v[edge_33u]+frac_edge_33u*(val_s1_kick_v[edge_33u+1]-val_s1_kick_v[edge_33u])
+let min_s1_kick_v=min(vecmin(win_s1_kick_v),min(end_a_s1_kick_v,end_b_s1_kick_v))
+let max_s1_kick_v=max(vecmax(win_s1_kick_v),max(end_a_s1_kick_v,end_b_s1_kick_v))
+let s1_kick_v=max_s1_kick_v
+print s1_kick_v
+let int_s1_recovery_error_v=integ(s1_delta)
+let val_s1_recovery_error_v=s1_delta
+let a_s1_recovery_error_v=int_s1_recovery_error_v[edge_45u]+(45u-time[edge_45u])*(val_s1_recovery_error_v[edge_45u]+0.5*frac_edge_45u*(val_s1_recovery_error_v[edge_45u+1]-val_s1_recovery_error_v[edge_45u]))
+let b_s1_recovery_error_v=int_s1_recovery_error_v[edge_49u]+(49u-time[edge_49u])*(val_s1_recovery_error_v[edge_49u]+0.5*frac_edge_49u*(val_s1_recovery_error_v[edge_49u+1]-val_s1_recovery_error_v[edge_49u]))
+let s1_recovery_error_v=(b_s1_recovery_error_v-a_s1_recovery_error_v)/(49u-45u)
+print s1_recovery_error_v
+let int_dm_high_error_v=integ(dmerror)
+let val_dm_high_error_v=dmerror
+let a_dm_high_error_v=int_dm_high_error_v[edge_18u]+(18u-time[edge_18u])*(val_dm_high_error_v[edge_18u]+0.5*frac_edge_18u*(val_dm_high_error_v[edge_18u+1]-val_dm_high_error_v[edge_18u]))
+let b_dm_high_error_v=int_dm_high_error_v[edge_19u]+(19u-time[edge_19u])*(val_dm_high_error_v[edge_19u]+0.5*frac_edge_19u*(val_dm_high_error_v[edge_19u+1]-val_dm_high_error_v[edge_19u]))
+let dm_high_error_v=(b_dm_high_error_v-a_dm_high_error_v)/(19u-18u)
+print dm_high_error_v
+let int_dm_return_error_v=integ(dmerror)
+let val_dm_return_error_v=dmerror
+let a_dm_return_error_v=int_dm_return_error_v[edge_25u]+(25u-time[edge_25u])*(val_dm_return_error_v[edge_25u]+0.5*frac_edge_25u*(val_dm_return_error_v[edge_25u+1]-val_dm_return_error_v[edge_25u]))
+let b_dm_return_error_v=int_dm_return_error_v[edge_29u]+(29u-time[edge_29u])*(val_dm_return_error_v[edge_29u]+0.5*frac_edge_29u*(val_dm_return_error_v[edge_29u+1]-val_dm_return_error_v[edge_29u]))
+let dm_return_error_v=(b_dm_return_error_v-a_dm_return_error_v)/(29u-25u)
+print dm_return_error_v
+let supply=-v(vdd)*i(VDD)-v(vb1)*i(VB1)-v(vb2)*i(VB2)-v(vb3)*i(VB3)-v(ref)*i(VREF)-v(rs)*i(VRS)
+let int_mean_power_w=integ(supply)
+let val_mean_power_w=supply
+let a_mean_power_w=int_mean_power_w[edge_0u]+(0u-time[edge_0u])*(val_mean_power_w[edge_0u]+0.5*frac_edge_0u*(val_mean_power_w[edge_0u+1]-val_mean_power_w[edge_0u]))
+let b_mean_power_w=int_mean_power_w[edge_150u]+(150u-time[edge_150u])*(val_mean_power_w[edge_150u]+0.5*frac_edge_150u*(val_mean_power_w[edge_150u+1]-val_mean_power_w[edge_150u]))
+let mean_power_w=(b_mean_power_w-a_mean_power_w)/(150u-0u)
+print mean_power_w
+write transient.raw v(vdd) v(vb1) v(vb2) v(vb3) v(ref) v(icm) v(sig) v(inp) v(inn) v(fp) v(fn) v(outp) v(outn) v(s1p) v(s1n) v(ctl) i(VDD) i(VB1) i(VB2) i(VB3) i(VREF) v(rs) v(ctl1) i(VRS)
+quit
+.endc
+.end

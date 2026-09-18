@@ -17,12 +17,12 @@ from helpers.scoring import (
 )
 from helpers.spice_raw import output_rows
 
+from benchmarking.engine.evaluate import run_evaluation
+from benchmarking.engine.prepare_support import prepare_support
+from benchmarking.engine.toolchains import load_toolchain
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset, read_file
 from benchmarking.tasks import load_task
-from layout_eval.evaluate import run_evaluation
-from layout_eval.prepare_support import prepare_support
-from layout_eval.toolchains import load_toolchain
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
@@ -50,7 +50,7 @@ def environment(tmp_path_factory):
     ):
         support = root / name
         prepare_support(
-            PUBLIC_ROOT / "third_party/IHP-Open-PDK",
+            None,
             f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}",
             support,
         )

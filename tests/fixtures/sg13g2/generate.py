@@ -2,11 +2,12 @@
 
 import argparse
 import json
+import os
 from pathlib import Path
 
+from benchmarking.engine.docker import DockerTool
+from benchmarking.engine.environment import verify_pdk
 from benchmarking.files import Asset
-from layout_eval.docker import DockerTool
-from layout_eval.environment import verify_pdk
 
 EXAMPLES = Path(__file__).resolve().parent
 
@@ -15,7 +16,7 @@ def generate_fixtures(view: Path, destination: Path) -> dict[str, Asset]:
     view_digest = verify_pdk(view)
     if destination.exists() or destination.is_symlink():
         raise FileExistsError(destination)
-    tool = DockerTool("iclayout-bench-tools:local", ["magic", "--version"], 60)
+    tool = DockerTool(os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local"), ["magic", "--version"], 60)
     primitive_files = {"pdk/" + p.relative_to(view).as_posix(): Asset(p.read_bytes(), "binary")
                        for p in view.rglob("*") if p.is_file()}
     environment = {"KLAYOUT": "1", "PYTHONDONTWRITEBYTECODE": "1",

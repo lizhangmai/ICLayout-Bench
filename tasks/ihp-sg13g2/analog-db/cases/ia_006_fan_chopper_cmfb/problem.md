@@ -103,84 +103,62 @@ noise and manufacturing signoff are not qualified.
 
 ## Electrical Requirements and Scoring
 
-Let `d=VOUTP−VOUTN`, `c=(VOUTP+VOUTN)/2`, and let averages and extrema use
-the saved transient samples with endpoint interpolation and trapezoidal
-integration. The primary windows are:
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-| Symbol | Window | Meaning |
-| --- | --- | --- |
-| B | 400–500 us | Settled zero input; two complete clock periods |
-| H | 900–1000 us | Settled signed input plateau; two periods |
-| R | 1400–1500 us | Settled return to zero; two periods |
-| A | 400–1500 us | Complete accepted sequence after initial settling; 22 periods |
+For a post-layout observation x and its source observation b:
 
-`baseline_v`, `plateau_v` and `return_v` are mean d in B, H and R. These
-signed means and `dc_cm_v`, `dc_dm_v`, `dc_power_w` are diagnostic values
-without independent score bounds. A static DC differential offset may be
-modulated by the running choppers; static balance does not establish success.
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
 
-The required measurements are:
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
 
-- `gain_vv=(plateau_v−baseline_v)/step_v`, retaining the expected positive sign.
-- `baseline_error_v=abs(baseline_v)` and
-  `return_error_v=abs(return_v−baseline_v)`.
-- `high_drift_v`: absolute difference between mean d over 900–950 us and
-  950–1000 us. `return_drift_v`: the analogous difference over 1400–1450 us
-  and 1450–1500 us. These check successive full periods, not a first crossing.
-- `ripple_rms_v`: square root of the H average of `(d−plateau_v)^2`.
-  `ripple_pp_v`: maximum d minus minimum d over all of H, including switching
-  edges. No blanking window, smoothing filter or spike exclusion is applied.
-- `cm_mean_v`: mean c in H; `cm_min_v` and `cm_max_v`: extrema throughout A.
-- `sum_cm_v`: H mean of `(CORE__VSUM_P+CORE__VSUM_N)/2`.
-  `sum_error_v`: absolute H mean of
-  `(CORE__VSUM_P−CORE__VSUM_N)*(CLK_CHIN/0.6−1)`. The continuous clock factor
-  includes its finite ramps; this is demodulated mean error, not a claim that
-  the instantaneous differential summing voltage is zero at switching edges.
-- `mean_power_w`: A mean of `−1.2*I(VDD)`. It includes the physical amplifier,
-  bias and CMFB devices, but excludes external bias/reference generator
-  overhead, signal-driver energy and clock-driver supply energy.
-- `clock_power_w`: H mean of the sum, over all six clock voltage sources, of
-  `max(−Vclock*I(Vclock),0)`. It counts positive supplied power separately for
-  each source over complete periods, without crediting returned energy.
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `gain_vv` | condition_0:gain_vv, condition_1:gain_vv, condition_2:gain_vv, condition_3:gain_vv | V/V | target / target | −∞ … +∞ | 1.0 |
+| `baseline_error_v` | condition_0:baseline_error_v, condition_1:baseline_error_v, condition_2:baseline_error_v, condition_3:baseline_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `return_error_v` | condition_0:return_error_v, condition_1:return_error_v, condition_2:return_error_v, condition_3:return_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `high_drift_v` | condition_0:high_drift_v, condition_1:high_drift_v, condition_2:high_drift_v, condition_3:high_drift_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `return_drift_v` | condition_0:return_drift_v, condition_1:return_drift_v, condition_2:return_drift_v, condition_3:return_drift_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `ripple_rms_v` | condition_0:ripple_rms_v, condition_1:ripple_rms_v, condition_2:ripple_rms_v, condition_3:ripple_rms_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `ripple_pp_v` | condition_0:ripple_pp_v, condition_1:ripple_pp_v, condition_2:ripple_pp_v, condition_3:ripple_pp_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `cm_mean_v` | condition_0:cm_mean_v, condition_1:cm_mean_v, condition_2:cm_mean_v, condition_3:cm_mean_v | V | target / target | 0 … 1.2 | 1.2 |
+| `cm_min_v` | condition_0:cm_min_v, condition_1:cm_min_v, condition_2:cm_min_v, condition_3:cm_min_v | V | target / target | 0 … 1.2 | 1.2 |
+| `cm_max_v` | condition_0:cm_max_v, condition_1:cm_max_v, condition_2:cm_max_v, condition_3:cm_max_v | V | target / target | 0 … 1.2 | 1.2 |
+| `sum_cm_v` | condition_0:sum_cm_v, condition_1:sum_cm_v, condition_2:sum_cm_v, condition_3:sum_cm_v | V | target / target | 0 … 1.2 | 1.2 |
+| `sum_error_v` | condition_0:sum_error_v, condition_1:sum_error_v, condition_2:sum_error_v, condition_3:sum_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `mean_power_w` | condition_0:mean_power_w, condition_1:mean_power_w, condition_2:mean_power_w, condition_3:mean_power_w | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `clock_power_w` | condition_0:clock_power_w, condition_1:clock_power_w, condition_2:clock_power_w, condition_3:clock_power_w | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `dc_cm_v` | condition_0:dc_cm_v, condition_1:dc_cm_v, condition_2:dc_cm_v, condition_3:dc_cm_v | V | diagnostic | −∞ … +∞ | — |
+| `dc_dm_v` | condition_0:dc_dm_v, condition_1:dc_dm_v, condition_2:dc_dm_v, condition_3:dc_dm_v | V | diagnostic | −∞ … +∞ | — |
+| `baseline_v` | condition_0:baseline_v, condition_1:baseline_v, condition_2:baseline_v, condition_3:baseline_v | V | diagnostic | −∞ … +∞ | — |
+| `plateau_v` | condition_0:plateau_v, condition_1:plateau_v, condition_2:plateau_v, condition_3:plateau_v | V | diagnostic | −∞ … +∞ | — |
+| `return_v` | condition_0:return_v, condition_1:return_v, condition_2:return_v, condition_3:return_v | V | diagnostic | −∞ … +∞ | — |
+| `dc_power_w` | condition_0:dc_power_w, condition_1:dc_power_w, condition_2:dc_power_w, condition_3:dc_power_w | W | diagnostic | −∞ … +∞ | — |
 
-Every bound below must hold independently in every load/polarity condition.
+Area reference: **102216.79 um2**. 166 expanded device instances; sum of device/contact envelopes 67727.1707 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-| Metric | Unit | Acceptance | Lower / upper zero-score boundaries | Dimension |
-| --- | --- | --- | --- | --- |
-| `gain_vv` | V/V | 18.5–21 | 0 / 30 | response |
-| `baseline_error_v` | V | 0–5e-05 | 0 / 0.005 | response |
-| `return_error_v` | V | 0–5e-05 | 0 / 0.005 | response |
-| `high_drift_v` | V | 0–1e-05 | 0 / 0.002 | response |
-| `return_drift_v` | V | 0–1e-05 | 0 / 0.002 | response |
-| `ripple_rms_v` | V | 0–0.015 | 0 / 0.1 | response |
-| `ripple_pp_v` | V | 0–0.12 | 0 / 0.6 | response |
-| `cm_mean_v` | V | 0.59–0.63 | 0.45 / 0.8 | bias |
-| `cm_min_v` | V | 0.57–0.65 | 0.45 / 0.8 | bias |
-| `cm_max_v` | V | 0.57–0.65 | 0.45 / 0.8 | bias |
-| `sum_cm_v` | V | 0.59–0.61 | 0.45 / 0.75 | bias |
-| `sum_error_v` | V | 0–0.0003 | 0 / 0.01 | response |
-| `mean_power_w` | W | 0–0.0004 | 0 / 0.0008 | supply |
-| `clock_power_w` | W | 0–2.5e-08 | 0 / 1e-06 | supply |
-
-Coefficient **10** represents a system-level combination of input/feedback
-modulation, a compensated two-stage signal path and actual common-mode feedback
-across both clock states and input polarities. Unified `layout-v1` scoring is
-`G × (60E + 20H + 20HQ)`: G requires physical validity and complete valid
-measurements, E averages worst attainment in response/bias/supply, and H
-requires every electrical bound. Each attainment declines linearly between its
-acceptance edge and stated zero boundary. Area utility is
-`Q=clip((4800000−area)/3600000,0,1)`, using fixed absolute anchors
-1200000/4800000 um². Physical rejection scores zero; incomplete measurements
-cannot establish success or receive an invented score. Aggregation cannot hide
-a failed condition.
-
-Qualification covers nominal clocked DC transfer, period-mean recovery, full
-ripple and common-mode regulation for the specified sequence. It does not
-establish a low-noise/low-ripple amplifier, input impedance, broadband frequency
-response, PSS/PAC/noise performance, internal loop phase margins, arbitrary
-loads/clock phasing, PVT, mismatch, rail-to-rail operation or zero-supply startup.
+The capability coefficient remains **10**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Discover frozen task inputs, requirements, reviewed resources and harness
 feedback in `/protocol/task.json`, `/protocol/resources.json` and

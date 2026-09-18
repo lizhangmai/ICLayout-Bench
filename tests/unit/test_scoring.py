@@ -2,13 +2,14 @@ import copy
 import json
 import math
 import tomllib
+from typing import ClassVar
 
 import pytest
 from test_evaluate import PLAN, evaluate
 
+from benchmarking.engine.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.scoring import recompute_score
-from layout_eval.evaluate import run_evaluation
 
 pytestmark = pytest.mark.unit
 pytest_plugins = ["test_evaluate"]
@@ -33,32 +34,6 @@ dimension = "bias"
     assert report["score"]["dimensions"] == {"bias": 0.5, "response": 1.0}
     assert report["score"]["components"]["H"] == 0.0
     assert report["score"]["value"] < 60
-
-
-def test_acceptance_boundary_is_perfect_but_just_outside_is_not(tmp_path, inputs, bindings):
-    plan = parse_evaluation(PLAN)
-    report = run_evaluation(plan, inputs, bindings, tmp_path / "accepted")
-    exact = copy.deepcopy(report)
-    exact["jobs"]["slow"]["measurements"]["delay"]["value"] = 4.0
-    exact_score = recompute_score(plan, exact)
-    assert exact_score["components"]["E"] == 1.0
-    assert exact_score["components"]["H"] == 1.0
-
-    outside = copy.deepcopy(exact)
-    outside_value = math.nextafter(4.0, math.inf)
-    outside["jobs"]["slow"]["measurements"]["delay"]["value"] = outside_value
-    outside_score = recompute_score(plan, outside)
-    assert outside_score["components"]["E"] < 1.0
-    assert outside_score["value"] < 60
-
-
-def test_equal_zero_boundary_is_a_hard_cliff(tmp_path, inputs, bindings):
-    raw = PLAN.replace(b"upper = 4.0", b"upper = 2.0").replace(
-        b"zero_upper = 6.0", b"zero_upper = 2.0")
-    report = evaluate(tmp_path, inputs, bindings, raw)
-    assert report["metrics"]["delay"]["status"] == "failed"
-    assert report["score"]["components"]["E"] == 0.0
-    assert report["score"]["value"] == 0.0
 
 
 def test_area_utility_is_clipped_and_report_recomputation_is_identical(
@@ -108,59 +83,156 @@ def test_area_metric_must_use_the_candidate_constraint_check():
         parse_evaluation(json.dumps(data).encode(), file_format="json")
 
 
-@pytest.mark.parametrize(("field", "value", "message"), [
-    ("area_target", "0", "positive"),
-    ("area_zero", "1.0", "exceed"),
-    ("area_zero", "nan", "finite numeric"),
+# The existing synthetic circuit owns the DAG and units. These controls protect
+# the new public reference-relative arithmetic, uncapped improvements and missing
+# baseline semantics; expected values follow the stated ratios, not engine output.
+def reference_plan(**metric_changes):
+    data = tomllib.loads(PLAN.decode())
+    data["scoring"].update(method="layout-v2")
+    data["scoring"].pop("area_zero")
+    for job in list(data["jobs"]):
+        if job["stage"] == "simulate":
+            source = copy.deepcopy(job)
+            source.update(id="source_" + job["id"], inputs={"dut": "input:netlist"})
+            data["jobs"].append(source)
+    metric = data["metrics"][0]
+    metric.pop("zero_upper")
+    metric.pop("upper")
+    metric.update(lower=0, baseline=["source_" + ref for ref in metric["observations"]],
+                  normalization="ratio", **metric_changes)
+    return data
+
+
+class ReferenceSimulator:
+    identity: ClassVar[dict] = {"adapter": "synthetic-reference", "version": "1"}
+
+    def run(self, job, inputs):
+        from benchmarking.engine.evaluate import JobResult, Measurement
+        # Source and extracted circuits traverse the real engine's input resolver.
+        source = inputs["dut"].content == b"schematic"
+        assert source or inputs["dut"].content == b"derived-from-layout"
+        value = job.parameters["load"] * (2 if source else 1)
+        return JobResult("passed", measurements={"delay": Measurement(value, "s")},
+                         evidence={"log": inputs["dut"]})
+
+
+def reference_report(tmp_path, inputs, bindings):
+    plan = parse_evaluation(json.dumps(reference_plan()).encode(), file_format="json")
+    report = run_evaluation(plan, inputs, {**bindings, "response": ReferenceSimulator()}, tmp_path / "v2")
+    return plan, report
+
+
+def test_reference_scores_are_continuous_uncapped_and_recomputable(tmp_path, inputs, bindings):
+    plan, report = reference_report(tmp_path, inputs, bindings)
+    score = report["score"]
+    assert report["outcome"] == "passed"
+    assert score["maximum"] is None and score["reference"] == 100
+    assert score["value"] == pytest.approx(100 * math.sqrt(2 / 1.5))
+    assert score["value"] > 100
+    assert score == recompute_score(plan, report)
+    # A worse observation remains visible even when the other observation improves.
+    report["jobs"]["slow"]["measurements"]["delay"]["value"] = 8
+    score = recompute_score(plan, report)
+    assert score["components"]["E"] == pytest.approx(0.5)
+    assert score["value"] == pytest.approx(100 * math.sqrt(0.5 / 1.5))
+
+
+@pytest.mark.parametrize("defect", [
+    "missing",
+    "unit",
+    "failed_job",
 ])
-def test_scoring_area_bounds_are_finite_and_ordered(field, value, message):
-    raw = PLAN.replace(f"{field} = 1.0".encode() if field == "area_target"
-                       else f"{field} = 2.0".encode(), f"{field} = {value}".encode())
-    with pytest.raises(ValueError, match=message):
-        parse_evaluation(raw)
+def test_invalid_source_evidence_never_awards_a_score(tmp_path, inputs, bindings, defect):
+    plan, report = reference_report(tmp_path, inputs, bindings)
+    if defect == "failed_job":
+        report["jobs"]["source_nominal"]["status"] = "failed"
+    elif defect == "missing":
+        report["jobs"]["source_nominal"]["measurements"].clear()
+    else:
+        report["jobs"]["source_nominal"]["measurements"]["delay"]["unit"] = "V"
+    assert recompute_score(plan, report)["value"] is None
 
 
-@pytest.mark.parametrize(("change", "message"), [
-    ((b"zero_upper = 6.0\n", b""), "zero_upper"),
-    ((b'dimension = "response"', b'dimension = "unknown"'), "Unknown scoring dimension"),
-    ((b'area_metric = "functional_area"', b'area_metric = "delay"'),
-     "physical metric"),
-    ((b'method = "layout-v1"', b'method = "other"'), "Unsupported scoring method"),
+def test_function_failure_is_zero_without_a_degradation_cutoff(tmp_path, inputs, bindings):
+    plan, report = reference_report(tmp_path, inputs, bindings)
+    report["jobs"]["slow"]["measurements"]["delay"]["value"] = 1000
+    assert 0 < recompute_score(plan, report)["value"] < 10
+    report["jobs"]["slow"]["measurements"]["delay"]["value"] = -1
+    assert recompute_score(plan, report)["value"] == 0
+
+
+@pytest.mark.parametrize("normalization,direction,unit,scale,post,source,expected", [
+    ("db20", "maximize", "dB", None, 26.020599913279625, 20, 2),
+    ("target", "target", "V", 1, -0.5, 0, 2 / 3),
+    ("ratio", "minimize", "s", 0.001, 0, 0, 1),
+    ("ratio", "maximize", "s", None, 0, 1, 0),
 ])
-def test_scoring_schema_is_strict(change, message):
-    before, after = change
-    with pytest.raises(ValueError, match=message):
-        parse_evaluation(PLAN.replace(before, after))
+def test_reference_normalization_handles_db_signed_targets_and_zero(
+        tmp_path, inputs, bindings, normalization, direction, unit, scale, post, source, expected):
+    _, report = reference_report(tmp_path, inputs, bindings)
+    data = reference_plan()
+    metric = data["metrics"][0]
+    metric.update(normalization=normalization, direction=direction, unit=unit)
+    if normalization != "ratio":
+        metric.pop("lower")
+        # A separate functional measurement keeps the required functional gate.
+        function = copy.deepcopy(metric)
+        for key in ("dimension", "baseline", "normalization"):
+            function.pop(key)
+        function.update(id="functional", direction="minimize", upper=100)
+        data["metrics"].append(function)
+    if scale is not None:
+        metric["scale"] = scale
+    for job in report["jobs"].values():
+        if "delay" in job.get("measurements", {}):
+            job["measurements"]["delay"].update(unit=unit, value=post)
+    for name in ("source_nominal", "source_slow"):
+        report["jobs"][name]["measurements"]["delay"]["value"] = source
+    plan = parse_evaluation(json.dumps(data).encode(), file_format="json")
+    assert recompute_score(plan, report)["components"]["E"] == pytest.approx(expected)
 
 
-def test_evaluator_error_is_null_but_completed_invalid_candidate_is_zero(
-        tmp_path, inputs, bindings):
-    error = evaluate(tmp_path / "error", inputs,
-                     {**bindings, "check": type(bindings["check"])(crash="geometry")})
-    assert error["outcome"] == "error"
-    assert error["score"]["value"] is None
+@pytest.mark.parametrize("defect", ["candidate", "parameters", "deck", "unpaired"])
+def test_baseline_requires_independent_same_condition_source_simulation(defect):
+    data = reference_plan()
+    source = next(j for j in data["jobs"] if j["id"] == "source_nominal")
+    if defect == "candidate":
+        source["inputs"]["dut"] = "job:parasitics:netlist"
+    elif defect == "parameters":
+        source["parameters"]["load"] = 99
+    elif defect == "deck":
+        source["inputs"]["deck"] = "input:different"
+    else:
+        data["metrics"][0]["baseline"].pop()
+    with pytest.raises(ValueError):
+        parse_evaluation(json.dumps(data).encode(), file_format="json")
 
-    failed = evaluate(tmp_path / "failed", inputs,
-                      {**bindings, "check": type(bindings["check"])(reject="drc")})
-    assert failed["outcome"] == "failed"
-    assert failed["score"]["value"] == 0
+
+def test_unusable_baseline_changes_success_to_evaluator_error(tmp_path, inputs, bindings):
+    from benchmarking.engine.evaluate import JobResult
+
+    class MissingSource(ReferenceSimulator):
+        def run(self, job, inputs):
+            if inputs['dut'].content == b'schematic':
+                return JobResult('passed', evidence={'log': inputs['dut']})
+            return super().run(job, inputs)
+
+    plan = parse_evaluation(json.dumps(reference_plan()).encode(), file_format='json')
+    report = run_evaluation(plan, inputs, {**bindings, 'response': MissingSource()}, tmp_path / 'missing-source')
+    assert report['physical_valid'] is True and report['specs_pass'] is True
+    assert report['outcome'] == 'error'
+    assert report['task_success'] is None and report['score']['value'] is None
+    # A conclusive functional violation still cannot disappear from statistics.
+    report['jobs']['slow']['measurements']['delay']['value'] = -1
+    assert recompute_score(plan, report)['value'] == 0
 
 
-@pytest.mark.parametrize('position,utility,score', [
-    ('below', 1, 100), ('target', 1, 100), ('midpoint', 0.5, 90),
-    ('zero', 0, 80), ('beyond', 0, 80),
-])
-def test_area_utility_clips_at_both_anchors_without_changing_acceptance(
-        tmp_path, inputs, bindings, position, utility, score):
-    # layout-v1 awards 80 electrical points plus 20 times clipped area
-    # utility. Expected utilities follow independently stated positions,
-    # while the synthetic plan owns the actual dimensional anchors.
-    scoring = parse_evaluation(PLAN).scoring
-    target, zero = scoring.area_target, scoring.area_zero
-    area = {'below': target / 2, 'target': target, 'midpoint': (target + zero) / 2,
-            'zero': zero, 'beyond': zero + (zero - target)}[position]
-    bindings['check'] = type(bindings['check'])(area=area)
-    report = evaluate(tmp_path, inputs, bindings)
-    assert report['physical_valid'] is report['task_success'] is True
-    assert report['score']['components']['Q'] == pytest.approx(utility)
-    assert report['score']['value'] == pytest.approx(score)
+def test_extreme_finite_area_does_not_emit_nonfinite_score_evidence(tmp_path, inputs, bindings):
+    _, report = reference_report(tmp_path, inputs, bindings)
+    data = reference_plan()
+    data['scoring']['area_target'] = 1e308
+    plan = parse_evaluation(json.dumps(data).encode(), file_format='json')
+    report['jobs']['geometry']['measurements']['area']['value'] = 1e-308
+    score = recompute_score(plan, report)
+    assert score['value'] is None
+    json.dumps(score, allow_nan=False)

@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # Resistively Loaded Differential Pair
 
@@ -18,65 +18,80 @@ VDD = 3.3 V, VSS = 0 V; 20 uA from VDD into ibias; input common mode = 1.2, 1.65
 | [materials/testbench.spice](materials/testbench.spice) | Shared source/post-layout measurement deck |
 | [reference/dp_001_resistive_load.gds](reference/dp_001_resistive_load.gds) | Independently constructed witness, excluded from solver inputs |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The schematic depicts the authoritative netlist; the current layout requirements
+and evaluation settings are declared in the task.
+
 ## Reference Results
 
-The reference functional area is 6016.8349 um2. It passes artifact, GF180 variant-D DRC including antenna without
-waivers, strict named-port LVS, geometry, distributed RC extraction and all
-24 required electrical observations. The table gives ranges over all three
-declared conditions; temperature extrema and comparator transient windows are
-defined in the problem. Both columns use the same maintained testbench.
+GF180 resources come from the pinned ciel prebuilt distribution, including its
+current KLayout rules, nominal models and variant-D Magic extraction.
+The reference uses a 0.001 um GDS database unit; dummy COMP fill is included
+where required by the rule deck.
+See [resource preparation](../../../../../docs/tools.md) and the process manifest
+for source pins, scope and reproducible preparation.
 
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| `output_v` | V | 2.9949753 to 3.0889733 | 2.9955457 to 3.0886041 |
-| `imbalance_v` | V | 5.5067062e-14 to 6.3504757e-14 | 0.00011469437 to 0.00018880337 |
-| `bias_v` | V | 0.63335378 to 0.63335378 | 0.63414911 to 0.63421696 |
-| `power_w` | W | 0.00012824943 to 0.00015597732 | 0.00012819085 to 0.00015556783 |
-| `gain_db` | dB | 10.89406 to 12.94184 | 10.87388 to 12.89242 |
-| `bandwidth_hz` | Hz | 7805460 to 8235992 | 7578490 to 7990155 |
-| `linearity_v` | V | 1.820086e-05 to 2.070048e-05 | 1.817173e-05 to 2.064105e-05 |
-| `slope` | V/V | 3.499673 to 4.432213 | 3.491636 to 4.407118 |
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-The targets define at least 10 dB differential gain, 7 MHz bandwidth, at most 100 uV endpoint-line error across a 20 mV input span, 2 mV output imbalance and a 180 uW DC budget. The coefficient is 4 for a biased differential block with physical matched loads. Acceptance and zero-score bands are calibrated against these nominal
-source/RC measurements, rather than inherited from upstream targets. The
-absolute area budget is 6500 um2, verified feasible by this witness; area utility
-reaches zero at 26000 um2. These frozen budgets do not depend on a submitted
-layout, a changing reference-area ratio or model population. The witness is
-not an area optimum. Physical area and the final evaluation score are reported
-by the reproduction command below.
+Measured `layout-v2` score: **29.265342**, with electrical quality
+**E = 0.55651093** and area quality **Q = 0.15389819**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **6016.8349 um2**.
 
-The extracted RC network and device geometry come from the reference GDS.
-Finite substrate resistance, process/statistical corners and fabrication
-signoff are outside this nominal physical/simulation boundary.
+Area reference: **925.98 um2**. 6 expanded device instances; sum of device/contact envelopes 552.0000 um2, per-side envelope allowance 1 um, 50% routing allowance and outer margin 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `output_v` | V | 2.9949753 … 3.0889733 | 2.9955456 … 3.088604 | 0.99982722 |
+| `imbalance_v` | V | 5.5067062e-14 … 6.3504757e-14 | 0.00011469878 … 0.00018881118 | 0.0052683938 |
+| `bias_v` | V | 0.63335378 … 0.63335378 | 0.63414916 … 0.634217 | 0.99973849 |
+| `power_w` | W | 0.00012824943 … 0.00015597732 | 0.00012819087 … 0.00015556785 | 1.0004568 |
+| `gain_db` | dB | 10.89406 … 12.94184 | 10.87388 … 12.89242 | 0.99432647 |
+| `bandwidth_hz` | Hz | 7805460 … 8235992 | 7578496 … 7990159 | 0.97015138 |
+| `linearity_v` | V | 1.820086e-05 … 2.070048e-05 | 1.816947e-05 … 2.063697e-05 | 1.0016375 |
+| `slope` | V/V | 3.499673 … 4.432213 | 3.491637 … 4.407119 | 0.99500626 |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
+
+The coefficient is 4 for a biased differential block with physical matched loads.
 
 ## Reproduce
 
-From the repository root, prepare the image and shared verified bundles using
-the [GF180 instructions](../../../../../docs/tools.md#gf180), then run:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.cli evaluate \
-  tasks/gf180mcuD/analog-db/cases/dp_001_resistive_load/case.toml \
-  tasks/gf180mcuD/analog-db/cases/dp_001_resistive_load/reference/dp_001_resistive_load.gds \
-  --output build/runs/analog-db-dp_001_resistive_load-reference
+python -m benchmarking.engine.preview prepare \
+  --case gf180mcuD.analog-db.dp_001_resistive_load --image iclayout-bench-tools:local \
+  --output build/runs/dp_001_resistive_load-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/dp_001_resistive_load-prepared \
+  --output build/runs/dp_001_resistive_load-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'dp_001_resistive_load'
 ```
 
-This generates the reader's identity-bound report and raw waveforms in the
-selected output directory; use a fresh directory for every execution. Reproduce
-the Pre-layout column using the shared
-[source-calibration recipe](../../../../../docs/tools.md#gf180-source-calibration),
-with this case path and a fresh `build/runs/analog-db-dp_001_resistive_load-source` destination.
-That recipe keeps all three conditions and replaces only the extracted DUT
-with the published source netlist; characterization is not a layout score.
-
-```bash
-uv run --locked --group eda pytest tests/integration/test_public_references.py \
-  -k dp_001_resistive_load
-```
-
-The catalog-driven checks evaluate the witness and reject an empty layout.
-Retain collection LICENSE and NOTICE with distributions; they are outside the
-three declared solver inputs. Prepared solves are not redistribution packages.
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

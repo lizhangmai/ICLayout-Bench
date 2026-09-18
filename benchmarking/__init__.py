@@ -1,1 +1,1 @@
-"""ICLayout-Bench: official participant harness, HTTP client, public contracts and analysis."""
+"""ICLayout-Bench: HTTP client, observation, public contracts and analysis."""

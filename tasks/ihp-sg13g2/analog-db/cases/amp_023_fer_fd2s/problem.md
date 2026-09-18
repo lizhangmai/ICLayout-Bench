@@ -96,69 +96,63 @@ Distributed substrate resistance/noise and fabrication signoff are outside scope
 
 ## Electrical Requirements and Scoring
 
-`output_cm_v`, `output_dm_v`, `bias_v` and `power_w` measure DC c, d, IBIAS
-voltage and positive VDD-supplied power. The VDD measurement includes the
-external 20 uA source's draw from VDD, but not bias-generator overhead.
-`mean_power_w` averages `−VDD×I(VDD)` over 0–8 us. External feedback,
-reference-drive and disturbance-source energy are outside this VDD-only metric;
-no recovered energy is credited. The nominal supply remains positive-current
-supplying during this sequence.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-The error metrics are maxima of absolute error over the following sustained
-windows, including endpoint interpolation:
+For a post-layout observation x and its source observation b:
 
-| Metric | Quantity | Window (us) |
-| --- | --- | --- |
-| `dm_up_error_v` | abs(d−VSIG) after the signed step | 1.5–1.95 |
-| `dm_down_error_v` | abs(d−VSIG) after return to zero | 5.5–5.95 |
-| `dm_cm_error_v` | abs(d−VSIG) during the common-mode reference step | 3.5–3.95 |
-| `cm_dm_error_v` | abs(c−VCMR) during the differential step | 1.5–1.95 |
-| `cm_up_error_v` | abs(c−VCMR) after the reference rise | 3.5–3.95 |
-| `cm_down_error_v` | abs(c−VCMR) after reference return, including differential return | 4.5–5.9 |
-| `cm_kick_error_v` | abs(c−VCMR) after the simultaneous output-current pulse | 6.5–7.9 |
-| `cm_kick_peak_v` | abs(c−VCMR) throughout disturbance and early recovery | 6–6.5 |
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
 
-`dm_peak_v` is maximum abs(d) over 1–5 us. `dm_high_v` (mean d over
-1.8–1.95 us) and `cm_high_v` (mean c over 3.8–3.95 us) are diagnostic
-observations without separate score bounds. All AC definitions appear above.
-Every scored bound below applies independently at every load and polarity.
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
 
-| Metric | Unit | Acceptance | Lower / upper zero-score boundaries | Dimension |
-| --- | --- | --- | --- | --- |
-| `output_cm_v` | V | 0.74–0.765 | 0.65 / 0.85 | bias |
-| `output_dm_v` | V | -0.0005–0.0005 | -0.01 / 0.01 | bias |
-| `bias_v` | V | 0.37–0.42 | 0.25 / 0.55 | bias |
-| `power_w` | W | 0–0.00065 | 0 / 0.0013 | supply |
-| `dm_gain_db` | dB | ≥ 55 | 40 / — | response |
-| `unity_hz` | Hz | ≥ 1.8e+07 | 0 / — | response |
-| `phase_margin_deg` | deg | 60–150 | 0 / 180 | response |
-| `cm_gain_vv` | V/V | 0.95–1.15 | 0.5 / 1.5 | response |
-| `cm_peak_vv` | V/V | 0.95–1.8 | 0.5 / 2.5 | response |
-| `dm_up_error_v` | V | 0–0.0005 | 0 / 0.01 | response |
-| `dm_down_error_v` | V | 0–0.0005 | 0 / 0.01 | response |
-| `cm_up_error_v` | V | 0–0.01 | 0 / 0.05 | response |
-| `cm_down_error_v` | V | 0–0.0075 | 0 / 0.05 | response |
-| `cm_kick_error_v` | V | 0–0.0075 | 0 / 0.05 | response |
-| `cm_kick_peak_v` | V | 0–0.09 | 0 / 0.2 | response |
-| `dm_peak_v` | V | 0.095–0.12 | 0 / 0.2 | response |
-| `mean_power_w` | W | 0–0.00065 | 0 / 0.0013 | supply |
-| `dm_cm_error_v` | V | 0–0.0005 | 0 / 0.01 | response |
-| `cm_dm_error_v` | V | 0–0.0075 | 0 / 0.05 | response |
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `output_cm_v` | condition_0:output_cm_v, condition_1:output_cm_v, condition_2:output_cm_v, condition_3:output_cm_v, condition_4:output_cm_v, condition_5:output_cm_v | V | target / target | 0 … 1.2 | 1.2 |
+| `output_dm_v` | condition_0:output_dm_v, condition_1:output_dm_v, condition_2:output_dm_v, condition_3:output_dm_v, condition_4:output_dm_v, condition_5:output_dm_v | V | target / target | −∞ … +∞ | 1.2 |
+| `bias_v` | condition_0:bias_v, condition_1:bias_v, condition_2:bias_v, condition_3:bias_v, condition_4:bias_v, condition_5:bias_v | V | target / target | 0 … 1.2 | 1.2 |
+| `power_w` | condition_0:power_w, condition_1:power_w, condition_2:power_w, condition_3:power_w, condition_4:power_w, condition_5:power_w | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `dm_gain_db` | condition_0:dm_gain_db, condition_1:dm_gain_db, condition_2:dm_gain_db, condition_3:dm_gain_db, condition_4:dm_gain_db, condition_5:dm_gain_db | dB | maximize / db20 | −∞ … +∞ | — |
+| `unity_hz` | condition_0:unity_hz, condition_1:unity_hz, condition_2:unity_hz, condition_3:unity_hz, condition_4:unity_hz, condition_5:unity_hz | Hz | maximize / ratio | 0 … +∞ | — |
+| `phase_margin_deg` | condition_0:phase_margin_deg, condition_1:phase_margin_deg, condition_2:phase_margin_deg, condition_3:phase_margin_deg, condition_4:phase_margin_deg, condition_5:phase_margin_deg | deg | target / target | 0 … 180 | 180 |
+| `cm_gain_vv` | condition_0:cm_gain_vv, condition_1:cm_gain_vv, condition_2:cm_gain_vv, condition_3:cm_gain_vv, condition_4:cm_gain_vv, condition_5:cm_gain_vv | V/V | target / target | −∞ … +∞ | 1.0 |
+| `cm_peak_vv` | condition_0:cm_peak_vv, condition_1:cm_peak_vv, condition_2:cm_peak_vv, condition_3:cm_peak_vv, condition_4:cm_peak_vv, condition_5:cm_peak_vv | V/V | target / target | −∞ … +∞ | 1.0 |
+| `dm_up_error_v` | condition_0:dm_up_error_v, condition_1:dm_up_error_v, condition_2:dm_up_error_v, condition_3:dm_up_error_v, condition_4:dm_up_error_v, condition_5:dm_up_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `dm_down_error_v` | condition_0:dm_down_error_v, condition_1:dm_down_error_v, condition_2:dm_down_error_v, condition_3:dm_down_error_v, condition_4:dm_down_error_v, condition_5:dm_down_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `cm_up_error_v` | condition_0:cm_up_error_v, condition_1:cm_up_error_v, condition_2:cm_up_error_v, condition_3:cm_up_error_v, condition_4:cm_up_error_v, condition_5:cm_up_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `cm_down_error_v` | condition_0:cm_down_error_v, condition_1:cm_down_error_v, condition_2:cm_down_error_v, condition_3:cm_down_error_v, condition_4:cm_down_error_v, condition_5:cm_down_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `cm_kick_error_v` | condition_0:cm_kick_error_v, condition_1:cm_kick_error_v, condition_2:cm_kick_error_v, condition_3:cm_kick_error_v, condition_4:cm_kick_error_v, condition_5:cm_kick_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `cm_kick_peak_v` | condition_0:cm_kick_peak_v, condition_1:cm_kick_peak_v, condition_2:cm_kick_peak_v, condition_3:cm_kick_peak_v, condition_4:cm_kick_peak_v, condition_5:cm_kick_peak_v | V | target / target | 0 … 1.2 | 1.2 |
+| `dm_peak_v` | condition_0:dm_peak_v, condition_1:dm_peak_v, condition_2:dm_peak_v, condition_3:dm_peak_v, condition_4:dm_peak_v, condition_5:dm_peak_v | V | target / target | 0 … 1.2 | 1.2 |
+| `mean_power_w` | condition_0:mean_power_w, condition_1:mean_power_w, condition_2:mean_power_w, condition_3:mean_power_w, condition_4:mean_power_w, condition_5:mean_power_w | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `dm_cm_error_v` | condition_0:dm_cm_error_v, condition_1:dm_cm_error_v, condition_2:dm_cm_error_v, condition_3:dm_cm_error_v, condition_4:dm_cm_error_v, condition_5:dm_cm_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `cm_dm_error_v` | condition_0:cm_dm_error_v, condition_1:cm_dm_error_v, condition_2:cm_dm_error_v, condition_3:cm_dm_error_v, condition_4:cm_dm_error_v, condition_5:cm_dm_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `dm_high_v` | condition_0:dm_high_v, condition_1:dm_high_v, condition_2:dm_high_v, condition_3:dm_high_v, condition_4:dm_high_v, condition_5:dm_high_v | V | diagnostic | −∞ … +∞ | — |
+| `cm_high_v` | condition_0:cm_high_v, condition_1:cm_high_v, condition_2:cm_high_v, condition_3:cm_high_v, condition_4:cm_high_v, condition_5:cm_high_v | V | diagnostic | −∞ … +∞ | — |
 
-Coefficient **9** represents the coupled differential compensation and actual
-common-mode feedback requirements. Unified `layout-v1` scoring is
-`G × (60E + 20H + 20HQ)`. G requires physical validity and complete valid
-measurements; E averages worst attainment in response, bias and supply; H
-requires every electrical bound. Attainment declines linearly from each
-acceptance edge to its declared zero boundary. Area utility is
-`Q=clip((380000−area)/285000,0,1)`, with fixed absolute functional-area anchors
-95000/380000 um². A completed physical rejection scores zero; incomplete
-measurement cannot establish success or receive an invented score. Aggregation
-cannot conceal a failed condition. Qualification is limited to the stated
-nominal bias, feedback, loads and sequence, not PVT, mismatch, zero-state
-startup, rail-to-rail operation, noise/distortion or arbitrary-loop stability.
+Area reference: **8435.0 um2**. 76 expanded device instances; sum of device/contact envelopes 5503.6687 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **9**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Discover task inputs, frozen requirements, reviewed resources and harness
 feedback through `/protocol/task.json`, `/protocol/resources.json` and

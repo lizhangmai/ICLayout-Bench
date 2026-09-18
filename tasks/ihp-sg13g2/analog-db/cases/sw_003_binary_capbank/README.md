@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # Three-Bit MIM Capacitive Transfer Bank
 
@@ -21,45 +21,75 @@ All eight binary codes are separate required conditions. Bit k is driven by 1.5*
 | [materials/testbench.spice](materials/testbench.spice) | Shared source/post-layout measurements |
 | [reference/sw_003_binary_capbank.gds](reference/sw_003_binary_capbank.gds) | Independent witness, excluded from solver inputs |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The authoritative netlist, simulation decks and evaluation requirements are unchanged.
+
 ## Reference Results
 
-The independently constructed reference passes artifact checks, main/maximal DRC without waivers, strict named-port LVS, hard geometry, candidate RC extraction and all 64 electrical observations. Functional area is 31000.9828 um2 and the reference score is 100/100; this is witness qualification, not a model score. The table reports min–max across all 8 conditions; each observation is checked separately.
+Reference results use the pinned IHP SG13G2 ciel release described in
+[resource preparation](../../../../../docs/tools.md#ihp-physical-check-profiles).
 
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| `gain_vv` | V/V | 0.1250002–0.9999999 | 0.1238089–0.9887987 |
-| `phase_deg` | deg | -0.008812904–0.09038728 | -0.009028963–0.09203339 |
-| `input_cap_f` | F | 3.108802e-15–2.015276e-12 | 2.333301e-13–2.144532e-12 |
-| `gain_error` | V/V | 1e-07–8e-07 | 0.0011911–0.0112013 |
-| `step_gain` | V/V | 0.12499705–0.99997649 | 0.12380144–0.98874124 |
-| `step_error` | V/V | 2.9500987e-06–2.3505869e-05 | 0.001198561–0.01125876 |
-| `return_error_v` | V | 6.2005303e-07–4.9593158e-06 | 1.5188666e-06–1.2128095e-05 |
-| `settling_error_v` | V | 2.784394e-07–2.201358e-06 | 6.818172e-07–5.433537e-06 |
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-Coefficient 5 reflects multi-bit switched capacitors and interconnect-dependent capacitive division. Absolute AC and step-gain error limits of 0.015 V/V preserve separation of the 0.125 V/V code intervals, with explicit return and settling limits. These are transfer accuracy requirements under driven input and fixed codes, not DAC INL/DNL or floating-node DC accuracy. Fixed functional area target/zero: 33000 / 132000 um2. See the [problem](problem.md) for all limits, measurement windows, scoring boundaries and footprint layers. The MIM bottom-plate/interconnect parasitics belong to candidate extraction, not an ideal-capacitor substitution.
+Measured `layout-v2` score: **12.673425**, with electrical quality
+**E = 0.052232868** and area quality **Q = 0.30749928**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **31000.9828 um2**.
 
-Halving the transient step from 1 ns to 0.5 ns changed step gain by at most 5e-8 V/V, return error by 6.5 nV and settling error by 9 nV. Both steps satisfy the declared limits. AC and step transfer remain distinct observations; the roughly 1.12% full-scale post-layout gain loss includes bottom-plate and routing parasitics.
+Area reference: **9532.78 um2**. 22 expanded device instances; sum of device/contact envelopes 6227.9559 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `gain_vv` | V/V | 0.1250002 … 0.9999999 | 0.1238089 … 0.9887987 | 0.98892288 |
+| `phase_deg` | deg | -0.008812904 … 0.09038728 | -0.009028963 … 0.09203339 | 0.99999086 |
+| `input_cap_f` | F | 3.108802e-15 … 2.015276e-12 | 2.333301e-13 … 2.144532e-12 | 0.013323626 |
+| `gain_error` | V/V | 1e-07 … 8e-07 | 0.0011911 … 0.0112013 | 9.0168097e-06 |
+| `step_gain` | V/V | 0.12499705 … 0.99997649 | 0.12380144 … 0.98874124 | 0.98888957 |
+| `step_error` | V/V | 2.9500987e-06 … 2.3505869e-05 | 0.001198561 … 0.01125876 | 0.0020878067 |
+| `return_error_v` | V | 6.2005303e-07 … 4.9593158e-06 | 1.5188666e-06 … 1.2128095e-05 | 0.45393607 |
+| `settling_error_v` | V | 2.784394e-07 … 2.201358e-06 | 6.818172e-07 … 5.433537e-06 | 0.49760466 |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
+
+Coefficient 5 reflects multi-bit switched capacitors and interconnect-dependent capacitive division.
 
 ## Reproduce
 
-Run from the repository root with the [shared IHP tools and resource setup](../../../../../docs/tools.md#manual-tools). Reuse verified bundles. These commands create the reader's own reports under a fresh `build/runs/` directory; generated evidence is not shipped with this case.
-
-The embedded bindings use these destinations. If they do not already exist, prepare them once from the pinned PDK (preparation refuses an existing destination):
-
-```bash
-python -m layout_eval.prepare_support third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#klayout build/support/input-pair-klayout
-python -m layout_eval.prepare_support third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#magic build/support/input-pair-magic
-python -m layout_eval.prepare_support third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#analog-models build/support/input-pair-models
-```
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.cli evaluate \
-  tasks/ihp-sg13g2/analog-db/cases/sw_003_binary_capbank/case.toml \
-  tasks/ihp-sg13g2/analog-db/cases/sw_003_binary_capbank/reference/sw_003_binary_capbank.gds \
+python -m benchmarking.engine.preview prepare \
+  --case ihp-sg13g2.analog-db.sw_003_binary_capbank --image iclayout-bench-tools:local \
+  --output build/runs/sw_003_binary_capbank-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/sw_003_binary_capbank-prepared \
   --output build/runs/sw_003_binary_capbank-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'sw_003_binary_capbank'
 ```
 
-For pre-layout calibration, apply the [source-characterization recipe](../../../../../docs/tools.md#gf180-source-calibration) to this case, replacing its `input:netlist` substitution with `input:simulation` for the separate IHP simulator representation. It retains every condition and measurement while removing scoring and candidate checks. The scored post-layout plan always consumes candidate RC.
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

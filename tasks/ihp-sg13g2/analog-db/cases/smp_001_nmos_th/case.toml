@@ -4,7 +4,22 @@ id = "ihp-sg13g2.analog-db.smp_001_nmos_th"
 title = "Physical NMOS Sample-and-Hold: Headroom and Retention"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "d7838409e27bb26e90ee3a3d372af0d5b54ba40b2425ec4c9be8682253b18a1e"
+
+[[assets]]
+path = "reference/smp_001_nmos_th.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "c65e2218236502e47ea7f8a894843b6a133654b60c50ad55610c34163af96480"
+
 [task]
+hours = 3
 coefficient = 5
 kind = "netlist_to_gds"
 family = "ihp-sg13g2_smp_001_nmos_th"
@@ -13,7 +28,7 @@ environment = "ihp-sg13g2-smp_001_nmos_th-tt-retention-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "c5e2e80720544e04adaa6bf9cdccffad0d6b2d46325d6207868e17d374f5f013"
+sha256 = "9d7783552c431681af3d560292939dde816e1d9f669fe49ac6850db0cfdb665d"
 
 [task.inputs.netlist]
 path = "materials/circuit.cdl"
@@ -232,10 +247,9 @@ schema_version = 1
 mode = "post_layout"
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 1400
-area_zero = 5600
+area_target = 661.39
 
 [[task.evaluation.jobs]]
 id = "artifact"
@@ -956,6 +970,646 @@ hold_drift_v = "V"
 [task.evaluation.jobs.parameters.exports]
 transient = "transient.raw"
 
+[[task.evaluation.jobs]]
+id = "source_condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.1
+hold_v = 0
+temp_c = 27
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.1
+hold_v = 1.2
+temp_c = 27
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.4
+hold_v = 0
+temp_c = 27
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.4
+hold_v = 1.2
+temp_c = 27
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_4"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.6
+hold_v = 0
+temp_c = 27
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_5"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.6
+hold_v = 1.2
+temp_c = 27
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_6"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.7
+hold_v = 0
+temp_c = 27
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_7"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.7
+hold_v = 1.2
+temp_c = 27
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_8"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.1
+hold_v = 0
+temp_c = 85
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_9"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.1
+hold_v = 1.2
+temp_c = 85
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_10"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.4
+hold_v = 0
+temp_c = 85
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_11"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.4
+hold_v = 1.2
+temp_c = 85
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_12"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.6
+hold_v = 0
+temp_c = 85
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_13"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.6
+hold_v = 1.2
+temp_c = 85
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_14"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.7
+hold_v = 0
+temp_c = 85
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_15"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+sample_v = 0.7
+hold_v = 1.2
+temp_c = 85
+
+[task.evaluation.jobs.parameters.measurements]
+target = "V"
+track_v = "V"
+held_v = "V"
+before_input_v = "V"
+after_input_v = "V"
+hold_start_v = "V"
+hold_end_v = "V"
+reacquired_v = "V"
+track_error_v = "V"
+pedestal_v = "V"
+feedthrough_v = "V"
+drift_v = "V"
+reacquire_error_v = "V"
+hold_error_v = "V"
+feedthrough_peak_v = "V"
+pedestal_abs_v = "V"
+clock_energy_j = "J"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -989,12 +1643,29 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:track_error_v",
+    "source_condition_1:track_error_v",
+    "source_condition_2:track_error_v",
+    "source_condition_3:track_error_v",
+    "source_condition_4:track_error_v",
+    "source_condition_5:track_error_v",
+    "source_condition_6:track_error_v",
+    "source_condition_7:track_error_v",
+    "source_condition_8:track_error_v",
+    "source_condition_9:track_error_v",
+    "source_condition_10:track_error_v",
+    "source_condition_11:track_error_v",
+    "source_condition_12:track_error_v",
+    "source_condition_13:track_error_v",
+    "source_condition_14:track_error_v",
+    "source_condition_15:track_error_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.002
-zero_lower = 0
-zero_upper = 0.1
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "pedestal_abs_v"
@@ -1019,12 +1690,29 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:pedestal_abs_v",
+    "source_condition_1:pedestal_abs_v",
+    "source_condition_2:pedestal_abs_v",
+    "source_condition_3:pedestal_abs_v",
+    "source_condition_4:pedestal_abs_v",
+    "source_condition_5:pedestal_abs_v",
+    "source_condition_6:pedestal_abs_v",
+    "source_condition_7:pedestal_abs_v",
+    "source_condition_8:pedestal_abs_v",
+    "source_condition_9:pedestal_abs_v",
+    "source_condition_10:pedestal_abs_v",
+    "source_condition_11:pedestal_abs_v",
+    "source_condition_12:pedestal_abs_v",
+    "source_condition_13:pedestal_abs_v",
+    "source_condition_14:pedestal_abs_v",
+    "source_condition_15:pedestal_abs_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.009
-zero_lower = 0
-zero_upper = 0.05
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "feedthrough_peak_v"
@@ -1049,12 +1737,29 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:feedthrough_peak_v",
+    "source_condition_1:feedthrough_peak_v",
+    "source_condition_2:feedthrough_peak_v",
+    "source_condition_3:feedthrough_peak_v",
+    "source_condition_4:feedthrough_peak_v",
+    "source_condition_5:feedthrough_peak_v",
+    "source_condition_6:feedthrough_peak_v",
+    "source_condition_7:feedthrough_peak_v",
+    "source_condition_8:feedthrough_peak_v",
+    "source_condition_9:feedthrough_peak_v",
+    "source_condition_10:feedthrough_peak_v",
+    "source_condition_11:feedthrough_peak_v",
+    "source_condition_12:feedthrough_peak_v",
+    "source_condition_13:feedthrough_peak_v",
+    "source_condition_14:feedthrough_peak_v",
+    "source_condition_15:feedthrough_peak_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.00075
-zero_lower = 0
-zero_upper = 0.01
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "hold_drift_v"
@@ -1079,12 +1784,29 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:hold_drift_v",
+    "source_condition_1:hold_drift_v",
+    "source_condition_2:hold_drift_v",
+    "source_condition_3:hold_drift_v",
+    "source_condition_4:hold_drift_v",
+    "source_condition_5:hold_drift_v",
+    "source_condition_6:hold_drift_v",
+    "source_condition_7:hold_drift_v",
+    "source_condition_8:hold_drift_v",
+    "source_condition_9:hold_drift_v",
+    "source_condition_10:hold_drift_v",
+    "source_condition_11:hold_drift_v",
+    "source_condition_12:hold_drift_v",
+    "source_condition_13:hold_drift_v",
+    "source_condition_14:hold_drift_v",
+    "source_condition_15:hold_drift_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.013
-zero_lower = 0
-zero_upper = 0.1
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "hold_error_v"
@@ -1109,12 +1831,29 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:hold_error_v",
+    "source_condition_1:hold_error_v",
+    "source_condition_2:hold_error_v",
+    "source_condition_3:hold_error_v",
+    "source_condition_4:hold_error_v",
+    "source_condition_5:hold_error_v",
+    "source_condition_6:hold_error_v",
+    "source_condition_7:hold_error_v",
+    "source_condition_8:hold_error_v",
+    "source_condition_9:hold_error_v",
+    "source_condition_10:hold_error_v",
+    "source_condition_11:hold_error_v",
+    "source_condition_12:hold_error_v",
+    "source_condition_13:hold_error_v",
+    "source_condition_14:hold_error_v",
+    "source_condition_15:hold_error_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.022
-zero_lower = 0
-zero_upper = 0.15
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "reacquire_error_v"
@@ -1139,12 +1878,29 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:reacquire_error_v",
+    "source_condition_1:reacquire_error_v",
+    "source_condition_2:reacquire_error_v",
+    "source_condition_3:reacquire_error_v",
+    "source_condition_4:reacquire_error_v",
+    "source_condition_5:reacquire_error_v",
+    "source_condition_6:reacquire_error_v",
+    "source_condition_7:reacquire_error_v",
+    "source_condition_8:reacquire_error_v",
+    "source_condition_9:reacquire_error_v",
+    "source_condition_10:reacquire_error_v",
+    "source_condition_11:reacquire_error_v",
+    "source_condition_12:reacquire_error_v",
+    "source_condition_13:reacquire_error_v",
+    "source_condition_14:reacquire_error_v",
+    "source_condition_15:reacquire_error_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.0001
-zero_lower = 0
-zero_upper = 0.02
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "clock_energy_j"
@@ -1169,12 +1925,29 @@ observations = [
 ]
 unit = "J"
 dimension = "supply"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:clock_energy_j",
+    "source_condition_1:clock_energy_j",
+    "source_condition_2:clock_energy_j",
+    "source_condition_3:clock_energy_j",
+    "source_condition_4:clock_energy_j",
+    "source_condition_5:clock_energy_j",
+    "source_condition_6:clock_energy_j",
+    "source_condition_7:clock_energy_j",
+    "source_condition_8:clock_energy_j",
+    "source_condition_9:clock_energy_j",
+    "source_condition_10:clock_energy_j",
+    "source_condition_11:clock_energy_j",
+    "source_condition_12:clock_energy_j",
+    "source_condition_13:clock_energy_j",
+    "source_condition_14:clock_energy_j",
+    "source_condition_15:clock_energy_j",
+]
+normalization = "ratio"
 lower = 0
-upper = 2e-14
-zero_lower = 0
-zero_upper = 1e-13
+scale = 1e-21
 
 [[task.evaluation.metrics]]
 id = "target"
@@ -1530,13 +2303,6 @@ support = "analog-res-models"
 image = "iclayout-bench-tools:local"
 support = "build/support/analog-res-models"
 timeout_seconds = 300
-
-[[assets]]
-path = "reference/smp_001_nmos_th.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "c65e2218236502e47ea7f8a894843b6a133654b60c50ad55610c34163af96480"
 
 [qualification]
 reference = "reference/smp_001_nmos_th.gds"

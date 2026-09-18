@@ -31,19 +31,53 @@ LVS checks device topology, dimensions, body connections and every named top-lev
 
 ## Electrical Requirements and Scoring
 
-Every row applies to every indicated sample and operating point. Values below are in the stated units and limits are inclusive. The zero interval/bound marks complete loss of that metric's partial attainment, not an additional acceptance range.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-| Metric | Definition | Unit | Acceptance | Zero boundary | Dimension |
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
 | --- | --- | --- | --- | --- | --- |
-| `high` | vout at 19 and 69 ns. | V | [2.48, 2.52] | [1.5, 3.3] | response |
-| `low` | vout at 54 ns, after tracking resumes with vin=0.5 V. | V | [0.48, 0.52] | [0, 1.5] | response |
-| `hold` | Maximum absolute vout-2.5 V over 21–44 ns, including the vin transition while the switch is open. | V | <= 0.04 | <= 0.3 | response |
-| `settling` | First vin rising 1.5 V crossing to vout reaching 2.48 V. | s | [0, 1e-09] | [0, 1e-08] | response |
+| `high` | vout at 19 and 69 ns. | V | functional check | 2.48 … 2.52 | — |
+| `low` | vout at 54 ns, after tracking resumes with vin=0.5 V. | V | functional check | 0.48 … 0.52 | — |
+| `hold` | Maximum absolute vout-2.5 V over 21–44 ns, including the vin transition while the switch is open. | V | target / target | 0 … 3.3 | 3.3 |
+| `settling` | First vin rising 1.5 V crossing to vout reaching 2.48 V. | s | minimize / ratio | 0 … +∞ | 1e-15 |
 
-The score is `S = G*(60*E + 20*H + 20*H*Q)`: G requires valid physical checks and complete measurements; E averages the applicable response/bias/supply attainments after taking the worst requirement in each dimension; H requires all electrical limits; Q is the clipped linear area utility from 4000 um2 (full area utility) to 16000 um2 (zero area utility). Attainment is one inside each acceptance interval and changes linearly to zero at its declared zero boundaries. A zero boundary equal to the acceptance boundary is a hard cliff. Completed physical rejection scores zero; an evaluator error without an independently established rejection has no score.
+The tracking checks define a 1% settling-accuracy task: 20 mV is 1% of
+the declared 2 V input step. Both sampled tracking levels must meet that
+accuracy; the settling measurement uses the same high-level boundary.
+This is an explicit sampled acquisition requirement, not a tolerance fitted
+to the reference layout. Hold error remains continuous quality.
 
-The coefficient is **4**, reflecting the declared circuit capability, and is independent of the 0–100 task score. The absolute area anchors are frozen block-area budgets supported by a feasible layout; no submitted-layout or reference-layout ratio is used. Calibration uses the declared source stimuli and an independently evaluated layout, preserving the same electrical limits for all candidates.
+Area reference: **702.46 um2**. 4 expanded device instances; sum of device/contact envelopes 411.5400 um2, per-side envelope allowance 1 um, 50% routing allowance and outer margin 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **4**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
 
+Solve budget: **3 hours**.
+
 Use runtime task, resource and harness discovery to locate the delivered inputs and reviewed GF180 resources. Trusted feedback runs the declared physical and post-layout evaluation; source-only simulation is useful for design but is not acceptance. Write the final GDS to `/workspace/output/final.gds` and explicitly submit it using the harness submission interface. A generated file or successful standalone simulation alone does not complete the task.
+
+Use a GDS database unit of 0.001 um, as required by the GF180MCU DRC deck.

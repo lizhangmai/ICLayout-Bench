@@ -30,7 +30,8 @@ Typical IHP LV MOS/poly models, all eight combinations of supplies 1.1/1.3 V,
 temperatures 27/85 C and external output loads 500 kohm/1 Mohm. A 1 pF output
 load is external test apparatus. DC operating point uses VCODE=0.4 V.
 Sweep VCODE from 0.2 to 0.8 V in 2 mV increments; every sampled slope must
-satisfy the monotonic-control bound. This is the declared sampled sweep,
+satisfy maximum_slope <= 0 V/V: increasing NMOS gate control must not
+increase the pullup/shunt output voltage. This is the declared sampled sweep,
 not a proof of global monotonicity beyond the control interval.
 
 For transient, VCODE rises 0.3→0.5 V at 2–2.02 us and falls at
@@ -52,57 +53,59 @@ precision trimming and fabrication signoff remain outside qualification.
 
 ## Electrical Requirements and Scoring
 
-`output_v` is DC output at VCODE=0.4 V. `high_v`/`low_v` are outputs at
-control 0.2/0.8 V and `span_v` is their difference. `knee_code_v` is the first
-descending output crossing of 0.2 V. `maximum_slope` is the maximum of ngspice's
-`deriv(VOUT)` over the full control sweep; its negative upper bound requires
-sampled monotonic decrease. `mid_v` repeats the 0.4 V DC sweep observation as
-a diagnostic consistency check and is not independently scored.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-At each swept operating point, the port-observed shunt conductance is
-`G=(-I(VDD)-VOUT/RLOAD)/VOUT`. `conductance_04_s` and `conductance_06_s`
-sample G at control 0.4/0.6 V; `conductance_ratio` is G(0.6)/G(0.4).
-This is finite-bias I/V conductance including candidate wiring and the
-specified substrate boundary, not small-signal conductance or an isolated MOS
-model parameter. External resistor current is removed explicitly.
+For a post-layout observation x and its source observation b:
 
-Recovery errors are maximum deviations from the 9–9.5 us low-output mean
-in 5–9.5 us, and from the 17–17.5 us high-output mean in 13–17.5 us.
-`step_span_v` is high mean minus low mean. Range and conductance requirements
-separately anchor the static transfer; recovery cannot be met by a constant
-output. `power_w` is positive DC VDD supply power; `mean_power_w` averages the
-same supply over the full 2–18 us cycle. External control-generator overhead
-is excluded and returned energy is not credited in the calibrated positive
-VDD-current windows.
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
 
-| Metric | Unit | Acceptance | Lower / upper zero-score boundaries | Dimension |
-| --- | --- | --- | --- | --- |
-| `output_v` | V | 0.04–0.07 | 0 / 0.15 | response |
-| `power_w` | W | 0–1.1e-05 | 0 / 2.2e-05 | supply |
-| `high_v` | V | 0.68–1.07 | 0.3 / 1.3 | response |
-| `low_v` | V | 0.005–0.016 | 0 / 0.1 | response |
-| `knee_code_v` | V | 0.3–0.38 | 0.2 / 0.5 | response |
-| `maximum_slope` | V/V | -0.1–-0.005 | -10 / 0.05 | response |
-| `span_v` | V | 0.65–1.08 | 0 / 1.3 | response |
-| `conductance_04_s` | S | 8e-05–0.00015 | 0 / 0.0003 | response |
-| `conductance_06_s` | S | 0.0003–0.0005 | 0 / 0.001 | response |
-| `conductance_ratio` | 1 | 2.5–5 | 1 / 10 | response |
-| `recovery_down_v` | V | 0–0.0001 | 0 / 0.1 | response |
-| `recovery_up_v` | V | 0–0.0001 | 0 / 0.1 | response |
-| `mean_power_w` | W | 0–1e-05 | 0 / 2e-05 | supply |
-| `step_span_v` | V | 0.25–0.7 | 0 / 1.3 | response |
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
 
-Every bound applies independently at every supply/temperature/load combination.
-Coefficient **4** reflects one MOS with a physical resistor chain and nonlinear
-loaded-control measurements. Unified `layout-v1` score is
-`G × (60E + 20H + 20HQ)`: G requires physical validity and complete measurements;
-E averages worst attainment in response and supply, with linear decrease to
-zero-score boundaries; H requires every bound. Q is
-`clip((32000−area)/24000,0,1)` for area in um², with fixed absolute target 8000
-and zero 32000. Physical rejection scores zero; incomplete evaluation cannot
-establish success or fabricate a score.
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `output_v` | condition_0:output_v, condition_1:output_v, condition_2:output_v, condition_3:output_v, condition_4:output_v, condition_5:output_v, condition_6:output_v, condition_7:output_v | V | target / target | 0 … 1.3 | 1.3 |
+| `power_w` | condition_0:power_w, condition_1:power_w, condition_2:power_w, condition_3:power_w, condition_4:power_w, condition_5:power_w, condition_6:power_w, condition_7:power_w | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `high_v` | condition_0:high_v, condition_1:high_v, condition_2:high_v, condition_3:high_v, condition_4:high_v, condition_5:high_v, condition_6:high_v, condition_7:high_v | V | target / target | 0 … 1.3 | 1.3 |
+| `low_v` | condition_0:low_v, condition_1:low_v, condition_2:low_v, condition_3:low_v, condition_4:low_v, condition_5:low_v, condition_6:low_v, condition_7:low_v | V | target / target | 0 … 1.3 | 1.3 |
+| `knee_code_v` | condition_0:knee_code_v, condition_1:knee_code_v, condition_2:knee_code_v, condition_3:knee_code_v, condition_4:knee_code_v, condition_5:knee_code_v, condition_6:knee_code_v, condition_7:knee_code_v | V | target / target | 0 … 1.3 | 1.3 |
+| `maximum_slope` | condition_0:maximum_slope, condition_1:maximum_slope, condition_2:maximum_slope, condition_3:maximum_slope, condition_4:maximum_slope, condition_5:maximum_slope, condition_6:maximum_slope, condition_7:maximum_slope | V/V | target / target | −∞ … 0 | 0.1 |
+| `span_v` | condition_0:span_v, condition_1:span_v, condition_2:span_v, condition_3:span_v, condition_4:span_v, condition_5:span_v, condition_6:span_v, condition_7:span_v | V | target / target | 0 … 1.3 | 1.3 |
+| `conductance_04_s` | condition_0:conductance_04_s, condition_1:conductance_04_s, condition_2:conductance_04_s, condition_3:conductance_04_s, condition_4:conductance_04_s, condition_5:conductance_04_s, condition_6:conductance_04_s, condition_7:conductance_04_s | S | target / target | −∞ … +∞ | 0.00015 |
+| `conductance_06_s` | condition_0:conductance_06_s, condition_1:conductance_06_s, condition_2:conductance_06_s, condition_3:conductance_06_s, condition_4:conductance_06_s, condition_5:conductance_06_s, condition_6:conductance_06_s, condition_7:conductance_06_s | S | target / target | −∞ … +∞ | 0.0005 |
+| `conductance_ratio` | condition_0:conductance_ratio, condition_1:conductance_ratio, condition_2:conductance_ratio, condition_3:conductance_ratio, condition_4:conductance_ratio, condition_5:conductance_ratio, condition_6:conductance_ratio, condition_7:conductance_ratio | 1 | target / target | −∞ … +∞ | 5 |
+| `recovery_down_v` | condition_0:recovery_down_v, condition_1:recovery_down_v, condition_2:recovery_down_v, condition_3:recovery_down_v, condition_4:recovery_down_v, condition_5:recovery_down_v, condition_6:recovery_down_v, condition_7:recovery_down_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `recovery_up_v` | condition_0:recovery_up_v, condition_1:recovery_up_v, condition_2:recovery_up_v, condition_3:recovery_up_v, condition_4:recovery_up_v, condition_5:recovery_up_v, condition_6:recovery_up_v, condition_7:recovery_up_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `mean_power_w` | condition_0:mean_power_w, condition_1:mean_power_w, condition_2:mean_power_w, condition_3:mean_power_w, condition_4:mean_power_w, condition_5:mean_power_w, condition_6:mean_power_w, condition_7:mean_power_w | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `step_span_v` | condition_0:step_span_v, condition_1:step_span_v, condition_2:step_span_v, condition_3:step_span_v, condition_4:step_span_v, condition_5:step_span_v, condition_6:step_span_v, condition_7:step_span_v | V | target / target | 0 … 1.3 | 1.3 |
+
+High/low endpoints are continuous source-paired quality observations. Their
+0–1.3 V bounds express the nonnegative, supply-limited output domain; shunt-control function does not require a narrower absolute endpoint range.
+
+Area reference: **636.57 um2**. 10 expanded device instances; sum of device/contact envelopes 391.7515 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **4**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Discover inputs, resources and feedback through `/protocol/task.json`,
 `/protocol/resources.json` and `/protocol/harness.json`. Use the supplied IHP

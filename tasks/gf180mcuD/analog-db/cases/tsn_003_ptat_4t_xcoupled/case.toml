@@ -4,7 +4,22 @@ id = "gf180mcuD.analog-db.tsn_003_ptat_4t_xcoupled"
 title = "Four-Transistor Positive-Temperature-Slope Core"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "267fc7ce281f081b37a60c6a4f3fb30c621320f863c3b08481ab82b321a32a8c"
+
+[[assets]]
+path = "reference/tsn_003_ptat_4t_xcoupled.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "5dfcc4df599aa38678db51b8ee22c4bda5e04fdb7e9745fa30605d951be5cca4"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "gf180_four_transistor_temperature_core"
 coefficient = 3
@@ -13,7 +28,7 @@ environment = "gf180mcuD-typical-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "306d72a937b4b8b0dbe4ee4565901a8ec8b6936447c865ca96d9460b94fd7d36"
+sha256 = "6f732720e13c6225e5adcf8c89ded5d931e54641cc1498defe2082c0f73d6823"
 
 [task.inputs.netlist]
 path = "materials/circuit.spice"
@@ -42,18 +57,386 @@ quality = [
 id = "outline"
 type = "bbox_max"
 functional_layers = [
-  [5, 0], [11, 17], [11, 39], [12, 0], [13, 17], [21, 0], [22, 0], [22, 4],
-  [24, 0], [24, 5], [30, 0], [30, 4], [31, 0], [32, 0], [33, 0], [34, 0],
-  [34, 3], [34, 4], [34, 5], [35, 0], [36, 0], [36, 3], [36, 4], [36, 5],
-  [37, 0], [38, 0], [40, 0], [41, 0], [42, 0], [42, 3], [42, 4], [42, 5],
-  [46, 0], [46, 3], [46, 4], [46, 5], [49, 0], [53, 0], [53, 3], [53, 4],
-  [53, 5], [55, 0], [62, 0], [75, 0], [80, 5], [81, 0], [81, 3], [81, 4],
-  [81, 5], [82, 0], [86, 17], [88, 17], [96, 1], [100, 5], [100, 7], [100, 8],
-  [108, 5], [110, 5], [110, 11], [110, 12], [110, 13], [110, 14], [110, 15], [110, 16],
-  [111, 5], [112, 1], [115, 5], [116, 5], [117, 5], [117, 10], [118, 5], [119, 5],
-  [122, 5], [123, 5], [124, 5], [125, 5], [127, 5], [128, 17], [137, 5], [151, 5],
-  [152, 5], [153, 51], [166, 5], [167, 5], [173, 5], [178, 0], [183, 0], [184, 0],
-  [185, 0], [204, 0], [210, 0], [220, 0], [226, 0], [227, 0], [241, 0],
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
 ]
 max_width_um = 120
 max_height_um = 60
@@ -239,6 +622,99 @@ peak_power_w = "W"
 op = "op.raw"
 temperature = "temperature.raw"
 
+[[task.evaluation.jobs]]
+id = "source_condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -261,10 +737,15 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.11
-zero_lower = 0
-upper = 0.18
-zero_upper = 0.3
+baseline = [
+    "source_condition_0:output_v",
+    "source_condition_1:output_v",
+    "source_condition_2:output_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "power_w"
@@ -278,10 +759,14 @@ unit = "W"
 dimension = "supply"
 direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:power_w",
+    "source_condition_1:power_w",
+    "source_condition_2:power_w",
+]
+normalization = "ratio"
 lower = 0
-zero_lower = 0
-upper = 0.0003
-zero_upper = 0.0006
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "cold_v"
@@ -295,10 +780,15 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.1
-zero_lower = 0
-upper = 0.16
-zero_upper = 0.3
+baseline = [
+    "source_condition_0:cold_v",
+    "source_condition_1:cold_v",
+    "source_condition_2:cold_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "hot_v"
@@ -312,10 +802,15 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.13
-zero_lower = 0
-upper = 0.21
-zero_upper = 0.35
+baseline = [
+    "source_condition_0:hot_v",
+    "source_condition_1:hot_v",
+    "source_condition_2:hot_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "slope_v_per_c"
@@ -329,10 +824,13 @@ unit = "V/C"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 0.00024
-zero_lower = 0
-upper = 0.00036
-zero_upper = 0.0006
+baseline = [
+    "source_condition_0:slope_v_per_c",
+    "source_condition_1:slope_v_per_c",
+    "source_condition_2:slope_v_per_c",
+]
+normalization = "target"
+scale = 0.00036
 
 [[task.evaluation.metrics]]
 id = "curvature_v"
@@ -346,10 +844,14 @@ unit = "V"
 dimension = "response"
 direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:curvature_v",
+    "source_condition_1:curvature_v",
+    "source_condition_2:curvature_v",
+]
+normalization = "ratio"
 lower = 0
-zero_lower = 0
-upper = 0.0002
-zero_upper = 0.002
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "minimum_slope"
@@ -361,10 +863,15 @@ observations = [
 ]
 unit = "V/C"
 dimension = "response"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
-lower = 0.00024
-zero_lower = 0
+baseline = [
+    "source_condition_0:minimum_slope",
+    "source_condition_1:minimum_slope",
+    "source_condition_2:minimum_slope",
+]
+normalization = "target"
+scale = 0.00024
 
 [[task.evaluation.metrics]]
 id = "maximum_slope"
@@ -376,10 +883,15 @@ observations = [
 ]
 unit = "V/C"
 dimension = "response"
-direction = "minimize"
+direction = "target"
 aggregation = "max"
-upper = 0.00036
-zero_upper = 0.0006
+baseline = [
+    "source_condition_0:maximum_slope",
+    "source_condition_1:maximum_slope",
+    "source_condition_2:maximum_slope",
+]
+normalization = "target"
+scale = 0.00036
 
 [[task.evaluation.metrics]]
 id = "peak_power_w"
@@ -393,16 +905,19 @@ unit = "W"
 dimension = "supply"
 direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:peak_power_w",
+    "source_condition_1:peak_power_w",
+    "source_condition_2:peak_power_w",
+]
+normalization = "ratio"
 lower = 0
-zero_lower = 0
-upper = 0.00032
-zero_upper = 0.0006
+scale = 1e-12
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 1500
-area_zero = 6000
+area_target = 168.38
 
 [toolchain]
 schema_version = 1
@@ -436,7 +951,7 @@ image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 180
 support = "build/support/gf180-physical-v2"
-profile = "lvs-vss.json"
+profile = "lvs.json"
 
 [toolchain.backends.lvs.support_profiles]
 support = "physical"
@@ -486,13 +1001,6 @@ support = "models"
 
 [origin]
 url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/tsn_003_ptat_4t_xcoupled"
-
-[[assets]]
-path = "reference/tsn_003_ptat_4t_xcoupled.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "5dfcc4df599aa38678db51b8ee22c4bda5e04fdb7e9745fa30605d951be5cca4"
 
 [qualification]
 reference = "reference/tsn_003_ptat_4t_xcoupled.gds"

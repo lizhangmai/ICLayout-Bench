@@ -1,0 +1,44 @@
+* Independently authored Bench measurements; SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include dut.spice
+.include parameters.spice
+.temp 27
+.options reltol=1e-6 abstol=1e-13 vntol=1e-9
+VDD vdd 0 1.5
+VSS vss 0 0
+VIN drive 0 pulse({common_v-.05*signal} {common_v+.05*signal} 20n 1n 1n 30n 200n)
+RS drive pin 100
+VMID mid 0 {common_v}
+RL pout mid 1Meg
+CL pout 0 1p
+VCTL vctl 0 pulse(1.5 0 70n 1n 1n 60n 200n)
+VNOT vctl_not 0 pulse(0 1.5 70n 1n 1n 60n 200n)
+XDUT pin pout vctl vctl_not vdd vss sw_001_transmission_gate_pair
+VWINDOW window 0 PWL(0 0 20n 1 60n 0 65n 1 69n 0 75n 1 90n 0 100n 1 180n 0)
+.control
+set numdgt=15
+set measdgt=15
+op
+write op.raw all
+tran .05n 180n 0 .05n
+let err=abs(v(pout)-v(drive))
+let error_area=integ(err)
+meas tran error_start find error_area at=20n
+meas tran error_end find error_area at=60n
+let tracking_error_v=(error_end-error_start)/40n
+let centered_area=integ(v(pout)-v(mid))
+meas tran pre_start find centered_area at=65n
+meas tran pre_end find centered_area at=69n
+meas tran hold_start find centered_area at=90n
+meas tran hold_end find centered_area at=100n
+let hold_shift_v=(hold_end-hold_start)/10n-(pre_end-pre_start)/4n
+let edge_mask=(time ge (69n-1e-18)) & (time le (75n+1e-18))
+let edge_peak=vecmax(v(pout)*edge_mask-10*(1-edge_mask))
+let edge_min=vecmin(v(pout)*edge_mask+10*(1-edge_mask))
+let feedthrough_v=edge_peak-edge_min
+print tracking_error_v feedthrough_v hold_shift_v
+write transient.raw all
+quit
+.endc
+.end

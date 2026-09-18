@@ -18,12 +18,12 @@ from helpers.scoring import (
     unscore_characterization,
 )
 
+from benchmarking.engine.evaluate import run_evaluation
+from benchmarking.engine.prepare_support import prepare_support
+from benchmarking.engine.toolchains import load_toolchain
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset, read_file
 from benchmarking.tasks import load_task
-from layout_eval.evaluate import run_evaluation
-from layout_eval.prepare_support import prepare_support
-from layout_eval.toolchains import load_toolchain
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
@@ -45,7 +45,7 @@ def environment(tmp_path_factory):
     # Freeze just the declared inputs and host configuration for this check.
     load_task(CASE / "case.toml").materialize(root / "case")
     for profile, name in [("klayout", "klayout-spice"), ("magic", "magic"), ("analog-models", "models")]:
-        prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK", f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}", root / name)
+        prepare_support(None, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}", root / name)
         config = config.replace(f"build/support/full-ota-{name}", str(root / name))
     path = root / "case/case.toml"
     config = standalone_config(config)
@@ -58,7 +58,7 @@ def evaluate(layout, environment, destination):
     candidate = destination.with_suffix(".gds")
     candidate.write_bytes(layout.content)
     completed = subprocess.run(
-        [sys.executable, "main.py", "evaluate", str(config), str(candidate), "--output", str(destination)],
+        [sys.executable, "-m", "benchmarking.engine.cli", "evaluate", str(config), str(candidate), "--output", str(destination)],
         cwd=ROOT, capture_output=True, text=True, timeout=1200, check=False,
     )
     assert completed.returncode in (0, 1), completed.stdout + completed.stderr

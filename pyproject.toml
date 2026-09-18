@@ -4,17 +4,27 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "iclayout-bench"
-version = "0.3.0a1"
+version = "0.3.0a4"
 description = "A benchmark for evaluating LLM agents on integrated circuit layout tasks."
 readme = "README.md"
 license = "MIT"
+license-files = ["LICENSE", "LICENSING.md"]
 requires-python = ">=3.12"
-dependencies = ["tomli-w>=1.2.0"]
+dependencies = [
+    "tomli-w>=1.2.0",
+    "PyYAML>=6,<7",
+    "ciel>=2.6.1,<3",
+]
+
+[project.optional-dependencies]
+results = ["SQLAlchemy>=2.0,<3", "alembic>=1.14,<2"]
+postgres = ["psycopg[binary]>=3.2,<4"]
 
 [dependency-groups]
-eda = ["klayout==0.30.11", "psutil>=7.0", "gdsfactory==7.27.2"]
+eda = ["klayout==0.30.11", "psutil>=7.0", "gdsfactory==7.27.2", "klayout-pex==0.3.12"]
 dev = [
     "pytest>=8.4.1",
+    "httpx>=0.28,<1",
     "ruff>=0.11.4",
 ]
 analysis = [
@@ -22,11 +32,11 @@ analysis = [
 ]
 
 [tool.setuptools]
-packages = ["benchmarking", "layout_eval", "layout_service"]
+packages = ["benchmarking", "benchmarking.engine", "benchmarking.service", "benchmarking.participants", "benchmarking.results", "benchmarking.results.migrations", "benchmarking.results.migrations.versions"]
 
 [tool.setuptools.package-data]
-benchmarking = ["model_configs.yaml"]
-layout_eval = ["sg13g2_view.json"]
+benchmarking = ["model_configs.yaml", "_build.json"]
+"benchmarking.engine" = ["sg13g2_view.json"]
 
 [tool.ruff]
 extend-exclude = ["third_party"]

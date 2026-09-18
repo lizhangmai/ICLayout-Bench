@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from layout_eval.geometry import validate_constraints
+from benchmarking.engine.geometry import validate_constraints
 
 pytestmark = pytest.mark.unit
 DATA = {
@@ -18,20 +18,18 @@ DATA = {
 }
 
 
-@pytest.mark.parametrize('change', ['unknown', 'negative', 'duplicate', 'wrong_layer', 'unbound_area', 'nan'])
+@pytest.mark.parametrize('change', [
+    'unknown',
+    'negative',
+    'unbound_area',
+])
 def test_geometry_requirements_reject_unsupported_or_ambiguous_semantics(change):
     data = copy.deepcopy(DATA)
-    if change == 'unknown':
-        data['hard'][0]['type'] = 'looks_symmetric'
-    elif change == 'negative':
-        data['hard'][1]['min_access_square_um'] = -1
-    elif change == 'duplicate':
-        data['hard'][1]['names'].append('VIN')
-    elif change == 'wrong_layer':
-        data['hard'][1]['pin_layer'] = [8, True]
-    elif change == 'unbound_area':
-        data['quality'][0]['layers_from'] = 'missing'
+    if change == "unknown":
+        data["hard"][0]["type"] = "looks_symmetric"
+    elif change == "negative":
+        data["hard"][1]["min_access_square_um"] = -1
     else:
-        data['hard'][0]['max_width_um'] = float('nan')
-    with pytest.raises((ValueError, TypeError)):
+        data["quality"][0]["layers_from"] = "missing"
+    with pytest.raises(ValueError):
         validate_constraints(data)

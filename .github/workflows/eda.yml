@@ -21,7 +21,7 @@ jobs:
           ICLAYOUT_BENCH_TEST_IMAGE: iclayout-bench-tools:dev
           ICLAYOUT_BENCH_PREPARED: build/prepared-cell6t-http
         run: |
-          uv run --locked python -m layout_eval.preview prepare --case cell_6t --image iclayout-bench-tools:dev --output build/prepared-cell6t-http
+          uv run --locked python -m benchmarking.engine.preview prepare --case cell_6t --image iclayout-bench-tools:dev --output build/prepared-cell6t-http
           uv run --locked pytest -m acceptance_container
           uv run --locked pytest tests/test_http.py
           uv run --locked --group eda pytest tests/integration/test_public_references.py -k 'cell_6t or NAND2_X1'

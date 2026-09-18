@@ -97,53 +97,61 @@ fabrication signoff remain unqualified.
 
 ## Electrical Requirements and Scoring
 
-Every bound applies to every corresponding condition. DC metrics measure
-output, bias voltage, VDD power and quiescent current `−I(VDD)−ILOAD`;
-quiescent current includes on-chip bias and bleeder current. VDD power includes
-the supply-fed external bias current and load delivery, but excludes reference
-source and bias-generator overhead. `mean_power_w` averages VDD power over
-the full 2–18 us load cycle; the supply current stays positive in calibration.
-It is not net energy with recovered power credited.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-Recovery errors are maxima of `abs(VOUT−0.9)` in 5–9.5 and 13–17.5 us;
-minimum/maximum output cover 2–18 us. Startup error is the maximum absolute
-reference error in 25–30 us; startup peak and minimum cover 0–30 us.
-Line span and load span are maximum minus minimum output over their stated
-DC ranges. Each job is evaluated independently; ranges must not hide failure.
+For a post-layout observation x and its source observation b:
 
-| Metric | Unit | Acceptance | Lower / upper zero-score boundaries | Dimension |
-| --- | --- | --- | --- | --- |
-| `output_v` | V | 0.87–0.93 | 0.7 / 1.1 | bias |
-| `bias_v` | V | 0.36–0.42 | 0 / 0.8 | bias |
-| `quiescent_a` | A | 6.5e-05–8.5e-05 | 0 / 0.00017 | supply |
-| `power_w` | W | 0–0.00085 | 0 / 0.0017 | supply |
-| `dc_gain_db` | dB | 40–65 | 0 / 100 | response |
-| `unity_hz` | Hz | 2e+06–7e+06 | 0 / 1.4e+07 | response |
-| `phase_margin_deg` | deg | 45–95 | 0 / 180 | response |
-| `minimum_v` | V | 0.82–0.94 | 0 / 1.2 | response |
-| `maximum_v` | V | 0.9–1 | 0.7 / 1.3 | response |
-| `recovery_load_v` | V | 0–0.03 | 0 / 0.15 | response |
-| `recovery_release_v` | V | 0–0.03 | 0 / 0.15 | response |
-| `mean_power_w` | W | 0–0.0013 | 0 / 0.0026 | supply |
-| `startup_error_v` | V | 0–0.03 | 0 / 0.15 | response |
-| `startup_peak_v` | V | 0.89–1.04 | 0 / 1.3 | response |
-| `startup_minimum_v` | V | -0.01–0.01 | -0.2 / 0.2 | response |
-| `regulation_floor_v` | V | 0.9–1.2 | 0.8 / 1.3 | response |
-| `headroom_v` | V | 0–0.3 | 0 / 0.5 | response |
-| `line_span_v` | V | 0–0.015 | 0 / 0.1 | response |
-| `load_span_v` | V | 0–0.025 | 0 / 0.1 | response |
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
 
-Coefficient **8** covers a complete loaded regulation loop, physical storage
-and compensation, supply/load/headroom measurements and specified startup.
-Unified score is `G × (60E + 20H + 20HQ)`: G requires physical validity and
-complete measurements; E averages worst attainment in bias, response and supply;
-H requires all electrical bounds; attainment falls linearly to the zero bounds.
-Q is `clip((2000000−area)/1500000,0,1)` using absolute area in um², with target
-500000 and zero 2000000. These anchors include all MIM storage, resistor
-chains, taps and routing. Physical rejection scores zero; incomplete evaluation
-cannot establish success or fabricate a score.
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `output_v` | condition_0:output_v, condition_1:output_v, condition_2:output_v, condition_3:output_v | V | target / target | 0 … 1.3 | 1.3 |
+| `bias_v` | condition_0:bias_v, condition_1:bias_v, condition_2:bias_v, condition_3:bias_v | V | target / target | 0 … 1.3 | 1.3 |
+| `quiescent_a` | condition_0:quiescent_a, condition_1:quiescent_a, condition_2:quiescent_a, condition_3:quiescent_a | A | minimize / ratio | 0 … +∞ | 1e-12 |
+| `power_w` | condition_0:power_w, condition_1:power_w, condition_2:power_w, condition_3:power_w | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `dc_gain_db` | condition_0:dc_gain_db, condition_1:dc_gain_db, condition_2:dc_gain_db, condition_3:dc_gain_db | dB | maximize / db20 | −∞ … +∞ | — |
+| `unity_hz` | condition_0:unity_hz, condition_1:unity_hz, condition_2:unity_hz, condition_3:unity_hz | Hz | maximize / ratio | 0 … +∞ | — |
+| `phase_margin_deg` | condition_0:phase_margin_deg, condition_1:phase_margin_deg, condition_2:phase_margin_deg, condition_3:phase_margin_deg | deg | target / target | 0 … 180 | 180 |
+| `minimum_v` | condition_0:minimum_v, condition_1:minimum_v, condition_2:minimum_v, condition_3:minimum_v | V | target / target | 0 … 1.3 | 1.3 |
+| `maximum_v` | condition_0:maximum_v, condition_1:maximum_v, condition_2:maximum_v, condition_3:maximum_v | V | target / target | 0 … 1.3 | 1.3 |
+| `recovery_load_v` | condition_0:recovery_load_v, condition_1:recovery_load_v, condition_2:recovery_load_v, condition_3:recovery_load_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `recovery_release_v` | condition_0:recovery_release_v, condition_1:recovery_release_v, condition_2:recovery_release_v, condition_3:recovery_release_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `mean_power_w` | condition_0:mean_power_w, condition_1:mean_power_w, condition_2:mean_power_w, condition_3:mean_power_w | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `startup_error_v` | startup_0:startup_error_v, startup_1:startup_error_v, startup_2:startup_error_v, startup_3:startup_error_v, startup_4:startup_error_v, startup_5:startup_error_v, startup_6:startup_error_v, startup_7:startup_error_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `startup_peak_v` | startup_0:peak_v, startup_1:peak_v, startup_2:peak_v, startup_3:peak_v, startup_4:peak_v, startup_5:peak_v, startup_6:peak_v, startup_7:peak_v | V | target / target | 0 … 1.3 | 1.3 |
+| `startup_minimum_v` | startup_0:minimum_v, startup_1:minimum_v, startup_2:minimum_v, startup_3:minimum_v, startup_4:minimum_v, startup_5:minimum_v, startup_6:minimum_v, startup_7:minimum_v | V | target / target | −∞ … +∞ | 1.3 |
+| `regulation_floor_v` | sweeps_0:regulation_floor_v, sweeps_1:regulation_floor_v, sweeps_2:regulation_floor_v, sweeps_3:regulation_floor_v | V | target / target | 0 … 1.3 | 1.3 |
+| `headroom_v` | sweeps_0:headroom_v, sweeps_1:headroom_v, sweeps_2:headroom_v, sweeps_3:headroom_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `line_span_v` | sweeps_0:line_span_v, sweeps_1:line_span_v, sweeps_2:line_span_v, sweeps_3:line_span_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `load_span_v` | sweeps_0:load_span_v, sweeps_1:load_span_v, sweeps_2:load_span_v, sweeps_3:load_span_v | V | minimize / ratio | 0 … +∞ | 1e-06 |
+
+Area reference: **65470.09 um2**. 54 expanded device instances; sum of device/contact envelopes 43312.7759 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **8**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Discover inputs, resources and feedback through `/protocol/task.json`,
 `/protocol/resources.json` and `/protocol/harness.json`. Use the supplied IHP

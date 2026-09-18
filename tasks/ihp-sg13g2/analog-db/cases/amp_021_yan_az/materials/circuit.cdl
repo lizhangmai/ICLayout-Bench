@@ -1,0 +1,219 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Fixed IHP binding; external bias ports and native physical taps.
+.subckt amp_021_yan_az vss vdd vinn vinp vout vb1
+RT0 vdd well_0 ntap1 A=4e-12 P=8e-6
+MM0_0 vb1 vb1 vdd well_0 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT1 vdd well_1 ntap1 A=4e-12 P=8e-6
+MM0_1 vb1 vb1 vdd well_1 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT2 vdd well_2 ntap1 A=4e-12 P=8e-6
+MM0_2 vb1 vb1 vdd well_2 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT3 vdd well_3 ntap1 A=4e-12 P=8e-6
+MM0_3 vb1 vb1 vdd well_3 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT4 vdd well_4 ntap1 A=4e-12 P=8e-6
+MM1_0 vb4 vb1 vdd well_4 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT5 vdd well_5 ntap1 A=4e-12 P=8e-6
+MM1_1 vb4 vb1 vdd well_5 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT6 vdd well_6 ntap1 A=4e-12 P=8e-6
+MM1_2 vb4 vb1 vdd well_6 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT7 vdd well_7 ntap1 A=4e-12 P=8e-6
+MM1_3 vb4 vb1 vdd well_7 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT8 net019 well_8 ntap1 A=4e-12 P=8e-6
+MM10_0 net063 vinp net019 well_8 sg13_lv_pmos w=2.59u l=0.37u m=1
+RT9 net019 well_9 ntap1 A=4e-12 P=8e-6
+MM10_1 net063 vinp net019 well_9 sg13_lv_pmos w=2.59u l=0.37u m=1
+RT10 net019 well_10 ntap1 A=4e-12 P=8e-6
+MM10_2 net063 vinp net019 well_10 sg13_lv_pmos w=2.59u l=0.37u m=1
+RT11 net019 well_11 ntap1 A=4e-12 P=8e-6
+MM10_3 net063 vinp net019 well_11 sg13_lv_pmos w=2.59u l=0.37u m=1
+RT12 vdd well_12 ntap1 A=4e-12 P=8e-6
+MM11_0 net094 net050 vdd well_12 sg13_lv_pmos w=8.95u l=3.41u m=1
+RT13 vdd well_13 ntap1 A=4e-12 P=8e-6
+MM11_1 net094 net050 vdd well_13 sg13_lv_pmos w=8.95u l=3.41u m=1
+RT14 vdd well_14 ntap1 A=4e-12 P=8e-6
+MM11_2 net094 net050 vdd well_14 sg13_lv_pmos w=8.95u l=3.41u m=1
+RT15 vdd well_15 ntap1 A=4e-12 P=8e-6
+MM11_3 net094 net050 vdd well_15 sg13_lv_pmos w=8.95u l=3.41u m=1
+RT16 vdd well_16 ntap1 A=4e-12 P=8e-6
+MM13_0 vout net050 vdd well_16 sg13_lv_pmos w=5.99u l=2.04u m=1
+RT17 vdd well_17 ntap1 A=4e-12 P=8e-6
+MM13_1 vout net050 vdd well_17 sg13_lv_pmos w=5.99u l=2.04u m=1
+RT18 vdd well_18 ntap1 A=4e-12 P=8e-6
+MM13_2 vout net050 vdd well_18 sg13_lv_pmos w=5.99u l=2.04u m=1
+RT19 vdd well_19 ntap1 A=4e-12 P=8e-6
+MM13_3 vout net050 vdd well_19 sg13_lv_pmos w=5.99u l=2.04u m=1
+RT20 vss sub ptap1 A=4e-12 P=8e-6
+MM14_0 voutn net077 dm_2 sub sg13_lv_nmos w=9.12u l=7.48u m=1
+RT21 vss sub ptap1 A=4e-12 P=8e-6
+MM14_1 voutn net077 dm_2 sub sg13_lv_nmos w=9.12u l=7.48u m=1
+RT22 vss sub ptap1 A=4e-12 P=8e-6
+MM14_2 voutn net077 dm_2 sub sg13_lv_nmos w=9.12u l=7.48u m=1
+RT23 vss sub ptap1 A=4e-12 P=8e-6
+MM14_3 voutn net077 dm_2 sub sg13_lv_nmos w=9.12u l=7.48u m=1
+RT24 vss sub ptap1 A=4e-12 P=8e-6
+MM15_0 net050 net082 net063 sub sg13_lv_nmos w=9.12u l=7.48u m=1
+RT25 vss sub ptap1 A=4e-12 P=8e-6
+MM15_1 net050 net082 net063 sub sg13_lv_nmos w=9.12u l=7.48u m=1
+RT26 vss sub ptap1 A=4e-12 P=8e-6
+MM15_2 net050 net082 net063 sub sg13_lv_nmos w=9.12u l=7.48u m=1
+RT27 vss sub ptap1 A=4e-12 P=8e-6
+MM15_3 net050 net082 net063 sub sg13_lv_nmos w=9.12u l=7.48u m=1
+RT28 vss sub ptap1 A=4e-12 P=8e-6
+MM16_0 net077 dm_2 vss sub sg13_lv_nmos w=2.64u l=5.64u m=1
+RT29 vss sub ptap1 A=4e-12 P=8e-6
+MM16_1 net077 dm_2 vss sub sg13_lv_nmos w=2.64u l=5.64u m=1
+RT30 vss sub ptap1 A=4e-12 P=8e-6
+MM16_2 net077 dm_2 vss sub sg13_lv_nmos w=2.64u l=5.64u m=1
+RT31 vss sub ptap1 A=4e-12 P=8e-6
+MM16_3 net077 dm_2 vss sub sg13_lv_nmos w=2.64u l=5.64u m=1
+RT32 vss sub ptap1 A=4e-12 P=8e-6
+MM17_0 net082 net063 vss sub sg13_lv_nmos w=2.64u l=5.64u m=1
+RT33 vss sub ptap1 A=4e-12 P=8e-6
+MM17_1 net082 net063 vss sub sg13_lv_nmos w=2.64u l=5.64u m=1
+RT34 vss sub ptap1 A=4e-12 P=8e-6
+MM17_2 net082 net063 vss sub sg13_lv_nmos w=2.64u l=5.64u m=1
+RT35 vss sub ptap1 A=4e-12 P=8e-6
+MM17_3 net082 net063 vss sub sg13_lv_nmos w=2.64u l=5.64u m=1
+RT36 vss sub ptap1 A=4e-12 P=8e-6
+MM18_0 vout net057 vss sub sg13_lv_nmos w=0.41u l=3u m=1
+RT37 vss sub ptap1 A=4e-12 P=8e-6
+MM18_1 vout net057 vss sub sg13_lv_nmos w=0.41u l=3u m=1
+RT38 vss sub ptap1 A=4e-12 P=8e-6
+MM18_2 vout net057 vss sub sg13_lv_nmos w=0.41u l=3u m=1
+RT39 vss sub ptap1 A=4e-12 P=8e-6
+MM18_3 vout net057 vss sub sg13_lv_nmos w=0.41u l=3u m=1
+RT40 vss sub ptap1 A=4e-12 P=8e-6
+MM19_0 vb4 vb4 vss sub sg13_lv_nmos w=2.01u l=1.26u m=1
+RT41 vss sub ptap1 A=4e-12 P=8e-6
+MM19_1 vb4 vb4 vss sub sg13_lv_nmos w=2.01u l=1.26u m=1
+RT42 vss sub ptap1 A=4e-12 P=8e-6
+MM19_2 vb4 vb4 vss sub sg13_lv_nmos w=2.01u l=1.26u m=1
+RT43 vss sub ptap1 A=4e-12 P=8e-6
+MM19_3 vb4 vb4 vss sub sg13_lv_nmos w=2.01u l=1.26u m=1
+RT44 vdd well_44 ntap1 A=4e-12 P=8e-6
+MM2_0 net019 vb1 vdd well_44 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT45 vdd well_45 ntap1 A=4e-12 P=8e-6
+MM2_1 net019 vb1 vdd well_45 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT46 vdd well_46 ntap1 A=4e-12 P=8e-6
+MM2_2 net019 vb1 vdd well_46 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT47 vdd well_47 ntap1 A=4e-12 P=8e-6
+MM2_3 net019 vb1 vdd well_47 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT48 vdd well_48 ntap1 A=4e-12 P=8e-6
+MM2_4 net019 vb1 vdd well_48 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT49 vdd well_49 ntap1 A=4e-12 P=8e-6
+MM2_5 net019 vb1 vdd well_49 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT50 vdd well_50 ntap1 A=4e-12 P=8e-6
+MM2_6 net019 vb1 vdd well_50 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT51 vdd well_51 ntap1 A=4e-12 P=8e-6
+MM2_7 net019 vb1 vdd well_51 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT52 vss sub ptap1 A=4e-12 P=8e-6
+MM20_0 dm_2 vb4 vss sub sg13_lv_nmos w=2.01u l=1.26u m=1
+RT53 vss sub ptap1 A=4e-12 P=8e-6
+MM20_1 dm_2 vb4 vss sub sg13_lv_nmos w=2.01u l=1.26u m=1
+RT54 vss sub ptap1 A=4e-12 P=8e-6
+MM20_2 dm_2 vb4 vss sub sg13_lv_nmos w=2.01u l=1.26u m=1
+RT55 vss sub ptap1 A=4e-12 P=8e-6
+MM20_3 dm_2 vb4 vss sub sg13_lv_nmos w=2.01u l=1.26u m=1
+RT56 vss sub ptap1 A=4e-12 P=8e-6
+MM21_0 net063 vb4 vss sub sg13_lv_nmos w=2.01u l=1.26u m=1
+RT57 vss sub ptap1 A=4e-12 P=8e-6
+MM21_1 net063 vb4 vss sub sg13_lv_nmos w=2.01u l=1.26u m=1
+RT58 vss sub ptap1 A=4e-12 P=8e-6
+MM21_2 net063 vb4 vss sub sg13_lv_nmos w=2.01u l=1.26u m=1
+RT59 vss sub ptap1 A=4e-12 P=8e-6
+MM21_3 net063 vb4 vss sub sg13_lv_nmos w=2.01u l=1.26u m=1
+RT60 vss sub ptap1 A=4e-12 P=8e-6
+MM22_0 net094 net051 vss sub sg13_lv_nmos w=6.13u l=2.09u m=1
+RT61 vss sub ptap1 A=4e-12 P=8e-6
+MM22_1 net094 net051 vss sub sg13_lv_nmos w=6.13u l=2.09u m=1
+RT62 vss sub ptap1 A=4e-12 P=8e-6
+MM22_2 net094 net051 vss sub sg13_lv_nmos w=6.13u l=2.09u m=1
+RT63 vss sub ptap1 A=4e-12 P=8e-6
+MM22_3 net094 net051 vss sub sg13_lv_nmos w=6.13u l=2.09u m=1
+RT64 vss sub ptap1 A=4e-12 P=8e-6
+MM23_0 net057 net094 vss sub sg13_lv_nmos w=5.95u l=9.97u m=1
+RT65 vss sub ptap1 A=4e-12 P=8e-6
+MM23_1 net057 net094 vss sub sg13_lv_nmos w=5.95u l=9.97u m=1
+RT66 vss sub ptap1 A=4e-12 P=8e-6
+MM23_2 net057 net094 vss sub sg13_lv_nmos w=5.95u l=9.97u m=1
+RT67 vss sub ptap1 A=4e-12 P=8e-6
+MM23_3 net057 net094 vss sub sg13_lv_nmos w=5.95u l=9.97u m=1
+RT68 vdd well_68 ntap1 A=4e-12 P=8e-6
+MM3_0 net078 vb1 vdd well_68 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT69 vdd well_69 ntap1 A=4e-12 P=8e-6
+MM3_1 net078 vb1 vdd well_69 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT70 vdd well_70 ntap1 A=4e-12 P=8e-6
+MM3_2 net078 vb1 vdd well_70 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT71 vdd well_71 ntap1 A=4e-12 P=8e-6
+MM3_3 net078 vb1 vdd well_71 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT72 vdd well_72 ntap1 A=4e-12 P=8e-6
+MM3_4 net078 vb1 vdd well_72 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT73 vdd well_73 ntap1 A=4e-12 P=8e-6
+MM3_5 net078 vb1 vdd well_73 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT74 vdd well_74 ntap1 A=4e-12 P=8e-6
+MM3_6 net078 vb1 vdd well_74 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT75 vdd well_75 ntap1 A=4e-12 P=8e-6
+MM3_7 net078 vb1 vdd well_75 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT76 vdd well_76 ntap1 A=4e-12 P=8e-6
+MM3_8 net078 vb1 vdd well_76 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT77 vdd well_77 ntap1 A=4e-12 P=8e-6
+MM3_9 net078 vb1 vdd well_77 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT78 vdd well_78 ntap1 A=4e-12 P=8e-6
+MM3_10 net078 vb1 vdd well_78 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT79 vdd well_79 ntap1 A=4e-12 P=8e-6
+MM3_11 net078 vb1 vdd well_79 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT80 vdd well_80 ntap1 A=4e-12 P=8e-6
+MM3_12 net078 vb1 vdd well_80 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT81 vdd well_81 ntap1 A=4e-12 P=8e-6
+MM3_13 net078 vb1 vdd well_81 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT82 vdd well_82 ntap1 A=4e-12 P=8e-6
+MM3_14 net078 vb1 vdd well_82 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT83 vdd well_83 ntap1 A=4e-12 P=8e-6
+MM3_15 net078 vb1 vdd well_83 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT84 vdd well_84 ntap1 A=4e-12 P=8e-6
+MM4_0 voutn voutn vdd well_84 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT85 vdd well_85 ntap1 A=4e-12 P=8e-6
+MM4_1 voutn voutn vdd well_85 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT86 vdd well_86 ntap1 A=4e-12 P=8e-6
+MM4_2 voutn voutn vdd well_86 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT87 vdd well_87 ntap1 A=4e-12 P=8e-6
+MM4_3 voutn voutn vdd well_87 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT88 vdd well_88 ntap1 A=4e-12 P=8e-6
+MM5_0 net050 voutn vdd well_88 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT89 vdd well_89 ntap1 A=4e-12 P=8e-6
+MM5_1 net050 voutn vdd well_89 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT90 vdd well_90 ntap1 A=4e-12 P=8e-6
+MM5_2 net050 voutn vdd well_90 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT91 vdd well_91 ntap1 A=4e-12 P=8e-6
+MM5_3 net050 voutn vdd well_91 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT92 vdd well_92 ntap1 A=4e-12 P=8e-6
+MM67_0 net057 voutn vdd well_92 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT93 vdd well_93 ntap1 A=4e-12 P=8e-6
+MM67_1 net057 voutn vdd well_93 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT94 vdd well_94 ntap1 A=4e-12 P=8e-6
+MM67_2 net057 voutn vdd well_94 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT95 vdd well_95 ntap1 A=4e-12 P=8e-6
+MM67_3 net057 voutn vdd well_95 sg13_lv_pmos w=0.54u l=3.85u m=1
+RT96 net019 well_96 ntap1 A=4e-12 P=8e-6
+MM9_0 dm_2 vinn net019 well_96 sg13_lv_pmos w=2.59u l=0.37u m=1
+RT97 net019 well_97 ntap1 A=4e-12 P=8e-6
+MM9_1 dm_2 vinn net019 well_97 sg13_lv_pmos w=2.59u l=0.37u m=1
+RT98 net019 well_98 ntap1 A=4e-12 P=8e-6
+MM9_2 dm_2 vinn net019 well_98 sg13_lv_pmos w=2.59u l=0.37u m=1
+RT99 net019 well_99 ntap1 A=4e-12 P=8e-6
+MM9_3 dm_2 vinn net019 well_99 sg13_lv_pmos w=2.59u l=0.37u m=1
+RTSUB vss sub ptap1 A=4e-12 P=8e-6
+C0_0 net063 vout cap_cmim w=36.86u l=36.86u m=1
+C0_1 net063 vout cap_cmim w=36.86u l=36.86u m=1
+C1_0 net051 vss cap_cmim w=46.99u l=46.99u m=1
+C1_1 net051 vss cap_cmim w=46.99u l=46.99u m=1
+RR0_0 net078 R0_s1 sub rhigh w=.5u l=61.2u m=1 b=0
+RR0_1 R0_s1 net077 sub rhigh w=.5u l=61.2u m=1 b=0
+RR1_0 net078 net082 sub rhigh w=.5u l=19.43u m=1 b=0
+RR2_0 net094 R2_s1 sub rhigh w=.5u l=79.64u m=1 b=0
+RR2_1 R2_s1 R2_s2 sub rhigh w=.5u l=79.64u m=1 b=0
+RR2_2 R2_s2 R2_s3 sub rhigh w=.5u l=79.64u m=1 b=0
+RR2_3 R2_s3 R2_s4 sub rhigh w=.5u l=79.64u m=1 b=0
+RR2_4 R2_s4 R2_s5 sub rhigh w=.5u l=79.64u m=1 b=0
+RR2_5 R2_s5 R2_s6 sub rhigh w=.5u l=79.64u m=1 b=0
+RR2_6 R2_s6 net051 sub rhigh w=.5u l=79.64u m=1 b=0
+.ends amp_021_yan_az

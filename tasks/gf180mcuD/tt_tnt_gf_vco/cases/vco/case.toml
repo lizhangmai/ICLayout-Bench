@@ -4,7 +4,22 @@ id = "gf180mcuD.tt_tnt_gf_vco.vco"
 title = "Quadrature Voltage-Controlled Oscillator"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "1dca19aa1f7785fbce75ff5133005347aad9135fffc800b4c1cdd78536f6f09c"
+
+[[assets]]
+path = "reference/vco.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "bb9965bde8204258d632097e28f91ebaf0e8bbfeb663cd0d89f619b9faf3f2b5"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "gf180_vco"
 coefficient = 8
@@ -13,7 +28,7 @@ environment = "gf180mcuD-typical-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "9759c23d3174d4ed4d123656ac73209f33e13dcf8cd6c2706b242674524b1052"
+sha256 = "ca6836741063cd6fe4ba93cd82644160c672f928814eb718e0826b2b618726af"
 
 [task.inputs.netlist]
 path = "materials/circuit.spice"
@@ -564,6 +579,52 @@ power_hi = "W"
 [task.evaluation.jobs.parameters.exports]
 waveform = "waveform.raw"
 
+[[task.evaluation.jobs]]
+id = "source_nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+frequency_lo = "Hz"
+frequency_hi = "Hz"
+tuning_ratio = "1"
+phase90_lo = "1"
+phase90_hi = "1"
+phase180_lo = "1"
+phase180_hi = "1"
+phase270_lo = "1"
+phase270_hi = "1"
+min0_lo = "V"
+min0_hi = "V"
+min90_lo = "V"
+min90_hi = "V"
+min180_lo = "V"
+min180_hi = "V"
+min270_lo = "V"
+min270_hi = "V"
+max0_lo = "V"
+max0_hi = "V"
+max90_lo = "V"
+max90_hi = "V"
+max180_lo = "V"
+max180_hi = "V"
+max270_lo = "V"
+max270_hi = "V"
+power_lo = "W"
+power_hi = "W"
+
+[task.evaluation.jobs.parameters.values]
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -581,13 +642,15 @@ observations = [
     "nominal:frequency_lo",
 ]
 unit = "Hz"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
 dimension = "response"
-lower = 10000000.0
-upper = 150000000.0
-zero_lower = 1000000.0
-zero_upper = 300000000.0
+baseline = [
+    "source_nominal:frequency_lo",
+]
+normalization = "target"
+scale = 150000000.0
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "high_control_frequency"
@@ -596,13 +659,15 @@ observations = [
     "nominal:frequency_hi",
 ]
 unit = "Hz"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
 dimension = "response"
-lower = 30000000.0
-upper = 300000000.0
-zero_lower = 1000000.0
-zero_upper = 600000000.0
+baseline = [
+    "source_nominal:frequency_hi",
+]
+normalization = "target"
+scale = 300000000.0
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "tuning"
@@ -614,8 +679,11 @@ unit = "1"
 direction = "maximize"
 aggregation = "min"
 dimension = "response"
-lower = 2
-zero_lower = 1
+baseline = [
+    "source_nominal:tuning_ratio",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "quadrature90"
@@ -625,13 +693,15 @@ observations = [
     "nominal:phase90_hi",
 ]
 unit = "1"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
 dimension = "response"
-lower = 0.2
-upper = 0.3
-zero_lower = 0.04999999999999999
-zero_upper = 0.45
+baseline = [
+    "source_nominal:phase90_lo",
+    "source_nominal:phase90_hi",
+]
+normalization = "target"
+scale = 1.0
 
 [[task.evaluation.metrics]]
 id = "quadrature180"
@@ -641,13 +711,15 @@ observations = [
     "nominal:phase180_hi",
 ]
 unit = "1"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
 dimension = "response"
-lower = 0.45
-upper = 0.55
-zero_lower = 0.3
-zero_upper = 0.7
+baseline = [
+    "source_nominal:phase180_lo",
+    "source_nominal:phase180_hi",
+]
+normalization = "target"
+scale = 1.0
 
 [[task.evaluation.metrics]]
 id = "quadrature270"
@@ -657,13 +729,15 @@ observations = [
     "nominal:phase270_hi",
 ]
 unit = "1"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
 dimension = "response"
-lower = 0.7
-upper = 0.8
-zero_lower = 0.55
-zero_upper = 0.95
+baseline = [
+    "source_nominal:phase270_lo",
+    "source_nominal:phase270_hi",
+]
+normalization = "target"
+scale = 1.0
 
 [[task.evaluation.metrics]]
 id = "low"
@@ -681,9 +755,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.33
-zero_upper = 1.65
 
 [[task.evaluation.metrics]]
 id = "high"
@@ -701,9 +773,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 2.97
-zero_lower = 1.65
 
 [[task.evaluation.metrics]]
 id = "supply"
@@ -713,19 +783,21 @@ observations = [
     "nominal:power_hi",
 ]
 unit = "W"
-direction = "maximize"
+direction = "minimize"
 aggregation = "min"
 dimension = "supply"
+baseline = [
+    "source_nominal:power_lo",
+    "source_nominal:power_hi",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.003
-zero_lower = 0
-zero_upper = 0.01
+scale = 1e-12
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 36000
-area_zero = 144000
+area_target = 907.08
 
 [toolchain]
 schema_version = 1
@@ -759,7 +831,7 @@ image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 180
 support = "build/support/gf180-physical-v2"
-profile = "lvs-GND.json"
+profile = "lvs.json"
 
 [toolchain.backends.lvs.support_profiles]
 support = "physical"
@@ -809,13 +881,6 @@ support = "models"
 
 [origin]
 url = "https://github.com/smunaut/tt_tnt_gf_vco/tree/897b3ec12ed693161fb56f4205d1b19dc5e56c1a/xschem/vco.sch"
-
-[[assets]]
-path = "reference/vco.gds"
-role = "reference"
-visibility = "maintainer"
-format = "gds"
-sha256 = "3bea26575fe287eac3f8294d48fd968e3abc10b5499aedaa3739c6dadb787211"
 
 [qualification]
 reference = "reference/vco.gds"

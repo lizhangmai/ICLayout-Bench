@@ -11,7 +11,15 @@ visibility = "maintainer"
 format = "gds"
 sha256 = "1ebcc6f4d7a8f5c50846b5cdfd60f3039fb96caf455b89f2d7f30568c5a2af94"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "e6205109e069eda6f90cad95d0159a0dbdb7ca352c1f5d6727f5e62856f45f8c"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "freepdk45_aoi21_x1"
 coefficient = 2
@@ -19,7 +27,7 @@ environment = "freepdk45-nominal-predictive-rc"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "3a38a9d6ed751b03c02535e0115506be050a3ee7881c488a42d2ce0af3034335"
+sha256 = "2282bb6736a676b76ccfb294e97dccf911a38aafa94b806015fcda2c4e78989c"
 format = "text"
 
 [task.inputs.netlist]
@@ -30,7 +38,7 @@ subcircuit = "AOI21_X1"
 
 [task.inputs.performance]
 path = "materials/testbench.spice"
-sha256 = "13181aeec903de63f324ba25743b521afa0c5f9275cf864644323becfa2fba8b"
+sha256 = "f8401ddcc740853f48b867b25e5bbf895409a9d1df90dfd5b013f31d236aa6b8"
 format = "spice"
 
 [task.constraints]
@@ -163,6 +171,154 @@ functional_layers = [
 max_width_um = 100
 max_height_um = 100
 
+[[task.constraints.hard]]
+id = "cell_frame"
+type = "cell_frame"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        2,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        4,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        9,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        15,
+        0,
+    ],
+    [
+        16,
+        0,
+    ],
+    [
+        17,
+        0,
+    ],
+    [
+        18,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        20,
+        0,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        23,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        25,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        27,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+]
+height_um = 1.6300000000000001
+width_grid_um = 0.01
+
+[[task.constraints.hard.rails]]
+name = "VDD"
+layer = [
+    11,
+    0,
+]
+connectivity_layer = "metal1"
+y_um = 1.5150000000000001
+thickness_um = 0.07
+left_um = 0.115
+right_um = 0.030000000000000002
+
+[[task.constraints.hard.rails]]
+name = "VSS"
+layer = [
+    11,
+    0,
+]
+connectivity_layer = "metal1"
+y_um = 0.115
+thickness_um = 0.07
+left_um = 0.115
+right_um = 0.030000000000000002
+
 [task.output]
 path = "output/final.gds"
 format = "gds"
@@ -288,6 +444,73 @@ state_14 = "V"
 state_15 = "V"
 state_16 = "V"
 supply = "W"
+delay_b1_fall_2 = "s"
+transition_b1_fall_2 = "s"
+delay_b2_rise_3 = "s"
+transition_b2_rise_3 = "s"
+delay_a_fall_4 = "s"
+transition_a_fall_4 = "s"
+delay_a_rise_8 = "s"
+transition_a_rise_8 = "s"
+delay_a_fall_9 = "s"
+transition_a_fall_9 = "s"
+delay_a_rise_13 = "s"
+transition_a_rise_13 = "s"
+delay_b2_fall_14 = "s"
+transition_b2_fall_14 = "s"
+delay_b1_rise_15 = "s"
+transition_b1_rise_15 = "s"
+
+[[task.evaluation.jobs]]
+id = "source_nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+state_0 = "V"
+state_1 = "V"
+state_2 = "V"
+state_3 = "V"
+state_4 = "V"
+state_5 = "V"
+state_6 = "V"
+state_7 = "V"
+state_8 = "V"
+state_9 = "V"
+state_10 = "V"
+state_11 = "V"
+state_12 = "V"
+state_13 = "V"
+state_14 = "V"
+state_15 = "V"
+state_16 = "V"
+supply = "W"
+delay_b1_fall_2 = "s"
+transition_b1_fall_2 = "s"
+delay_b2_rise_3 = "s"
+transition_b2_rise_3 = "s"
+delay_a_fall_4 = "s"
+transition_a_fall_4 = "s"
+delay_a_rise_8 = "s"
+transition_a_rise_8 = "s"
+delay_a_fall_9 = "s"
+transition_a_fall_9 = "s"
+delay_a_rise_13 = "s"
+transition_a_rise_13 = "s"
+delay_b2_fall_14 = "s"
+transition_b2_fall_14 = "s"
+delay_b1_rise_15 = "s"
+transition_b1_rise_15 = "s"
 
 [[task.evaluation.metrics]]
 id = "functional_area"
@@ -308,9 +531,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_1"
@@ -321,9 +542,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_2"
@@ -334,9 +553,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_3"
@@ -347,9 +564,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_4"
@@ -360,9 +575,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_5"
@@ -373,9 +586,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_6"
@@ -386,9 +597,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_7"
@@ -399,9 +608,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_8"
@@ -412,9 +619,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_9"
@@ -425,9 +630,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_10"
@@ -438,9 +641,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_11"
@@ -451,9 +652,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_12"
@@ -464,9 +663,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_13"
@@ -477,9 +674,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_14"
@@ -490,9 +685,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_15"
@@ -503,9 +696,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "state_16"
@@ -516,9 +707,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "supply"
@@ -529,17 +718,78 @@ observations = [
 unit = "W"
 direction = "minimize"
 aggregation = "max"
-lower = 0
-upper = 6e-05
-zero_lower = 0
-zero_upper = 0.0003
 dimension = "supply"
+baseline = [
+    "source_nominal:supply",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[[task.evaluation.metrics]]
+id = "propagation_delay"
+category = "performance"
+observations = [
+    "nominal:delay_b1_fall_2",
+    "nominal:delay_b2_rise_3",
+    "nominal:delay_a_fall_4",
+    "nominal:delay_a_rise_8",
+    "nominal:delay_a_fall_9",
+    "nominal:delay_a_rise_13",
+    "nominal:delay_b2_fall_14",
+    "nominal:delay_b1_rise_15",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_nominal:delay_b1_fall_2",
+    "source_nominal:delay_b2_rise_3",
+    "source_nominal:delay_a_fall_4",
+    "source_nominal:delay_a_rise_8",
+    "source_nominal:delay_a_fall_9",
+    "source_nominal:delay_a_rise_13",
+    "source_nominal:delay_b2_fall_14",
+    "source_nominal:delay_b1_rise_15",
+]
+normalization = "ratio"
+lower = 0
+
+[[task.evaluation.metrics]]
+id = "output_transition"
+category = "performance"
+observations = [
+    "nominal:transition_b1_fall_2",
+    "nominal:transition_b2_rise_3",
+    "nominal:transition_a_fall_4",
+    "nominal:transition_a_rise_8",
+    "nominal:transition_a_fall_9",
+    "nominal:transition_a_rise_13",
+    "nominal:transition_b2_fall_14",
+    "nominal:transition_b1_rise_15",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_nominal:transition_b1_fall_2",
+    "source_nominal:transition_b2_rise_3",
+    "source_nominal:transition_a_fall_4",
+    "source_nominal:transition_a_rise_8",
+    "source_nominal:transition_a_fall_9",
+    "source_nominal:transition_a_rise_13",
+    "source_nominal:transition_b2_fall_14",
+    "source_nominal:transition_b1_rise_15",
+]
+normalization = "ratio"
+lower = 0
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 2.1
-area_zero = 4.2
+area_target = 2.0049
 
 [toolchain]
 schema_version = 1
@@ -592,7 +842,7 @@ type = "magic-rc-docker"
 image = "iclayout-bench-tools:local"
 support = "build/support/freepdk45-magic-vtl"
 technology = "freepdk45.tech"
-tech_name = "nangate45"
+tech_name = "freepdk45"
 style = "spice3(sim)"
 gds_readonly = false
 case_insensitive_ports = true

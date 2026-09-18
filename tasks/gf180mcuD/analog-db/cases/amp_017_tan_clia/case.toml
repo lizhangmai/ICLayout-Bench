@@ -1,0 +1,1011 @@
+schema_version = 2
+kind = "layout_case"
+id = "gf180mcuD.analog-db.amp_017_tan_clia"
+title = "Tan CLIA Three-Stage Amplifier"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "662b9293c278576f1c1f93997a4718f895c72d1eeb0002e09f57d79320958138"
+
+[[assets]]
+path = "reference/amp_017_tan_clia.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "e259ca768f777240880af2ab5cb2222971638349b504800f32d53f69bff1a302"
+
+[task]
+hours = 8
+kind = "netlist_to_gds"
+family = "multistage_compensated_ota"
+coefficient = 7
+environment = "gf180mcuD-mos-rc-tt"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "262b13c6b1cbffc599a2cafeef945461618e24692c899f08bafc650defadb752"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+sha256 = "59a4d962ade70da8bbdc21dffc81adf077c84baa2057b100deaed0c5f34e7dc2"
+subcircuit = "amp_017_tan_clia"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "2432efcec874fc55326016d1151de89251a450a6f5b654aff6b18cd47feca69d"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "6e9ff310acb6dc07da0557c4d3354e723584a4cbfe8ea56858c0d77706d3b25f"
+
+[task.inputs.frequency]
+path = "materials/ac.spice"
+format = "spice"
+sha256 = "34e2a72ec59709b055bd2741b77fcbc1b7a25a6094224bc02c85f833c468371d"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "amp_017_tan_clia"
+max_bytes = 67108864
+
+[task.constraints]
+schema_version = 1
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
+]
+max_width_um = 20000
+max_height_um = 2000
+
+[task.evaluation]
+schema_version = 1
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vss",
+    "vdd",
+    "vinn",
+    "vinp",
+    "vout",
+    "net1",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-11
+step_v = 0.1
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+closed_gain_10khz_db = "dB"
+late_error_v = "V"
+return_error_v = "V"
+ripple_v = "V"
+return_ripple_v = "V"
+mean_power_w = "W"
+bias_v = "V"
+high_v = "V"
+low_v = "V"
+output_min_v = "V"
+output_max_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-11
+step_v = 0.1
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+closed_gain_10khz_db = "dB"
+late_error_v = "V"
+return_error_v = "V"
+ripple_v = "V"
+return_ripple_v = "V"
+mean_power_w = "W"
+bias_v = "V"
+high_v = "V"
+low_v = "V"
+output_min_v = "V"
+output_max_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:frequency"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-11
+
+[task.evaluation.jobs.parameters.measurements]
+gain_db = "dB"
+gain_10khz_db = "dB"
+fixture_cm_max = "V"
+dc_feedback_error_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:frequency"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-11
+
+[task.evaluation.jobs.parameters.measurements]
+gain_db = "dB"
+gain_10khz_db = "dB"
+fixture_cm_max = "V"
+dc_feedback_error_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "output_v"
+unit = "V"
+dimension = "bias"
+normalization = "target"
+direction = "target"
+aggregation = "max"
+scale = 1.8
+category = "performance"
+observations = [
+    "condition_0:output_v",
+]
+baseline = [
+    "source_condition_0:output_v",
+]
+
+[[task.evaluation.metrics]]
+id = "power_w"
+unit = "W"
+dimension = "supply"
+normalization = "ratio"
+direction = "minimize"
+aggregation = "max"
+scale = 1e-12
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:power_w",
+]
+baseline = [
+    "source_condition_0:power_w",
+]
+
+[[task.evaluation.metrics]]
+id = "gain_db"
+unit = "dB"
+dimension = "response"
+normalization = "db20"
+direction = "maximize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_1:gain_db",
+]
+baseline = [
+    "source_condition_1:gain_db",
+]
+
+[[task.evaluation.metrics]]
+id = "gain_10khz_db"
+unit = "dB"
+dimension = "response"
+normalization = "db20"
+direction = "maximize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_1:gain_10khz_db",
+]
+baseline = [
+    "source_condition_1:gain_10khz_db",
+]
+
+[[task.evaluation.metrics]]
+id = "closed_gain_10khz_db"
+unit = "dB"
+dimension = "response"
+normalization = "target"
+direction = "target"
+aggregation = "max"
+scale = 6
+category = "performance"
+observations = [
+    "condition_0:closed_gain_10khz_db",
+]
+baseline = [
+    "source_condition_0:closed_gain_10khz_db",
+]
+
+[[task.evaluation.metrics]]
+id = "late_error_v"
+unit = "V"
+dimension = "response"
+normalization = "ratio"
+direction = "minimize"
+aggregation = "max"
+scale = 0.001
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:late_error_v",
+]
+baseline = [
+    "source_condition_0:late_error_v",
+]
+
+[[task.evaluation.metrics]]
+id = "return_error_v"
+unit = "V"
+dimension = "response"
+normalization = "ratio"
+direction = "minimize"
+aggregation = "max"
+scale = 0.001
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:return_error_v",
+]
+baseline = [
+    "source_condition_0:return_error_v",
+]
+
+[[task.evaluation.metrics]]
+id = "ripple_v"
+unit = "V"
+dimension = "response"
+normalization = "ratio"
+direction = "minimize"
+aggregation = "max"
+scale = 0.001
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:ripple_v",
+]
+baseline = [
+    "source_condition_0:ripple_v",
+]
+
+[[task.evaluation.metrics]]
+id = "return_ripple_v"
+unit = "V"
+dimension = "response"
+normalization = "ratio"
+direction = "minimize"
+aggregation = "max"
+scale = 0.001
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:return_ripple_v",
+]
+baseline = [
+    "source_condition_0:return_ripple_v",
+]
+
+[[task.evaluation.metrics]]
+id = "mean_power_w"
+unit = "W"
+dimension = "supply"
+normalization = "ratio"
+direction = "minimize"
+aggregation = "max"
+scale = 1e-12
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:mean_power_w",
+]
+baseline = [
+    "source_condition_0:mean_power_w",
+]
+
+[[task.evaluation.metrics]]
+id = "bias_v"
+unit = "V"
+direction = "minimize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_0:bias_v",
+]
+
+[[task.evaluation.metrics]]
+id = "high_v"
+unit = "V"
+direction = "minimize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_0:high_v",
+]
+
+[[task.evaluation.metrics]]
+id = "low_v"
+unit = "V"
+direction = "minimize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_0:low_v",
+]
+
+[[task.evaluation.metrics]]
+id = "output_min_v"
+unit = "V"
+direction = "minimize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_0:output_min_v",
+]
+
+[[task.evaluation.metrics]]
+id = "output_max_v"
+unit = "V"
+direction = "minimize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_0:output_max_v",
+]
+
+[[task.evaluation.metrics]]
+id = "fixture_cm_max"
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+upper = 1e-06
+category = "performance"
+observations = [
+    "condition_1:fixture_cm_max",
+]
+
+[[task.evaluation.metrics]]
+id = "dc_feedback_error_v"
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+upper = 1e-06
+category = "performance"
+observations = [
+    "condition_1:dc_feedback_error_v",
+]
+
+[task.evaluation.scoring]
+method = "layout-v2"
+area_metric = "functional_area"
+area_target = 88555.19
+
+[toolchain]
+schema_version = 1
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:ngspice45"
+check = "artifact"
+timeout_seconds = 180
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:ngspice45"
+check = "drc"
+timeout_seconds = 180
+support = "build/support/gf180-physical-v2"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:ngspice45"
+check = "lvs"
+timeout_seconds = 180
+support = "build/support/gf180-physical-v2"
+profile = "lvs.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:ngspice45"
+timeout_seconds = 180
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:ngspice45"
+support = "build/support/gf180-magic"
+technology = "gf180mcuD.tech"
+tech_name = "gf180mcuD"
+style = "ngspice()"
+gds_readonly = false
+grid_subdivision = 10
+case_insensitive_ports = true
+timeout_seconds = 240
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+image = "iclayout-bench-tools:ngspice45"
+support = "build/support/gf180-models"
+timeout_seconds = 240
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/amp_017_tan_clia"
+
+[qualification]
+reference = "reference/amp_017_tan_clia.gds"
+evidence = "README.md"

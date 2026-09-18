@@ -4,7 +4,22 @@ id = "ihp-sg13g2.analog-db.ldo_008_fer_mirror_ota"
 title = "Mirror-OTA Regulator with Bilateral Return-Ratio Measurements"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "ef8f9dd64d4e47eb2ba8e96c27b6c72a737367b2c45e0942a7674fa7fe0d3d7e"
+
+[[assets]]
+path = "reference/ldo_008_fer_mirror_ota.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "5fb57b299ab511994ee7334eb8a40c2709f0698a5bae7087d6fdc397fda40726"
+
 [task]
+hours = 3
 coefficient = 9
 kind = "netlist_to_gds"
 family = "ihp-sg13g2_ldo_008_fer_mirror_ota"
@@ -13,7 +28,7 @@ environment = "ihp-sg13g2-ldo_008_fer_mirror_ota-nominal-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "e81d92a09b8c66c773a7b76225a8508c1bc9427f618d63f6d37f90c45e102b01"
+sha256 = "0c54f287dff2e9c3ffb380b198f33f1fd1702c88fa5ea1c39b10416226b96ec5"
 
 [task.inputs.netlist]
 path = "materials/circuit.cdl"
@@ -247,10 +262,9 @@ schema_version = 1
 mode = "post_layout"
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 1100000
-area_zero = 4400000
+area_target = 172708.78
 
 [[task.evaluation.jobs]]
 id = "artifact"
@@ -910,6 +924,582 @@ fast_tail_v = "V"
 [task.evaluation.jobs.parameters.exports]
 transient = "transient.raw"
 
+[[task.evaluation.jobs]]
+id = "source_condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+voltage = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.2
+load_a = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+bias_v = "V"
+quiescent_a = "A"
+power_w = "W"
+dc_gain_db = "dB"
+unity_hz = "Hz"
+phase_margin_deg = "deg"
+minimum_v = "V"
+maximum_v = "V"
+recovery_load_v = "V"
+recovery_release_v = "V"
+mean_power_w = "W"
+minimum_return_distance = "1"
+hf_gain_db = "dB"
+return_phase_excursion_deg = "deg"
+final_unity_hz = "Hz"
+final_phase_margin_deg = "deg"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+transient = "transient.raw"
+voltage = "voltage.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+voltage = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.2
+load_a = 0.0005
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+bias_v = "V"
+quiescent_a = "A"
+power_w = "W"
+dc_gain_db = "dB"
+unity_hz = "Hz"
+phase_margin_deg = "deg"
+minimum_v = "V"
+maximum_v = "V"
+recovery_load_v = "V"
+recovery_release_v = "V"
+mean_power_w = "W"
+minimum_return_distance = "1"
+hf_gain_db = "dB"
+return_phase_excursion_deg = "deg"
+final_unity_hz = "Hz"
+final_phase_margin_deg = "deg"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+transient = "transient.raw"
+voltage = "voltage.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+voltage = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+load_a = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+bias_v = "V"
+quiescent_a = "A"
+power_w = "W"
+dc_gain_db = "dB"
+unity_hz = "Hz"
+phase_margin_deg = "deg"
+minimum_v = "V"
+maximum_v = "V"
+recovery_load_v = "V"
+recovery_release_v = "V"
+mean_power_w = "W"
+minimum_return_distance = "1"
+hf_gain_db = "dB"
+return_phase_excursion_deg = "deg"
+final_unity_hz = "Hz"
+final_phase_margin_deg = "deg"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+transient = "transient.raw"
+voltage = "voltage.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+voltage = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+load_a = 0.0005
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+bias_v = "V"
+quiescent_a = "A"
+power_w = "W"
+dc_gain_db = "dB"
+unity_hz = "Hz"
+phase_margin_deg = "deg"
+minimum_v = "V"
+maximum_v = "V"
+recovery_load_v = "V"
+recovery_release_v = "V"
+mean_power_w = "W"
+minimum_return_distance = "1"
+hf_gain_db = "dB"
+return_phase_excursion_deg = "deg"
+final_unity_hz = "Hz"
+final_phase_margin_deg = "deg"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+transient = "transient.raw"
+voltage = "voltage.raw"
+
+[[task.evaluation.jobs]]
+id = "source_startup_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:startup"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.2
+load_ohm = 1000
+ramp_s = 1e-06
+
+[task.evaluation.jobs.parameters.measurements]
+startup_error_v = "V"
+peak_v = "V"
+minimum_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_startup_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:startup"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.2
+load_ohm = 1000
+ramp_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+startup_error_v = "V"
+peak_v = "V"
+minimum_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_startup_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:startup"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.2
+load_ohm = 10000
+ramp_s = 1e-06
+
+[task.evaluation.jobs.parameters.measurements]
+startup_error_v = "V"
+peak_v = "V"
+minimum_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_startup_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:startup"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.2
+load_ohm = 10000
+ramp_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+startup_error_v = "V"
+peak_v = "V"
+minimum_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_startup_4"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:startup"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+load_ohm = 1000
+ramp_s = 1e-06
+
+[task.evaluation.jobs.parameters.measurements]
+startup_error_v = "V"
+peak_v = "V"
+minimum_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_startup_5"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:startup"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+load_ohm = 1000
+ramp_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+startup_error_v = "V"
+peak_v = "V"
+minimum_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_startup_6"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:startup"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+load_ohm = 10000
+ramp_s = 1e-06
+
+[task.evaluation.jobs.parameters.measurements]
+startup_error_v = "V"
+peak_v = "V"
+minimum_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_startup_7"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:startup"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+load_ohm = 10000
+ramp_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+startup_error_v = "V"
+peak_v = "V"
+minimum_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_sweeps_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:sweeps"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+line = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.2
+load_a = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+regulation_floor_v = "V"
+headroom_v = "V"
+line_span_v = "V"
+load_span_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+line = "line.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "source_sweeps_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:sweeps"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+line = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.2
+load_a = 0.001
+
+[task.evaluation.jobs.parameters.measurements]
+regulation_floor_v = "V"
+headroom_v = "V"
+line_span_v = "V"
+load_span_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+line = "line.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "source_sweeps_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:sweeps"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+line = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+load_a = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+regulation_floor_v = "V"
+headroom_v = "V"
+line_span_v = "V"
+load_span_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+line = "line.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "source_sweeps_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:sweeps"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+line = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+load_a = 0.001
+
+[task.evaluation.jobs.parameters.measurements]
+regulation_floor_v = "V"
+headroom_v = "V"
+line_span_v = "V"
+load_span_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+line = "line.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "source_fast_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:fast"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.2
+load_a = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+fast_peak_v = "V"
+fast_tail_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_fast_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:fast"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.2
+load_a = 0.0005
+
+[task.evaluation.jobs.parameters.measurements]
+fast_peak_v = "V"
+fast_tail_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_fast_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:fast"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+load_a = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+fast_peak_v = "V"
+fast_tail_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_fast_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:fast"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+load_a = 0.0005
+
+[task.evaluation.jobs.parameters.measurements]
+fast_peak_v = "V"
+fast_tail_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -933,10 +1523,16 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.97
-upper = 1.03
-zero_lower = 0.7
-zero_upper = 1.3
+baseline = [
+    "source_condition_0:output_v",
+    "source_condition_1:output_v",
+    "source_condition_2:output_v",
+    "source_condition_3:output_v",
+]
+normalization = "target"
+scale = 1.3
+lower = 0
+upper = 1.3
 
 [[task.evaluation.metrics]]
 id = "bias_v"
@@ -951,10 +1547,16 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.3
-upper = 0.35
-zero_lower = 0
-zero_upper = 0.7
+baseline = [
+    "source_condition_0:bias_v",
+    "source_condition_1:bias_v",
+    "source_condition_2:bias_v",
+    "source_condition_3:bias_v",
+]
+normalization = "target"
+scale = 1.3
+lower = 0
+upper = 1.3
 
 [[task.evaluation.metrics]]
 id = "quiescent_a"
@@ -967,12 +1569,17 @@ observations = [
 ]
 unit = "A"
 dimension = "supply"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
-lower = 0.00013
-upper = 0.00016
-zero_lower = 0
-zero_upper = 0.00032
+baseline = [
+    "source_condition_0:quiescent_a",
+    "source_condition_1:quiescent_a",
+    "source_condition_2:quiescent_a",
+    "source_condition_3:quiescent_a",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "power_w"
@@ -985,12 +1592,17 @@ observations = [
 ]
 unit = "W"
 dimension = "supply"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:power_w",
+    "source_condition_1:power_w",
+    "source_condition_2:power_w",
+    "source_condition_3:power_w",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.0009
-zero_lower = 0
-zero_upper = 0.0018
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "dc_gain_db"
@@ -1003,12 +1615,15 @@ observations = [
 ]
 unit = "dB"
 dimension = "response"
-direction = "target"
+direction = "maximize"
 aggregation = "max"
-lower = 30
-upper = 60
-zero_lower = 0
-zero_upper = 100
+baseline = [
+    "source_condition_0:dc_gain_db",
+    "source_condition_1:dc_gain_db",
+    "source_condition_2:dc_gain_db",
+    "source_condition_3:dc_gain_db",
+]
+normalization = "db20"
 
 [[task.evaluation.metrics]]
 id = "unity_hz"
@@ -1021,12 +1636,16 @@ observations = [
 ]
 unit = "Hz"
 dimension = "response"
-direction = "target"
+direction = "maximize"
 aggregation = "max"
-lower = 300000.0
-upper = 1500000.0
-zero_lower = 0
-zero_upper = 3000000.0
+baseline = [
+    "source_condition_0:unity_hz",
+    "source_condition_1:unity_hz",
+    "source_condition_2:unity_hz",
+    "source_condition_3:unity_hz",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "phase_margin_deg"
@@ -1041,10 +1660,16 @@ unit = "deg"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 110
-upper = 175
-zero_lower = 0
-zero_upper = 180
+baseline = [
+    "source_condition_0:phase_margin_deg",
+    "source_condition_1:phase_margin_deg",
+    "source_condition_2:phase_margin_deg",
+    "source_condition_3:phase_margin_deg",
+]
+normalization = "target"
+scale = 180
+lower = 0
+upper = 180
 
 [[task.evaluation.metrics]]
 id = "final_unity_hz"
@@ -1057,12 +1682,16 @@ observations = [
 ]
 unit = "Hz"
 dimension = "response"
-direction = "target"
+direction = "maximize"
 aggregation = "max"
-lower = 300000.0
-upper = 90000000.0
-zero_lower = 0
-zero_upper = 180000000.0
+baseline = [
+    "source_condition_0:final_unity_hz",
+    "source_condition_1:final_unity_hz",
+    "source_condition_2:final_unity_hz",
+    "source_condition_3:final_unity_hz",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "final_phase_margin_deg"
@@ -1077,10 +1706,16 @@ unit = "deg"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 60
-upper = 175
-zero_lower = 0
-zero_upper = 180
+baseline = [
+    "source_condition_0:final_phase_margin_deg",
+    "source_condition_1:final_phase_margin_deg",
+    "source_condition_2:final_phase_margin_deg",
+    "source_condition_3:final_phase_margin_deg",
+]
+normalization = "target"
+scale = 180
+lower = 0
+upper = 180
 
 [[task.evaluation.metrics]]
 id = "minimum_return_distance"
@@ -1095,10 +1730,15 @@ unit = "1"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 0.4
-upper = 2
-zero_lower = 0
-zero_upper = 4
+baseline = [
+    "source_condition_0:minimum_return_distance",
+    "source_condition_1:minimum_return_distance",
+    "source_condition_2:minimum_return_distance",
+    "source_condition_3:minimum_return_distance",
+]
+normalization = "target"
+scale = 1.0
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "return_phase_excursion_deg"
@@ -1111,12 +1751,17 @@ observations = [
 ]
 unit = "deg"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:return_phase_excursion_deg",
+    "source_condition_1:return_phase_excursion_deg",
+    "source_condition_2:return_phase_excursion_deg",
+    "source_condition_3:return_phase_excursion_deg",
+]
+normalization = "ratio"
 lower = 0
-upper = 120
-zero_lower = 0
-zero_upper = 180
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "hf_gain_db"
@@ -1129,12 +1774,15 @@ observations = [
 ]
 unit = "dB"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
-lower = -100
-upper = -3
-zero_lower = -160
-zero_upper = 0
+baseline = [
+    "source_condition_0:hf_gain_db",
+    "source_condition_1:hf_gain_db",
+    "source_condition_2:hf_gain_db",
+    "source_condition_3:hf_gain_db",
+]
+normalization = "db20"
 
 [[task.evaluation.metrics]]
 id = "minimum_v"
@@ -1149,10 +1797,16 @@ unit = "V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 0.92
-upper = 1.01
-zero_lower = 0
-zero_upper = 1.3
+baseline = [
+    "source_condition_0:minimum_v",
+    "source_condition_1:minimum_v",
+    "source_condition_2:minimum_v",
+    "source_condition_3:minimum_v",
+]
+normalization = "target"
+scale = 1.3
+lower = 0
+upper = 1.3
 
 [[task.evaluation.metrics]]
 id = "maximum_v"
@@ -1167,10 +1821,16 @@ unit = "V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 1
-upper = 1.09
-zero_lower = 0.7
-zero_upper = 1.3
+baseline = [
+    "source_condition_0:maximum_v",
+    "source_condition_1:maximum_v",
+    "source_condition_2:maximum_v",
+    "source_condition_3:maximum_v",
+]
+normalization = "target"
+scale = 1.3
+lower = 0
+upper = 1.3
 
 [[task.evaluation.metrics]]
 id = "recovery_load_v"
@@ -1183,12 +1843,17 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:recovery_load_v",
+    "source_condition_1:recovery_load_v",
+    "source_condition_2:recovery_load_v",
+    "source_condition_3:recovery_load_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.03
-zero_lower = 0
-zero_upper = 0.15
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "recovery_release_v"
@@ -1201,12 +1866,17 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:recovery_release_v",
+    "source_condition_1:recovery_release_v",
+    "source_condition_2:recovery_release_v",
+    "source_condition_3:recovery_release_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.03
-zero_lower = 0
-zero_upper = 0.15
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "mean_power_w"
@@ -1219,12 +1889,17 @@ observations = [
 ]
 unit = "W"
 dimension = "supply"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:mean_power_w",
+    "source_condition_1:mean_power_w",
+    "source_condition_2:mean_power_w",
+    "source_condition_3:mean_power_w",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.0013
-zero_lower = 0
-zero_upper = 0.0026
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "startup_error_v"
@@ -1241,12 +1916,21 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_startup_0:startup_error_v",
+    "source_startup_1:startup_error_v",
+    "source_startup_2:startup_error_v",
+    "source_startup_3:startup_error_v",
+    "source_startup_4:startup_error_v",
+    "source_startup_5:startup_error_v",
+    "source_startup_6:startup_error_v",
+    "source_startup_7:startup_error_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.03
-zero_lower = 0
-zero_upper = 0.15
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "startup_peak_v"
@@ -1265,10 +1949,20 @@ unit = "V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 0.97
-upper = 1.04
-zero_lower = 0
-zero_upper = 1.3
+baseline = [
+    "source_startup_0:peak_v",
+    "source_startup_1:peak_v",
+    "source_startup_2:peak_v",
+    "source_startup_3:peak_v",
+    "source_startup_4:peak_v",
+    "source_startup_5:peak_v",
+    "source_startup_6:peak_v",
+    "source_startup_7:peak_v",
+]
+normalization = "target"
+scale = 1.3
+lower = 0
+upper = 1.3
 
 [[task.evaluation.metrics]]
 id = "startup_minimum_v"
@@ -1287,10 +1981,18 @@ unit = "V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = -0.01
-upper = 0.01
-zero_lower = -0.2
-zero_upper = 0.2
+baseline = [
+    "source_startup_0:minimum_v",
+    "source_startup_1:minimum_v",
+    "source_startup_2:minimum_v",
+    "source_startup_3:minimum_v",
+    "source_startup_4:minimum_v",
+    "source_startup_5:minimum_v",
+    "source_startup_6:minimum_v",
+    "source_startup_7:minimum_v",
+]
+normalization = "target"
+scale = 1.3
 
 [[task.evaluation.metrics]]
 id = "regulation_floor_v"
@@ -1305,10 +2007,16 @@ unit = "V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 0.97
-upper = 1.2
-zero_lower = 0.8
-zero_upper = 1.3
+baseline = [
+    "source_sweeps_0:regulation_floor_v",
+    "source_sweeps_1:regulation_floor_v",
+    "source_sweeps_2:regulation_floor_v",
+    "source_sweeps_3:regulation_floor_v",
+]
+normalization = "target"
+scale = 1.3
+lower = 0
+upper = 1.3
 
 [[task.evaluation.metrics]]
 id = "headroom_v"
@@ -1321,12 +2029,17 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_sweeps_0:headroom_v",
+    "source_sweeps_1:headroom_v",
+    "source_sweeps_2:headroom_v",
+    "source_sweeps_3:headroom_v",
+]
+normalization = "ratio"
+scale = 1e-06
 lower = 0
-upper = 0.25
-zero_lower = 0
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "line_span_v"
@@ -1339,12 +2052,17 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_sweeps_0:line_span_v",
+    "source_sweeps_1:line_span_v",
+    "source_sweeps_2:line_span_v",
+    "source_sweeps_3:line_span_v",
+]
+normalization = "ratio"
+scale = 1e-06
 lower = 0
-upper = 0.015
-zero_lower = 0
-zero_upper = 0.1
 
 [[task.evaluation.metrics]]
 id = "load_span_v"
@@ -1357,12 +2075,17 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_sweeps_0:load_span_v",
+    "source_sweeps_1:load_span_v",
+    "source_sweeps_2:load_span_v",
+    "source_sweeps_3:load_span_v",
+]
+normalization = "ratio"
+scale = 1e-06
 lower = 0
-upper = 0.03
-zero_lower = 0
-zero_upper = 0.1
 
 [[task.evaluation.metrics]]
 id = "fast_peak_v"
@@ -1377,10 +2100,16 @@ unit = "V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
+baseline = [
+    "source_fast_0:fast_peak_v",
+    "source_fast_1:fast_peak_v",
+    "source_fast_2:fast_peak_v",
+    "source_fast_3:fast_peak_v",
+]
+normalization = "target"
+scale = 1.3
 lower = 0
-upper = 0.0006
-zero_lower = 0
-zero_upper = 0.003
+upper = 1.3
 
 [[task.evaluation.metrics]]
 id = "fast_tail_v"
@@ -1395,10 +2124,16 @@ unit = "V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
+baseline = [
+    "source_fast_0:fast_tail_v",
+    "source_fast_1:fast_tail_v",
+    "source_fast_2:fast_tail_v",
+    "source_fast_3:fast_tail_v",
+]
+normalization = "target"
+scale = 1.3
 lower = 0
-upper = 2e-06
-zero_lower = 0
-zero_upper = 1e-05
+upper = 1.3
 
 [toolchain]
 schema_version = 1
@@ -1479,13 +2214,6 @@ support = "analog-res-models"
 image = "iclayout-bench-tools:local"
 support = "build/support/analog-res-models"
 timeout_seconds = 600
-
-[[assets]]
-path = "reference/ldo_008_fer_mirror_ota.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "5fb57b299ab511994ee7334eb8a40c2709f0698a5bae7087d6fdc397fda40726"
 
 [qualification]
 reference = "reference/ldo_008_fer_mirror_ota.gds"

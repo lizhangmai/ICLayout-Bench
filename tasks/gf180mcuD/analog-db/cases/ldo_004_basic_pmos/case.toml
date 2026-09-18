@@ -4,7 +4,22 @@ id = "gf180mcuD.analog-db.ldo_004_basic_pmos"
 title = "Externally Biased 1.8 V PMOS Regulator Core"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "a7990a98df4034327c70a464ac86a56afe648370d62455179253b75a339c5d83"
+
+[[assets]]
+path = "reference/ldo_004_basic_pmos.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "f157eca4fd675b974c112ce48fea323990fdba3222dff9527059fe8624e7e2b8"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "gf180_externally_biased_pmos_ldo"
 coefficient = 7
@@ -13,7 +28,7 @@ environment = "gf180mcuD-ldo-typical-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "9958a252200bcb06c2cec5fcdc79478da5fa6fc3b80d800171f0844f69a412cc"
+sha256 = "acfd617d74ef9459d2ee40046468494a88f0763778aacc36116e2ec19a6e9266"
 
 [task.inputs.netlist]
 path = "materials/circuit.spice"
@@ -52,18 +67,386 @@ quality = [
 id = "outline"
 type = "bbox_max"
 functional_layers = [
-  [5, 0], [11, 17], [11, 39], [12, 0], [13, 17], [21, 0], [22, 0], [22, 4],
-  [24, 0], [24, 5], [30, 0], [30, 4], [31, 0], [32, 0], [33, 0], [34, 0],
-  [34, 3], [34, 4], [34, 5], [35, 0], [36, 0], [36, 3], [36, 4], [36, 5],
-  [37, 0], [38, 0], [40, 0], [41, 0], [42, 0], [42, 3], [42, 4], [42, 5],
-  [46, 0], [46, 3], [46, 4], [46, 5], [49, 0], [53, 0], [53, 3], [53, 4],
-  [53, 5], [55, 0], [62, 0], [75, 0], [80, 5], [81, 0], [81, 3], [81, 4],
-  [81, 5], [82, 0], [86, 17], [88, 17], [96, 1], [100, 5], [100, 7], [100, 8],
-  [108, 5], [110, 5], [110, 11], [110, 12], [110, 13], [110, 14], [110, 15], [110, 16],
-  [111, 5], [112, 1], [115, 5], [116, 5], [117, 5], [117, 10], [118, 5], [119, 5],
-  [122, 5], [123, 5], [124, 5], [125, 5], [127, 5], [128, 17], [137, 5], [151, 5],
-  [152, 5], [153, 51], [166, 5], [167, 5], [173, 5], [178, 0], [183, 0], [184, 0],
-  [185, 0], [204, 0], [210, 0], [220, 0], [226, 0], [227, 0], [241, 0],
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
 ]
 max_width_um = 800
 max_height_um = 400
@@ -527,6 +910,375 @@ dropout_v = "V"
 [task.evaluation.jobs.parameters.exports]
 waveform = "ldo-dropout.raw"
 
+[[task.evaluation.jobs]]
+id = "source_dc_0_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.2
+load_a = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "source_dc_0_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.2
+load_a = 0.001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "source_dc_0_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.2
+load_a = 0.005
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "source_dc_1_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+load_a = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "source_dc_1_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+load_a = 0.001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "source_dc_1_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+load_a = 0.005
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "source_dc_2_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+load_a = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "source_dc_2_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+load_a = 0.001
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "source_dc_2_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+supply = "ngspice-raw"
+impedance = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+load_a = 0.005
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+tail_v = "V"
+quiescent_a = "A"
+power_w = "W"
+psrr_db = "dB"
+peaking_db = "dB"
+
+[task.evaluation.jobs.parameters.exports]
+op = "ldo-op.raw"
+supply = "ldo-supply.raw"
+impedance = "ldo-impedance.raw"
+
+[[task.evaluation.jobs]]
+id = "source_step_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:transient"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.2
+
+[task.evaluation.jobs.parameters.measurements]
+peak_error_v = "V"
+high_settled_error_v = "V"
+low_settled_error_v = "V"
+tail_min_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "ldo-transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_step_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:transient"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+
+[task.evaluation.jobs.parameters.measurements]
+peak_error_v = "V"
+high_settled_error_v = "V"
+low_settled_error_v = "V"
+tail_min_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "ldo-transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_step_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:transient"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+
+[task.evaluation.jobs.parameters.measurements]
+peak_error_v = "V"
+high_settled_error_v = "V"
+low_settled_error_v = "V"
+tail_min_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "ldo-transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_dropout"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:dropout"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+dropout_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "ldo-dropout.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -555,10 +1307,21 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "min"
-lower = 1.78
-zero_lower = 1.5
-upper = 1.82
-zero_upper = 2.1
+baseline = [
+    "source_dc_0_0:output_v",
+    "source_dc_0_1:output_v",
+    "source_dc_0_2:output_v",
+    "source_dc_1_0:output_v",
+    "source_dc_1_1:output_v",
+    "source_dc_1_2:output_v",
+    "source_dc_2_0:output_v",
+    "source_dc_2_1:output_v",
+    "source_dc_2_2:output_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "tail_v"
@@ -578,10 +1341,21 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "min"
-lower = 0.05
-zero_lower = 0
-upper = 0.15
-zero_upper = 0.3
+baseline = [
+    "source_dc_0_0:tail_v",
+    "source_dc_0_1:tail_v",
+    "source_dc_0_2:tail_v",
+    "source_dc_1_0:tail_v",
+    "source_dc_1_1:tail_v",
+    "source_dc_1_2:tail_v",
+    "source_dc_2_0:tail_v",
+    "source_dc_2_1:tail_v",
+    "source_dc_2_2:tail_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "quiescent_a"
@@ -601,10 +1375,20 @@ unit = "A"
 dimension = "supply"
 direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_dc_0_0:quiescent_a",
+    "source_dc_0_1:quiescent_a",
+    "source_dc_0_2:quiescent_a",
+    "source_dc_1_0:quiescent_a",
+    "source_dc_1_1:quiescent_a",
+    "source_dc_1_2:quiescent_a",
+    "source_dc_2_0:quiescent_a",
+    "source_dc_2_1:quiescent_a",
+    "source_dc_2_2:quiescent_a",
+]
+normalization = "ratio"
 lower = 0
-zero_lower = 0
-upper = 0.00025
-zero_upper = 0.0005
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "power_w"
@@ -624,10 +1408,20 @@ unit = "W"
 dimension = "supply"
 direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_dc_0_0:power_w",
+    "source_dc_0_1:power_w",
+    "source_dc_0_2:power_w",
+    "source_dc_1_0:power_w",
+    "source_dc_1_1:power_w",
+    "source_dc_1_2:power_w",
+    "source_dc_2_0:power_w",
+    "source_dc_2_1:power_w",
+    "source_dc_2_2:power_w",
+]
+normalization = "ratio"
 lower = 0
-zero_lower = 0
-upper = 0.018
-zero_upper = 0.025
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "psrr_db"
@@ -647,8 +1441,18 @@ unit = "dB"
 dimension = "response"
 direction = "maximize"
 aggregation = "min"
-lower = 40
-zero_lower = 0
+baseline = [
+    "source_dc_0_0:psrr_db",
+    "source_dc_0_1:psrr_db",
+    "source_dc_0_2:psrr_db",
+    "source_dc_1_0:psrr_db",
+    "source_dc_1_1:psrr_db",
+    "source_dc_1_2:psrr_db",
+    "source_dc_2_0:psrr_db",
+    "source_dc_2_1:psrr_db",
+    "source_dc_2_2:psrr_db",
+]
+normalization = "db20"
 
 [[task.evaluation.metrics]]
 id = "peaking_db"
@@ -668,10 +1472,18 @@ unit = "dB"
 dimension = "response"
 direction = "minimize"
 aggregation = "max"
-lower = 0
-zero_lower = 0
-upper = 6
-zero_upper = 20
+baseline = [
+    "source_dc_0_0:peaking_db",
+    "source_dc_0_1:peaking_db",
+    "source_dc_0_2:peaking_db",
+    "source_dc_1_0:peaking_db",
+    "source_dc_1_1:peaking_db",
+    "source_dc_1_2:peaking_db",
+    "source_dc_2_0:peaking_db",
+    "source_dc_2_1:peaking_db",
+    "source_dc_2_2:peaking_db",
+]
+normalization = "db20"
 
 [[task.evaluation.metrics]]
 id = "peak_error_v"
@@ -685,10 +1497,14 @@ unit = "V"
 dimension = "response"
 direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_step_0:peak_error_v",
+    "source_step_1:peak_error_v",
+    "source_step_2:peak_error_v",
+]
+normalization = "ratio"
 lower = 0
-zero_lower = 0
-upper = 0.025
-zero_upper = 0.1
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "high_settled_error_v"
@@ -702,10 +1518,14 @@ unit = "V"
 dimension = "response"
 direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_step_0:high_settled_error_v",
+    "source_step_1:high_settled_error_v",
+    "source_step_2:high_settled_error_v",
+]
+normalization = "ratio"
 lower = 0
-zero_lower = 0
-upper = 0.01
-zero_upper = 0.05
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "low_settled_error_v"
@@ -719,10 +1539,14 @@ unit = "V"
 dimension = "response"
 direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_step_0:low_settled_error_v",
+    "source_step_1:low_settled_error_v",
+    "source_step_2:low_settled_error_v",
+]
+normalization = "ratio"
 lower = 0
-zero_lower = 0
-upper = 0.01
-zero_upper = 0.05
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "tail_min_v"
@@ -734,10 +1558,17 @@ observations = [
 ]
 unit = "V"
 dimension = "bias"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
-lower = 0.05
-zero_lower = 0
+baseline = [
+    "source_step_0:tail_min_v",
+    "source_step_1:tail_min_v",
+    "source_step_2:tail_min_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "dropout_v"
@@ -749,16 +1580,17 @@ unit = "V"
 dimension = "response"
 direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_dropout:dropout_v",
+]
+normalization = "ratio"
+scale = 1e-06
 lower = 0
-zero_lower = 0
-upper = 0.2
-zero_upper = 0.5
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 80000
-area_zero = 320000
+area_target = 7597.32
 
 [toolchain]
 schema_version = 1
@@ -792,7 +1624,7 @@ image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 180
 support = "build/support/gf180-physical-v2"
-profile = "lvs-vss.json"
+profile = "lvs.json"
 
 [toolchain.backends.lvs.support_profiles]
 support = "physical"
@@ -842,13 +1674,6 @@ support = "models"
 
 [origin]
 url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/ldo_004_basic_pmos"
-
-[[assets]]
-path = "reference/ldo_004_basic_pmos.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "f39a2f00d618f76c8095ffe29bd52f46940b8465ba3fe9bf2754793669f4b622"
 
 [qualification]
 reference = "reference/ldo_004_basic_pmos.gds"

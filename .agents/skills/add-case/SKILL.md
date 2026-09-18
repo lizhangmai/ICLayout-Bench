@@ -1,217 +1,190 @@
 ---
 name: add-case
-description: "Create, promote, or revise an ICLayout-Bench circuit case across PDKs and EDA backends. Apply the case development standard from contract and artifact ownership through isolated inputs, evaluation, scoring, qualification, and change validation."
+description: "Create, promote, revise, or remove an ICLayout-Bench circuit case, including its documentation and schematic assets. Select validation by the actual circuit, evaluation, scoring, or presentation change."
 ---
 
 # Add Case
 
-Deliver a self-consistent case whose maintained circuit, layout requirements,
-measurements, scoring and published evidence agree. This skill owns the authoring
-workflow. The [case development standard](../../../tasks/AGENTS.md) owns artifact
-roles, organization, and completion rules. Repository guides own schemas and
-acceptance semantics; process resources and backend configuration own technology
-and tool details. Apply the whole standard, including when revising an existing
-case; satisfying one naming rule or copying a directory is not completion.
+Deliver maintained circuit materials, executable requirements and published
+results that agree. This skill owns the workflow; the
+[case development standard](../../../tasks/AGENTS.md) owns authoring conventions,
+and the [task guide](../../../docs/tasks.md) owns schemas, scoring, documentation
+and qualification. Apply those authorities to the requested scope.
 
-## Establish the contract
+## Select the change path
 
-Locate the repository containing this skill (three directories above this
-folder), follow its `AGENTS.md`, and inspect Git status. For public cases, read the
-[case development standard](../../../tasks/AGENTS.md) and the
-[task guide](../../../docs/tasks.md). Read the
-[input-isolation checklist](../../../docs/tasks.md#input-isolation) before
-inspecting source assets or historical outputs. For a hidden case, follow the
-workspace routing and the destination repository's rules; keep hidden materials
-in their authorized repository and reuse the public protocol.
+Locate Public three directories above this skill, read its `AGENTS.md`, and run
+`git status --short --branch`. Preserve unrelated edits. For public cases, read
+the case standard and task guide above. For hidden cases, follow the workspace
+route and destination rules. Before inspecting source assets or historical
+outputs, read the [input-isolation checklist](../../../docs/tasks.md#input-isolation).
+Public designs and tool resources follow the
+[asset-rights boundary](../../../docs/tasks.md#asset-rights).
 
-Apply the workspace's public/hidden boundary to tools as well as source assets:
-public cases use public designs and open PDK/EDA resources. Resolve restricted
-materials through the authorized destination and
-[asset-rights rules](../../../docs/tasks.md#asset-rights). A technically supported
-backend does not by itself establish distribution rights.
+Classify the actual change using the standard's
+[change and evidence rules](../../../tasks/AGENTS.md#9-changes-and-completion):
 
-Establish the circuit function, authoritative topology and device parameters,
-ordered interface, permitted layout equivalences, operating conditions,
-required measurements and intended qualification scope. Distinguish supplied
-facts from design choices. Resolve choices within the user's authorization;
-ask only for consequential missing decisions while progressing independent work.
-For a design-only request, deliver this contract and the implementation plan
-without claiming that a case has been built or qualified.
+| Request | Workflow |
+|---|---|
+| Design proposal only | Establish the circuit and evaluation contract, then deliver the proposal and unresolved decisions. Do not claim implementation or qualification. |
+| Documentation only | Compare prose with the current configuration and declared materials; use the documentation checks below and hand off. Refresh affected digests and materialize inputs. An unchanged electrical contract does not require EDA reruns merely because the description identity changed. |
+| Presentation only | Use the schematic binding steps below, verify preview loading and unchanged solver inputs, then hand off. A topology/netlist change uses the circuit path. |
+| New case, promotion, or circuit/evaluation/scoring/resource change | Establish the contract, build the affected materials, and apply per-case and shared validation. A promotion may use applicable existing evidence under the qualification guide. |
+| Rename or move | Update consumers, declarations, catalogs and navigation; verify identity, loading and materialization. Apply electrical validation if semantics also change. |
+| Removal | Update catalogs, navigation, selectors and regression dependencies; preserve resources still used by other cases. Validate affected remaining consumers, then hand off. |
 
-Attribute a referenced design with `origin.url` and preserve asset licenses under
-[source requirements](../../../docs/tasks.md#task-design). Judge the maintained
-circuit against its own contract. Upstream layout/netlist agreement is not a
-qualification prerequisite. Describe modifications as current design choices;
-source attribution in the README stays brief.
+A Markdown edit that introduces a different requirement is a semantic change.
+When work crosses paths, apply the checks for each affected responsibility.
 
-**Ready to implement:** the circuit, input rights, scope and observable success
-criteria are explicit enough to implement without inventing hidden requirements.
+## Establish the circuit and evaluation contract
 
-## Plan ownership and artifacts
+Use the standard's [circuit contract](../../../tasks/AGENTS.md#1-circuit-contract-and-scope)
+to establish function, authoritative topology, device parameters, ordered ports,
+supply/body connections, permitted equivalences, operating conditions and
+observable success criteria. Distinguish upstream facts, maintained choices and
+unverified assumptions. Establish whether faithful reproduction or adaptation
+is authorized; fidelity and agreement with upstream performance are separate
+questions. Resolve routine choices within the user's scope; seek a missing
+consequential decision only when existing authorization does not settle it.
 
-Before creating or moving files, inspect a maintained collection and its cases:
-compare the actual tree with input declarations and materialized solver files.
-Read relevant cleanup commits for the artifact types being introduced. Resolve
-differences using the current standard; existing files demonstrate mechanisms,
-not permission to repeat obsolete patterns.
+Before encoding the plan, classify each observation under the standard's
+[scoring rules](../../../tasks/AGENTS.md#6-evaluation-and-scoring): continuous
+quality, a justified functional/domain bound, an unscored diagnostic, or a
+measurement-validity check. For each, identify the producer, conditions, units,
+window, consumer and failure meaning. Record the reason for each functional
+bound and the same-condition source pairing and normalization for each scored
+observation. Upstream targets alone do not justify hard gates.
 
-Map the proposed case to the standard's
-[ownership boundaries](../../../tasks/AGENTS.md#2-ownership-and-directory-layout)
-and [file roles](../../../tasks/AGENTS.md#3-file-roles-and-naming).
-In working notes, account for each artifact's owner, role, format, declared path,
-solver visibility, source/license, consumer, and why an existing file cannot
-serve that purpose. Distinguish maintained files from runtime copies. Include the catalog,
-process resources, test helpers, and qualification evidence as
-applicable. This is a development check, not another maintained case manifest.
+Place measurement-validity checks on the path producing the observation, for
+both source and candidate simulation. Confirm that invalid evidence produces an
+evaluator error rather than a functional rejection; merely removing its score
+weight does not change a bounded metric's failure meaning. Follow the task
+guide's [decision contract](../../../docs/tasks.md#evaluation) for implementation.
 
-Match artifacts by responsibility; choose technical settings from the actual
-circuit and process. Use established roles and filenames, with any necessary
-additional artifact explained in the README's Files section. Apply the
-[license-file rules](../../../tasks/AGENTS.md#5-sources-licenses-and-reproducibility)
-to the actual upstream declarations and copied components before adding license
-or notice files. Keep optional artifacts absent until their consumer requires them.
+**Ready to implement:** the circuit, rights, source relationship, observable
+requirements and failure meanings are explicit. Every requirement has an
+identified physical check or electrical measurement.
 
-For revisions, identify affected consumers before editing: input declarations,
-resource profiles, catalogs, scripts/tests, documentation, and evidence identities.
-Follow the standard's [change rules](../../../tasks/AGENTS.md#9-changes-and-completion)
-for renames, removals, and semantic changes. Distinguish the requested change from
-unrelated cleanup and preserve existing user work and prior evidence. For a
-removal, skip construction of the deleted case and validate affected remaining
-cases and shared dependencies before the final review.
+## Plan artifacts and tool support
 
-**Ready to build the artifact set:** every proposed file has a justified owner
-and consumer; solver inputs, distribution terms and maintainer assets are
-distinguished; affected contracts and validation scope are identified. Every new
-test or fixture satisfies the
-[regression gate](../../../tests/AGENTS.md#before-adding-a-regression). Leave
-unjustified files out of the maintained tree, including generator output.
+Inspect a maintained collection and its cases, comparing declarations with
+materialized files. Consult relevant cleanup history for artifact types being
+introduced. Apply the current standard when older cases differ.
 
-## Resolve process and tool capabilities
+In working notes, map each proposed file to its owner, role, path/format,
+consumer, solver visibility and provenance. Explain why an existing file cannot
+serve the purpose; this is not a new maintained manifest. Use the standard's
+[ownership](../../../tasks/AGENTS.md#2-ownership-and-directory-layout),
+[file roles](../../../tasks/AGENTS.md#3-file-roles-and-naming) and
+[license rules](../../../tasks/AGENTS.md#5-sources-licenses-and-reproducibility).
+Identify affected input declarations, resource profiles, catalogs, docs, tests
+and evidence identities before editing. Development recipes remain outside
+solver inputs; Bench consumes static deliveries without importing Designs.
 
-Map the proposed devices and requirements to available model resources, physical
-rules, connectivity comparison, geometry checks, candidate extraction and
-simulation/measurement capabilities. Record supported corners and model or
-extraction boundaries, including relevant body, substrate and passive-device
-assumptions. First establish pre-layout functionality with the intended models
-and stimuli; a source directory's name does not establish a performance target.
+Map the circuit's devices and conditions to actual model, DRC, named-interface
+LVS, geometry, extraction and measurement capabilities. Establish source
+functionality with the intended stimuli/models and record unsupported conditions.
+Choose numerical settings and waivers for this circuit and process; copying a
+case's structure does not calibrate its limits.
 
-Use the [extension boundaries](../../../docs/architecture.md#ownership)
-and [tool guide](../../../docs/tools.md#eda-backend-contract) to reuse or extend
-the appropriate backend. Logical evaluation operations bind to tools through
-configuration. A new case must not introduce circuit-specific branches into the
-runner, scoring core or harness. A backend may use containers, native libraries
-or controlled remote execution as supported by the repository.
+Use the [architecture boundaries](../../../docs/architecture.md#ownership) and
+[backend contract](../../../docs/tools.md#eda-backend-contract) for extensions.
+Circuit-specific dispatch stays outside the runner, scoring core and harness.
+For container validation, follow [image development](../../../docs/tools.md#image-development):
+reuse a compatible image or thin derivative and check the full-build triggers.
 
-Choose rule decks, device mappings, layers, units, ports, extraction options and
-operating points from the selected process and circuit. An existing case is a
-structural example, not a source of default rule waivers, disabled checks,
-layer numbers, simulation settings or acceptance thresholds.
+**Ready to build:** every artifact has an owner and consumer, and every required
+capability has a supported binding or an explicit unresolved gap. Implement
+missing authorized capabilities or retain candidate status; narrowing scope
+requires authorization. Before adding any regression or fixture, apply the
+[test gate](../../../tests/AGENTS.md#before-adding-a-regression).
 
-**Ready for evaluation:** each requirement has a supported measurement/check
-and an identified tool/resource binding. When a capability is missing, implement
-the authorized extension or report the specific gap and retain candidate status.
-Narrow qualification scope only when that change is authorized and explicit.
+## Build and reconcile the delivery
 
-## Build the case and calibrate scoring
+Use the [configuration contract](../../../docs/tasks.md#task-configuration) and
+[evaluation plan](../../../docs/tasks.md#evaluation-plan) to assemble the case.
+Register catalogs and resource profiles as needed. Publish ready-to-use inputs;
+preparation assembles resources rather than regenerating circuit materials.
+Reuse verified support bundles and keep new run outputs in fresh directories.
 
-Publish ready-to-use circuit materials and references. Keep schematic export,
-material-generation scripts and intermediate files in development history;
-loading and evaluating a published case must not require them.
+For a schematic change, apply the
+[presentation binding contract](../../../docs/running.md#task-presentations-and-interactive-layouts).
+Keep the SVG outside solver inputs, update project provenance, embedded netlist
+binding and asset digest together, and verify preview loading. Use presentation
+revisions for historical results. Editable projects belong in the workspace's
+source-asset location, not disposable build output.
 
-Create the case in `tasks/<pdk>/<collection>/cases/<circuit>/` for a public task.
-Implement the artifact map using the standard
-[file roles and naming](../../../tasks/AGENTS.md#3-file-roles-and-naming) and the
-[case configuration contract](../../../docs/tasks.md#task-configuration). Bind
-files through their declared logical roles, and keep executable requirements,
-trusted tool bindings, and source/qualification metadata in their designated
-configuration sections. Register the collection entry and required process
-profiles. Reuse existing preparation mechanisms; keep development outputs in
-fresh `build/runs/` directories and preserve earlier evidence. Reuse verified support bundles when
-appropriate instead of deleting and rebuilding them between checks.
+Load and materialize the task; inspect the exact delivered files. Verify
+standalone snapshots and exclusion of reference layouts, host configuration,
+source checkouts and qualification answers. When exporting a distribution,
+check that its applicable license/notices accompany the assets separately from
+the solver materialization.
 
-Separate solver inputs from source records, references and host configuration.
-Validate digests and materialize the declared inputs to inspect what the solver
-actually receives. Keep collection licenses and required notices outside the
-default solver input set; preserve them with material distributions. Consult
-[shared collection inputs](../../../docs/tasks.md#shared-collection-inputs) for
-explicitly shared solve inputs. Verify solver materialization against the input
-list and, when an export is part of the change, inspect that export for the
-applicable attribution outside solver inputs. A solve directory is not a material
-distribution. Prepared standalone configurations must read their copied snapshots
-rather than the original collection. Derive runtime
-requirements and evaluator inputs from the same frozen definitions.
+Apply [unified scoring](../../../docs/tasks.md#task-scoring): candidate-derived
+extraction feeds post-layout simulation and independent source simulation feeds
+the same-condition baseline. Freeze measurement selection, dimensions, pairings,
+normalization and the documented area anchor before model evaluation. Preserve
+existing coefficients during unrelated edits; authorized regrading follows the
+scoring-change rules and retains historical coefficients on old results.
 
-Apply the [evaluation plan contract](../../../docs/tasks.md#evaluation-plan):
-physical validity and hard geometry checks precede candidate-derived extraction
-and post-layout measurements. Specify every required observation's definition,
-unit, conditions and acceptance limits. Simulation must consume the submitted
-layout's extracted circuit; source simulation serves calibration. Define the
-functional footprint using the selected process's relevant device and complete
-routing layers, with explicit exclusions.
+### Documentation checks
 
-Apply the current [unified scoring contract](../../../docs/tasks.md#task-scoring)
-and [batch semantics](../../../docs/tasks.md#task-scoring). Assign the task's integer
-coefficient using the capability rubric; leave existing cases' coefficients
-unchanged. Calibrate dimension assignments, zero-score boundaries and absolute
-area anchors before model evaluation. Explain their basis and validate their
-behavior with measurements; neither a copied case's constants nor a changing
-reference-layout ratio establishes calibration. Keep electrical acceptance,
-partial attainment and area utility distinguishable within the single score.
+Use the [required sections](../../../docs/tasks.md#case-documentation), allowing
+circuit-specific additions. Check content against the actual configuration and
+declared materials, not just the presence of headings:
 
-Write both Markdown files using the exact
-[documentation templates](../../../docs/tasks.md#case-documentation). Keep the
-solver contract self-contained in delivered inputs and runtime metadata. Put
-measured reference results and reproducible commands in the README, with units,
-conditions and limitations. Refresh affected input digests after editing.
+- Input paths/roles, ordered ports and their functions agree with the netlists.
+- Conditions, loads, stimuli, measurement definitions/windows and units agree
+  with the decks and jobs; each functional bound has a stated reason.
+- Quality dimensions, source pairings, normalization, aggregation, area anchor,
+  coefficient and failure/error meanings agree with the executable plan.
+- The published solve budget, GDS top cell, destination, size limit, tool/resource
+  discovery and explicit submission procedure match the runtime contract.
+- The README maps maintained files and reports measured results with conditions,
+  units, limitations and clean-checkout reproduction commands; prior validation
+  is distinguished from fresh execution.
 
-**Ready for qualification:** audit every artifact against the ownership map and
-standard. The catalog/configuration loads; materialization contains exactly the
-intended inputs with valid digests; source records, testbench measurements,
-problem requirements, executable plan and scoring agree. Every requirement has a
-measurement/check and every published result has an identified evidence source.
+The configuration owns budgets, limits and scoring values. Generate their
+published representations or check them against that authority, reusing existing
+catalog/docs checks where possible. A passing schema or digest check does not
+establish semantic agreement. Refresh affected description/input digests after
+the final edit, then verify loading, materialization and links.
 
-## Qualify the case
+**Ready for qualification:** circuit, decks, problem, executable checks and score
+agree; every published requirement has a consumer and each reported result has
+an identified evidence source. Documentation/presentation-only work proceeds to
+handoff after its selected checks.
 
-Apply the [per-case validation rules](../../../docs/tasks.md#qualification):
-check input materialization and circuit/contract consistency, then independently
-evaluate any supplied reference through the declared physical and post-layout
-checks. Publish results and reproduction commands; preserve generated reports and
-identities under `build/runs/`.
+## Qualify and hand off
 
-Consult shared evaluator regressions for rejection, scoring, error handling,
-equivalent transformations and repeatability. Close demonstrated coverage gaps
-under the regression gate established above; a new case or PDK alone does not
-justify another test circuit. Use pre/post-layout calibration when
-it supports a limit or validates a new flow. Reuse established mechanism coverage;
-a complete counterexample matrix and an area variant are not required per case.
+For new or semantically changed cases, apply the
+[per-case validation rules](../../../docs/tasks.md#qualification). Evaluate any
+supplied reference through its declared physical gates, candidate extraction and
+all required electrical conditions. Preserve reports and identities in fresh
+`build/runs/` outputs and publish measured results in the README. Verify that the
+prepared task and input snapshots match the intended revised contract.
 
-Set `qualified` when applicable case checks pass. Keep `candidate` for unresolved
-material, consistency, reference-execution or capability gaps. For reference-free
-cases, disclose feasibility and limit/area-anchor bases as the guide requires.
-Formal [admission](../../../docs/admission.md) is a separate workflow.
-Maintain the declared circuit and acceptance limits during validation.
+Reuse shared rejection, error, scoring, transformation and repeatability coverage.
+For changed validity checks, exercise valid/invalid observations through the
+actual producer and evaluator; for changed functional gates, verify acceptance
+and rejection at the relevant boundary. Add a regression only for a demonstrated
+gap under the test gate. Use real tool evidence where physical/extraction behavior
+is at issue; synthetic arithmetic does not qualify a layout. Calibrate when it
+establishes limits or validates a changed model/extraction boundary.
 
-## Review and hand off
+Set status under the standard's
+[qualification rules](../../../tasks/AGENTS.md#7-qualification-and-published-evidence).
+A lower continuous quality score does not by itself invalidate qualification or
+authorize optimizing the DUT. Reference-free cases disclose undemonstrated
+post-layout feasibility and the basis of limits/area anchors. Preserve old
+reports under their original identities; apply the change/evidence rules above
+when reusing prior validation or obtaining fresh identity-bound evidence.
 
-Run the standard's [completion checks](../../../tasks/AGENTS.md#9-changes-and-completion)
-against the final tree and generated results. Trace each requirement from the
-problem through the testbench/check, evaluation observation, acceptance/scoring
-rule, and evidence. Inspect tracked changes and untracked files; trace each artifact
-to its declaration and consumer, including collection files and generated fixtures. Resolve
-unexplained discrepancies before reporting completion, including stale references,
-misplaced shared helpers, inconsistent roles, and unsupported status claims.
-
-For changed input paths or contents, verify materialization and identity bindings
-again. Rerun checks affected by executable changes; distinguish prior validation
-from fresh identity-bound reports and preserve old reports as old evidence. For removals, verify remaining task discovery and
-shared dependencies. Check that a reader can run the published reproduction
-commands with the declared resources.
-
-Finish with the affected checks from
-[CONTRIBUTING](../../../CONTRIBUTING.md#verification), reading
-[test conventions](../../../tests/AGENTS.md) when editing tests. Report the case's
-function, supported scope, qualification and witness status, coefficient and
-calibration basis, artifact/contract consistency, actual verification results,
-remaining gaps and Git status.
-Respect the session's commit and publication instructions; adding a case does
-not authorize a push or an external release.
+Check the final tree against the standard's
+[completion checklist](../../../tasks/AGENTS.md#9-changes-and-completion) and run
+the affected [verification](../../../CONTRIBUTING.md#verification). Report scope,
+actual checks, remaining gaps and Git status. For electrical changes, include
+witness/qualification status and calibration basis; for presentation changes,
+report bindings and preview verification. Case qualification does not publish
+website results; [handoff](../../../docs/architecture.md#result-handoff-and-storage-ownership),
+commits and publication retain the session's authorization boundaries.

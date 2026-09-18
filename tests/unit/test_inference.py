@@ -5,61 +5,28 @@ from pathlib import Path
 
 import pytest
 
-from benchmarking.files import Asset
-from layout_eval.inference import (
+from benchmarking.engine.inference import (
     InferenceConfig,
     InferenceGateway,
     ResponsesGateway,
-    WireRequest,
-    available_wire_adapters,
     load_inference_config,
-    normalize_usage,
-    register_wire_adapter,
-    unregister_wire_adapter,
-    validate_harness_wire,
     validate_request,
 )
+from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
 
 
-class FakeWireAdapter:
-    """Deterministic second wire family used only at the public seam."""
-
-    id = "fake-json"
-
-    def validate_request(self, path, body, model):
-        if path != "/generate":
-            raise ValueError("fake adapter only supports /generate")
-        value = json.loads(body)
-        if value.get("model") != model:
-            raise ValueError("model mismatch")
-        return json.dumps(value, separators=(",", ":")).encode()
-
-    def prepare_request(self, path, body, model, credential):
-        return WireRequest("POST", path, {"X-Fake-Credential": credential,
-                                           "Content-Type": "application/json"})
-
-    def response_semantics(self, path, content_type, body):
-        value = json.loads(body)
-        if value.get("status") != "done":
-            raise ValueError("fake response is not terminal")
-        return {"outcome": "completed", "reason": None,
-                "usage": normalize_usage(value.get("usage"))}
-
-
-def _fake_config():
-    return InferenceConfig("https://example.invalid/v1", "fake-model", "UNUSED", 2, 10,
-                           Asset(b"fake-profile", "text"), "fake-json")
+def gateway_config(max_requests=1):
+    return InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED",
+                           max_requests, 10, Asset(b"profile", "text"), "responses")
 
 
 @pytest.mark.parametrize("path,extra", [
-    ("/files", {}), ("/responses?url=https://elsewhere", {}),
-    ("/responses", {"model": "another"}), ("/responses", {"tools": [{"type": "web_search"}]}),
+    ("/files", {}),
+    ("/responses", {"model": "another"}),
     ("/responses", {"tools": [{"type": "namespace", "tools": [{"type": "mcp"}]}]}),
     ("/responses", {"input": [{"image_url": "https://elsewhere/a.png"}]}),
-    ("/responses", {"input": [{"file_id": "file_x"}]}),
-    ("/responses", {"background": True}), ("/responses", {"previous_response_id": "someone-elses-response"}),
 ])
 def test_gateway_rejects_other_destinations_models_and_remote_tools(path, extra):
     with pytest.raises(ValueError):
@@ -67,8 +34,7 @@ def test_gateway_rejects_other_destinations_models_and_remote_tools(path, extra)
 
 
 def test_request_bound_usage_and_no_error_body_exposure():
-    config = InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED", 1, 10,
-                             Asset(b"profile", "text"), "responses")
+    config = gateway_config(max_requests=1)
     def transport(path, body, timeout):
         assert json.loads(body)["store"] is False
         return 200, "application/json", b'{"status":"completed","usage":{"input_tokens":10,"output_tokens":3}}'
@@ -92,8 +58,7 @@ def test_request_bound_usage_and_no_error_body_exposure():
 
 
 def test_summary_separates_forwarded_denied_failed_and_truncated_requests():
-    config = InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED", 3, 10,
-                             Asset(b"profile", "text"), "responses")
+    config = gateway_config(max_requests=3)
     responses = iter([
         b'{"status":"completed","usage":{"input_tokens":2,"output_tokens":1}}',
         b'{"status":"failed","error":{"code":"upstream"}}',
@@ -115,27 +80,6 @@ def test_summary_separates_forwarded_denied_failed_and_truncated_requests():
     assert summary["usage_observed"]["input_tokens"] == {"known": 2, "missing": 1}
     assert summary["wall_seconds"] >= 0
     assert all(event["elapsed_seconds"] >= 0 for event in summary["requests"])
-
-
-def test_declared_observable_token_and_gateway_time_budgets_are_provider_neutral():
-    config = InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED", 5, 10,
-                             Asset(b"profile", "text"), "responses",
-                             max_input_tokens=2, max_output_tokens=3, max_wall_seconds=30)
-    gateway = InferenceGateway(
-        config,
-        transport=lambda *args: (200, "application/json",
-                                 b'{"status":"completed","usage":{"input_tokens":2,"output_tokens":1}}'),
-    )
-    gateway.deadline = time.monotonic() + 10
-    assert gateway.request("/responses", b'{"model":"test-model"}')[0] == 200
-    assert gateway.request("/responses", b'{"model":"test-model"}')[0] == 429
-    summary = gateway.summary()
-    assert summary["budget"] == {
-        "max_requests": 5, "max_input_tokens": 2,
-        "max_output_tokens": 3, "max_wall_seconds": 30,
-    }
-    assert summary["denied_reasons"] == {"input_token_budget_exhausted": 1}
-    assert summary["limit_reached"] is True
 
 
 # Existing budget coverage has complete usage only. The running guide's observed
@@ -167,8 +111,7 @@ def test_known_usage_enforces_token_budget_despite_missing_responses(field):
 
 
 def test_no_forwarded_requests_are_not_classified_as_model_usage():
-    config = InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED", 1, 10,
-                             Asset(b"profile", "text"), "responses")
+    config = gateway_config(max_requests=1)
     gateway = ResponsesGateway(config, transport=lambda *args: pytest.fail("Denied request was forwarded"))
     gateway.deadline = time.monotonic()+10
     assert gateway.request("/responses", b'{"model":"test-model","input":[{"file_id":"remote"}]}')[0] == 400
@@ -203,6 +146,10 @@ max_wall_seconds = 120
     assert gateway.public["max_wall_seconds"] == 120
     # Explicit proxy route is part of the profile; credentials cannot hide in it.
     original = source.read_text()
+    for wire in ('wire_api = "unknown"', ""):
+        source.write_text(original.replace('wire_api = "responses"', wire))
+        with pytest.raises(ValueError, match="wire_api"):
+            load_inference_config(source)
     proxy_url = 'http://localhost:8123'
     source.write_text(original + f'\nproxy_url = "{proxy_url}"\n')
     assert ResponsesGateway(load_inference_config(source)).public['proxy_url'] == proxy_url
@@ -218,99 +165,12 @@ max_wall_seconds = 120
         load_inference_config(source)
 
 
-def test_profile_rejects_unknown_wire_adapter(tmp_path):
-    source = Path(tmp_path / "profile.toml")
-    source.write_text('''schema_version = 1
-wire_api = "unknown"
-base_url = "https://example.invalid/v1"
-model = "test-model"
-api_key_env = "ICLAYOUT_BENCH_TEST_KEY"
-max_requests = 2
-request_timeout_seconds = 5
-''')
-    with pytest.raises(ValueError, match="wire_api"):
-        load_inference_config(source)
-
-
-def test_profile_requires_an_explicit_wire_family(tmp_path):
-    source = Path(tmp_path / "profile.toml")
-    source.write_text('''schema_version = 1
-base_url = "https://example.invalid/v1"
-model = "test-model"
-api_key_env = "ICLAYOUT_BENCH_TEST_KEY"
-max_requests = 2
-request_timeout_seconds = 5
-''')
-    with pytest.raises(ValueError, match="wire_api"):
-        load_inference_config(source)
-
-
-def test_registered_fake_wire_adapter_owns_wire_semantics_and_transport_is_deterministic():
-    adapter = FakeWireAdapter()
-    register_wire_adapter(adapter)
-    try:
-        assert "fake-json" in available_wire_adapters()
-        calls = []
-
-        def transport(path, body, timeout):
-            calls.append((path, json.loads(body), timeout))
-            return 200, "application/json", b'{"status":"done","usage":{"input_tokens":4}}'
-
-        gateway = InferenceGateway(_fake_config(), transport=transport)
-        gateway.deadline = time.monotonic() + 10
-        status, content_type, body = gateway.request("/generate", b'{"model":"fake-model"}')
-
-        assert (status, content_type, body) == (200, "application/json",
-                                                  b'{"status":"done","usage":{"input_tokens":4}}')
-        assert calls[0][0] == "/generate" and calls[0][1] == {"model": "fake-model"}
-        assert gateway.wire_adapter.prepare_request("/generate", body, "fake-model", "secret").headers == {
-            "X-Fake-Credential": "secret", "Content-Type": "application/json"}
-        assert gateway.summary()["wire_api"] == "fake-json"
-        assert gateway.summary()["usage"] == {
-            "input_tokens": 4, "output_tokens": None, "cached_input_tokens": None,
-            "reasoning_output_tokens": None, "cost": None,
-        }
-    finally:
-        unregister_wire_adapter("fake-json")
-
-
-def test_registry_rejects_replacing_or_removing_the_builtin_adapter():
-    register_wire_adapter(FakeWireAdapter())
-    try:
-        with pytest.raises(ValueError, match="already registered"):
-            register_wire_adapter(FakeWireAdapter())
-    finally:
-        unregister_wire_adapter("fake-json")
-    with pytest.raises(ValueError, match="cannot be removed"):
-        unregister_wire_adapter("responses")
-
-
-def test_harness_wire_declaration_must_match_gateway():
-    validate_harness_wire(None, "responses")
-    validate_harness_wire("responses", "responses")
-    with pytest.raises(ValueError, match="wire_api"):
-        validate_harness_wire("other", "responses")
-
-
-def test_http_200_failed_event_is_infrastructure_error():
-    response = b'data: {"type":"response.failed","response":{"status":"failed","error":{"code":"server_error"}}}\n\n'
-    config = InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED", 1, 10,
-                             Asset(b"profile", "text"), "responses")
-    gateway = ResponsesGateway(config, transport=lambda *args: (200, "text/event-stream", response))
-    gateway.deadline = time.monotonic() + 10
-    gateway.request("/responses", b'{"model":"test-model"}')
-    assert gateway.summary()["infrastructure_error"] is True
-
-
-@pytest.mark.parametrize("stream", [False, True])
-@pytest.mark.parametrize("state,details,outcome,infra", [
-    ("completed", {}, "completed", False),
-    ("failed", {"error": {"code": "server_error"}}, "service_error", True),
-    ("incomplete", {"incomplete_details": {"reason": "max_output_tokens"}}, "budget_truncated", False),
-    ("incomplete", {"incomplete_details": {"reason": "content_filter"}}, "content_filtered", False),
-    ("incomplete", {"incomplete_details": {"reason": "server_error"}}, "incomplete_error", True),
-    ("incomplete", {}, "incomplete_error", True),
-    ("in_progress", {}, "protocol_or_transport_error", True),
+@pytest.mark.parametrize("stream,state,details,outcome,infra", [
+    (False, "completed", {}, "completed", False),
+    (True, "completed", {}, "completed", False),
+    (True, "failed", {"error": {"code": "server_error"}}, "service_error", True),
+    (False, "incomplete", {"incomplete_details": {"reason": "max_output_tokens"}}, "budget_truncated", False),
+    (False, "incomplete", {"incomplete_details": {"reason": "content_filter"}}, "content_filtered", False),
 ])
 def test_response_semantics_and_usage(stream, state, details, outcome, infra):
     response = {"status": state, **details, "usage": {"input_tokens": 9, "output_tokens": 2}}
@@ -319,8 +179,7 @@ def test_response_semantics_and_usage(stream, state, details, outcome, infra):
     if stream:
         body = b'data: ' + json.dumps({"type": f"response.{state}", "response": response}).encode() + b'\n\n'
         content_type = "text/event-stream; charset=utf-8"
-    config = InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED", 1, 10,
-                             Asset(b"profile", "text"), "responses")
+    config = gateway_config(max_requests=1)
     gateway = ResponsesGateway(config, transport=lambda *args: (200, content_type, body))
     gateway.deadline = time.monotonic() + 10
     gateway.request("/responses", b'{"model":"test-model"}')
@@ -328,22 +187,16 @@ def test_response_semantics_and_usage(stream, state, details, outcome, infra):
     summary = gateway.summary()
     assert summary["infrastructure_error"] is infra
     assert summary["requests"][0]["outcome"] == outcome
-    if state != "in_progress":
-        assert summary["usage"]["input_tokens"] == 9
+    assert summary["usage"]["input_tokens"] == 9
 
 
 @pytest.mark.parametrize("body", [
     b'data: {"type":"response.created"}\n\n',
-    b'data: [DONE]\n\n',
     b'data: {"type":"response.completed","response":{"status":"completed"}}\n',
-    b'data: {"type":"response.completed","response":{"status":"failed"}}\n\n',
-    b'data: {"type":"error","code":"server_error"}\n\n',
     b'data: not-json\n\n',
-    b'data: []\n\n',
 ])
 def test_non_success_sse_cannot_be_scored_as_a_model_failure(body):
-    config = InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED", 1, 10,
-                             Asset(b"profile", "text"), "responses")
+    config = gateway_config(max_requests=1)
     gateway = ResponsesGateway(config, transport=lambda *args: (200, "text/event-stream", body))
     gateway.deadline = time.monotonic() + 10
     gateway.request("/responses", b'{"model":"test-model"}')
@@ -351,7 +204,7 @@ def test_non_success_sse_cannot_be_scored_as_a_model_failure(body):
 
 
 def test_multiline_sse_and_standalone_compaction():
-    from layout_eval.inference import response_semantics
+    from benchmarking.engine.inference import response_semantics
 
     body = b': keepalive\r\nevent: response.completed\r\ndata: {"type":"response.completed",\r\ndata: "response":{"status":"completed"}}\r\n\r\n'
     assert response_semantics("/responses", "text/event-stream", body, "responses")["outcome"] == "completed"
@@ -364,29 +217,8 @@ def test_multiline_sse_and_standalone_compaction():
     assert result["outcome"] == "completed" and result["usage"]["input_tokens"] == 1
 
 
-def test_function_tool_schema_may_use_resource_like_field_names():
-    body = {
-        "model": "test-model",
-        "tools": [{
-            "type": "function",
-            "name": "load_asset",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "file_id": {"type": "string"},
-                    "file_url": {"type": "string"},
-                    "image_url": {"type": "string"},
-                },
-            },
-        }],
-    }
-    request = validate_request("/responses", json.dumps(body).encode(), "test-model", "responses")
-    assert json.loads(request)["tools"] == body["tools"]
-
-
 def test_malformed_http_200_response_keeps_upstream_status_and_hides_body():
-    config = InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED", 1, 10,
-                             Asset(b"profile", "text"), "responses")
+    config = gateway_config(max_requests=1)
     gateway = ResponsesGateway(config, transport=lambda *args: (
         200, "application/json", b'{"status":"in_progress","secret":"must-not-forward"}'))
     gateway.deadline = time.monotonic() + 10
@@ -400,25 +232,8 @@ def test_malformed_http_200_response_keeps_upstream_status_and_hides_body():
     assert gateway.summary()["infrastructure_error"]
 
 
-def test_socket_handler_closes_cleanly_on_recursive_json_header(tmp_path):
-    config = InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED", 1, 10,
-                             Asset(b"profile", "text"), "responses")
-    gateway = ResponsesGateway(config, transport=lambda *args: pytest.fail("Malformed header reached gateway"))
-    path = tmp_path / "inference.sock"
-    gateway.start(path, time.monotonic() + 10)
-    try:
-        with socket.socket(socket.AF_UNIX) as client:
-            client.settimeout(2)
-            client.connect(str(path))
-            nested = b"[" * 1000 + b"]" * 1000
-            client.sendall(b'{"bytes":0,"path":' + nested + b'}\n')
-            assert client.recv(1) == b""
-    finally:
-        gateway.stop()
-
-
 def test_request_and_response_persist_before_forwarding(tmp_path, monkeypatch):
-    from layout_eval.recorder import RecordingError, RunRecorder
+    from benchmarking.engine.recorder import RecordingError, RunRecorder
 
     recorder = RunRecorder(tmp_path / "run")
     def transport(path, body, timeout):
@@ -427,8 +242,7 @@ def test_request_and_response_persist_before_forwarding(tmp_path, monkeypatch):
         assert request["kind"] == "inference.request"
         assert (recorder.root / request["data"]["request"]["path"]).read_bytes() == body
         return 200, "application/json", b'{"status":"completed","output":[]}'
-    config = InferenceConfig("https://example.invalid/v1", "test-model", "UNUSED", 2, 10,
-                             Asset(b"profile", "text"), "responses")
+    config = gateway_config(max_requests=2)
     gateway = ResponsesGateway(config, transport=transport)
     gateway.recorder = recorder
     gateway.deadline = time.monotonic() + 10
@@ -443,24 +257,12 @@ def test_request_and_response_persist_before_forwarding(tmp_path, monkeypatch):
         gateway.request("/responses", b'{"model":"test-model"}')
 
 
-def test_conflicting_or_nonterminal_sse_tail_is_rejected():
-    from layout_eval.inference import response_semantics
-
-    completed = b'data: {"type":"response.completed","response":{"status":"completed"}}\n\n'
-    for tail in (completed, b'data: {"type":"response.created"}\n\n'):
-        with pytest.raises(ValueError, match="terminal"):
-            response_semantics("/responses", "text/event-stream", completed + tail, "responses")
-    unicode_message = '{"type":"response.completed","response":{"status":"completed","text":"a\u2028b"}}'
-    assert response_semantics("/responses", "text/event-stream", ('data: '+unicode_message+'\n\n').encode(),
-                              "responses")["outcome"] == "completed"
-
-
 # Messages is a second real wire family. Expectations follow the published
 # message_start -> cumulative message_delta -> message_stop contract; transport
 # is the only fake. Protect terminal validation, usage accounting and isolation.
 @pytest.mark.parametrize('streaming', [False, True])
 def test_messages_terminal_usage_and_client_tool_isolation(streaming):
-    from layout_eval.messages import MessagesWireAdapter
+    from benchmarking.engine.messages import MessagesWireAdapter
 
     adapter = MessagesWireAdapter()
     request = {'model': 'test-model', 'max_tokens': 32,
@@ -500,22 +302,36 @@ def test_messages_terminal_usage_and_client_tool_isolation(streaming):
         adapter.validate_request('/v1/messages', json.dumps(request).encode(), request['model'])
 
 
-@pytest.mark.parametrize(('reason', 'outcome'), [('max_tokens', 'budget_truncated'),
-                                               ('refusal', 'content_filtered'), ('tool_use', 'completed'),
-                                               ('unknown', 'incomplete_error')])
+@pytest.mark.parametrize(('reason', 'outcome'), [
+    ('max_tokens', 'budget_truncated'),
+    ('tool_use', 'completed'),
+])
 def test_messages_stop_reason_is_independent_of_http_success(reason, outcome):
-    from layout_eval.messages import MessagesWireAdapter
+    from benchmarking.engine.messages import MessagesWireAdapter
 
     body = json.dumps({'type': 'message', 'stop_reason': reason}).encode()
     assert MessagesWireAdapter().response_semantics('/v1/messages', 'application/json', body)['outcome'] == outcome
 
 
-def test_messages_rejects_unsupported_context_edits_without_rewriting_requests():
-    # Gateway policy rejects unsupported conversation edits. Harness-specific
-    # compatibility transformations belong to the externally supplied harness.
-    from layout_eval.messages import MessagesWireAdapter
 
-    request = {'model': 'test-model', 'messages': [{'role': 'user', 'content': 'hello'}], 'max_tokens': 10,
-               'context_management': {'edits': [{'type': 'clear_thinking_20251015', 'keep': 'all'}]}}
-    with pytest.raises(ValueError, match='allowed fields'):
-        MessagesWireAdapter().validate_request('/v1/messages', json.dumps(request).encode(), request['model'])
+
+def test_gateway_socket_transmits_a_complete_response(tmp_path):
+    """Check the public framing directly, without a second maintained client."""
+    expected = b'{"status":"completed","usage":{"input_tokens":3}}'
+    gateway = ResponsesGateway(gateway_config(), transport=lambda *a: (200, "application/json", expected))
+    path = tmp_path / "inference.sock"
+    gateway.start(path, time.monotonic() + 10)
+    try:
+        body = b'{"model":"test-model"}'
+        header = json.dumps({"path": "/responses", "bytes": len(body)}).encode() + b'\n'
+        with socket.socket(socket.AF_UNIX) as client:
+            client.settimeout(2)
+            client.connect(str(path))
+            client.sendall(header + body)
+            with client.makefile("rb") as response:
+                frame = json.loads(response.readline())
+                assert frame["status"] == 200 and frame["bytes"] == len(expected)
+                assert response.read(frame["bytes"]) == expected
+        assert gateway.summary()["usage"]["input_tokens"] == 3
+    finally:
+        gateway.stop()

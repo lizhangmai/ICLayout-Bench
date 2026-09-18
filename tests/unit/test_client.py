@@ -68,3 +68,62 @@ def test_error_retains_service_status(monkeypatch):
         client.submit('session','output.gds',key='used')
     assert failure.value.status == 409
     assert not failure.value.retryable
+
+
+def test_opt_in_retry_replays_lost_execution_response_once(monkeypatch):
+    """Transport loss after commit must not execute a side effect twice."""
+    from helpers.service import Simulator
+
+    from benchmarking.participants.recovery import DISABLED
+    server = Simulator()
+    try:
+        client = Client(server.endpoint, 'secret', retry_policy=DISABLED | {'http_attempts': 3})
+        original = client._opener.open
+        calls = []
+        def lost_reply(request, **kwargs):
+            response = original(request, **kwargs)
+            calls.append(request)
+            if len(calls) == 1:
+                response.close()
+                raise TimeoutError('response lost after server committed execution')
+            return response
+        monkeypatch.setattr(client._opener, 'open', lost_reply)
+        assert client.execute('s', 'generate', 10, key='same')['execution_id'] == 'e'
+        assert server.executions == 1
+        assert len(calls) == 2
+    finally:
+        server.stop()
+
+
+@pytest.mark.parametrize('code,status,retryable,expected', [
+    ('transport_error', None, True, 3),
+    ('budget_exhausted', 429, False, 1),
+])
+def test_retry_is_bounded_and_does_not_treat_budget_as_rate_limit(monkeypatch, code, status, retryable, expected):
+    from benchmarking.participants.recovery import DISABLED
+    client = Client('http://localhost:1', 'secret', retry_policy=DISABLED | {
+        'http_attempts': 3, 'backoff_seconds': 1, 'max_backoff_seconds': 2})
+    calls, sleeps = [], []
+    def fail(*args, **kwargs):
+        calls.append(kwargs['key'])
+        raise ClientError(code, 'injected', status=status, retryable=retryable)
+    monkeypatch.setattr(client, '_request', fail)
+    monkeypatch.setattr('benchmarking.client.time.sleep', sleeps.append)
+    with pytest.raises(ClientError):
+        client.close('s', key='same')
+    assert calls == ['same'] * expected
+    assert sleeps == ([1, 2] if expected == 3 else [])
+
+
+def test_creation_wait_covers_service_provisioning_without_extending_other_requests(monkeypatch):
+    from benchmarking.protocol import SESSION_STARTUP_TIMEOUT_SECONDS
+    client = Client('http://localhost:1', 'access', timeout=2)
+    observed = []
+    def transport(request, **kwargs):
+        observed.append((request.full_url, kwargs['timeout']))
+        return Response(b'{"protocol":"layout-http.v1"}')
+    monkeypatch.setattr(client._opener, 'open', transport)
+    client.create('fixture', {}, key='creation')
+    client.session('fixture')
+    assert observed[0][1] > SESSION_STARTUP_TIMEOUT_SECONDS
+    assert observed[1][1] == client.timeout

@@ -4,7 +4,22 @@ id = "freepdk45.OpenRAM.sense_amp"
 title = "Clocked SRAM Sense Amplifier"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "c81dbcb77f52a0ebac230a94265047cea1d64e08ffde03b730cfc7036139a85d"
+
+[[assets]]
+path = "reference/sense_amp.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "07b246b1f11d26f2bb268c6f60f2f93b90b91228d479c7af3fa831431df8ffaa"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "freepdk45_sense_amp"
 coefficient = 5
@@ -12,7 +27,7 @@ environment = "freepdk45-nominal-predictive-rc"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "7c518c8889ae2f2734dcd2a7e9e03ede33e31122c03e553b201c811c99f1a9e4"
+sha256 = "e3339a2edb3999de0169cbf58b71e3079a7bbd8b5a0afa663366ac5b847ece5b"
 format = "text"
 
 [task.inputs.netlist]
@@ -24,7 +39,7 @@ subcircuit = "sense_amp"
 [task.inputs.performance]
 path = "materials/testbench.spice"
 format = "spice"
-sha256 = "ad1feacc9678b6e750059809f5d36b8701f2a7c8888dab3f61fc57976cf32a1c"
+sha256 = "1d96a4f3ff79ab3e154911210b637de1419e5572e31aabe6e98550f381edb761"
 
 [task.constraints]
 schema_version = 1
@@ -266,6 +281,28 @@ waveform = "waveform.raw"
 low = "V"
 high = "V"
 supply = "W"
+decision_delay_fall = "s"
+
+[[task.evaluation.jobs]]
+id = "source_nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+low = "V"
+high = "V"
+supply = "W"
+decision_delay_fall = "s"
 
 [[task.evaluation.metrics]]
 id = "functional_area"
@@ -286,9 +323,7 @@ observations = [
 unit = "V"
 direction = "minimize"
 aggregation = "max"
-dimension = "response"
 upper = 0.1
-zero_upper = 0.5
 
 [[task.evaluation.metrics]]
 id = "high"
@@ -299,9 +334,7 @@ observations = [
 unit = "V"
 direction = "maximize"
 aggregation = "min"
-dimension = "response"
 lower = 0.9
-zero_lower = 0.5
 
 [[task.evaluation.metrics]]
 id = "supply"
@@ -313,16 +346,33 @@ unit = "W"
 direction = "minimize"
 aggregation = "max"
 dimension = "supply"
+baseline = [
+    "source_nominal:supply",
+]
+normalization = "ratio"
 lower = 0
-upper = 1e-05
-zero_lower = 0
-zero_upper = 5e-05
+scale = 1e-12
+
+[[task.evaluation.metrics]]
+id = "decision_delay_fall"
+category = "performance"
+observations = [
+    "nominal:decision_delay_fall",
+]
+baseline = [
+    "source_nominal:decision_delay_fall",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+normalization = "ratio"
+lower = 0.0
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 3.8
-area_zero = 7.6
+area_target = 2.82
 
 [toolchain]
 schema_version = 1
@@ -375,7 +425,7 @@ type = "magic-rc-docker"
 image = "iclayout-bench-tools:local"
 support = "build/support/freepdk45-magic-vtg"
 technology = "freepdk45.tech"
-tech_name = "nangate45"
+tech_name = "freepdk45"
 style = "spice3(sim)"
 gds_readonly = false
 case_insensitive_ports = true
@@ -448,13 +498,6 @@ support = "models"
 "layout.geometry" = "geometry"
 "layout.extract_rc" = "rc"
 "circuit.simulate" = "ngspice"
-
-[[assets]]
-path = "reference/sense_amp.gds"
-role = "reference"
-visibility = "maintainer"
-format = "gds"
-sha256 = "07b246b1f11d26f2bb268c6f60f2f93b90b91228d479c7af3fa831431df8ffaa"
 
 [qualification]
 reference = "reference/sense_amp.gds"

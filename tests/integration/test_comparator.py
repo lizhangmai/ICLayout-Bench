@@ -19,13 +19,13 @@ from helpers.scoring import (
 from helpers.stimuli import command, number
 
 from benchmarking.bundles import publish_bundle
+from benchmarking.engine.evaluate import run_evaluation
+from benchmarking.engine.klayout import KLayoutDocker
+from benchmarking.engine.prepare_support import prepare_support
+from benchmarking.engine.toolchains import load_toolchain
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
 from benchmarking.tasks import load_task
-from layout_eval.evaluate import run_evaluation
-from layout_eval.klayout import KLayoutDocker
-from layout_eval.prepare_support import prepare_support
-from layout_eval.toolchains import load_toolchain
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
@@ -41,7 +41,7 @@ def case_config(tmp_path_factory):
     path = directory / "case.toml"
     config = (CASE / "case.toml").read_text()
     for profile, name in [("klayout", "klayout"), ("magic", "magic"), ("analog-models", "analog-models")]:
-        prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK", f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}", root / name)
+        prepare_support(None, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{profile}", root / name)
         config = config.replace(f"build/support/comparator-{name}", str(root / name))
     config = standalone_config(config)
     path.write_text(config)
@@ -50,7 +50,7 @@ def case_config(tmp_path_factory):
 
 def evaluate(candidate, case_config, destination):
     completed = subprocess.run(
-        ["uv", "run", "--locked", "python", "main.py", "evaluate", str(case_config),
+        ["uv", "run", "--locked", "python", "-m", "benchmarking.engine.cli", "evaluate", str(case_config),
          str(candidate), "--output", str(destination)],
         cwd=ROOT, capture_output=True, text=True, timeout=1200, check=False,
     )

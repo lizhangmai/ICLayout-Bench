@@ -4,8 +4,22 @@ id = "TO_Apr2025.40_GHZ_LOW_NOISE_TIA"
 title = "TO_Apr2025 40 GHz low-noise single-ended TIA"
 status = "qualified"
 
-# Solver inputs, answer contract, and candidate-derived post-layout evaluation.
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "ebb0dc7c7ab023b9a55b76a95b7975ade1f7a5049f35eca8fd7f146f51ccdae0"
+
+[[assets]]
+path = "reference/FDM_QNC_00_LN_TIA.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "3567e0793dd41a1a6d0c46d6c756364e00fe65040e06dbbd59be8b5febb080f8"
+
 [task]
+hours = 3
 coefficient = 5
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_hbt_tia_physical"
@@ -13,7 +27,7 @@ environment = "ihp-sg13g2-to-40ghz-lvs"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "eb3905644667b9018cf67866672dae27e3fa91bedb04782f4dbd91027cd340d6"
+sha256 = "1931beb9843666fb4b92c6408738f56d0b447344953da44f30674f18a8b0c1a7"
 format = "text"
 
 [task.inputs.netlist]
@@ -34,25 +48,193 @@ format = "spice"
 
 [task.constraints]
 schema_version = 1
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
 
 [[task.constraints.hard]]
 id = "outline"
 type = "bbox_max"
 functional_layers = [
-  [1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0],
-  [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0],
-  [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0],
-  [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0],
-  [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0],
-  [133, 0], [134, 0], [139, 0], [152, 0],
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
 ]
 max_width_um = 660
 max_height_um = 620
-
-[[task.constraints.quality]]
-id = "area"
-type = "functional_bbox_area"
-layers_from = "outline"
 
 [task.output]
 path = "output/final.gds"
@@ -65,66 +247,103 @@ schema_version = 1
 mode = "post_layout"
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 380000
-area_zero = 409200
+area_target = 18573.26
 
 [[task.evaluation.jobs]]
 id = "artifact"
 stage = "check"
 operation = "layout.artifact"
 gate = "artifact"
-inputs = { layout = "candidate", task = "task" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
 
 [[task.evaluation.jobs]]
 id = "drc"
 stage = "check"
 operation = "layout.drc"
 gate = "drc"
-inputs = { layout = "candidate", task = "task" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
 
 [[task.evaluation.jobs]]
 id = "lvs"
 stage = "check"
 operation = "layout.lvs"
 gate = "lvs"
-inputs = { layout = "candidate", task = "task", netlist = "input:netlist" }
-outputs = { database = "klayout-lvs", binding = "json" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
 
 [[task.evaluation.jobs]]
 id = "geometry"
 stage = "check"
 operation = "layout.geometry"
 gate = "constraint"
-requires = ["artifact", "drc", "lvs"]
-inputs = { layout = "candidate", task = "task", constraints = "input:constraints", database = "job:lvs:database", binding = "job:lvs:binding" }
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
 
-[[task.evaluation.metrics]]
-id = "functional_area"
-category = "physical"
-observations = ["geometry:area"]
-unit = "um2"
-direction = "minimize"
-aggregation = "max"
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
 
 [[task.evaluation.jobs]]
 id = "parasitics"
 stage = "extract"
 operation = "layout.parasitics"
-requires = ["artifact", "drc", "lvs", "geometry"]
-inputs = { layout = "candidate", task = "task" }
-outputs = { netlist = "spice" }
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
 
 [task.evaluation.jobs.parameters]
-ports = ["RFIN", "RFOUT", "VSS", "VCC1", "VCC2", "VCC3"]
+ports = [
+    "RFIN",
+    "RFOUT",
+    "VSS",
+    "VCC1",
+    "VCC2",
+    "VCC3",
+]
 
 [[task.evaluation.jobs]]
 id = "negative"
 stage = "simulate"
 operation = "circuit.simulate"
-inputs = { circuit = "job:parasitics:netlist", deck = "input:performance" }
-outputs = { op = "ngspice-raw", ac = "ngspice-raw" }
+
+[task.evaluation.jobs.inputs]
+circuit = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
 
 [task.evaluation.jobs.parameters.values]
 input_current = -0.0001
@@ -147,8 +366,14 @@ ac = "frequency_response.raw"
 id = "zero"
 stage = "simulate"
 operation = "circuit.simulate"
-inputs = { circuit = "job:parasitics:netlist", deck = "input:performance" }
-outputs = { op = "ngspice-raw", ac = "ngspice-raw" }
+
+[task.evaluation.jobs.inputs]
+circuit = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
 
 [task.evaluation.jobs.parameters.values]
 input_current = 0
@@ -171,8 +396,104 @@ ac = "frequency_response.raw"
 id = "positive"
 stage = "simulate"
 operation = "circuit.simulate"
-inputs = { circuit = "job:parasitics:netlist", deck = "input:performance" }
-outputs = { op = "ngspice-raw", ac = "ngspice-raw" }
+
+[task.evaluation.jobs.inputs]
+circuit = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_current = 0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+supply3_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+
+[[task.evaluation.jobs]]
+id = "source_negative"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_current = -0.0001
+
+[task.evaluation.jobs.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+supply3_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+
+[[task.evaluation.jobs]]
+id = "source_zero"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_current = 0
+
+[task.evaluation.jobs.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+supply3_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+
+[[task.evaluation.jobs]]
+id = "source_positive"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
 
 [task.evaluation.jobs.parameters.values]
 input_current = 0.0001
@@ -192,76 +513,119 @@ op = "operating_point.raw"
 ac = "frequency_response.raw"
 
 [[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
 id = "transimpedance_low"
 category = "performance"
-observations = ["negative:transimpedance_low", "zero:transimpedance_low", "positive:transimpedance_low"]
+observations = [
+    "negative:transimpedance_low",
+    "zero:transimpedance_low",
+    "positive:transimpedance_low",
+]
 unit = "ohm"
-direction = "target"
+direction = "maximize"
 aggregation = "min"
-lower = 20
-upper = 1200
 dimension = "response"
-zero_lower = 0
-zero_upper = 4000
+baseline = [
+    "source_negative:transimpedance_low",
+    "source_zero:transimpedance_low",
+    "source_positive:transimpedance_low",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "transimpedance_high"
 category = "performance"
-observations = ["negative:transimpedance_high", "zero:transimpedance_high", "positive:transimpedance_high"]
+observations = [
+    "negative:transimpedance_high",
+    "zero:transimpedance_high",
+    "positive:transimpedance_high",
+]
 unit = "ohm"
-direction = "target"
+direction = "maximize"
 aggregation = "min"
-lower = 20
-upper = 1200
 dimension = "response"
-zero_lower = 0
-zero_upper = 4000
+baseline = [
+    "source_negative:transimpedance_high",
+    "source_zero:transimpedance_high",
+    "source_positive:transimpedance_high",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "input_bias"
 category = "performance"
-observations = ["negative:input_bias", "zero:input_bias", "positive:input_bias"]
+observations = [
+    "negative:input_bias",
+    "zero:input_bias",
+    "positive:input_bias",
+]
 unit = "V"
 direction = "target"
 aggregation = "min"
-lower = 0.6
-upper = 1.0
 dimension = "bias"
-zero_lower = 0.4
-zero_upper = 1.2
+baseline = [
+    "source_negative:input_bias",
+    "source_zero:input_bias",
+    "source_positive:input_bias",
+]
+normalization = "target"
+scale = 2.1
+lower = 0
+upper = 2.1
 
 [[task.evaluation.metrics]]
 id = "output_bias"
 category = "performance"
-observations = ["negative:output_bias", "zero:output_bias", "positive:output_bias"]
+observations = [
+    "negative:output_bias",
+    "zero:output_bias",
+    "positive:output_bias",
+]
 unit = "V"
 direction = "target"
 aggregation = "min"
-lower = 1.8
-upper = 2.2
 dimension = "bias"
-zero_lower = 1.6
-zero_upper = 2.4
+baseline = [
+    "source_negative:output_bias",
+    "source_zero:output_bias",
+    "source_positive:output_bias",
+]
+normalization = "target"
+scale = 2.1
+lower = 0
+upper = 2.1
 
 [[task.evaluation.metrics]]
 id = "supply_power"
 category = "performance"
-observations = ["negative:supply_power", "zero:supply_power", "positive:supply_power"]
+observations = [
+    "negative:supply_power",
+    "zero:supply_power",
+    "positive:supply_power",
+]
 unit = "W"
 direction = "minimize"
 aggregation = "max"
-lower = 0.001
-upper = 0.03
 dimension = "supply"
-zero_lower = 0.0005
-zero_upper = 0.04
-
-[[assets]]
-path = "reference/FDM_QNC_00_LN_TIA.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "3567e0793dd41a1a6d0c46d6c756364e00fe65040e06dbbd59be8b5febb080f8"
+baseline = [
+    "source_negative:supply_power",
+    "source_zero:supply_power",
+    "source_positive:supply_power",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
 
 [qualification]
 evidence = "README.md"
@@ -280,14 +644,17 @@ schema_version = 1
 
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
+
 [toolchain.backends.geometry.settings]
 image = "iclayout-bench-tools:local"
 timeout_seconds = 120
 
 [toolchain.backends.drc]
 type = "klayout-docker"
+
 [toolchain.backends.drc.support_profiles]
 support = "klayout"
+
 [toolchain.backends.drc.settings]
 image = "iclayout-bench-tools:local"
 check = "drc"
@@ -297,8 +664,10 @@ timeout_seconds = 600
 
 [toolchain.backends.lvs]
 type = "klayout-docker"
+
 [toolchain.backends.lvs.support_profiles]
 support = "klayout"
+
 [toolchain.backends.lvs.settings]
 image = "iclayout-bench-tools:local"
 check = "lvs"
@@ -308,6 +677,7 @@ timeout_seconds = 600
 
 [toolchain.backends.artifact]
 type = "klayout-docker"
+
 [toolchain.backends.artifact.settings]
 image = "iclayout-bench-tools:local"
 check = "artifact"
@@ -315,7 +685,10 @@ timeout_seconds = 60
 
 [toolchain.backends.simulation]
 type = "ngspice-docker"
-support_profiles = { support = "hbt-models" }
+
+[toolchain.backends.simulation.support_profiles]
+support = "hbt-models"
+
 [toolchain.backends.simulation.settings]
 image = "iclayout-bench-tools:local"
 support = "build/support/to-40ghz-hbt-models"
@@ -323,7 +696,11 @@ timeout_seconds = 120
 
 [toolchain.backends.parasitics]
 type = "sg13g2-hbt-rc-docker"
-support_profiles = { klayout_support = "klayout", magic_support = "magic" }
+
+[toolchain.backends.parasitics.support_profiles]
+klayout_support = "klayout"
+magic_support = "magic"
+
 [toolchain.backends.parasitics.settings]
 image = "iclayout-bench-tools:local"
 klayout_support = "build/support/to-40ghz-klayout"

@@ -25,58 +25,45 @@ method are recorded in the [problem](problem.md#physical-requirements) and the c
 | [Collection LICENSE](../../LICENSE) | Collection distribution terms; excluded from solver inputs |
 | [reference/FMD_QNC_01_LIN_TIA.gds](reference/FMD_QNC_01_LIN_TIA.gds) | Passing reference layout, top cell `FMD_QNC_01_LIN_TIA` |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The authoritative netlist, simulation decks and evaluation requirements are unchanged.
+
 ## Reference Results
 
-The reference layout passes artifact validation, the pinned SG13G2 main and
-additional maximal DRC scopes without waivers, strict named-port LVS and the
-720 × 620 µm functional outline. Post-layout extraction uses candidate HBT
-geometry and distributed interconnect R/C. The compact-device substrate body
-is reconciled to `VSS` with tap extraction disabled in the candidate path;
-the finite source `ptap1` remains in the source calibration and strict LVS
-netlist. The finite-tap and ideal-body calibration agreed within 8.7 × 10⁻¹³
-relative across the reported values, within the regression tolerance below.
+Reference results use the pinned IHP SG13G2 ciel release described in
+[resource preparation](../../../../../docs/tools.md#ihp-physical-check-profiles).
 
-The table gives measured ranges across the `−5 µA`, `0 A` and `+5 µA`
-input-current jobs. Linearity is the scalar maximum from the 21-point
-`−5 µA` to `+5 µA` DC sweep for each job. Acceptance limits are in
-[problem.md](problem.md).
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-| Metric | Unit | Pre-layout | Post-layout |
-|---|---|---:|---:|
-| Functional area | µm² | — | 416,867.625 |
-| Task score (`layout-v1`) | points / 100 | — | 100 |
-| 1 MHz signed transimpedance | Ω | 489.92–546.12 | 471.80–521.90 |
-| 100 MHz transimpedance magnitude | Ω | 489.92–546.11 | 513.63–573.06 |
-| Linearity error | % | 1.4654 | 1.2742 |
-| Input bias | V | 0.7988–0.8008 | 0.7885–0.7905 |
-| Output bias | V | 2.0655–2.0713 | 2.0679–2.0730 |
-| Total supply power | mW | 6.529–6.928 | 3.591–3.625 |
+Measured `layout-v2` score: **23.583241**, with electrical quality
+**E = 1.2386059** and area quality **Q = 0.044902839**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **416867.625 um2**.
 
-The source and candidate native-device checks use the same compact HBT model
-and preserve the declared `Nx` values. A grid translation of the complete
-reference layout also preserves all declared metrics within the 1 × 10⁻³
-relative repeatability limit.
+Area reference: **18718.54 um2**. 17 expanded device instances; sum of device/contact envelopes 12300.6100 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-The `layout-v1` scoring boundaries are published in
-[problem.md](problem.md#electrical-requirements-and-scoring). Response zero
-anchors describe loss of useful response; bias and supply anchors define the
-outer grading ranges around the intended operating point and budget. These
-are explicit grading choices, with the acceptance limits checked separately.
-The fixed absolute area target is a feasible envelope demonstrated by the
-reference layout, rather than a ratio to the reference or a claim of optimality.
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `transimpedance_low` | ohm | 489.9266 … 546.1247 | 471.8016 … 521.9023 | 0.95564676 |
+| `transimpedance_high` | ohm | 489.9169 … 546.1136 | 513.6323 … 573.0564 | 1.048407 |
+| `linearity_error_pct` | percent | 1.465435 | 1.274188 | 1.1500931 |
+| `input_bias` | V | 0.79880232 … 0.80084576 | 0.78853741 … 0.79046105 | 0.99507923 |
+| `output_bias` | V | 2.0654884 … 2.0712579 | 2.0679446 … 2.0730464 | 0.99883173 |
+| `supply_power` | W | 0.00652874 … 0.0069283423 | 0.0035910793 … 0.0036254514 | 1.8180439 |
 
-The regression checks the witness, independent waveform/linearity calculations,
-port rejection and repeatability. Input consistency and actual reference acceptance
-support this case’s `qualified` status. Electrical-failure handling is covered by
-shared evaluator regressions; this case does not supply a dedicated failing layout.
-
-The [HBT diagnostic policy](../../../../../docs/tools.md#hbt-core-simulation-support)
-checks Magic compact-contact warnings against native device records before
-requiring complete candidate graph validation. The reference report retains
-the original diagnostics, their review and the final HBT/RC mapping.
-
-Coefficient 6 reflects active emitter-follower feedback coupled to the
-multistage transfer path, bias headroom and dense-sweep linearity requirements.
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
 
 ### Calibration limits
 
@@ -100,39 +87,37 @@ they do not add solver requirements.
 | --- | --- | --- |
 | `relative` | 1 | 1e-09 |
 
+
+Coefficient 6 reflects active emitter-follower feedback coupled to the
+multistage transfer path, bias headroom and dense-sweep linearity requirements.
+
 ## Reproduce
 
-These operator commands require the installed `ICLayout-Bench-Private` package.
-Run preparation from the Public checkout; run any `tests/integration/` commands
-from the Private checkout using that environment.
-
-Prepare the image and PDK resources using the shared
-[tools guide](../../../../../docs/tools.md#manual-tools). Run from the repository
-root and choose a fresh output directory for each reproduction:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.preview prepare \
-  --case 97_GHZ_LINEAR_TIA \
-  --output build/runs/public-preview-97_GHZ_LINEAR_TIA-01/prepared \
-  --image iclayout-bench-tools:local
-python -m layout_eval.preview run \
-  --prepared build/runs/public-preview-97_GHZ_LINEAR_TIA-01/prepared \
-  --output build/runs/public-preview-97_GHZ_LINEAR_TIA-01/run
+python -m benchmarking.engine.preview prepare \
+  --case TO_Apr2025.97_GHZ_LINEAR_TIA --image iclayout-bench-tools:local \
+  --output build/runs/97_GHZ_LINEAR_TIA-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/97_GHZ_LINEAR_TIA-prepared \
+  --output build/runs/97_GHZ_LINEAR_TIA-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k '97_GHZ_LINEAR_TIA'
 ```
 
-These commands generate the reference evaluation report at
-`build/runs/public-preview-97_GHZ_LINEAR_TIA-01/run/reference/report.json`.
-To reproduce pre-layout/post-layout calibration and the reference acceptance
-regressions, run:
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
-```bash
-python -m pytest -m acceptance_eda \
-  tests/integration/test_tia97_postlayout.py
-```
-
-The tests create fresh temporary output directories. Reference layouts and
-results are available for reproduction and are excluded from standard solver
-inputs.
+The model-boundary calibration tolerances above are exercised by `tests/integration/test_tia97_postlayout.py`.
 
 ## Source and License
 

@@ -1,0 +1,240 @@
+* Derived from pinned analog-db; Copyright 2026 Danial Noori Zadeh.
+* See collection license; 5 nm geometry, physical R/C, explicit interface.
+.subckt ldo_007_pmos vdd vout vss ebias vref
+CC_0 ncz vout cap_mim_2f0fF w=10u l=2.5u
+CFF_0 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_1 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_2 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_3 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_4 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_5 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_6 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_7 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_8 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_9 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_10 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_11 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_12 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_13 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_14 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_15 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_16 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_17 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_18 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_19 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_20 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_21 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_22 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_23 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_24 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_25 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_26 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_27 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_28 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_29 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_30 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_31 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_32 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_33 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_34 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_35 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_36 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_37 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_38 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_39 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_40 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_41 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_42 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_43 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_44 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_45 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_46 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_47 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_48 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_49 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_50 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_51 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_52 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_53 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_54 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_55 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_56 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_57 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_58 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_59 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_60 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_61 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_62 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_63 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_64 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_65 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_66 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_67 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_68 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_69 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_70 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_71 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_72 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_73 vout fb cap_mim_2f0fF w=20u l=20u
+CFF_74 vout fb cap_mim_2f0fF w=20u l=20u
+R1_0 vout fb vss ppolyf_u_1k w=1u l=4.695u
+R2_0 fb vss vss ppolyf_u_1k w=1u l=33.86u
+MM1_0 noutm fb etail vss nfet_03v3 w=16u l=0.5u
+MM2_0 egate vref etail vss nfet_03v3 w=16u l=0.5u
+MM3_0 noutm noutm vdd vdd pfet_03v3 w=25u l=0.5u
+MM4_0 egate noutm vdd vdd pfet_03v3 w=25u l=0.5u
+MM5_0 etail ebias vss vss nfet_03v3 w=48u l=0.5u
+MM6_0 ebias ebias vss vss nfet_03v3 w=48u l=0.5u
+MMP_0 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_1 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_2 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_3 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_4 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_5 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_6 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_7 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_8 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_9 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_10 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_11 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_12 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_13 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_14 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_15 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_16 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_17 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_18 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_19 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_20 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_21 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_22 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_23 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_24 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_25 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_26 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_27 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_28 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_29 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_30 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_31 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_32 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_33 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_34 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_35 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_36 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_37 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_38 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_39 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_40 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_41 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_42 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_43 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_44 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_45 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_46 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_47 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_48 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_49 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_50 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_51 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_52 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_53 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_54 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_55 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_56 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_57 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_58 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_59 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_60 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_61 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_62 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_63 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_64 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_65 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_66 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_67 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_68 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_69 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_70 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_71 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_72 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_73 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_74 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_75 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_76 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_77 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_78 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_79 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_80 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_81 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_82 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_83 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_84 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_85 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_86 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_87 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_88 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_89 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_90 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_91 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_92 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_93 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_94 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_95 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_96 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_97 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_98 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_99 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_100 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_101 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_102 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_103 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_104 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_105 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_106 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_107 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_108 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_109 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_110 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_111 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_112 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_113 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_114 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_115 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_116 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_117 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_118 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_119 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_120 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_121 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_122 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_123 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_124 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_125 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_126 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_127 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_128 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_129 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_130 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_131 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_132 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_133 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_134 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_135 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_136 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_137 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_138 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+MMP_139 vout egate vdd vdd pfet_03v3 w=20u l=0.5u
+RZ_0 egate ncz vss ppolyf_u_1k w=97.21u l=1u
+RZ_1 egate ncz vss ppolyf_u_1k w=97.21u l=1u
+RZ_2 egate ncz vss ppolyf_u_1k w=97.21u l=1u
+RZ_3 egate ncz vss ppolyf_u_1k w=97.21u l=1u
+RZ_4 egate ncz vss ppolyf_u_1k w=97.21u l=1u
+RZ_5 egate ncz vss ppolyf_u_1k w=97.21u l=1u
+RZ_6 egate ncz vss ppolyf_u_1k w=97.21u l=1u
+RZ_7 egate ncz vss ppolyf_u_1k w=97.21u l=1u
+RZ_8 egate ncz vss ppolyf_u_1k w=97.21u l=1u
+RZ_9 egate ncz vss ppolyf_u_1k w=97.21u l=1u
+RZ_10 egate ncz vss ppolyf_u_1k w=97.21u l=1u
+RZ_11 egate ncz vss ppolyf_u_1k w=97.21u l=1u
+.ends ldo_007_pmos

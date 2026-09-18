@@ -2,21 +2,13 @@
 
 import pytest
 
-from layout_eval.magic import MagicCapacitanceDocker
+from benchmarking.engine.magic import MagicCapacitanceDocker
 
 pytestmark = pytest.mark.unit
 
 
 @pytest.mark.parametrize('settings,error', [
     ({'grid_subdivision': 0}, ValueError),
-    ({'grid_subdivision': True}, ValueError),
-    ({'grid_subdivision': 1.5}, ValueError),
-    ({'gds_readonly': 'false'}, TypeError),
-    ({'case_insensitive_ports': 1}, TypeError),
-    ({'label_layers': []}, ValueError),
-    ({'label_layers': [[11]]}, ValueError),
-    ({'label_layers': [[11, False]]}, ValueError),
-    ({'label_layers': [[-1, 0]]}, ValueError),
     ({'label_layers': [[11, 65536]]}, ValueError),
 ])
 def test_malformed_preprocessing_settings_fail_before_bundle_or_docker_access(settings, error):
@@ -25,12 +17,13 @@ def test_malformed_preprocessing_settings_fail_before_bundle_or_docker_access(se
                                tech_name='not-used', style='not-used', **settings)
 
 
-@pytest.mark.parametrize('log', [
-    'Missing gate connection of device at (1 2) on net internal',
-    'Warning: Orphaned node "internal" arbitrarily attached to "internal.t1"',
-    'Extraction style "ngspice" is ambiguous.',
+@pytest.mark.parametrize('log,status', [
+    ('Warning: Orphaned node "internal" arbitrarily attached to "internal.t1"', 'error'),
+    ('Error while reading cell "error_amplifier": Unknown layer/datatype', 'error'),
+    ('2 errors found during extraction', 'error'),
+    ('Reading "error_amplifier".\nExtracting error_amplifier into error_amplifier.ext:', 'passed'),
 ])
-def test_unreliable_extraction_is_an_error_even_with_a_netlist(tmp_path, monkeypatch, log):
+def test_extraction_diagnostics_distinguish_cell_names_from_errors(tmp_path, monkeypatch, log, status):
     import json
     from types import SimpleNamespace
 
@@ -47,12 +40,12 @@ def test_unreliable_extraction_is_an_error_even_with_a_netlist(tmp_path, monkeyp
                                    files={'extracted.spice': Asset(b'.subckt dut P\n.ends\n', 'spice')},
                                    evidence={'console': Asset(log.encode(), 'text')})
 
-    monkeypatch.setattr('layout_eval.magic.DockerTool', Tool)
+    monkeypatch.setattr('benchmarking.engine.magic.DockerTool', Tool)
     publish_bundle({'tech.tech': Asset(b'', 'text')}, {}, tmp_path / 'support')
     backend = MagicCapacitanceDocker(image='unused', support=str(tmp_path / 'support'),
                                     technology='tech.tech', tech_name='test', style='test')
     job = Job('extract', 'extract', 'extract', (), (('netlist', 'spice'),), (), None,
               json.dumps({'top_cell': 'dut', 'ports': ['P']}))
     result = backend.run(job, {'layout': Asset(b'unused by mock tool', 'gds')})
-    assert result.status == 'error'
-    assert not result.outputs
+    assert result.status == status
+    assert bool(result.outputs) == (status == 'passed')

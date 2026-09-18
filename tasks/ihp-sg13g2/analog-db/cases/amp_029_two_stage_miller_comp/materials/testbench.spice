@@ -1,0 +1,45 @@
+* Differential Miller characterization; external differential feedback only.
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include parameters.spice
+.include dut.spice
+.temp 27
+.save v(vdd) v(vss) v(vp) v(vm) v(voutp) v(voutn) v(ref) v(vbl) i(vdd) i(vss) i(vbl) v(signal) i(efp) i(efn)
+VSS vss 0 0
+.options reltol=1e-7 abstol=1e-14 vntol=1e-10
+VDD vdd 0 1.2
+IBIAS vdd ref 20u
+VBL vbl 0 .7087
+XDUT vp vm voutp voutn vdd vss ref vbl amp_029_two_stage_miller_comp
+CP voutp 0 10p
+CN voutn 0 10p
+VS signal 0 dc 0 ac 1 pulse(0 .01 2u 100n 100n 8u 20u)
+EFP vp 0 value={.6+.5*(v(signal)-v(voutp)+v(voutn))}
+EFN vm 0 value={.6-.5*(v(signal)-v(voutp)+v(voutn))}
+.control
+set numdgt=15
+set measdgt=15
+op
+let kcl_a=abs(i(vdd)+i(vss)+i(vbl)+i(efp)+i(efn))
+print kcl_a
+let output_cm_v=(v(voutp)+v(voutn))/2
+let offset_v=v(voutp)-v(voutn)
+let power_w=-v(vdd)*i(vdd)
+print output_cm_v offset_v power_w
+write op.raw all
+tran 1n 20u 0 1n
+let output_diff=v(voutp)-v(voutn)
+let output_cm=(v(voutp)+v(voutn))/2
+let error_v=abs(output_diff-v(signal))
+meas tran high_v avg output_diff from=8u to=10u
+meas tran low_v avg output_diff from=18u to=20u
+meas tran late_error_v avg error_v from=8u to=10u
+meas tran return_error_v avg error_v from=18u to=20u
+meas tran ripple_v pp output_diff from=8u to=10u
+meas tran cm_min_v min output_cm from=0 to=20u
+meas tran cm_max_v max output_cm from=0 to=20u
+write transient.raw all
+quit
+.endc
+.end

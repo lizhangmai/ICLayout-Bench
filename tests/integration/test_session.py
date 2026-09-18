@@ -13,13 +13,21 @@ from pathlib import Path
 import pytest
 from helpers.protocol import write_protocol_task
 
+from benchmarking.engine.inference import InferenceConfig, InferenceGateway
+from benchmarking.engine.model_config import RunConfig
+from benchmarking.engine.recorder import (
+    RecordingError,
+    RunRecorder,
+    recover_submissions,
+)
+from benchmarking.engine.session import (
+    CONSOLE_PREVIEW_BYTES,
+    DockerSession,
+    task_message,
+)
 from benchmarking.files import Asset
 from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
 from benchmarking.tasks import load_task
-from layout_eval.inference import InferenceConfig, InferenceGateway
-from layout_eval.model_config import RunConfig
-from layout_eval.recorder import RecordingError, RunRecorder, recover_submissions
-from layout_eval.session import CONSOLE_PREVIEW_BYTES, DockerSession, task_message
 
 IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
 
@@ -112,7 +120,7 @@ def test_declared_pdks_are_usable_in_agent_container(tmp_path, manifest):
                     cases.append(case)
     assert cases, "A published process must have an executable witness"
     prepared = tmp_path / "prepared"
-    command = [sys.executable, str(ROOT / "scripts/public_preview.py"), "prepare",
+    command = [sys.executable, "-m", "benchmarking.engine.preview", "prepare",
                "--case", str(cases[0]), "--image", IMAGE, "--output", str(prepared)]
     preparation = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
     assert preparation.returncode == 0, preparation.stdout + preparation.stderr
@@ -405,13 +413,14 @@ def test_killed_host_retains_acknowledged_candidate(tmp_path):
     code = """
 import sys
 from pathlib import Path
-from layout_eval.agent import run_agent
+from benchmarking.engine.execution import run_session
+from benchmarking.engine.session import DockerSession
 from benchmarking.tasks import load_task
 sys.path.insert(0, str(Path.cwd() / "tests"))
 from integration.test_session import session_task, configuration
 config = configuration("output.write_bytes(b'durable'); assert submit()['accepted']; print('ACK_OBSERVED', flush=True); time.sleep(60)", seconds=60)
 task = session_task()
-run_agent(task, config, {}, {job.operation: object() for job in task.evaluation.jobs}, Path(sys.argv[1]))
+run_session(task, config, {}, {job.operation: object() for job in task.evaluation.jobs}, Path(sys.argv[1]), session=DockerSession(config.image))
 """
     staging = tempfile.TemporaryDirectory(prefix="lb-crash-")
     process = subprocess.Popen([sys.executable, "-c", code, str(run)],
@@ -440,7 +449,7 @@ run_agent(task, config, {}, {job.operation: object() for job in task.evaluation.
         recovered = recover_submissions(run)
         assert (run / recovered["candidate"]["path"]).read_bytes() == b"durable"
         assert json.loads((run / "run.json").read_text())["phase"] == "running"
-        command = subprocess.run([sys.executable, "main.py", "recover", str(run)], capture_output=True, check=True)
+        command = subprocess.run([sys.executable, "-m", "benchmarking.engine.cli", "recover", str(run)], capture_output=True, check=True)
         assert json.loads(command.stdout)["candidate"] == recovered["candidate"]
         # The bind source's parent is private on the host; only individual inputs are mounted.
         temporary = list(Path(staging.name).glob("lb-session-*"))
@@ -457,7 +466,7 @@ run_agent(task, config, {}, {job.operation: object() for job in task.evaluation.
 @pytest.mark.acceptance
 @pytest.mark.acceptance_container
 def test_console_storage_ceiling_stops_with_incomplete_evidence(tmp_path, monkeypatch):
-    monkeypatch.setattr("layout_eval.session.MAX_CONSOLE_BYTES", 8192)
+    monkeypatch.setattr("benchmarking.engine.session.MAX_CONSOLE_BYTES", 8192)
     task = session_task()
     config = configuration("print('x'*100000, flush=True); time.sleep(30)")
     recorder = RunRecorder(tmp_path / "run")

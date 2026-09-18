@@ -4,7 +4,22 @@ id = "ihp-sg13g2.analog-db.ia_006_fan_chopper_cmfb"
 title = "Clocked Capacitive Instrumentation Amplifier with Transistor CMFB"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "8628d87db527d396a57ca2cf53e83b3b8d4da7afb687bc09109aaef1919d2864"
+
+[[assets]]
+path = "reference/ia_006_fan_chopper_cmfb.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "ff16f3a5c68e69d59c4def4e79881c1253f0631f4962f6cf9e37c7ca681b67ad"
+
 [task]
+hours = 3
 coefficient = 10
 kind = "netlist_to_gds"
 family = "ihp-sg13g2_ia_006_fan_chopper_cmfb"
@@ -13,7 +28,7 @@ environment = "ihp-sg13g2-ia_006_fan_chopper_cmfb-nominal-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "0e016c54429e4a1c1ab2608dc97babf6d4d511cac4684d26b2ed5a5b24efa1e1"
+sha256 = "36d34779c6bbfd8b9d5a15d7949d0137c3a7d1909cbc07b1f32abce0a76f65e3"
 
 [task.inputs.netlist]
 path = "materials/circuit.cdl"
@@ -232,10 +247,9 @@ schema_version = 1
 mode = "post_layout"
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 1200000
-area_zero = 4800000
+area_target = 102216.79
 
 [[task.evaluation.jobs]]
 id = "artifact"
@@ -504,6 +518,178 @@ clock_power_w = "W"
 op = "op.raw"
 transient = "transient.raw"
 
+[[task.evaluation.jobs]]
+id = "source_condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-12
+step_v = 0.01
+
+[task.evaluation.jobs.parameters.measurements]
+dc_cm_v = "V"
+dc_dm_v = "V"
+baseline_v = "V"
+plateau_v = "V"
+return_v = "V"
+baseline_error_v = "V"
+return_error_v = "V"
+high_drift_v = "V"
+return_drift_v = "V"
+ripple_rms_v = "V"
+ripple_pp_v = "V"
+cm_mean_v = "V"
+cm_min_v = "V"
+cm_max_v = "V"
+sum_cm_v = "V"
+sum_error_v = "V"
+gain_vv = "V/V"
+dc_power_w = "W"
+mean_power_w = "W"
+clock_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-12
+step_v = -0.01
+
+[task.evaluation.jobs.parameters.measurements]
+dc_cm_v = "V"
+dc_dm_v = "V"
+baseline_v = "V"
+plateau_v = "V"
+return_v = "V"
+baseline_error_v = "V"
+return_error_v = "V"
+high_drift_v = "V"
+return_drift_v = "V"
+ripple_rms_v = "V"
+ripple_pp_v = "V"
+cm_mean_v = "V"
+cm_min_v = "V"
+cm_max_v = "V"
+sum_cm_v = "V"
+sum_error_v = "V"
+gain_vv = "V/V"
+dc_power_w = "W"
+mean_power_w = "W"
+clock_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 5e-12
+step_v = 0.01
+
+[task.evaluation.jobs.parameters.measurements]
+dc_cm_v = "V"
+dc_dm_v = "V"
+baseline_v = "V"
+plateau_v = "V"
+return_v = "V"
+baseline_error_v = "V"
+return_error_v = "V"
+high_drift_v = "V"
+return_drift_v = "V"
+ripple_rms_v = "V"
+ripple_pp_v = "V"
+cm_mean_v = "V"
+cm_min_v = "V"
+cm_max_v = "V"
+sum_cm_v = "V"
+sum_error_v = "V"
+gain_vv = "V/V"
+dc_power_w = "W"
+mean_power_w = "W"
+clock_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 5e-12
+step_v = -0.01
+
+[task.evaluation.jobs.parameters.measurements]
+dc_cm_v = "V"
+dc_dm_v = "V"
+baseline_v = "V"
+plateau_v = "V"
+return_v = "V"
+baseline_error_v = "V"
+return_error_v = "V"
+high_drift_v = "V"
+return_drift_v = "V"
+ripple_rms_v = "V"
+ripple_pp_v = "V"
+cm_mean_v = "V"
+cm_min_v = "V"
+cm_max_v = "V"
+sum_cm_v = "V"
+sum_error_v = "V"
+gain_vv = "V/V"
+dc_power_w = "W"
+mean_power_w = "W"
+clock_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -527,10 +713,14 @@ unit = "V/V"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 18.5
-upper = 21
-zero_lower = 0
-zero_upper = 30
+baseline = [
+    "source_condition_0:gain_vv",
+    "source_condition_1:gain_vv",
+    "source_condition_2:gain_vv",
+    "source_condition_3:gain_vv",
+]
+normalization = "target"
+scale = 1.0
 
 [[task.evaluation.metrics]]
 id = "baseline_error_v"
@@ -543,12 +733,17 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:baseline_error_v",
+    "source_condition_1:baseline_error_v",
+    "source_condition_2:baseline_error_v",
+    "source_condition_3:baseline_error_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 5e-05
-zero_lower = 0
-zero_upper = 0.005
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "return_error_v"
@@ -561,12 +756,17 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:return_error_v",
+    "source_condition_1:return_error_v",
+    "source_condition_2:return_error_v",
+    "source_condition_3:return_error_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 5e-05
-zero_lower = 0
-zero_upper = 0.005
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "high_drift_v"
@@ -579,12 +779,17 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:high_drift_v",
+    "source_condition_1:high_drift_v",
+    "source_condition_2:high_drift_v",
+    "source_condition_3:high_drift_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 1e-05
-zero_lower = 0
-zero_upper = 0.002
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "return_drift_v"
@@ -597,12 +802,17 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:return_drift_v",
+    "source_condition_1:return_drift_v",
+    "source_condition_2:return_drift_v",
+    "source_condition_3:return_drift_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 1e-05
-zero_lower = 0
-zero_upper = 0.002
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "ripple_rms_v"
@@ -615,12 +825,17 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:ripple_rms_v",
+    "source_condition_1:ripple_rms_v",
+    "source_condition_2:ripple_rms_v",
+    "source_condition_3:ripple_rms_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.015
-zero_lower = 0
-zero_upper = 0.1
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "ripple_pp_v"
@@ -633,12 +848,17 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:ripple_pp_v",
+    "source_condition_1:ripple_pp_v",
+    "source_condition_2:ripple_pp_v",
+    "source_condition_3:ripple_pp_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.12
-zero_lower = 0
-zero_upper = 0.6
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "cm_mean_v"
@@ -653,10 +873,16 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.59
-upper = 0.63
-zero_lower = 0.45
-zero_upper = 0.8
+baseline = [
+    "source_condition_0:cm_mean_v",
+    "source_condition_1:cm_mean_v",
+    "source_condition_2:cm_mean_v",
+    "source_condition_3:cm_mean_v",
+]
+normalization = "target"
+scale = 1.2
+lower = 0
+upper = 1.2
 
 [[task.evaluation.metrics]]
 id = "cm_min_v"
@@ -671,10 +897,16 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.57
-upper = 0.65
-zero_lower = 0.45
-zero_upper = 0.8
+baseline = [
+    "source_condition_0:cm_min_v",
+    "source_condition_1:cm_min_v",
+    "source_condition_2:cm_min_v",
+    "source_condition_3:cm_min_v",
+]
+normalization = "target"
+scale = 1.2
+lower = 0
+upper = 1.2
 
 [[task.evaluation.metrics]]
 id = "cm_max_v"
@@ -689,10 +921,16 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.57
-upper = 0.65
-zero_lower = 0.45
-zero_upper = 0.8
+baseline = [
+    "source_condition_0:cm_max_v",
+    "source_condition_1:cm_max_v",
+    "source_condition_2:cm_max_v",
+    "source_condition_3:cm_max_v",
+]
+normalization = "target"
+scale = 1.2
+lower = 0
+upper = 1.2
 
 [[task.evaluation.metrics]]
 id = "sum_cm_v"
@@ -707,10 +945,16 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.59
-upper = 0.61
-zero_lower = 0.45
-zero_upper = 0.75
+baseline = [
+    "source_condition_0:sum_cm_v",
+    "source_condition_1:sum_cm_v",
+    "source_condition_2:sum_cm_v",
+    "source_condition_3:sum_cm_v",
+]
+normalization = "target"
+scale = 1.2
+lower = 0
+upper = 1.2
 
 [[task.evaluation.metrics]]
 id = "sum_error_v"
@@ -723,12 +967,17 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:sum_error_v",
+    "source_condition_1:sum_error_v",
+    "source_condition_2:sum_error_v",
+    "source_condition_3:sum_error_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.0003
-zero_lower = 0
-zero_upper = 0.01
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "mean_power_w"
@@ -741,12 +990,17 @@ observations = [
 ]
 unit = "W"
 dimension = "supply"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:mean_power_w",
+    "source_condition_1:mean_power_w",
+    "source_condition_2:mean_power_w",
+    "source_condition_3:mean_power_w",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.0004
-zero_lower = 0
-zero_upper = 0.0008
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "clock_power_w"
@@ -759,12 +1013,17 @@ observations = [
 ]
 unit = "W"
 dimension = "supply"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:clock_power_w",
+    "source_condition_1:clock_power_w",
+    "source_condition_2:clock_power_w",
+    "source_condition_3:clock_power_w",
+]
+normalization = "ratio"
 lower = 0
-upper = 2.5e-08
-zero_lower = 0
-zero_upper = 1e-06
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "dc_cm_v"
@@ -923,13 +1182,6 @@ support = "analog-res-models"
 image = "iclayout-bench-tools:local"
 support = "build/support/analog-res-models"
 timeout_seconds = 900
-
-[[assets]]
-path = "reference/ia_006_fan_chopper_cmfb.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "ff16f3a5c68e69d59c4def4e79881c1253f0631f4962f6cf9e37c7ca681b67ad"
 
 [qualification]
 reference = "reference/ia_006_fan_chopper_cmfb.gds"

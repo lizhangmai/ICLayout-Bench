@@ -55,27 +55,49 @@ and meet its inclusive band. Aggregation cannot hide a failing condition;
 missing crossings or incomplete extraction/simulation cannot establish success.
 Saved waveforms provide the inputs for independently reconstructing observations.
 
-| Metric | Definition | Unit | Acceptance | Zero-score boundaries | Dimension |
-| --- | --- | --- | --- | --- | --- |
-| `output_v` | DC output voltage; average of both outputs for the differential pair | V | 1.5 to 1.7 | <= 1.2 or >= 2 | bias |
-| `bias_v` | DC V(ibias) | V | 1.75 to 2.55 | <= 1.4 or >= 2.9 | bias |
-| `power_w` | DC power delivered by VDD, -V(vdd)*I(VDD) | W | 0 to 0.0003 | < 0 or >= 0.0006 | supply |
-| `gain_db` | 20 log10(abs(transfer)) at 10 Hz | dB | >= 40 | <= 0 | response |
-| `bandwidth_hz` | First frequency where transfer gain falls 3 dB below its 10 Hz value | Hz | >= 1000 | <= 0 | response |
-| `unity_hz` | First falling 0 dB crossing of open-loop transfer | Hz | >= 9e+06 | <= 0 | response |
-| `phase_margin` | 180 degrees plus unwrapped transfer phase at the unity crossing | deg | >= 55 | <= 0 | response |
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-Scoring is `S = G * (60*E + 20*H + 20*H*Q)`. `G` requires passing physical
-checks and complete extraction/measurements. `E` averages the applicable
-response, bias and supply dimensions, each using its worst observation's
-attainment. Attainment is 1 inside a band and falls linearly to its zero
-boundary. `H` is 1 only when every electrical requirement passes.
-`Q = clip((136000 - area_um2)/(136000 - 34000), 0, 1)` uses fixed absolute area
-budgets. Physical rejection scores 0; blocking evaluator errors produce no
-score. The coefficient is 5; it describes the circuit's required capability,
-not its source device count or observed model performance.
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `output_v` | DC output voltage; average of both outputs for the differential pair | V | target / target | 0 … 3.3 | 3.3 |
+| `bias_v` | DC V(ibias) | V | target / target | 0 … 3.3 | 3.3 |
+| `power_w` | DC power delivered by VDD, -V(vdd)*I(VDD) | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `gain_db` | 20 log10(abs(transfer)) at 10 Hz | dB | maximize / db20 | −∞ … +∞ | — |
+| `bandwidth_hz` | First frequency where transfer gain falls 3 dB below its 10 Hz value | Hz | maximize / ratio | 0 … +∞ | — |
+| `unity_hz` | First falling 0 dB crossing of open-loop transfer | Hz | maximize / ratio | 0 … +∞ | — |
+| `phase_margin` | 180 degrees plus unwrapped transfer phase at the unity crossing | deg | target / target | 0 … 180 | 180 |
+
+Area reference: **5150.02 um2**. 17 expanded device instances; sum of device/contact envelopes 3278.0000 um2, per-side envelope allowance 1 um, 50% routing allowance and outer margin 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **5**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Use the reviewed GF180 resources listed in `/protocol/resources.json`.
 KLayout checks the layout, Magic extracts RC and ngspice simulates the circuit.
@@ -84,3 +106,5 @@ KLayout checks the layout, Magic extracts RC and ngspice simulates the circuit.
 exposed, use its published helper for interim checks. Write
 `/workspace/output/final.gds`, then explicitly submit with
 `python -I /protocol/submit.py`.
+
+Use a GDS database unit of 0.001 um, as required by the GF180MCU DRC deck.

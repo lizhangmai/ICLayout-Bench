@@ -7,7 +7,7 @@
 .include dut.spice
 .temp 27
 .save v(vout) v(vdd) v(vref) v(fb) v(sense) v(ib) i(VDD) i(VREF) i(VPROBE) @iload[current]
-.option klu rshunt=1e12 reltol=1e-5 abstol=1e-12 vntol=1e-8 method=gear maxord=2
+.option itl1=1000 klu rshunt=1e12 reltol=1e-5 abstol=1e-12 vntol=1e-8 method=gear maxord=2
 VDD vdd 0 {supply_v}
 VREF vref 0 0.225
 IBIAS ib 0 8e-06

@@ -1,0 +1,13 @@
+# syntax=docker/dockerfile:1.7
+# Native-tool development overlay; release uses the same build script.
+ARG BASE_IMAGE=iclayout-bench-tools:local
+FROM ${BASE_IMAGE} AS build
+USER root
+COPY scripts/build_ngspice.sh /tmp/build_ngspice.sh
+RUN sh /tmp/build_ngspice.sh
+FROM ${BASE_IMAGE}
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends libklu2 libreadline8t64
+COPY --from=build /opt/ngspice /opt/ngspice
+ENV PATH=/opt/ngspice/bin:${PATH}
+USER ubuntu

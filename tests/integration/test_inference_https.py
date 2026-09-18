@@ -12,9 +12,9 @@ from dataclasses import replace
 
 import pytest
 
+from benchmarking.engine.inference import InferenceConfig, ResponsesGateway
+from benchmarking.engine.recorder import RunRecorder
 from benchmarking.files import Asset
-from layout_eval.inference import InferenceConfig, ResponsesGateway
-from layout_eval.recorder import RunRecorder
 
 pytestmark = [pytest.mark.integration, pytest.mark.acceptance, pytest.mark.acceptance_fast]
 

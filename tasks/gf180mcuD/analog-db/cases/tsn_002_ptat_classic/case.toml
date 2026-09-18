@@ -4,7 +4,22 @@ id = "gf180mcuD.analog-db.tsn_002_ptat_classic"
 title = "Self-Starting Isolated-Body PTAT Core"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "a5994015a14f5b5590ff881576a6ed931f602c7033b28d1a513ad67f86c1ef34"
+
+[[assets]]
+path = "reference/tsn_002_ptat_classic.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "32d55e08fac00fac320603722c532015353814086398f3354488e8df709a12ea"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "gf180mcuD_tsn_002_ptat_classic"
 coefficient = 6
@@ -13,7 +28,7 @@ environment = "gf180mcuD-tsn_002_ptat_classic-startup-temperature-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "e1f13df0d79eec4aa98eea566b5f2906f14b47ba417b12da91bbf188f7717b69"
+sha256 = "568928f885fde8eb9d14ebb37fb9fe2b626833033c751438dcfbf876362d0a89"
 
 [task.inputs.netlist]
 path = "materials/circuit.cdl"
@@ -1203,6 +1218,690 @@ op = "op.raw"
 temperature = "temperature.raw"
 startup = "startup.raw"
 
+[[task.evaluation.jobs]]
+id = "source_condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+temperature_c = -20
+rise_s = 1e-07
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+temperature_c = -20
+rise_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+temperature_c = 27
+rise_s = 1e-07
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+temperature_c = 27
+rise_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_4"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+temperature_c = 100
+rise_s = 1e-07
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_5"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+temperature_c = 100
+rise_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_6"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3
+temperature_c = -20
+rise_s = 1e-07
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_7"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3
+temperature_c = -20
+rise_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_8"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3
+temperature_c = 27
+rise_s = 1e-07
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_9"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3
+temperature_c = 27
+rise_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_10"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3
+temperature_c = 100
+rise_s = 1e-07
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_11"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3
+temperature_c = 100
+rise_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_12"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+temperature_c = -20
+rise_s = 1e-07
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_13"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+temperature_c = -20
+rise_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_14"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+temperature_c = 27
+rise_s = 1e-07
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_15"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+temperature_c = 27
+rise_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_16"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+temperature_c = 100
+rise_s = 1e-07
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
+[[task.evaluation.jobs]]
+id = "source_condition_17"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+startup = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+temperature_c = 100
+rise_s = 1e-05
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+startup_error_v = "V"
+ripple_v = "V"
+final_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+startup = "startup.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -1240,10 +1939,30 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.1
-upper = 0.19
-zero_lower = 0
-zero_upper = 0.3
+baseline = [
+    "source_condition_0:output_v",
+    "source_condition_1:output_v",
+    "source_condition_2:output_v",
+    "source_condition_3:output_v",
+    "source_condition_4:output_v",
+    "source_condition_5:output_v",
+    "source_condition_6:output_v",
+    "source_condition_7:output_v",
+    "source_condition_8:output_v",
+    "source_condition_9:output_v",
+    "source_condition_10:output_v",
+    "source_condition_11:output_v",
+    "source_condition_12:output_v",
+    "source_condition_13:output_v",
+    "source_condition_14:output_v",
+    "source_condition_15:output_v",
+    "source_condition_16:output_v",
+    "source_condition_17:output_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "power_w"
@@ -1270,12 +1989,31 @@ observations = [
 ]
 unit = "W"
 dimension = "supply"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:power_w",
+    "source_condition_1:power_w",
+    "source_condition_2:power_w",
+    "source_condition_3:power_w",
+    "source_condition_4:power_w",
+    "source_condition_5:power_w",
+    "source_condition_6:power_w",
+    "source_condition_7:power_w",
+    "source_condition_8:power_w",
+    "source_condition_9:power_w",
+    "source_condition_10:power_w",
+    "source_condition_11:power_w",
+    "source_condition_12:power_w",
+    "source_condition_13:power_w",
+    "source_condition_14:power_w",
+    "source_condition_15:power_w",
+    "source_condition_16:power_w",
+    "source_condition_17:power_w",
+]
+normalization = "ratio"
 lower = 0
-upper = 8e-05
-zero_lower = 0
-zero_upper = 0.00016
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "cold_v"
@@ -1304,10 +2042,30 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.11
-upper = 0.13
-zero_lower = 0
-zero_upper = 0.25
+baseline = [
+    "source_condition_0:cold_v",
+    "source_condition_1:cold_v",
+    "source_condition_2:cold_v",
+    "source_condition_3:cold_v",
+    "source_condition_4:cold_v",
+    "source_condition_5:cold_v",
+    "source_condition_6:cold_v",
+    "source_condition_7:cold_v",
+    "source_condition_8:cold_v",
+    "source_condition_9:cold_v",
+    "source_condition_10:cold_v",
+    "source_condition_11:cold_v",
+    "source_condition_12:cold_v",
+    "source_condition_13:cold_v",
+    "source_condition_14:cold_v",
+    "source_condition_15:cold_v",
+    "source_condition_16:cold_v",
+    "source_condition_17:cold_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "hot_v"
@@ -1336,10 +2094,30 @@ unit = "V"
 dimension = "bias"
 direction = "target"
 aggregation = "max"
-lower = 0.16
-upper = 0.18
-zero_lower = 0
-zero_upper = 0.3
+baseline = [
+    "source_condition_0:hot_v",
+    "source_condition_1:hot_v",
+    "source_condition_2:hot_v",
+    "source_condition_3:hot_v",
+    "source_condition_4:hot_v",
+    "source_condition_5:hot_v",
+    "source_condition_6:hot_v",
+    "source_condition_7:hot_v",
+    "source_condition_8:hot_v",
+    "source_condition_9:hot_v",
+    "source_condition_10:hot_v",
+    "source_condition_11:hot_v",
+    "source_condition_12:hot_v",
+    "source_condition_13:hot_v",
+    "source_condition_14:hot_v",
+    "source_condition_15:hot_v",
+    "source_condition_16:hot_v",
+    "source_condition_17:hot_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "slope_v_per_c"
@@ -1368,10 +2146,28 @@ unit = "V/C"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 0.0004
-upper = 0.00047
-zero_lower = 0.0002
-zero_upper = 0.0006
+baseline = [
+    "source_condition_0:slope_v_per_c",
+    "source_condition_1:slope_v_per_c",
+    "source_condition_2:slope_v_per_c",
+    "source_condition_3:slope_v_per_c",
+    "source_condition_4:slope_v_per_c",
+    "source_condition_5:slope_v_per_c",
+    "source_condition_6:slope_v_per_c",
+    "source_condition_7:slope_v_per_c",
+    "source_condition_8:slope_v_per_c",
+    "source_condition_9:slope_v_per_c",
+    "source_condition_10:slope_v_per_c",
+    "source_condition_11:slope_v_per_c",
+    "source_condition_12:slope_v_per_c",
+    "source_condition_13:slope_v_per_c",
+    "source_condition_14:slope_v_per_c",
+    "source_condition_15:slope_v_per_c",
+    "source_condition_16:slope_v_per_c",
+    "source_condition_17:slope_v_per_c",
+]
+normalization = "target"
+scale = 0.00047
 
 [[task.evaluation.metrics]]
 id = "curvature_v"
@@ -1398,12 +2194,31 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:curvature_v",
+    "source_condition_1:curvature_v",
+    "source_condition_2:curvature_v",
+    "source_condition_3:curvature_v",
+    "source_condition_4:curvature_v",
+    "source_condition_5:curvature_v",
+    "source_condition_6:curvature_v",
+    "source_condition_7:curvature_v",
+    "source_condition_8:curvature_v",
+    "source_condition_9:curvature_v",
+    "source_condition_10:curvature_v",
+    "source_condition_11:curvature_v",
+    "source_condition_12:curvature_v",
+    "source_condition_13:curvature_v",
+    "source_condition_14:curvature_v",
+    "source_condition_15:curvature_v",
+    "source_condition_16:curvature_v",
+    "source_condition_17:curvature_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.003
-zero_lower = 0
-zero_upper = 0.01
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "minimum_slope"
@@ -1432,10 +2247,28 @@ unit = "V/C"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 0.0003
-upper = 0.00055
-zero_lower = 0
-zero_upper = 0.001
+baseline = [
+    "source_condition_0:minimum_slope",
+    "source_condition_1:minimum_slope",
+    "source_condition_2:minimum_slope",
+    "source_condition_3:minimum_slope",
+    "source_condition_4:minimum_slope",
+    "source_condition_5:minimum_slope",
+    "source_condition_6:minimum_slope",
+    "source_condition_7:minimum_slope",
+    "source_condition_8:minimum_slope",
+    "source_condition_9:minimum_slope",
+    "source_condition_10:minimum_slope",
+    "source_condition_11:minimum_slope",
+    "source_condition_12:minimum_slope",
+    "source_condition_13:minimum_slope",
+    "source_condition_14:minimum_slope",
+    "source_condition_15:minimum_slope",
+    "source_condition_16:minimum_slope",
+    "source_condition_17:minimum_slope",
+]
+normalization = "target"
+scale = 0.00055
 
 [[task.evaluation.metrics]]
 id = "maximum_slope"
@@ -1464,10 +2297,28 @@ unit = "V/C"
 dimension = "response"
 direction = "target"
 aggregation = "max"
-lower = 0.0003
-upper = 0.00055
-zero_lower = 0
-zero_upper = 0.001
+baseline = [
+    "source_condition_0:maximum_slope",
+    "source_condition_1:maximum_slope",
+    "source_condition_2:maximum_slope",
+    "source_condition_3:maximum_slope",
+    "source_condition_4:maximum_slope",
+    "source_condition_5:maximum_slope",
+    "source_condition_6:maximum_slope",
+    "source_condition_7:maximum_slope",
+    "source_condition_8:maximum_slope",
+    "source_condition_9:maximum_slope",
+    "source_condition_10:maximum_slope",
+    "source_condition_11:maximum_slope",
+    "source_condition_12:maximum_slope",
+    "source_condition_13:maximum_slope",
+    "source_condition_14:maximum_slope",
+    "source_condition_15:maximum_slope",
+    "source_condition_16:maximum_slope",
+    "source_condition_17:maximum_slope",
+]
+normalization = "target"
+scale = 0.00055
 
 [[task.evaluation.metrics]]
 id = "peak_power_w"
@@ -1494,12 +2345,31 @@ observations = [
 ]
 unit = "W"
 dimension = "supply"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:peak_power_w",
+    "source_condition_1:peak_power_w",
+    "source_condition_2:peak_power_w",
+    "source_condition_3:peak_power_w",
+    "source_condition_4:peak_power_w",
+    "source_condition_5:peak_power_w",
+    "source_condition_6:peak_power_w",
+    "source_condition_7:peak_power_w",
+    "source_condition_8:peak_power_w",
+    "source_condition_9:peak_power_w",
+    "source_condition_10:peak_power_w",
+    "source_condition_11:peak_power_w",
+    "source_condition_12:peak_power_w",
+    "source_condition_13:peak_power_w",
+    "source_condition_14:peak_power_w",
+    "source_condition_15:peak_power_w",
+    "source_condition_16:peak_power_w",
+    "source_condition_17:peak_power_w",
+]
+normalization = "ratio"
 lower = 0
-upper = 8e-05
-zero_lower = 0
-zero_upper = 0.00016
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "startup_error_v"
@@ -1526,12 +2396,31 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:startup_error_v",
+    "source_condition_1:startup_error_v",
+    "source_condition_2:startup_error_v",
+    "source_condition_3:startup_error_v",
+    "source_condition_4:startup_error_v",
+    "source_condition_5:startup_error_v",
+    "source_condition_6:startup_error_v",
+    "source_condition_7:startup_error_v",
+    "source_condition_8:startup_error_v",
+    "source_condition_9:startup_error_v",
+    "source_condition_10:startup_error_v",
+    "source_condition_11:startup_error_v",
+    "source_condition_12:startup_error_v",
+    "source_condition_13:startup_error_v",
+    "source_condition_14:startup_error_v",
+    "source_condition_15:startup_error_v",
+    "source_condition_16:startup_error_v",
+    "source_condition_17:startup_error_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.001
-zero_lower = 0
-zero_upper = 0.02
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "ripple_v"
@@ -1558,12 +2447,31 @@ observations = [
 ]
 unit = "V"
 dimension = "response"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:ripple_v",
+    "source_condition_1:ripple_v",
+    "source_condition_2:ripple_v",
+    "source_condition_3:ripple_v",
+    "source_condition_4:ripple_v",
+    "source_condition_5:ripple_v",
+    "source_condition_6:ripple_v",
+    "source_condition_7:ripple_v",
+    "source_condition_8:ripple_v",
+    "source_condition_9:ripple_v",
+    "source_condition_10:ripple_v",
+    "source_condition_11:ripple_v",
+    "source_condition_12:ripple_v",
+    "source_condition_13:ripple_v",
+    "source_condition_14:ripple_v",
+    "source_condition_15:ripple_v",
+    "source_condition_16:ripple_v",
+    "source_condition_17:ripple_v",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.001
-zero_lower = 0
-zero_upper = 0.02
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "final_power_w"
@@ -1590,18 +2498,36 @@ observations = [
 ]
 unit = "W"
 dimension = "supply"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
+baseline = [
+    "source_condition_0:final_power_w",
+    "source_condition_1:final_power_w",
+    "source_condition_2:final_power_w",
+    "source_condition_3:final_power_w",
+    "source_condition_4:final_power_w",
+    "source_condition_5:final_power_w",
+    "source_condition_6:final_power_w",
+    "source_condition_7:final_power_w",
+    "source_condition_8:final_power_w",
+    "source_condition_9:final_power_w",
+    "source_condition_10:final_power_w",
+    "source_condition_11:final_power_w",
+    "source_condition_12:final_power_w",
+    "source_condition_13:final_power_w",
+    "source_condition_14:final_power_w",
+    "source_condition_15:final_power_w",
+    "source_condition_16:final_power_w",
+    "source_condition_17:final_power_w",
+]
+normalization = "ratio"
 lower = 0
-upper = 8e-05
-zero_lower = 0
-zero_upper = 0.00016
+scale = 1e-12
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 14000
-area_zero = 56000
+area_target = 529.13
 
 [toolchain]
 schema_version = 1
@@ -1635,7 +2561,7 @@ image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 180
 support = "build/support/gf180-physical-v2"
-profile = "lvs-vss.json"
+profile = "lvs.json"
 
 [toolchain.backends.lvs.support_profiles]
 support = "physical"
@@ -1685,13 +2611,6 @@ support = "models"
 
 [origin]
 url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/tsn_002_ptat_classic"
-
-[[assets]]
-path = "reference/tsn_002_ptat_classic.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "375e84d5e2b2c297899af6f2db14d60141b0b6a2afaa40ef063197085816beb9"
 
 [qualification]
 reference = "reference/tsn_002_ptat_classic.gds"

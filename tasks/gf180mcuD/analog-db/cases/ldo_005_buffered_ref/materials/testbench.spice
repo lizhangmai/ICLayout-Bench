@@ -1,0 +1,33 @@
+* Buffered-reference LDO: nominal regulation and load-step observations.
+* SPDX-License-Identifier: MIT
+.include support/models.spice
+.include dut.spice
+.include parameters.spice
+.temp 27
+VDD vdd 0 DC {supply_v} AC 1
+VREF vref 0 .8
+ILOAD vout 0 DC {load_a} PULSE({load_a} {2*load_a} 100u 1u 1u 100u 500u)
+CLOAD vout 0 1u
+XDUT vdd vout 0 vref ldo_005_buffered_ref
+.control
+set noaskquit
+set numdgt=12
+op
+let output_v=v(vout)
+let regulation_error_v=abs(output_v-1.6)
+let power_w=-v(vdd)*i(vdd)
+print output_v regulation_error_v power_w
+write op.raw
+ac dec 80 1 1Meg
+let rejection_db=-db(v(vout))
+meas ac psrr_db find rejection_db at=1k
+write ac.raw
+tran .1u 500u
+meas tran minimum_v min v(vout) from=90u to=500u
+meas tran maximum_v max v(vout) from=90u to=500u
+meas tran excursion_v pp v(vout) from=90u to=500u
+meas tran recovery_v avg v(vout) from=400u to=500u
+write transient.raw
+quit
+.endc
+.end

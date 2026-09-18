@@ -25,85 +25,73 @@ both `VEE`, so it does not create a DC voltage drop.
 | [Collection LICENSE](../../LICENSE) | Collection distribution terms; excluded from solver inputs |
 | [reference/FMD_QNC_03a_TIA_1.gds](reference/FMD_QNC_03a_TIA_1.gds) | Qualified reference layout, top cell `FMD_QNC_03a_TIA_1` |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The authoritative netlist, simulation decks and evaluation requirements are unchanged.
+
 ## Reference Results
 
-The reference layout passes artifact validation, the pinned SG13G2 main and
-additional maximal DRC scopes without waivers, strict named-port LVS and the
-720 × 860 µm functional outline. Post-layout extraction uses candidate HBT
-geometry and distributed interconnect R/C. The physical same-net `ptap1` is
-retained by LVS and represented with its finite PDK equivalent
-`R=43.80789 Ω` in the simulator netlist; both terminals are `VEE`, so this
-element has no DC voltage drop. The source and post-layout calibration is
-stable when `rshunt` is changed by a factor of ten in either direction, with
-all nominal measurements within 0.01% of the baseline.
+Reference results use the pinned IHP SG13G2 ciel release described in
+[resource preparation](../../../../../docs/tools.md#ihp-physical-check-profiles).
 
-The table gives measured ranges across the `−100 µA`, `0 A` and `+100 µA`
-input-current jobs. Acceptance limits are in [problem.md](problem.md).
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-| Metric | Unit | Pre-layout | Post-layout |
-|---|---|---:|---:|
-| Functional area | µm² | — | 581,243.36 |
-| Task score (`layout-v1`) | points / 100 | — | 100 |
-| 1 MHz signed transimpedance | Ω | 214.00–218.56 | 234.63–239.77 |
-| 100 MHz transimpedance magnitude | Ω | 214.00–218.56 | 234.63–239.77 |
-| Input bias | V | 0.9487–0.9512 | 0.9473–0.9498 |
-| Output bias | V | 1.3137–1.3666 | 1.2743–1.3311 |
-| Total supply power | mW | 53.15–54.97 | 52.05–53.84 |
+Measured `layout-v2` score: **8.281639**, with electrical quality
+**E = 1.0348389** and area quality **Q = 0.0066276542**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **581243.36 um2**.
 
-The candidate native-device extraction preserves the HBT multiplicities,
-terminals and passive geometry before distributed interconnect RC is merged.
-The post-layout measurements therefore use the submitted layout-derived
-netlist rather than a separate reference netlist.
+Area reference: **3852.28 um2**. 8 expanded device instances; sum of device/contact envelopes 2487.4228 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-The `layout-v1` scoring boundaries are published in
-[problem.md](problem.md#electrical-requirements-and-scoring). Response zero
-anchors describe loss of useful response; bias and supply anchors define the
-outer grading ranges around the intended operating point and budget. These
-are explicit grading choices, with the acceptance limits checked separately.
-The fixed absolute area target is a feasible envelope demonstrated by the
-reference layout, rather than a ratio to the reference or a claim of optimality.
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `transimpedance_low` | ohm | 214.0027 … 218.5573 | 234.6297 … 239.7718 | 1.0963866 |
+| `transimpedance_high` | ohm | 214.0021 … 218.5566 | 234.6272 … 239.7692 | 1.096378 |
+| `input_bias` | V | 0.94872539 … 0.95122664 | 0.94730512 … 0.94981777 | 0.99929037 |
+| `output_bias` | V | 1.3136967 … 1.366563 | 1.2743432 … 1.3311045 | 0.98070296 |
+| `supply_power` | W | 0.053154729 … 0.054967593 | 0.052045235 … 0.053835043 | 1.0210374 |
 
-The [HBT diagnostic policy](../../../../../docs/tools.md#hbt-core-simulation-support)
-checks Magic compact-contact warnings against native device records before
-requiring complete candidate graph validation. The reference report retains
-the original diagnostics, their review and the final HBT/RC mapping.
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
 
 Coefficient 4 reflects a compact transimpedance core with bias, passive
 feedback and loaded transfer requirements.
 
 ## Reproduce
 
-These operator commands require the installed `ICLayout-Bench-Private` package.
-Run preparation from the Public checkout; run any `tests/integration/` commands
-from the Private checkout using that environment.
-
-Prepare the image and PDK resources using the shared
-[tools guide](../../../../../docs/tools.md#manual-tools). Run from the repository
-root and choose a fresh output directory for each reproduction:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.preview prepare \
-  --case DC_to_130_GHz_TIA.design_1 \
-  --output build/runs/public-preview-DC_to_130_GHz_TIA.design_1-01/prepared \
-  --image iclayout-bench-tools:local
-python -m layout_eval.preview run \
-  --prepared build/runs/public-preview-DC_to_130_GHz_TIA.design_1-01/prepared \
-  --output build/runs/public-preview-DC_to_130_GHz_TIA.design_1-01/run
+python -m benchmarking.engine.preview prepare \
+  --case TO_Apr2025.DC_to_130_GHz_TIA.design_1 --image iclayout-bench-tools:local \
+  --output build/runs/DC_to_130_GHz_TIA.design_1-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/DC_to_130_GHz_TIA.design_1-prepared \
+  --output build/runs/DC_to_130_GHz_TIA.design_1-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'DC_to_130_GHz_TIA.design_1'
 ```
 
-These commands generate the reference evaluation report at
-`build/runs/public-preview-DC_to_130_GHz_TIA.design_1-01/run/reference/report.json`.
-To reproduce pre-layout/post-layout calibration and the reference acceptance
-regressions, run:
-
-```bash
-python -m pytest -m acceptance_eda \
-  tests/integration/test_tia130_postlayout.py
-```
-
-The tests create fresh temporary output directories. Reference layouts and
-results are available for reproduction and are excluded from standard solver
-inputs.
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

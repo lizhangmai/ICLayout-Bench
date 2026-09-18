@@ -24,27 +24,83 @@ The hard functional envelope is 100 um by 100 um. Its bounding rectangle include
 
 Translation, equivalent hierarchy and internal instance renaming are allowed. LVS permits source/drain exchange and equivalent parallel devices; any such layout must also pass the same RC-based electrical requirements. Preserve top-level port identities and explicit body connections.
 
+
+The standard-cell functional frame has fixed height 1.63 um and width on a 0.01 um grid. Coordinates below are relative to its lower-left functional bound; global translation remains allowed. Supply rails must be continuous on metal1 and bound by LVS to the named supply.
+
+- `VDD`: centre y = 1.515 um, thickness at least 0.07 um, from left + 0.115 um to right − 0.03 um.
+- `VSS`: centre y = 0.115 um, thickness at least 0.07 um, from left + 0.115 um to right − 0.03 um.
+
 ## Electrical Requirements and Scoring
 
-Artifact, DRC, LVS and geometry gates precede candidate GDS extraction. Simulation consumes the candidate's Magic RC netlist unchanged; source simulation is calibration only. VTG/VTL device classes are checked by independent LVS before the matching extraction profile is used. Extraction includes poly/metal sheet resistance, contacts/vias, geometry-dependent coupling and ground capacitance, and device junction area/perimeter. Wells are lumped connections; BSIM4 supplies device/junction behavior. Interconnect capacitances use published FreePDK45 ElCap table fits and dielectric overlap terms with Magic's native capacitance placement; this is a predictive approximation, not a field-solver signoff extraction.
+Artifact, DRC, LVS and geometry gates precede candidate GDS extraction. Simulation consumes the candidate's Magic RC netlist unchanged; source simulation supplies the independent scoring baseline. VTG/VTL device classes are checked by independent LVS before the matching extraction profile is used. Extraction includes poly/metal sheet resistance, contacts/vias, geometry-dependent coupling and ground capacitance, and device junction area/perimeter. Wells are lumped connections; BSIM4 supplies device/junction behavior. Interconnect resistance and capacitance use the pinned community FreePDK45 Magic technology's estimated coefficients and native capacitance placement. The extraction adapter binds VTG/VTL models, preserves annotation layers and corrects the technology's dimensional unit conversion. This is a predictive approximation without field-solver signoff accuracy.
 
-Every observation must meet its inclusive bounds. Supply power is in W and voltages are in V. Timing requirements are defined as output or differential voltage at a fixed deadline, so a missing transition remains a measurable failure.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-| Metric | Native ngspice observation | Unit | Acceptance | Zero-score boundaries | Dimension |
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
 | --- | --- | --- | --- | --- | --- |
-| `state_0` | `find v(ZN) at=0.110n` | V | 0.9 <= value | lower: 0.5 | response |
-| `state_1` | `find v(ZN) at=0.610n` | V | 0.9 <= value | lower: 0.5 | response |
-| `state_2` | `find v(ZN) at=1.110n` | V | value <= 0.1 | upper: 0.5 | response |
-| `state_3` | `find v(ZN) at=1.610n` | V | 0.9 <= value | lower: 0.5 | response |
-| `state_4` | `find v(ZN) at=2.110n` | V | 0.9 <= value | lower: 0.5 | response |
-| `state_5` | `find v(ZN) at=2.610n` | V | 0.9 <= value | lower: 0.5 | response |
-| `state_6` | `find v(ZN) at=3.110n` | V | value <= 0.1 | upper: 0.5 | response |
-| `state_7` | `find v(ZN) at=3.610n` | V | 0.9 <= value | lower: 0.5 | response |
-| `state_8` | `find v(ZN) at=4.110n` | V | 0.9 <= value | lower: 0.5 | response |
-| `supply` | `avg par('-v(vdd)*i(Vdd)') from=0 to=4.400n` | W | 0 <= value <= 6e-05 | lower: 0, upper: 0.0003 | supply |
+| `state_0` | `find v(ZN) at=0.110n` | V | functional check | 0.9 … +∞ | — |
+| `state_1` | `find v(ZN) at=0.610n` | V | functional check | 0.9 … +∞ | — |
+| `state_2` | `find v(ZN) at=1.110n` | V | functional check | −∞ … 0.1 | — |
+| `state_3` | `find v(ZN) at=1.610n` | V | functional check | 0.9 … +∞ | — |
+| `state_4` | `find v(ZN) at=2.110n` | V | functional check | 0.9 … +∞ | — |
+| `state_5` | `find v(ZN) at=2.610n` | V | functional check | 0.9 … +∞ | — |
+| `state_6` | `find v(ZN) at=3.110n` | V | functional check | −∞ … 0.1 | — |
+| `state_7` | `find v(ZN) at=3.610n` | V | functional check | 0.9 … +∞ | — |
+| `state_8` | `find v(ZN) at=4.110n` | V | functional check | 0.9 … +∞ | — |
+| `supply` | `avg par('-v(vdd)*i(Vdd)') from=0 to=4.400n` | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `propagation_delay` | Worst paired quality over: delay_a1_fall_2, delay_a2_rise_3, delay_a2_fall_6, delay_a1_rise_7. | s | minimize / ratio | 0 … +∞ | — |
+| `output_transition` | Worst paired quality over: transition_a1_fall_2, transition_a2_rise_3, transition_a2_fall_6, transition_a1_rise_7. | s | minimize / ratio | 0 … +∞ | — |
 
-Use the unified score `S = G * (60*E + 20*H + 20*H*Q)`. G requires all validity gates and complete, valid evaluation; H requires every electrical bound. E averages the applicable response and supply attainments; each dimension uses its worst observation, with linear interpolation to the zero boundaries above. Area utility is `Q = clip((3.4 - area) / (3.4 - 1.7), 0, 1)` using absolute um2 anchors. Electrical acceptance earns 80–100 points; a physical pass with an electrical failure earns less than 60; conclusive invalidity earns zero. Evaluator errors give a null score when no independent validity rejection is established. Coefficient: **1**.
+Area reference: **1.6789 um2**. Complete functional bounding rectangle of the declared standard-cell reference GDS: 1.03 by 1.63 um = 1.6789 um2. Reference SHA-256: d077499ea242e1c8506c7a992ce713d46ea513c52b80073a2b7ae6d6515f2d3f. This footprint includes the maintained explicit taps and routing.
+
+The capability coefficient remains **1**; it is independent of
+the reference-relative task score.
+
+### Standard-cell design guidance
+
+Plan the device rows, power rails and signal access before routing. Represent
+pull-up and pull-down connectivity as transistor-edge graphs; explore compatible
+Euler trails and alternative orderings to share diffusion and reduce breaks.
+Choose among legal orderings using routing length, parasitic loading and signal
+access, rather than diffusion sharing alone. Preserve the fixed netlist sizes,
+models and connectivity; size optimization is outside this task.
+
+Use the task's declared row height, grid and rail geometry. Keep local routes
+compact, leave signal pins accessible, and avoid consuming extra routing layers
+without benefit. Check DRC and named-port LVS, then extract the candidate and
+compare both transition directions and power with the source simulation. Iterate
+on measured parasitic effects rather than visual compactness alone. These are
+optional techniques, not a mandated algorithm or reference placement.
+
+Adapted from Xu et al., *Standard Cell Library Design and Optimization Methodology
+for ASAP7 PDK*, Sections 2–3 (https://arxiv.org/abs/1807.11396). Its FinFET sizing,
+track counts and process-specific dimensions do not apply to this task.
 
 ## Tools and Submission
 
-Use the reviewed FreePDK45 KLayout, Magic and ngspice resources from `/protocol/resources.json`. Runtime `/protocol/task.json` publishes the same constraints, measurements and scoring. Only declared inputs appear under `/task`. Write `/workspace/output/final.gds`, then explicitly submit with `python -I /protocol/submit.py`. A harness that declares `process-feedback.v1` uses the same frozen plan and backend identities for process checks; those snapshots do not count as final submissions.
+Solve budget: **3 hours**.
+
+Use the reviewed FreePDK45 KLayout, Magic and ngspice resources from `/protocol/resources.json`. For Magic RC extraction, use `/resources/support/magic-vtl/freepdk45.tech`, which includes the required model and unit adaptations. Runtime `/protocol/task.json` publishes the same constraints, measurements and scoring. Only declared inputs appear under `/task`. Write `/workspace/output/final.gds`, then explicitly submit with `python -I /protocol/submit.py`. A harness that declares `process-feedback.v1` uses the same frozen plan and backend identities for process checks; those snapshots do not count as final submissions.

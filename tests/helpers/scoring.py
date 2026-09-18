@@ -9,18 +9,20 @@ import math
 
 
 def assert_layout_score(report):
-    """Check one numeric ``layout-v1`` score and return its record."""
+    """Check one numeric versioned layout score and return its record."""
     score = report.get("score")
     assert isinstance(score, dict), report
-    assert score.get("method") == "layout-v1", score
+    assert score.get("method") in {"layout-v1", "layout-v2"}, score
     assert "value" in score and "maximum" in score, score
     assert "total" not in score and "max" not in score, score
     maximum = score["maximum"]
     value = score["value"]
-    assert type(maximum) in {int, float} and math.isfinite(maximum), score
     assert type(value) in {int, float} and math.isfinite(value), score
-    assert maximum == 100, score
-    assert 0 <= value <= maximum, score
+    assert value >= 0, score
+    if score["method"] == "layout-v2":
+        assert maximum is None and score["reference"] == 100, score
+    else:
+        assert maximum == 100 and value <= maximum, score
     return score
 
 
@@ -58,4 +60,8 @@ def unscore_characterization(data):
         metric.pop("dimension", None)
         metric.pop("zero_lower", None)
         metric.pop("zero_upper", None)
+        for key in ("baseline", "normalization", "scale"):
+            metric.pop(key, None)
+        if metric["direction"] == "target" and not {"lower", "upper"} <= metric.keys():
+            metric["direction"] = "minimize"
     return data

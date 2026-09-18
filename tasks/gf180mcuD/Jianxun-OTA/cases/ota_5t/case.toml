@@ -4,7 +4,22 @@ id = "gf180mcuD.Jianxun-OTA.ota_5t"
 title = "Five-Transistor OTA with Bias and Dummies"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "5c126fbbe7944dbc43b73646661c85dd3e6ab8cc0a60999a4e628e3392e556b5"
+
+[[assets]]
+path = "reference/ota_5t.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "5a8f97494c2bdda14f186f9ea1cb21b65d86b70cd89886684eea3941b4ae23cf"
+
 [task]
+hours = 3
 kind = "netlist_to_gds"
 family = "gf180_ota_5t"
 coefficient = 4
@@ -13,7 +28,7 @@ environment = "gf180mcuD-typical-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "31ced35d3fe2bef849217a6df9158ad4f94013fc35b8a822d6665dcc64e4fb98"
+sha256 = "a4c51a641df64c1df8f41233be55c22b7356dbc286bcbbccfe1d135ff9bd4f05"
 
 [task.inputs.netlist]
 path = "materials/circuit.spice"
@@ -540,6 +555,29 @@ power_w = "W"
 [task.evaluation.jobs.parameters.exports]
 waveform = "waveform.raw"
 
+[[task.evaluation.jobs]]
+id = "source_nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+gain_db = "dB"
+unity_hz = "Hz"
+bias_v = "V"
+power_w = "W"
+
+[task.evaluation.jobs.parameters.values]
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -560,8 +598,10 @@ unit = "dB"
 direction = "maximize"
 aggregation = "min"
 dimension = "response"
-lower = 20
-zero_lower = 0
+baseline = [
+    "source_nominal:gain_db",
+]
+normalization = "db20"
 
 [[task.evaluation.metrics]]
 id = "unity"
@@ -573,8 +613,11 @@ unit = "Hz"
 direction = "maximize"
 aggregation = "min"
 dimension = "response"
-lower = 15000000.0
-zero_lower = 1000000.0
+baseline = [
+    "source_nominal:unity_hz",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "output_bias"
@@ -583,13 +626,16 @@ observations = [
     "nominal:bias_v",
 ]
 unit = "V"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
 dimension = "bias"
-lower = 2
-upper = 2.9
-zero_lower = 0
-zero_upper = 3.3
+baseline = [
+    "source_nominal:bias_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
 
 [[task.evaluation.metrics]]
 id = "supply"
@@ -598,19 +644,20 @@ observations = [
     "nominal:power_w",
 ]
 unit = "W"
-direction = "maximize"
+direction = "minimize"
 aggregation = "min"
 dimension = "supply"
+baseline = [
+    "source_nominal:power_w",
+]
+normalization = "ratio"
 lower = 0
-upper = 0.00015
-zero_lower = 0
-zero_upper = 0.001
+scale = 1e-12
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 6000
-area_zero = 24000
+area_target = 510.1
 
 [toolchain]
 schema_version = 1
@@ -644,7 +691,7 @@ image = "iclayout-bench-tools:local"
 check = "lvs"
 timeout_seconds = 180
 support = "build/support/gf180-physical-v2"
-profile = "lvs-vss.json"
+profile = "lvs.json"
 
 [toolchain.backends.lvs.support_profiles]
 support = "physical"
@@ -694,13 +741,6 @@ support = "models"
 
 [origin]
 url = "https://github.com/Jianxun/iic-osic-tools-project-template/tree/178a401d847ce7a602d0ce70a1ba90a15b5f9536/designs/libs/core_analog/ota_5t/ota_5t.spice"
-
-[[assets]]
-path = "reference/ota_5t.gds"
-role = "reference"
-visibility = "maintainer"
-format = "gds"
-sha256 = "339dc3c1dc8231295630660be81d9c7d067b5e45647e3be74ba0b9f6c57d4fdb"
 
 [qualification]
 reference = "reference/ota_5t.gds"

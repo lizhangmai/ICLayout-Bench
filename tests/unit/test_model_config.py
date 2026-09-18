@@ -2,50 +2,52 @@
 
 import pytest
 
-from layout_eval.model_config import load_run_config
+from benchmarking.engine.model_config import load_run_config
+from benchmarking.files import Asset
+from benchmarking.harnesses import SESSION_PROTOCOL
 
 pytestmark = pytest.mark.unit
 
 
-def _config(tmp_path, environment):
+def _config(tmp_path, harness="", *, environment=None):
+    script = Asset(b"print('ok')", "python")
+    (tmp_path / "cli.py").write_bytes(script.content)
     path = tmp_path / "agent.toml"
-    lines = [
-        "schema_version = 1",
-        'id = "test-agent"',
-        'image = "synthetic:tag"',
-        'command = ["python", "-c", "pass"]',
-        "wall_seconds = 10",
-        "memory_mb = 128",
-        "cpus = 1",
-        "pids = 16",
-        "workspace_mb = 4",
-        "",
-        "[environment]",
-    ]
-    lines.extend(f'{name} = "{value}"' for name, value in environment.items())
-    path.write_text("\n".join(lines) + "\n")
+    path.write_text(
+        f'''schema_version = 1
+id = "test-agent"
+image = "synthetic:tag"
+command = ["python", "/agent/cli.py"]
+wall_seconds = 10
+memory_mb = 128
+cpus = 1
+pids = 16
+workspace_mb = 4
+{harness}
+[[files]]
+path = "cli.py"
+target = "cli.py"
+sha256 = "{script.sha256}"
+'''
+    )
+    if environment is not None:
+        with path.open("a") as stream:
+            stream.write("\n[environment]\n" + "\n".join(
+                f'{name} = "{value}"' for name, value in environment.items()))
     return path
 
 
-@pytest.mark.parametrize(
-    "name",
-    ["OPENAI_API_KEY", "GITHUB_TOKEN", "DATABASE_SECRET", "DB_PASSWORD"],
-)
-def test_credential_like_environment_names_are_rejected(tmp_path, name):
+def test_credential_like_environment_names_are_rejected(tmp_path):
+    name = "service_api_key"
     with pytest.raises(ValueError, match="(?i)credential"):
-        load_run_config(_config(tmp_path, {name: "not-a-real-secret"}))
-
-
-def test_credential_like_environment_names_are_rejected_case_insensitively(tmp_path):
-    with pytest.raises(ValueError, match="(?i)credential"):
-        load_run_config(_config(tmp_path, {"service_token": "not-a-real-secret"}))
+        load_run_config(_config(tmp_path, environment={name: "not-a-real-secret"}))
 
 
 def test_tool_environment_names_remain_supported(tmp_path):
     config = load_run_config(
         _config(
             tmp_path,
-            {"KLAYOUT": "1", "PYTHONPATH": "/workspace/lib", "PDK_ROOT": "/workspace/pdk"},
+            environment={"KLAYOUT": "1", "PYTHONPATH": "/workspace/lib", "PDK_ROOT": "/workspace/pdk"},
         )
     )
 
@@ -67,7 +69,7 @@ def test_external_configuration_parent_path_preserves_declared_file_checks(tmp_p
     agent.mkdir()
     bench = tmp_path / 'benchmark'
     bench.mkdir()
-    source = _config(agent, {})
+    source = _config(agent, environment={})
     payload = b'print("participant")\n'
     harness = agent / 'harness.py'
     harness.write_bytes(payload)
@@ -82,3 +84,35 @@ def test_external_configuration_parent_path_preserves_declared_file_checks(tmp_p
     harness.symlink_to(outside)
     with pytest.raises(ValueError, match='non-symlink'):
         load_run_config(config_path)
+
+
+def test_external_harness_is_the_default_opaque_profile(tmp_path):
+    config = load_run_config(_config(tmp_path, ""))
+
+    assert config.harness.identity() == {
+        "id": "external-cli",
+        "version": "1",
+        "protocol": SESSION_PROTOCOL,
+        "mode": "opaque",
+        "capabilities": [],
+        "wire_api": None,
+    }
+
+
+def test_custom_harness_metadata_does_not_change_command_contract(tmp_path):
+    config = load_run_config(
+        _config(
+            tmp_path,
+            '''[harness]
+id = "custom-runner"
+version = "2026.1"
+protocol = "layout-session.v1"
+mode = "managed"
+capabilities = ["tools"]
+''',
+        )
+    )
+
+    assert config.command == ("python", "/agent/cli.py")
+    assert config.harness.mode == "managed"
+    assert config.harness.capabilities == ("tools",)

@@ -1,0 +1,43 @@
+* Bench nominal AC/DC and unity-buffer transient measurements.
+* SPDX-License-Identifier: MIT
+.include support/models.spice
+.include dut.spice
+.include parameters.spice
+.temp 27
+VDD vdd 0 3.3
+VIN vinp 0 DC 0.8 AC 1 PWL(0 0.8 1u 0.8 1.01u 0.81 3u 0.81 3.01u 0.8 5u 0.8)
+LFB vout vinn 1T
+CIN vinn 0 1
+CL vout 0 {load_f}
+XDUT vdd vout vinp vinn 0 amp_033_ti_ldo_ref_selfbias
+.control
+set noaskquit
+set numdgt=12
+op
+let output_v=v(vout)
+let power_w=-v(vdd)*i(vdd)
+print output_v power_w
+write op.raw
+ac dec 100 1 1G
+let transfer=v(vout)
+let response_db=db(transfer)
+meas ac gain_db find response_db at=10
+meas ac unity_hz when response_db=0 fall=1
+let phase_deg=180*cph(transfer)/pi
+meas ac phase_unity find phase_deg when response_db=0 fall=1
+let phase_margin=180+phase_unity
+print phase_margin
+write ac.raw
+alter LFB 1p
+alter CIN 1a
+tran 1n 5u
+let tracking_error=abs(v(vout)-v(vinp))
+meas tran tracking_error_v avg tracking_error from=1u to=5u
+meas tran step_low_v avg v(vout) from=4u to=5u
+meas tran step_high_v avg v(vout) from=2u to=3u
+let step_response_v=step_high_v-step_low_v
+print step_response_v
+write transient.raw
+quit
+.endc
+.end

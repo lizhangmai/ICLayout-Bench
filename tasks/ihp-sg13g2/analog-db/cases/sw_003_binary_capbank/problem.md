@@ -24,23 +24,49 @@ The candidate GDS must pass artifact, DRC, LVS and hard geometry before extracti
 
 ## Electrical Requirements and Scoring
 
-Every observation at every declared condition must meet its inclusive limits; aggregation cannot hide a failing code or condition. Endpoints use simulator interpolation. The zero interval gives lower/upper zero-attainment boundaries, separately from acceptance.
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
 
-| Metric | Definition | Unit | Acceptance | Dimension | Zero interval |
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+A metric uses its worst paired q. Each response/bias/supply dimension takes the
+geometric mean of its scored metrics; E is the geometric mean of applicable
+dimensions. Q = area_reference / candidate_functional_area. The overall score is
+S = 100 * sqrt(E * Q). The baseline is 100, not a ceiling; directional and area
+improvements can earn more than 100. Failed physical or functional checks score
+zero; missing/invalid evaluation or source measurements produce an unknown score.
+Diagnostic observations do not earn points. The runtime task plan publishes the
+exact pairing, dimensions, scales and any functional bounds.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
 | --- | --- | --- | --- | --- | --- |
-| `gain_vv` | Magnitude V(out)/V(vinp) at 10 kHz, unit AC input | V/V | [0.1, 1.02] | response | [0, 1.2] |
-| `phase_deg` | Phase of V(out)/V(vinp) at 10 kHz, in degrees | deg | [-1, 1] | response | [-10, 10] |
-| `input_cap_f` | Imaginary part of -I(VI), divided by 2 pi f at 10 kHz, unit AC input | F | [0, 3e-12] | response | [0, 6e-12] |
-| `gain_error` | Absolute gain_vv minus (1+code)/8 | V/V | [0, 0.015] | response | [0, 0.03] |
-| `step_gain` | [V(out) at 29 us minus V(out) at 9 us] / 0.2 V | V/V | [0.1, 1.02] | response | [0, 1.2] |
-| `step_error` | Absolute step_gain minus (1+code)/8 | V/V | [0, 0.015] | response | [0, 0.03] |
-| `return_error_v` | Absolute V(out) at 49 us minus V(out) at 9 us | V | [0, 2e-05] | response | [0, 0.0001] |
-| `settling_error_v` | Maximum absolute V(out) minus its 29 us value, over 20–29 us | V | [0, 1e-05] | response | [0, 0.0001] |
+| `gain_vv` | Magnitude V(out)/V(vinp) at 10 kHz, unit AC input | V/V | target / target | −∞ … +∞ | 1.0 |
+| `phase_deg` | Phase of V(out)/V(vinp) at 10 kHz, in degrees | deg | target / target | −∞ … +∞ | 180 |
+| `input_cap_f` | Imaginary part of -I(VI), divided by 2 pi f at 10 kHz, unit AC input | F | minimize / ratio | 0 … +∞ | 1e-21 |
+| `gain_error` | Absolute gain_vv minus (1+code)/8 | V/V | minimize / ratio | 0 … +∞ | 1e-09 |
+| `step_gain` | [V(out) at 29 us minus V(out) at 9 us] / 0.2 V | V/V | target / target | −∞ … +∞ | 1.0 |
+| `step_error` | Absolute step_gain minus (1+code)/8 | V/V | minimize / ratio | 0 … +∞ | 1e-09 |
+| `return_error_v` | Absolute V(out) at 49 us minus V(out) at 9 us | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `settling_error_v` | Maximum absolute V(out) minus its 29 us value, over 20–29 us | V | minimize / ratio | 0 … +∞ | 1e-06 |
 
-Coefficient 5 reflects multi-bit switched capacitors and interconnect-dependent capacitive division. Absolute AC and step-gain error limits of 0.015 V/V preserve separation of the 0.125 V/V code intervals, with explicit return and settling limits. These are transfer accuracy requirements under driven input and fixed codes, not DAC INL/DNL or floating-node DC accuracy. Fixed area target/zero anchors are 33000 / 132000 um2: the target accommodates a feasible complete MOS/MIM implementation and routing, while the zero anchor removes area credit at four times that absolute budget. Anchors are fixed values, not a candidate/reference area ratio.
+Area reference: **9532.78 um2**. 22 expanded device instances; sum of device/contact envelopes 6227.9559 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
 
-The single score is `S = G * (60 E + 20 H + 20 H Q)`. G requires complete physical validity and evaluation; H is one only if every electrical acceptance passes. Each metric takes its worst observation; each dimension takes its worst metric; E averages the applicable dimensions. Attainment is 1 in acceptance, linearly falling to zero at the corresponding zero boundary. Q is `clip((132000-area)/(132000-33000),0,1)`. A completed physical rejection scores 0; a physically valid electrical violation scores below 60; full acceptance earns 80–100. Evaluation errors yield null rather than a guessed score. The coefficient is 5 and does not alter per-case scoring.
+The capability coefficient remains **5**; it is independent of
+the reference-relative task score.
 
 ## Tools and Submission
+
+Solve budget: **3 hours**.
 
 Use the reviewed SG13G2 device/rule/model resources supplied through `/protocol/resources.json` and the task definitions in `/protocol/task.json`. KLayout supplies layout and physical checks; Magic supplies candidate RC; ngspice consumes the declared deck. Discover available feedback through the runtime harness protocol. Write `output/final.gds` in the workspace and explicitly submit that GDS through the submission protocol. Reference layouts, source checkouts and authoring scripts are not solver inputs.

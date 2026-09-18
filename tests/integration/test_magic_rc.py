@@ -1,22 +1,24 @@
 """Real RC extraction: analytical wire resistance and candidate-dependent delay."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
 
+from benchmarking.engine.docker import DockerTool
+from benchmarking.engine.environment import prepare_pdk
+from benchmarking.engine.evaluate import run_evaluation
+from benchmarking.engine.magic import MagicRCDocker
+from benchmarking.engine.ngspice import NgspiceDocker
+from benchmarking.engine.prepare_support import prepare_support
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
-from layout_eval.docker import DockerTool
-from layout_eval.environment import prepare_pdk
-from layout_eval.evaluate import run_evaluation
-from layout_eval.magic import MagicRCDocker
-from layout_eval.ngspice import NgspiceDocker
-from layout_eval.prepare_support import prepare_support
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_ROOT = ROOT
+IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
 
 PLAN = b'''schema_version = 1
 mode = "characterization"
@@ -82,14 +84,14 @@ CLOAD OUT 0 1p
 @pytest.fixture(scope="module")
 def context(tmp_path_factory):
     root = tmp_path_factory.mktemp("magic-rc")
-    prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK", f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#magic", root / "magic")
-    prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK", f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#mos-models", root / "models")
-    prepare_pdk(PUBLIC_ROOT / "third_party/IHP-Open-PDK", root / "view")
+    prepare_support(None, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#magic", root / "magic", compiler_image=IMAGE)
+    prepare_support(None, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#mos-models", root / "models", compiler_image=IMAGE)
+    prepare_pdk(PUBLIC_ROOT / "tasks/ihp-sg13g2/pdk.toml", root / "view")
     backends = {
         "layout.extract_rc": MagicRCDocker(
-            image="iclayout-bench-tools:local", support=str(root / "magic"),
+            image=IMAGE, support=str(root / "magic"),
             technology="magic/ihp-sg13g2.tech", tech_name="ihp-sg13g2", style="ngspice()"),
-        "circuit.simulate": NgspiceDocker(image="iclayout-bench-tools:local", support=str(root / "models")),
+        "circuit.simulate": NgspiceDocker(image=IMAGE, support=str(root / "models")),
     }
     source = Asset((ROOT / "tests/fixtures/sg13g2/make_switch.py").read_bytes(), "python")
     primitive_files = {"pdk/" + p.relative_to(root / "view").as_posix(): Asset(p.read_bytes(), "binary")
@@ -97,7 +99,7 @@ def context(tmp_path_factory):
     environment = {"KLAYOUT": "1", "PYTHONDONTWRITEBYTECODE": "1",
                    "PYTHONPATH": "/workspace/pdk/ihp-sg13g2/libs.tech/klayout/python:"
                                  "/workspace/pdk/ihp-sg13g2/libs.tech/klayout/python/pycell4klayout-api/source/python"}
-    tool = DockerTool("iclayout-bench-tools:local", ["klayout", "-v"], 60)
+    tool = DockerTool(IMAGE, ["klayout", "-v"], 60)
     layouts = {}
     for length in (200, 2000):
         result = tool.run(["python", "wire.py", "wire.gds", "--wire-length", str(length)],
@@ -147,7 +149,7 @@ def test_same_conductor_port_aliases_are_rejected(tmp_path, context):
     # between P and B. Native topology validation must reject this unsupported
     # interface instead of accepting a short or duplicate resistance network.
     source = Asset((ROOT / "tests/fixtures/sg13g2/make_plate.py").read_bytes(), "python")
-    tool = DockerTool("iclayout-bench-tools:local", ["klayout", "-v"], 60)
+    tool = DockerTool(IMAGE, ["klayout", "-v"], 60)
     result = tool.run(["python", "plate.py", "wire.gds", "--alias-port", "B"],
                       {"plate.py": source}, {"wire.gds": "gds"})
     assert not result.returncode and not result.reason
@@ -233,7 +235,7 @@ def test_isolated_body_cannot_gain_a_resistive_path_to_substrate(tmp_path, geome
     config = tomllib.loads(case.read_text())['toolchain']['backends']['rc']
     support = tmp_path / 'magic'
     profile = config['support_profiles']['support']
-    prepare_support(PUBLIC_ROOT / 'third_party/open-pdks',
+    prepare_support(None,
                     f'{case.parents[3]}/pdk.toml#{profile}', support)
     settings = {**config['settings'], 'support': str(support)}
     backend = MagicRCDocker(**settings)

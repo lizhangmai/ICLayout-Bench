@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # Clocked Capacitive Instrumentation Amplifier with Transistor CMFB
 
@@ -53,172 +53,89 @@ Only the problem and three materials files enter solver inputs. Collection
 LICENSE and NOTICE accompany distributions separately. Upstream DSL, layouts,
 author generators and scoring are not runtime dependencies.
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The authoritative netlist, simulation decks and evaluation requirements are unchanged.
+
 ## Reference Results
 
-The reference passes native main/maximal DRC without waivers, strict named-port
-LVS, functional geometry, candidate RC extraction and every electrical bound.
-The functional bounding-box area is 1110626.873 um² and the score is 100.
-Fixed area anchors of 1200000/4800000 um² accommodate 164 functional devices,
-taps and complete routing, including the long physical bias-return chains.
+Reference results use the pinned IHP SG13G2 ciel release described in
+[resource preparation](../../../../../docs/tools.md#ihp-physical-check-profiles).
+
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
+
+Measured `layout-v2` score: **23.615145**, with electrical quality
+**E = 0.60593658** and area quality **Q = 0.092035221**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **1110626.873 um2**.
+
+Area reference: **102216.79 um2**. 166 expanded device instances; sum of device/contact envelopes 67727.1707 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `gain_vv` | V/V | 19.616335 … 19.617306 | 19.496412 … 19.496819 | 0.89216245 |
+| `baseline_error_v` | V | 4.943016e-08 … 5.672646e-08 | 3.113826e-06 … 3.122269e-06 | 0.25509833 |
+| `return_error_v` | V | 6.371404e-08 … 8.39291e-08 | 2.218184e-06 … 2.37605e-06 | 0.31821102 |
+| `high_drift_v` | V | 0 … 5e-07 | 1e-07 … 8e-07 | 0.76923077 |
+| `return_drift_v` | V | 4.317e-10 … 8.58e-09 | 4.345e-08 … 1.16244e-07 | 0.90105743 |
+| `ripple_rms_v` | V | 0.0078303812 … 0.0078846801 | 0.0087477271 … 0.0093846076 | 0.83455826 |
+| `ripple_pp_v` | V | 0.0956577 … 0.1040801 | 0.0770803 … 0.0802718 | 1.2258045 |
+| `cm_mean_v` | V | 0.6128099 … 0.6128107 | 0.6168123 … 0.6168139 | 0.99667484 |
+| `cm_min_v` | V | 0.6104253 … 0.6104701 | 0.6152361 … 0.6154959 | 0.99580699 |
+| `cm_max_v` | V | 0.6137994 … 0.6146429 | 0.6177754 … 0.6187997 | 0.99654796 |
+| `sum_cm_v` | V | 0.6000626 | 0.6000512 … 0.6000513 | 0.9999905 |
+| `sum_error_v` | V | 6.71883e-05 … 6.755051e-05 | 0.000104632 … 0.0001055977 | 0.64046184 |
+| `mean_power_w` | W | 0.0003175971 … 0.0003176063 | 0.000227842 … 0.0002278477 | 1.3939278 |
+| `clock_power_w` | W | 8.664582e-10 … 8.672072e-10 | 1.034026e-08 … 1.0348e-08 | 0.083839681 |
+| `dc_cm_v` | V | 0.6128227 | 0.61683309 | diagnostic |
+| `dc_dm_v` | V | -2.7965386e-05 | -0.0076295341 | diagnostic |
+| `baseline_v` | V | -5.672646e-08 … -4.943016e-08 | 3.113826e-06 … 3.122269e-06 | diagnostic |
+| `plateau_v` | V | -0.1961729 … 0.196173 | -0.1949626 … 0.1949713 | diagnostic |
+| `return_v` | V | -1.234058e-07 … 2.720264e-08 | 5.33201e-06 … 5.493735e-06 | diagnostic |
+| `dc_power_w` | W | 0.00031754072 | 0.00022757869 | diagnostic |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
+
 Coefficient 10 reflects the system-level combination of signal/feedback
 modulation and interacting differential/common-mode control across clock states
-and input polarities. It is not assigned from device count or development effort.
-
-The table gives all four conditions; identical values appear once. DC values
-are diagnostics at the solved initial operating point. Running-clock means,
-not static differential balance, determine acceptance. B/H/R measurement
-windows each contain two complete clock periods; power over the accepted
-sequence contains 22 periods. The problem defines exact boundaries and units.
-
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| `gain_vv` | V/V | 19.61634–19.61731 | 19.49643–19.4968 |
-| `baseline_error_v` | V | 4.943016e-08–5.672646e-08 | 2.97655e-06–3.042652e-06 |
-| `return_error_v` | V | 6.371404e-08–8.39291e-08 | 2.298879e-06–2.464465e-06 |
-| `high_drift_v` | V | 0–5e-07 | 0–6e-07 |
-| `return_drift_v` | V | 4.317e-10–8.58e-09 | 2.4166e-08–2.48036e-07 |
-| `ripple_rms_v` | V | 0.007830381–0.00788468 | 0.008779262–0.009416793 |
-| `ripple_pp_v` | V | 0.0956577–0.1040801 | 0.0770971–0.0803915 |
-| `cm_mean_v` | V | 0.6128099–0.6128107 | 0.6168123–0.6168139 |
-| `cm_min_v` | V | 0.6104253–0.6104701 | 0.6152353–0.6154966 |
-| `cm_max_v` | V | 0.6137994–0.6146429 | 0.6177742–0.6188013 |
-| `sum_cm_v` | V | 0.6000626 | 0.6000512–0.6000513 |
-| `sum_error_v` | V | 6.71883e-05–6.755051e-05 | 0.0001046344–0.0001056003 |
-| `mean_power_w` | W | 0.0003175971–0.0003176063 | 0.0002278427–0.0002278484 |
-| `clock_power_w` | W | 8.664582e-10–8.672072e-10 | 1.034141e-08–1.034846e-08 |
-| `dc_cm_v` | V | 0.6128227 | 0.616833 |
-| `dc_dm_v` | V | -2.796539e-05 | -0.007679971 |
-| `baseline_v` | V | -5.672646e-08–-4.943016e-08 | 2.97655e-06–3.042652e-06 |
-| `plateau_v` | V | -0.1961729–0.196173 | -0.1949625–0.194971 |
-| `return_v` | V | -1.234058e-07–2.720264e-08 | 5.284363e-06–5.498803e-06 |
-| `dc_power_w` | W | 0.0003175407 | 0.0002275794 |
-
-The extracted mean differential gain is about 19.50 V/V, compared with 19.62
-before extraction and the nominal capacitor ratio of 19.89. The zero-input
-mean is about 3 uV, while unfiltered ripple RMS is 8.8–9.4 mV and peak-to-peak
-ripple reaches about 80.5 mV. All switching edges are included; no spike
-blanking or post-filter hides this ripple. Success means the declared period
-means and full-ripple bounds pass, not a quiet instantaneous output.
-
-VDD-supplied mean power falls from about 317.6 to 227.8 uW after extraction;
-output common mode shifts from about 0.6128 to 0.6168 V. Supply/interconnect
-resistance materially changes this bias-sensitive circuit. Mean clock power
-rises from about 0.867 to 10.35 nW. Clock power sums each source's positive
-supplied power over complete periods without credit for recovered energy.
-VDD power remains positive during the measured sequence. External bias/reference
-and signal-generator overhead is excluded; supplied clock energy is reported
-separately and is not a clock-driver implementation's total power.
-
-The extracted circuit preserves 61 MOS, 13 physical MIM units and 90 physical
-poly segments. Collapsing only parasitic resistors, removing parasitic
-capacitors and applying the declared ideal-tap boundary recovers the source
-124-net device graph, including MIM plate orientation. Native LVS checks the
-explicit taps and dimensions. Source simulation retains finite tap models;
-Magic idealizes the tap connections. Distributed substrate resistance/noise is
-unqualified. Half-grid import and a writable isolated Magic import preserve
-process-grid geometry; the submitted GDS is immutable. No extraction diagnostic
-or native DRC/LVS failure is waived.
-
-With Gear order 2, reducing maximum time step from 500 to 250 ns at all four
-conditions, and to 100 ns at 1 pF positive / 5 pF negative controls, changes
-gain by less than 0.0005%, ripple RMS by less than 8 uV, peak-to-peak ripple
-by less than 60 uV, period-mean errors/drift by less than 1 uV and clock power
-by less than 0.03%. Tightening reltol/abstol/vntol tenfold and increasing the
-numerical shunt from 1e13 to 1e14 ohm at all four conditions changes gain by
-less than 0.015%, ripple RMS by less than 94 uV, peak-to-peak ripple by less
-than 0.45 mV and VDD power by less than 0.6%. All bounds still pass.
-
-A SPARSE-versus-KLU control at 1 pF positive input also passes, with gain
-change below 0.00007 V/V and ripple RMS change below 35 uV. Only required
-waveform vectors are saved; the native KLU solver is used for scored runs.
-Independent integration of the saved source/reference waveforms verifies all
-20 reported observations in each of the four conditions, including signed
-transfer and positive-only clock energy. These checks establish numerical
-consistency for this sequence, not general periodic or physical accuracy.
+and input polarities.
 
 ## Reproduce
 
-These operator commands require the installed `ICLayout-Bench-Private` package.
-Run preparation from the Public checkout; run any `tests/integration/` commands
-from the Private checkout using that environment.
-
-Run from the repository root with the [shared tool setup](../../../../../docs/tools.md#manual-tools).
-The existing `analog-res-models` profile supplies pinned MOS/MIM and R3_CMC
-models. The maintained case uses existing physical, extraction and scoring
-mechanisms; no image rebuild or new framework/PDK capability is required.
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.preview prepare \
-  --case ia_006_fan_chopper_cmfb --image iclayout-bench-tools:local \
-  --output build/runs/chopper-ia-prepared
-python -m layout_eval.preview run \
-  --prepared build/runs/chopper-ia-prepared --output build/runs/chopper-ia-reference
-python -m pytest tests/integration/test_public_references.py \
-  -k ia_006_fan_chopper_cmfb
+python -m benchmarking.engine.preview prepare \
+  --case ihp-sg13g2.analog-db.ia_006_fan_chopper_cmfb --image iclayout-bench-tools:local \
+  --output build/runs/ia_006_fan_chopper_cmfb-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/ia_006_fan_chopper_cmfb-prepared \
+  --output build/runs/ia_006_fan_chopper_cmfb-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'ia_006_fan_chopper_cmfb'
 ```
 
-These commands generate the reader's prepared resources, reports, candidate
-extraction and waveforms. Use fresh output directories. After that preview,
-run this source calibration and candidate-RC numerical recipe with the same
-acceptance bounds. The finer-step and SPARSE variants select the controls
-identified above; source, half-step and tight variants cover all four conditions.
-
-```bash
-uv run --locked python - <<'PYCODE'
-import copy
-import json
-import tomllib
-from pathlib import Path
-from benchmarking.tasks import load_task
-from layout_eval.toolchains import load_toolchain
-from benchmarking.evaluation import parse_evaluation
-from layout_eval.evaluate import run_evaluation
-from benchmarking.files import Asset
-
-case = Path('build/runs/chopper-ia-prepared/case/case.toml')
-reference = Path('build/runs/chopper-ia-reference/reference')
-task = load_task(case)
-report = json.loads((reference / 'report.json').read_text())
-assert report['task_success']
-rc = Asset((reference / report['jobs']['parasitics']['outputs']['netlist']['path']).read_bytes(), 'spice')
-base = tomllib.loads(case.read_text())['task']['evaluation']
-for variant in ('source', 'half-step', 'tight', 'fine-step', 'sparse'):
-    plan = copy.deepcopy(base)
-    plan['mode'] = 'characterization'
-    plan.pop('scoring')
-    plan['jobs'] = [j for j in plan['jobs'] if j['stage'] == 'simulate']
-    if variant == 'fine-step':
-        plan['jobs'] = [plan['jobs'][0], plan['jobs'][3]]
-    if variant == 'sparse':
-        plan['jobs'] = plan['jobs'][:1]
-    selected = {j['id'] for j in plan['jobs']}
-    for job in plan['jobs']:
-        job['inputs']['dut'] = 'input:simulation'
-    plan['metrics'] = [m for m in plan['metrics'] if m['category'] == 'performance']
-    for metric in plan['metrics']:
-        for key in ('dimension', 'zero_lower', 'zero_upper'):
-            metric.pop(key, None)
-        metric['observations'] = [o for o in metric['observations'] if o.split(':')[0] in selected]
-    inputs = task.evaluation_inputs()
-    if variant != 'source':
-        inputs['input:simulation'] = rc
-    deck = inputs['input:performance'].content.decode()
-    if variant in ('half-step', 'fine-step'):
-        step = '250n' if variant == 'half-step' else '100n'
-        deck = deck.replace('tran 500n 1.5m 0 500n', f'tran {step} 1.5m 0 {step}')
-    if variant == 'tight':
-        deck = deck.replace('rshunt=1e13 reltol=1e-5 abstol=1e-13 vntol=1e-8',
-                            'rshunt=1e14 reltol=1e-6 abstol=1e-14 vntol=1e-9')
-    if variant == 'sparse':
-        deck = deck.replace('.option klu ', '.option ')
-    inputs['input:performance'] = Asset(deck.encode(), 'spice')
-    result = run_evaluation(
-        parse_evaluation(json.dumps(plan).encode(), file_format='json'),
-        inputs, load_toolchain(case), Path('build/runs') / ('chopper-ia-' + variant),
-    )
-    assert result['outcome'] == 'passed', result
-PYCODE
-```
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

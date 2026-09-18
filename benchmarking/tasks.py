@@ -6,6 +6,7 @@ circuit/evaluator or grant access to a hidden task; those are maintainer duties.
 
 import hashlib
 import json
+import math
 import re
 import tempfile
 import tomllib
@@ -51,6 +52,13 @@ class Task:
     inline_constraints: Asset | None = None
     witnessed: bool = False
     coefficient: int = 1
+    hours: float | None = None
+
+    @property
+    def wall_seconds(self):
+        if self.hours is None:
+            raise ValueError("Task must explicitly declare hours before serving a solve")
+        return self.hours * 3600
 
     def input_assets(self) -> dict[str, Asset]:
         """Frozen file and inline inputs for evaluation and evidence archival.
@@ -93,6 +101,8 @@ class Task:
                 "max_bytes": self.output.max_bytes,
             },
         }
+        if self.hours is not None:
+            description["hours"] = self.hours
         if self.inline_constraints is not None:
             description["constraints"] = json.loads(self.inline_constraints.content)
         return description
@@ -166,13 +176,17 @@ def _load_task_data(data: dict, config: Path, raw: bytes, *, label: str) -> Task
     config = config.absolute()
     _keys(data, {"schema_version", "id", "title", "kind", "family", "status",
                  "environment", "inputs", "output"},
-          {"provenance", "constraints", "evaluation", "_witnessed", "coefficient"}, "task")
+          {"provenance", "constraints", "evaluation", "_witnessed", "coefficient", "hours"}, "task")
     if type(data["schema_version"]) is not int or data["schema_version"] != 1:
         raise ValueError("Unsupported task schema_version")
     if data["kind"] != "netlist_to_gds":
         raise ValueError("Only netlist_to_gds tasks are supported")
     if data["status"] not in {"candidate", "qualified"}:
         raise ValueError("Task status must be candidate or qualified")
+    hours = data.get("hours")
+    if "hours" in data and (type(hours) not in (int, float) or not math.isfinite(hours)
+                            or hours <= 0 or not math.isfinite(hours * 3600)):
+        raise ValueError("Task hours must be a positive finite number")
     coefficient = data.get("coefficient", 1)
     if type(coefficient) is not int or not 1 <= coefficient <= 10:
         raise ValueError("Task coefficient must be an integer from 1 through 10")
@@ -256,7 +270,7 @@ def _load_task_data(data: dict, config: Path, raw: bytes, *, label: str) -> Task
         tuple(inputs), LayoutOutput(output_path, top_cell, output["max_bytes"]),
         hashlib.sha256(raw).hexdigest(), evaluation, inline_constraints,
         witnessed=bool(data.get("_witnessed", False)),
-        coefficient=coefficient,
+        coefficient=coefficient, hours=hours,
     )
 
 

@@ -4,8 +4,22 @@ id = "module_1_bandgap_reference.part_3_layout.OTA_layout.full_OTA"
 title = "IHP AnalogAcademy full_OTA"
 status = "qualified"
 
-# Solver inputs, answer contract, and nominal post-layout requirements.
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "9830330df6e75859d75d732673aa3c18d391ac53acaaadb9ed132d8bca21eda3"
+
+[[assets]]
+path = "reference/two_stage_OTA_layout.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "50fa39a6984b6f9d1bc0dda38b379861b981c10b85842cc64d9c0e020f7f15bc"
+
 [task]
+hours = 3
 coefficient = 6
 kind = "netlist_to_gds"
 family = "ihp_sg13g2_two_stage_ota"
@@ -13,7 +27,7 @@ environment = "ihp-sg13g2-full-ota-rc-tt"
 
 [task.inputs.description]
 path = "problem.md"
-sha256 = "6fa91e90a344586542014e8fa2176731e0c01c87e1ceed6c13dd6718bf69b997"
+sha256 = "f197cb97031029972efa92f035d50b672bc64a58d9c6a10a35378a771a692a99"
 format = "text"
 
 [task.inputs.netlist]
@@ -34,25 +48,193 @@ format = "spice"
 
 [task.constraints]
 schema_version = 1
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
 
 [[task.constraints.hard]]
 id = "outline"
 type = "bbox_max"
 functional_layers = [
-  [1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0],
-  [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0],
-  [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0],
-  [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0],
-  [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0],
-  [133, 0], [134, 0], [139, 0], [152, 0],
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
 ]
 max_width_um = 80
 max_height_um = 50
-
-[[task.constraints.quality]]
-id = "area"
-type = "functional_bbox_area"
-layers_from = "outline"
 
 [task.output]
 path = "output/final.gds"
@@ -65,58 +247,132 @@ schema_version = 1
 mode = "post_layout"
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 2800
-area_zero = 4000
+area_target = 2936.48
 
 [[task.evaluation.jobs]]
 id = "artifact"
 stage = "check"
 operation = "layout.artifact"
 gate = "artifact"
-inputs = { layout = "candidate", task = "task" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
 
 [[task.evaluation.jobs]]
 id = "drc"
 stage = "check"
 operation = "layout.drc"
 gate = "drc"
-inputs = { layout = "candidate", task = "task" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
 
 [[task.evaluation.jobs]]
 id = "lvs"
 stage = "check"
 operation = "layout.lvs"
 gate = "lvs"
-inputs = { layout = "candidate", task = "task", netlist = "input:netlist" }
-outputs = { database = "klayout-lvs", binding = "json" }
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
 
 [[task.evaluation.jobs]]
 id = "geometry"
 stage = "check"
 operation = "layout.geometry"
 gate = "constraint"
-requires = ["artifact", "drc", "lvs"]
-inputs = { layout = "candidate", task = "task", constraints = "input:constraints", database = "job:lvs:database", binding = "job:lvs:binding" }
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
 
 [[task.evaluation.jobs]]
 id = "parasitics"
 stage = "extract"
 operation = "layout.extract_rc"
-requires = ["artifact", "drc", "lvs", "geometry"]
-inputs = { layout = "candidate" }
-outputs = { netlist = "spice" }
-parameters = { top_cell = "two_stage_OTA_layout", ports = ["v-", "v+", "vss", "vdd", "iout", "vout"] }
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+top_cell = "two_stage_OTA_layout"
+ports = [
+    "v-",
+    "v+",
+    "vss",
+    "vdd",
+    "iout",
+    "vout",
+]
 
 [[task.evaluation.jobs]]
 id = "nominal"
 stage = "simulate"
 operation = "circuit.simulate"
-inputs = { deck = "input:performance", dut = "job:parasitics:netlist" }
-outputs = { ac = "ngspice-raw", op = "ngspice-raw" }
-[task.evaluation.jobs.parameters]
-exports = { ac = "ota-ac.raw", op = "ota-op.raw" }
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+op = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.exports]
+ac = "ota-ac.raw"
+op = "ota-op.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+low_frequency_gain = "dB"
+unity_gain_bandwidth = "Hz"
+phase_margin = "deg"
+supply_power = "W"
+output_bias = "V"
+
+[[task.evaluation.jobs]]
+id = "source_nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+op = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.exports]
+ac = "ota-ac.raw"
+op = "ota-op.raw"
+
 [task.evaluation.jobs.parameters.measurements]
 low_frequency_gain = "dB"
 unity_gain_bandwidth = "Hz"
@@ -127,7 +383,9 @@ output_bias = "V"
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
-observations = ["geometry:area"]
+observations = [
+    "geometry:area",
+]
 unit = "um2"
 direction = "minimize"
 aggregation = "max"
@@ -135,75 +393,103 @@ aggregation = "max"
 [[task.evaluation.metrics]]
 id = "low_frequency_gain"
 category = "performance"
-observations = ["nominal:low_frequency_gain"]
+observations = [
+    "nominal:low_frequency_gain",
+]
 unit = "dB"
 direction = "maximize"
 aggregation = "min"
-lower = 60
 dimension = "response"
-zero_lower = 0
+baseline = [
+    "source_nominal:low_frequency_gain",
+]
+normalization = "db20"
 
 [[task.evaluation.metrics]]
 id = "unity_gain_bandwidth"
 category = "performance"
-observations = ["nominal:unity_gain_bandwidth"]
+observations = [
+    "nominal:unity_gain_bandwidth",
+]
 unit = "Hz"
 direction = "maximize"
 aggregation = "min"
-lower = 3e6
 dimension = "response"
-zero_lower = 0
+baseline = [
+    "source_nominal:unity_gain_bandwidth",
+]
+normalization = "ratio"
+lower = 0
 
 [[task.evaluation.metrics]]
 id = "phase_margin"
 category = "performance"
-observations = ["nominal:phase_margin"]
+observations = [
+    "nominal:phase_margin",
+]
 unit = "deg"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
-lower = 55
 dimension = "response"
-zero_lower = 0
+baseline = [
+    "source_nominal:phase_margin",
+]
+normalization = "target"
+scale = 180
+lower = 0
+upper = 180
 
 [[task.evaluation.metrics]]
 id = "supply_power"
 category = "performance"
-observations = ["nominal:supply_power"]
+observations = [
+    "nominal:supply_power",
+]
 unit = "W"
 direction = "minimize"
 aggregation = "max"
-lower = 0
-upper = 220e-6
 dimension = "supply"
-zero_lower = 0
-zero_upper = 0.0003
+baseline = [
+    "source_nominal:supply_power",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "output_bias"
 category = "performance"
-observations = ["nominal:output_bias"]
+observations = [
+    "nominal:output_bias",
+]
 unit = "V"
 direction = "target"
 aggregation = "min"
-lower = 0.55
-upper = 0.65
 dimension = "bias"
-zero_lower = 0.4
-zero_upper = 0.8
+baseline = [
+    "source_nominal:output_bias",
+]
+normalization = "target"
+scale = 1.2
+lower = 0
+upper = 1.2
 
 [toolchain]
 schema_version = 1
 
 [toolchain.backends.artifact]
 type = "klayout-docker"
+
 [toolchain.backends.artifact.settings]
 image = "iclayout-bench-tools:local"
 check = "artifact"
 
 [toolchain.backends.drc]
 type = "klayout-docker"
+
 [toolchain.backends.drc.support_profiles]
 support = "klayout"
+
 [toolchain.backends.drc.settings]
 image = "iclayout-bench-tools:local"
 check = "drc"
@@ -213,8 +499,10 @@ timeout_seconds = 600
 
 [toolchain.backends.lvs]
 type = "klayout-docker"
+
 [toolchain.backends.lvs.support_profiles]
 support = "klayout"
+
 [toolchain.backends.lvs.settings]
 image = "iclayout-bench-tools:local"
 check = "lvs"
@@ -224,7 +512,10 @@ timeout_seconds = 600
 
 [toolchain.backends.rc]
 type = "magic-rc-docker"
-support_profiles = { support = "magic" }
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
 [toolchain.backends.rc.settings]
 image = "iclayout-bench-tools:local"
 support = "build/support/full-ota-magic"
@@ -236,13 +527,17 @@ timeout_seconds = 600
 
 [toolchain.backends.geometry]
 type = "klayout-geometry-docker"
+
 [toolchain.backends.geometry.settings]
 image = "iclayout-bench-tools:local"
 timeout_seconds = 120
 
 [toolchain.backends.simulation]
 type = "ngspice-docker"
-support_profiles = { support = "analog-models" }
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-models"
+
 [toolchain.backends.simulation.settings]
 image = "iclayout-bench-tools:local"
 support = "build/support/full-ota-models"
@@ -255,14 +550,6 @@ timeout_seconds = 600
 "layout.geometry" = "geometry"
 "layout.extract_rc" = "rc"
 "circuit.simulate" = "simulation"
-
-# Maintainer-only reference assets, excluded from standard solver inputs.
-[[assets]]
-path = "reference/two_stage_OTA_layout.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "50fa39a6984b6f9d1bc0dda38b379861b981c10b85842cc64d9c0e020f7f15bc"
 
 [qualification]
 evidence = "README.md"

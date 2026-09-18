@@ -1,4 +1,4 @@
 interface:
   display_name: "Add Case"
-  short_description: "Add benchmark cases under shared qualification rules"
-  default_prompt: "Use $add-case to add a case to ICLayout-Bench under the repository task, scoring, documentation, and qualification standards."
+  short_description: "Add or revise benchmark cases with scoped validation"
+  default_prompt: "Use $add-case to create or revise an ICLayout-Bench case, following the repository standards and validating the requested changes."

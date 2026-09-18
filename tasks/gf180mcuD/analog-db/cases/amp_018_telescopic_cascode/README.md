@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # Tail-Referenced Telescopic Cascode Amplifier
 
@@ -18,41 +18,79 @@ VDD = 3.3 V; VSS = 0 V; a 20 uA current source from VDD into ibias. VINP is 1.65
 | [materials/testbench.spice](materials/testbench.spice) | Source/post-layout measurements |
 | [reference/amp_018_telescopic_cascode.gds](reference/amp_018_telescopic_cascode.gds) | Independently constructed witness, excluded from solver inputs |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The schematic depicts the authoritative netlist; the current layout requirements
+and evaluation settings are declared in the task.
+
 ## Reference Results
 
-Reference functional area: 10300.2200 um2. The independent witness passes artifact, GF180 variant-D DRC including antenna, with chip-level density and seal-ring closure outside scope; strict named-port LVS; geometry, candidate-derived distributed RC and all 21 electrical observations. No DRC waivers are used.
+GF180 resources come from the pinned ciel prebuilt distribution, including its
+current KLayout rules, nominal models and variant-D Magic extraction.
+The reference uses a 0.001 um GDS database unit; dummy COMP fill is included
+where required by the rule deck.
+See [resource preparation](../../../../../docs/tools.md) and the process manifest
+for source pins, scope and reproducible preparation.
 
-Ranges below cover all 3 declared conditions. Both columns use the same maintained testbench; they are nominal calibration, not statistical accuracy claims.
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| `output_v` | V | 1.7459291 | 1.7453759 |
-| `bias_v` | V | 0.79373017 | 0.79463622 |
-| `tail_v` | V | 0.57707779 | 0.57500994 |
-| `power_w` | W | 0.00010464449 | 0.0001047761 |
-| `gain_db` | dB | 15.53969 | 15.39755 |
-| `unity_hz` | Hz | 101230.5 to 503431.9 | 98648.65 to 481537.6 |
-| `phase_margin` | deg | 99.22954 to 99.5422 | 99.34666 to 99.69217 |
+Measured `layout-v2` score: **22.899794**, with electrical quality
+**E = 0.99263832** and area quality **Q = 0.052828969**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **10300.22 um2**.
 
-A coefficient of 5 reflects independently supplied cascode branches and their internal parasitics. The electrical targets require 14 dB gain, 90 kHz unity crossing, 80-degree phase margin and 130 uW power across the declared loads. Acceptance and zero-score boundaries are calibrated against independent source/RC measurements, not upstream scoreboards. Area target 11000 um2 and zero-utility budget 44000 um2 are fixed absolute anchors supported by the witness, not changing reference-area ratios or claimed optima. Typical GF180 3.3 V MOS and high-resistance poly models, statistical variation disabled. The substrate is not a distributed silicon resistance network. Fabrication signoff is outside scope.
+Area reference: **544.15 um2**. 10 expanded device instances; sum of device/contact envelopes 312.9250 um2, per-side envelope allowance 1 um, 50% routing allowance and outer margin 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `output_v` | V | 1.7459291 | 1.745376 | 0.99983244 |
+| `bias_v` | V | 0.79373017 | 0.79463617 | 0.99972553 |
+| `tail_v` | V | 0.57707779 | 0.57501006 | 0.99937381 |
+| `power_w` | W | 0.00010464449 | 0.00010477608 | 0.99874409 |
+| `gain_db` | dB | 15.53969 | 15.39755 | 0.9837687 |
+| `unity_hz` | Hz | 101230.5 … 503431.9 | 98648.64 … 481537.5 | 0.95650971 |
+| `phase_margin` | deg | 99.22954 … 99.5422 | 99.34665 … 99.69217 | 0.99916753 |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
+
+Capability coefficient: **5** for the fixed circuit and its declared functional scope.
 
 ## Reproduce
 
-From the repository root, follow the [shared tool preparation](../../../../../docs/tools.md#gf180), then prepare/reuse this case's profiles:
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.cli evaluate \
-  tasks/gf180mcuD/analog-db/cases/amp_018_telescopic_cascode/case.toml \
-  tasks/gf180mcuD/analog-db/cases/amp_018_telescopic_cascode/reference/amp_018_telescopic_cascode.gds \
-  --output build/runs/analog-db-amp_018_telescopic_cascode-reference
-uv run --locked --group eda pytest tests/integration/test_public_references.py -k amp_018_telescopic_cascode
+python -m benchmarking.engine.preview prepare \
+  --case gf180mcuD.analog-db.amp_018_telescopic_cascode --image iclayout-bench-tools:local \
+  --output build/runs/amp_018_telescopic_cascode-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/amp_018_telescopic_cascode-prepared \
+  --output build/runs/amp_018_telescopic_cascode-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'amp_018_telescopic_cascode'
 ```
 
-Reuse verified support destinations; preparation refuses an existing directory. These commands generate the reader's reports/waveforms under `build/runs/`; choose fresh output directories. The catalog regression accepts the reference and rejects an empty layout.
-
-Reproduce Pre-layout with the [source-calibration recipe](../../../../../docs/tools.md#gf180-source-calibration), replacing its case/output paths with this case and a fresh run directory. The characterization keeps every condition and does not produce a layout score.
-
-Retain collection LICENSE and NOTICE with material distributions. They, the reference, source records and host configuration stay outside declared solver inputs.
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

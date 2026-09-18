@@ -1,6 +1,6 @@
 # Tool Environments, Resource Preparation, and EDA Adapters
 
-For a local reference check, `python -m layout_eval.preview quickstart` prepares and evaluates a public witness. It builds one `iclayout-bench-tools:local` image unless `--skip-build` selects an existing compatible image. This page covers stepwise preparation, troubleshooting, and changes to the tool environment. Use a new output directory for each run. Repository-local generated outputs use `build/`: benchmark runs go under `build/runs/`, independently prepared support bundles under `build/support/`, and Python distributions under `build/dist/`.
+For a local reference check, `python -m benchmarking.engine.preview quickstart` prepares and evaluates a public witness. It builds one `iclayout-bench-tools:local` image unless `--skip-build` selects an existing compatible image. This page covers stepwise preparation, troubleshooting, and changes to the tool environment. Use a new output directory for each run. Repository-local generated outputs use `build/`: benchmark runs go under `build/runs/`, independently prepared support bundles under `build/support/`, and Python distributions under `build/dist/`.
 
 All preparation, `tests/integration/` and acceptance commands below run from the
 Public checkout. The installed Public package contains the shared evaluator;
@@ -10,18 +10,72 @@ Private is not needed for public development tasks.
 
 The host uses Linux x86-64, Git, uv, Python 3.12+, and accessible Docker/BuildKit. Versions are maintained by the [Dockerfile](../Dockerfile), [pyproject.toml](../pyproject.toml), and [uv.lock](../uv.lock); framework development needs only `uv sync --locked`.
 
-| `python -m layout_eval.preview` subcommand | When to use it |
+| `python -m benchmarking.engine.preview` subcommand | When to use it |
 |---|---|
 | `doctor` | Check the host and Docker before downloading; does not call a model |
 | `list` | List executable public witnesses across every process, with unambiguous case keys |
-| `fetch --case <key>` / `fetch --all` | Initialize the pinned upstream submodules for one case or all executable witnesses |
+| `fetch --case <key>` / `fetch --all` | Fetch pinned PDK releases or initialize declared submodules for one case or all executable witnesses |
 | `build` | Build only the unified image; accepts `--image`, defaulting to `iclayout-bench-tools:local` |
 | `prepare --case <key> --output <new-directory>` | Fetch required sources and prepare the selected case's evaluator resources; bind tools to the actual image ID |
 | `run --prepared <prepared-directory> --output <new-directory>` | Evaluate the prepared case witness through its complete declared plan and save raw evidence |
 
 `quickstart` chains host checks, image build, PDK initialization, preparation, and reference evaluation, and writes `prepared/` and `run/`. It defaults to the IHP AnalogAcademy comparator. `quickstart` and `prepare` discover executable post-layout witnesses from all public process catalogs; `list` prints their `--case` keys. Unique directory names and case IDs are accepted; collisions use `process/collection/case`. The historical `comparator` alias retains its original IHP meaning. The script uses each case's `[toolchain]`, constraints, evaluation plan, and published witness. Preparation binds image/resource paths and shared inputs to local snapshots in a host-side copy at `prepared/case/case.toml`. The solver loader still materializes only declared inputs, excluding the copied reference and source README. Models and composite extraction resources are selected by explicit backend metadata rather than inferred from a circuit's name or source collection.
 
-All evaluator resources are prepared from the selected process's `pdk.toml`. A profile-level `source` overrides the manifest source, and its checkout is resolved against `.gitmodules`; this allows models, physical rules and extraction technology to come from different pinned upstream repositories. Existing `build/support` directories are not read. Those paths in source case configurations support the manual workflow below; public preparation replaces them with newly generated resource paths. Use the resulting `prepared/case/case.toml` with `python -m layout_eval.cli evaluate` or `python -m layout_eval.cli run`.
+All evaluator resources are prepared from the selected process's `pdk.toml`. A profile-level `source` overrides the manifest source. Git sources resolve against `.gitmodules`; `kind = "ciel"` sources resolve to a verified fixed-version cache. Models, physical rules and extraction technology follow their declared source. Existing `build/support` directories are not read. Those paths in source case configurations support the manual workflow below; public preparation replaces them with newly generated resource paths. Use the resulting `prepared/case/case.toml` with `python -m benchmarking.engine.cli evaluate`; participant experiments use `python -m benchmarking.run --prepared prepared --config experiment.toml`.
+
+GF180MCU D and IHP SG13G2 use pinned prebuilt distributions downloaded by
+[ciel](https://github.com/fossi-foundation/ciel), installed with the Public package.
+FreePDK45 uses the pinned
+[rjordans community installation](https://github.com/rjordans/freepdk45-open-pdks).
+GF180 and FreePDK45 expose `/resources/pdks/<process>/libs.tech` and process-owned `libs.ref`
+where applicable. IHP retains its official installation layout.
+
+Set `ICLAYOUT_BENCH_CACHE_DIR` to relocate the disposable cache. By default it is
+`$XDG_CACHE_HOME/iclayout-bench`, or `~/.cache/iclayout-bench` when XDG_CACHE_HOME
+is unset. PDK downloads live under `pdks/`; retained experiment results and
+prepared evaluation snapshots stay in their explicitly selected output directories.
+For example:
+
+```bash
+export ICLAYOUT_BENCH_CACHE_DIR=/path/to/shared-cache
+python -m benchmarking.engine.preview fetch --case ota_5t
+python -m benchmarking.engine.preview prepare --case ota_5t \
+  --image iclayout-bench-tools:local --output build/runs/ota/prepared
+```
+
+Each ciel `[source]` declares `kind = "ciel"`, the family, full version commit,
+explicit library names and the reviewed installation `sha256`. Preparation uses
+ciel's `fetch` API against its official release service, requesting common tool
+files and the primitive library. It does not enable a global current version,
+read `PDK_ROOT` to select one, or build open-pdks locally. No GF180/open-pdks
+source submodules are required. The downloaded family contains multiple variants;
+the Agent selection exports only variant D and excludes example circuits.
+
+The cache uses ciel's version directory under `pdks/ciel/<family>/versions/<commit>`.
+A per-version lock serializes downloads; staging directories are published only
+after verification, so an interrupted download can be retried. Every reuse checks
+the complete installed file set and works offline. The tree checksum is SHA-256
+of a compact, key-sorted JSON object mapping relative POSIX file paths to their
+SHA-256 digests. Extra, missing, modified or linked files fail verification.
+Remove only the affected disposable version directory and fetch again to repair
+corruption; copying a newer release into an older version directory is invalid.
+
+To update a ciel PDK, select the latest available prebuilt release with
+`ciel ls-remote --pdk-family gf180mcu` or `--pdk-family ihp-sg13g2`, inspect its
+contents in a separate download root, then update the version, installation
+checksum and file selections in the corresponding `tasks/<process>/pdk.toml`.
+Use `python -m benchmarking.engine.refresh_support tasks/<process>/pdk.toml` to refresh
+profile file hashes from the verified cache. Updates adopt that release's models
+and rules and requalify affected cases; normal preparation never follows latest
+implicitly or retains a second legacy rule stack.
+
+Support files may declare ordered `replace` entries with `old` and `new` text.
+The original file digest is checked first, and each replacement must match exactly
+once. This records small integration corrections without embedding copied technology
+files in the manifest. Preparation evidence binds both source and modifications.
+Shared manifest `notices` contain generated license/attribution files included in
+every support profile. They preserve component terms omitted by the prebuilt
+archive. Review upstream changes and rerun affected cases before accepting new digests.
 
 All public processes additionally create `prepared/agent-resources` from their
 declarative Agent PDK configuration. Reference evaluation needs no model account;
@@ -66,12 +120,12 @@ preparation defaults. Direct evaluation may still use manually prepared bundles.
 
 `--skip-build` reuses the existing image and still binds its actual ID. Existing PDK files are reused and checked against reviewed digests; output directories must be new. Quick start makes no model calls and does not establish new qualification conditions. Case-specific tests cover calibration and rejection behavior; see [CONTRIBUTING](../CONTRIBUTING.md#verification).
 
-The unified image contains KLayout, Python, ngspice, Qucs-S/Qucsator, Magic, OpenVAF, and Xschem. Harness runtimes are deliberately outside this image: a harness supplies its executable and reviewed files, or selects an image that provides them, while the benchmark only requires the common session protocol. Each operation still starts an isolated container, but every EDA operation resolves the same image ID. The image contains no task, PDK, harness source, or credentials; `.dockerignore` allows only dependency declarations and lock files. Install the KLayout CLI and Python API from separate packages and have tool checks confirm that their versions agree. The build does not depend on a local KLayout source tree or private cache.
+The unified image contains KLayout, Python, ngspice, Qucs-S/Qucsator, Magic, OpenVAF, and Xschem. Harness runtimes are deliberately outside this image: a harness supplies its executable and reviewed files, or selects an image that provides them, while the benchmark only requires the common session protocol. Each operation still starts an isolated container, but every EDA operation resolves the same image ID. The image contains no task, PDK, harness source, or credentials; `.dockerignore` allows only dependency declarations, lock files and the pinned native-tool build script. Install the KLayout CLI and Python API from separate packages and have tool checks confirm that their versions agree. The build does not depend on a local KLayout source tree or private cache.
 
 The build needs access to system packages, tool release sites, and the Python index, and verifies downloaded artifacts against fixed digests. The distribution still resolves base system packages, so the final image identity binds the result; the Dockerfile alone cannot guarantee a byte-for-byte rebuild. To use a host loopback proxy:
 
 ```bash
-python -m layout_eval.preview build --network host
+python -m benchmarking.engine.preview build --network host
 ```
 
 The script preserves existing `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` variables. Proxy settings affect the build only; the harness controls networking for run containers.
@@ -88,15 +142,21 @@ environment change that the work requires:
 |---|---|
 | Framework code, cases, PDK sources, resource mounts or environment settings | Reuse a compatible image; prepare updated resources and run affected checks |
 | Container Python dependencies | Update `pyproject.toml` and `uv.lock`, then use the thin derived build below |
-| Native EDA tools or system libraries | Update the public Dockerfile; a pinned, task-specific derived build may validate the change locally, followed by tool and affected container/EDA checks |
-| First installation, base-system change, or release reproduction | Build the public Dockerfile and run the applicable verification matrix |
+| Native EDA tools or system libraries | Update the public Dockerfile; default to a pinned, thin derived build, followed by tool and affected container/EDA checks |
+| No compatible image can be reused or derived, base-system change, or explicitly requested release reproduction | Build the public Dockerfile and run the applicable verification matrix |
+
+A full build is reserved for the last row; state the applicable reason before
+starting it. Passing the affected checks with a compatible existing or derived
+image completes development validation. The absence of a full rebuild is not a
+development validation gap. Updating a dependency, PDK or Dockerfile alone does
+not trigger a full build.
 
 Inspect available images with `docker image ls iclayout-bench-tools` and select one
 whose tools satisfy the change. A familiar tag alone does not prove compatibility.
 For example, after building the default image once:
 
 ```bash
-python -m layout_eval.preview quickstart --skip-build \
+python -m benchmarking.engine.preview quickstart --skip-build \
   --image iclayout-bench-tools:local --case cell_6t --output build/runs/dev-cell
 ```
 
@@ -128,12 +188,32 @@ This build uses the same dependency-only context; no task, PDK or credential is
 added. Run affected EDA/PDK usage checks from [CONTRIBUTING](../CONTRIBUTING.md#verification)
 as well when those dependencies change.
 
+<a id="ngspice-45"></a>
+
+For the pinned ngspice native-tool upgrade, use the dedicated thin overlay:
+
+```bash
+docker build -f Dockerfile.ngspice --build-arg BASE_IMAGE=iclayout-bench-tools:local \
+  --build-arg HTTP_PROXY --build-arg HTTPS_PROXY --build-arg NO_PROXY \
+  -t iclayout-bench-tools:ngspice45 .
+docker run --rm iclayout-bench-tools:ngspice45 ngspice --version
+```
+
+[`scripts/build_ngspice.sh`](../scripts/build_ngspice.sh) pins the source commit
+and archive digest and is shared by the overlay and release Dockerfile. It
+builds XSPICE, OSDI and KLU support. `/opt/ngspice/bin` takes precedence over
+the distribution executable that may remain installed for GUI dependencies.
+Select this image explicitly for preparation and rerun affected simulations;
+an existing prepared case retains its earlier image identity.
+
 An image is immutable; edits inside a disposable container affect only that
 container. An experimental `docker commit` snapshot is local debugging state,
 not the published build recipe or release evidence. Keep such containers free
-of credentials and task answers. Before shipping a dependency/tool change,
-record it in the public recipe/lock and validate the public build from a clean
-checkout without requiring a maintainer's development image.
+of credentials and task answers. Record dependency/tool changes in the public
+recipe/lock alongside the derived build so the maintained recipe remains usable
+without a maintainer's development image. When release reproduction is explicitly
+requested, validate that public recipe from a clean checkout and report that
+result separately from development validation.
 
 The public Dockerfile installs Python dependencies after native EDA compilation,
 so later lockfile edits can reuse those native layers. The first build after a
@@ -151,33 +231,41 @@ derived image, or the public recipe; these establish different evidence.
 |---|---|
 | Docker command is missing or cannot reach the daemon | Install/start Docker first and ensure the current user can run `docker version`; `doctor` checks this before downloading and preparing |
 | Native ARM, macOS, or Windows environment | Use a Linux x86-64 host; the current tool image is fixed to amd64 and other platforms are unvalidated |
-| `PDK missing` or a pinned source file is absent | Run `quickstart` to initialize the PDK and the required nested KLayout Python dependencies, or run `git submodule update --init --depth 1 third_party/IHP-Open-PDK` followed by `git -C third_party/IHP-Open-PDK submodule update --init --depth 1 ihp-sg13g2/libs.tech/klayout/python/pycell4klayout-api ihp-sg13g2/libs.tech/klayout/python/pypreprocessor`; when a source digest differs, inspect local changes and the recorded commit and keep the hash check enabled |
+| `PDK missing` or a pinned source file is absent | Run `python -m benchmarking.engine.preview fetch --all`; inspect the selected release and cache integrity if a digest differs. Keep hash verification enabled. |
 | An Agent PDK source or required nested dependency is non-empty but has no Git metadata | Preserve the existing archive elsewhere, then rerun `fetch --case <key>` to initialize the pinned Git checkout; full source snapshots cannot authenticate an unversioned archive from a few marker files |
 | `No such image` or image validation fails during preparation | Run `quickstart` or `build`; when naming an image manually, pass `--image` to `prepare` |
 | A `build/...` support bundle is missing | Complete `prepare` first. Use the resulting `prepared/case/case.toml`, whose embedded bindings point to the prepared bundles |
 | Output directory already exists | Choose a new `--output` path; logs produced by failed steps remain in the old directory for diagnosis |
 | Build download fails | Check connectivity to Ubuntu, the Python package index, and tool release sites; downloads require matching digests. With a host loopback proxy, add `--network host` to `quickstart` or `build` and preserve `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY`; see [stepwise preparation and reuse](#stepwise-preparation-and-reuse) for other network setup |
-| A real model lacks a key or cannot be reached | Validate the environment with the no-key public flow first, then configure your endpoint, model, and host key variable using [the model gateway and declared wire adapter](running.md#official-harness); public CI does not call a paid model |
+| A real model lacks a key or cannot be reached | Validate the environment with the no-key public flow first, then configure your endpoint, model, and host key variable using [participant configuration and observation](running.md#observation); public CI does not call a paid model |
 
 <a id="external-sources"></a>
 
 ## Upstream and Process Resources
 
-The addresses in `third_party/` are declared by [.gitmodules](../.gitmodules), and versions are fixed by Git submodule references; nested dependencies use the commits recorded upstream. Each process declares its Agent sources and required nested dependencies in `pdk.toml`. Digital, openEMS and Palace dependencies nested inside the IHP PDK remain optional and are not included automatically. Circuit-source repositories are linked through case attribution. See the [task guide](tasks.md#asset-rights) for source, license, and distribution requirements. Preserve upstream notices. PDK sources may be provided to Agents as frozen read-only resources; the benchmark repository, reference answers and Git metadata must not be mounted. The common image contains tools, not PDK sources.
+FreePDK45's community installation is the remaining source submodule, declared
+in [.gitmodules](../.gitmodules) and fixed by Git. GF180 and IHP use ciel releases
+selected in their process manifests. IHP downloads only the primitive library
+and shared tool files; Agent resources select SG13G2 tool/model/PCell files and
+omit example/test circuits, digital libraries and unrelated process variants.
+Circuit-source repositories remain linked through case attribution. See the
+[task guide](tasks.md#asset-rights) for source and distribution requirements.
+Preserve upstream notices. The common image contains tools, not PDK sources;
+standard Agent mounts exclude the benchmark repository and reference answers.
 
 <a id="agent-pdk-resources"></a>
 
 ### Agent PDK resources
 
-`public_preview.py prepare` uses `layout_eval.pdk_resources` for every process.
+`python -m benchmarking.engine.preview prepare` uses `benchmarking.engine.pdk_resources` for every process.
 The normal session mount remains `/resources`, backed by immutable byte
 snapshots rather than live host directories. The prepared bundle contains:
 
-- `pdks/<source>/`: tracked source files from the parent repository's pinned
-  gitlink, including licenses and declared nested submodules;
+- `pdks/<source>/`: selected files from the pinned source or verified installation,
+  including licenses and declared nested dependencies;
 - `support/<profile>/`: verified/compiled process resources, separate from the
   evaluator's copies. Framework-generated paths are relocated to this mount;
-  upstream source bytes are unchanged;
+  any explicit technology adaptations remain recorded in the preparation manifest;
 - `pdk-environment.json`: process identity, source versions, public environment
   settings and usage-check argument lists. Sessions publish it through
   `/protocol/resources.json` and merge its environment automatically.
@@ -191,8 +279,9 @@ Untracked and ignored files, Git metadata and undeclared optional submodules
 are excluded. Preparation rejects changed or missing tracked content and wrong
 commits. Internal tracked symlinks are materialized as ordinary files; escaping,
 missing and cyclic targets fail. A complete Git checkout is required for this
-source-snapshot workflow, including declared nested dependencies. The older
-SG13G2 allowlisted `layout_eval.environment --bundle` workflow remains supported.
+source-snapshot workflow, including declared nested dependencies. The SG13G2
+allowlisted `benchmarking.engine.environment` view used by device checks reads
+its installation from the same `pdk.toml` ciel declaration.
 
 Every process uses `ICLAYOUT_BENCH_PDK`, `PDK_ROOT` and `PDK_PATH`; the namespaced
 process identifier avoids conflicting with tool-owned settings such as gdsfactory's
@@ -208,20 +297,23 @@ To add a process, add an `[agent]` table to its `pdk.toml` with `schema_version 
 `id`, `sources`, `environment`, `checks`, and optional `support_profiles`.
 Each source declares a `.gitmodules` `checkout`, optional `include` and `exclude`
 path prefixes (default: all tracked files, excluding none), and optional
-`submodules` paths. Filters select tracked paths in that source repository;
+`submodules` paths. Optional `path` strips a source-directory prefix so an upstream
+installation can mount directly at its PDK root. `installation = true` selects the
+manifest source's verified ciel installation and replaces `checkout`; it requires
+an explicit `include` selection. Filters
+select paths in that source repository or installation;
 explicitly declared nested dependencies are exported in full. Each support
 profile names an existing evaluator preparation profile. `checks` is a nonempty
 list of executable argument lists, run inside the Agent container, not on the
 host. Add tool dependencies to the locked `eda` group when required. No runner
 process branch or case-specific resource wrapper is needed.
 
-Review the *contents*, not just a repository's name: the FreePDK45 KLayout
-repository also contains finished SRAM examples, so its declaration selects
-technology/rules and notices only. The Nangate reference-cell repository is not
-an Agent source. General PDK device libraries are distinct from task answers.
-GF180 explicitly excludes one vendored build-system self-test link that points
-back to its ancestor; runtime devices, models and rules remain included. Source
-selections and exclusions are recorded in the bundle provenance.
+Review the *contents*, not just a repository's name. The FreePDK45 community
+installation includes finished standard cells, memory macros and KLayout examples;
+its Agent selection exports only technology/rules/models and notices. GF180 exports
+primitive devices and tool support while excluding DRC/LVS test layouts and Xschem
+test circuits. Git metadata and the builder itself are not Agent resources. Source
+selections, exclusions and installed bundle identities are recorded in provenance.
 
 After `fetch --all` and selecting a compatible image, verify the actual Agent containers:
 
@@ -236,28 +328,24 @@ processes. GF180 PCells use the image's locked `gdsfactory` dependency. These
 are resource-usage checks, not proof that an Agent solves a benchmark case or
 that every upstream device/parameter has been qualified.
 
-```bash
-git submodule update --init --depth 1 third_party/IHP-Open-PDK
-git -C third_party/IHP-Open-PDK submodule update --init --depth 1 \
-  ihp-sg13g2/libs.tech/klayout/python/pycell4klayout-api \
-  ihp-sg13g2/libs.tech/klayout/python/pypreprocessor
-git submodule status --recursive
-```
-
-To update an upstream, fetch it in the target submodule, choose an official commit, fix it at a detached checkout, synchronize nested dependencies, and then inspect `git diff --submodule=log` in the public repository. Validate affected environments and tasks before committing the reference; normal runs do not follow a remote branch automatically. Make PDK source fixes and run upstream regressions in that repository.
-
-After moving the PDK pin, regenerate the support profile digests from the clean checkout and review the resulting diff before rebuilding bundles:
+GF180 and IHP updates select a published ciel version, its explicit library set,
+and a reviewed installation checksum. Inspect changes in models, rules and PCells,
+refresh support/view file digests, and validate all affected cases before committing.
+Normal runs use the fixed release; they do not follow the latest release automatically.
+For FreePDK45, update the community submodule to a reviewed detached commit.
 
 ```bash
-python -m layout_eval.refresh_support third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml
+python -m benchmarking.engine.refresh_support tasks/ihp-sg13g2/pdk.toml
 ```
 
-The refresh refuses a checkout with uncommitted tracked changes and fails on any listed file missing upstream, so a stale or renamed selection surfaces at refresh time rather than during evaluation.
+The refresh verifies the cached installation and fails if a selected file is absent.
+The small SG13G2 PCell view has its own reviewed per-file manifest, which must be
+updated and checked against the same installation when its selected files change.
 
 | Resource | Preparation and validation |
 |---|---|
-| PDK view | `layout_eval.environment` prepares primitives, callbacks, layer tables, rules, and licenses using the per-file digests in [sg13g2_view.json](architecture.md#ownership); `--bundle` generates the Agent resource bundle |
-| Tool support bundle | `layout_eval.prepare_support` follows the profiles in the [tasks/ihp-sg13g2/pdk.toml](../tasks/ihp-sg13g2/pdk.toml) manifest to prepare Magic, MOS models, and KLayout rules; compile models in a separate container |
+| PDK view | `benchmarking.engine.environment` prepares primitives, callbacks, layer tables, rules, and licenses using the per-file digests in [sg13g2_view.json](architecture.md#ownership); `--bundle` generates the Agent resource bundle |
+| Tool support bundle | `benchmarking.engine.prepare_support` follows the profiles in the [tasks/ihp-sg13g2/pdk.toml](../tasks/ihp-sg13g2/pdk.toml) manifest to prepare Magic, MOS models, and KLayout rules; compile models in a separate container |
 | Frozen bundle | `manifest.json` binds files, sources, and the actual build environment; loading rejects modifications, missing or extra files, and symlinks, while backends consume byte snapshots. A reviewed PDK bundle is auto-detected by sessions; `/protocol/resources.json` publishes its container-local import paths and a preflight import command without adding task or reference files |
 
 Keep originals byte-for-byte as supplied upstream and register framework-generated startup settings separately in the manifest. Preserve the license notices for components such as PSP models, PyCell, and pypreprocessor. The PDK view currently validates only basic MOS/tap primitives; importing a tool or device does not qualify every parameter or process rule.
@@ -266,40 +354,52 @@ Keep originals byte-for-byte as supplied upstream and register framework-generat
 
 ### GF180 resources and qualification
 
-Fifteen GF180MCU D cases are **qualified**, each with a passing reference layout,
-a complete candidate-derived RC evaluation, frozen `layout-v1` scoring and
+Twenty-two GF180MCU D cases are **qualified**, each with a passing reference layout,
+a complete candidate-derived RC evaluation, frozen `layout-v2` scoring and
 source/post-layout results. All use typical primitive models with statistical
 variation disabled.
 Temperature is **27 C** except the temperature cores' explicit **-20 to 100 C**
-sweep. The LDO runs at **2.2, 2.7 and 3.3 V**; the cascode gain stage, folded
-OTA and temperature cores use **2.7, 3.0 and 3.3 V**. Other cases use **3.3 V**.
+sweep. The externally biased LDO runs at **2.2, 2.7 and 3.3 V**; the cascode gain stage, folded
+OTA and temperature cores use **2.7, 3.0 and 3.3 V**. The buffered-reference LDO uses **3.0 and 3.3 V**. The folded-cascode LDO uses **2.0 and 2.1 V**, and the feedforward-compensated PMOS LDO uses **1.8 and 1.9 V**; both add an explicit ramp-startup experiment. Tan CLIA uses **1.8 V**
+with its authored 3.3 V MOS binding. Other cases use **3.3 V**.
 
-| Collection | Circuit | Coefficient | Area target / zero (um2) |
+| Collection | Circuit | Coefficient | Area reference (um2) |
 | --- | --- | --- | --- |
-| [Jianxun OTA](../tasks/gf180mcuD/Jianxun-OTA/README.md) | OTA with bias and dummies | 4 | 6000 / 24000 |
-| [R-2R DAC](../tasks/gf180mcuD/gf-r2r-dac/README.md) | Eight-bit resistor ladder | 4 | 4000 / 16000 |
-| [Quadrature VCO](../tasks/gf180mcuD/tt_tnt_gf_vco/README.md) | Oscillator and buffers | 8 | 36000 / 144000 |
-| [Voidwalkers](../tasks/gf180mcuD/voidwalkers-scandff/README.md) | Scan DFF with active-low reset | 5 | 200 / 800 |
-| [Chipathon2023 ADC](../tasks/gf180mcuD/Chipathon2023_ADC/README.md) | Dynamic comparator | 6 | 4000 / 16000 |
-| [2AMLogic SAR ADC](../tasks/gf180mcuD/2AMLogic-sar-adc/README.md) | Dummy-compensated track switch | 4 | 4000 / 16000 |
-| [analog-db LDO](../tasks/gf180mcuD/analog-db/README.md) | Externally biased PMOS regulator core | 7 | 80000 / 320000 |
-| [analog-db gain stage](../tasks/gf180mcuD/analog-db/cases/gs_001_cascode_cs/README.md) | Self-Biased Cascode Common-Source Gain Stage | 4 | 7000 / 28000 |
-| [analog-db differential pair](../tasks/gf180mcuD/analog-db/cases/dp_001_resistive_load/README.md) | Resistively Loaded Differential Pair | 4 | 6500 / 26000 |
-| [analog-db temperature core](../tasks/gf180mcuD/analog-db/cases/tsn_003_ptat_4t_xcoupled/README.md) | Four-Transistor Positive-Temperature-Slope Core | 3 | 1500 / 6000 |
-| [analog-db folded OTA](../tasks/gf180mcuD/analog-db/cases/amp_004_folded_cascode/README.md) | Externally Biased PMOS-Input Folded-Cascode OTA | 5 | 34000 / 136000 |
-| [analog-db comparator](../tasks/gf180mcuD/analog-db/cases/cmp_001_hyst_diffpair/README.md) | Resistive-Feedback Hysteretic Comparator | 5 | 65000 / 260000 |
-| [analog-db telescopic amplifier](../tasks/gf180mcuD/analog-db/cases/amp_018_telescopic_cascode/README.md) | Tail-referenced cascode bias and loaded AC | 5 | 11000 / 44000 |
-| [analog-db CMFB](../tasks/gf180mcuD/analog-db/cases/cmfb_003_5t_nmos_input/README.md) | Segmented 5 Mohm sensing and external-plant recovery | 6 | 280000 / 1120000 |
-| [analog-db isolated-body PTAT](../tasks/gf180mcuD/analog-db/cases/tsn_002_ptat_classic/README.md) | Self-starting resistor-degenerated temperature core | 6 | 14000 / 56000 |
+| [Jianxun OTA](../tasks/gf180mcuD/Jianxun-OTA/README.md) | OTA with bias and dummies | 4 | 510.1 |
+| [R-2R DAC](../tasks/gf180mcuD/gf-r2r-dac/README.md) | Eight-bit resistor ladder | 4 | 8727.76 |
+| [Quadrature VCO](../tasks/gf180mcuD/tt_tnt_gf_vco/README.md) | Oscillator and buffers | 8 | 907.08 |
+| [Voidwalkers](../tasks/gf180mcuD/voidwalkers-scandff/README.md) | Scan DFF with active-low reset | 5 | 175.5775 |
+| [Chipathon2023 ADC](../tasks/gf180mcuD/Chipathon2023_ADC/README.md) | Dynamic comparator | 6 | 301.49 |
+| [2AMLogic SAR ADC](../tasks/gf180mcuD/2AMLogic-sar-adc/README.md) | Dummy-compensated track switch | 4 | 702.46 |
+| [analog-db LDO](../tasks/gf180mcuD/analog-db/README.md) | Externally biased PMOS regulator core | 7 | 7597.32 |
+| [analog-db gain stage](../tasks/gf180mcuD/analog-db/cases/gs_001_cascode_cs/README.md) | Self-Biased Cascode Common-Source Gain Stage | 4 | 394.4 |
+| [analog-db differential pair](../tasks/gf180mcuD/analog-db/cases/dp_001_resistive_load/README.md) | Resistively Loaded Differential Pair | 4 | 925.98 |
+| [analog-db temperature core](../tasks/gf180mcuD/analog-db/cases/tsn_003_ptat_4t_xcoupled/README.md) | Four-Transistor Positive-Temperature-Slope Core | 3 | 168.38 |
+| [analog-db folded OTA](../tasks/gf180mcuD/analog-db/cases/amp_004_folded_cascode/README.md) | Externally Biased PMOS-Input Folded-Cascode OTA | 5 | 5150.02 |
+| [analog-db comparator](../tasks/gf180mcuD/analog-db/cases/cmp_001_hyst_diffpair/README.md) | Resistive-Feedback Hysteretic Comparator | 5 | 8386.58 |
+| [analog-db telescopic amplifier](../tasks/gf180mcuD/analog-db/cases/amp_018_telescopic_cascode/README.md) | Tail-referenced cascode bias and loaded AC | 5 | 544.15 |
+| [analog-db CMFB](../tasks/gf180mcuD/analog-db/cases/cmfb_003_5t_nmos_input/README.md) | Segmented 5 Mohm sensing and external-plant recovery | 6 | 122380.96 |
+| [analog-db isolated-body PTAT](../tasks/gf180mcuD/analog-db/cases/tsn_002_ptat_classic/README.md) | Self-starting resistor-degenerated temperature core | 6 | 529.13 |
+| [analog-db Self-Biased LDO Error Amplifier](../tasks/gf180mcuD/analog-db/cases/amp_032_ti_ldo_error_selfbias/README.md) | Nominal source-paired evaluation; see scope and limitations | 6 | 19112.5 |
+| [analog-db Self-Biased LDO Reference Amplifier](../tasks/gf180mcuD/analog-db/cases/amp_033_ti_ldo_ref_selfbias/README.md) | Nominal source-paired evaluation; see scope and limitations | 6 | 6223.21 |
+| [analog-db Buffered-Reference LDO](../tasks/gf180mcuD/analog-db/cases/ldo_005_buffered_ref/README.md) | Nominal source-paired evaluation; see scope and limitations | 7 | 29565.2 |
+| [analog-db StrongARM Dynamic Comparator](../tasks/gf180mcuD/analog-db/cases/cmp_002_strongarm/README.md) | Nominal source-paired evaluation; see scope and limitations | 6 | 490.86 |
+| [analog-db Tan CLIA](../tasks/gf180mcuD/analog-db/cases/amp_017_tan_clia/README.md) | Three-stage amplifier with physical compensation R/C and source-paired finite-window observations | 7 | 88555.19 |
+| [analog-db Folded-Cascode LDO](../tasks/gf180mcuD/analog-db/cases/ldo_002_analoggym_folded_cascode/README.md) | External reference/bias, physical bleed, load/line recovery and startup | 7 | 29211.12 |
+| [analog-db PMOS LDO](../tasks/gf180mcuD/analog-db/cases/ldo_007_pmos/README.md) | Divider/feedforward/Miller compensation, load/line recovery and startup | 7 | 98448.9 |
 
-The [PDK manifest](../tasks/gf180mcuD/pdk.toml) binds three separately reviewed
-profiles. `models` assembles the pinned official primitive ngspice files;
-`physical` assembles the official KLayout rules for variant D, including
-geometric/connectivity/off-grid DRC and antenna checks; `magic` publishes the
-pinned open-pdks technology preprocessed for five metals, 1.1 um top metal and
-1 kOhm/square high-resistance poly. Source commits and file digests are in that
-manifest and the Git submodules. The original rules and extraction coefficients
-are unchanged. The KLayout reader adapter recognizes the official `nfet_03v3`,
+The [PDK manifest](../tasks/gf180mcuD/pdk.toml) binds `models`, `physical` and
+`magic` profiles to one open-pdks installation. `models` uses nominal primitive
+ngspice files; `physical` uses the qualified official KLayout rules for variant D,
+including geometric/connectivity/off-grid DRC and antenna checks; `magic` uses the
+upstream technology built for five metals, 1.1 um top metal and 1 kOhm/square poly.
+The prebuilt version and installation/file checksums are explicit in the manifest.
+The rule files and extraction coefficients come from that release; only the
+SPICE reader adapter below modifies an upstream file. DRC runs all rule groups
+except chip-level density, including dummy fill and 0.001 um database-unit checks.
+The upstream isolated-worker mode keeps antenna connectivity changes separate
+from the geometry/connectivity rule groups.
+The KLayout reader adapter recognizes the official `nfet_03v3`,
 `pfet_03v3` and `ppolyf_u_1k` X wrappers using their actual SI dimensions and MOS
 total width. Named top-level pin correspondence is required independently of
 KLayout's topology match.
@@ -321,12 +421,22 @@ layout route with the existing decks, not a change to PDK extraction rules.
 The case additionally qualifies zero-state startup at its declared 100 fF load,
 temperatures and supply ramps; larger loads are not covered.
 
-The models profile contains other upstream model sections, but these cases do
-not qualify additional primitive families such as MIM capacitors or BJTs.
+The two self-biased amplifiers and buffered-reference LDO additionally qualify
+native 6 V MOS and physical MIM-B 2 fF/um2 capacitors on M4/M5, with
+`cap_mim_2f0fF` physical devices and `cap_mim_2f0_m4m5_noshield` simulator wrappers.
+Their device graph, dimensions and ordered ports agree in source, native topology
+and final RC netlists; waveform-derived measurements were independently checked.
+They reuse the existing model bundle and native rules. Only necessary 5 nm
+quantization and minimum-length adaptation are applied. StrongARM uses its fixed
+3.3 V CMOS binding and the established dynamic timing/decision measurement flow.
+The four cases use the reproducible [ngspice 45 overlay](#ngspice-45).
+Their qualification does not impose upstream performance targets: notably, the
+error-amplifier witness has a disclosed negative phase margin at 10 pF.
+Other model families, such as GF180 BJTs, remain outside this qualification.
 
 For automatic setup and reference evaluation, use
-`python -m layout_eval.preview quickstart --case ota_5t`.
-It fetches the required GF180 sources and prepares fresh resources without a
+`python -m benchmarking.engine.preview quickstart --case ota_5t`.
+It downloads the pinned GF180 release and prepares fresh resources without a
 pre-existing `build/support` directory. Use `list` to select other GF180 cases.
 
 For direct evaluation with the source case configurations, prepare the shared
@@ -334,15 +444,15 @@ image using [the manual tools instructions](#manual-tools), then run from the
 repository root:
 
 ```bash
-git submodule update --init --depth 1 third_party/gf180mcu_fd_pr third_party/gf180mcu_fd_pv third_party/open-pdks
-python -m layout_eval.prepare_support \
-  third_party/gf180mcu_fd_pr tasks/gf180mcuD/pdk.toml#models \
+python -m benchmarking.engine.preview fetch --case ota_5t
+python -m benchmarking.engine.prepare_support \
+  tasks/gf180mcuD/pdk.toml#models \
   build/support/gf180-models
-python -m layout_eval.prepare_support \
-  third_party/gf180mcu_fd_pv tasks/gf180mcuD/pdk.toml#physical \
+python -m benchmarking.engine.prepare_support \
+  tasks/gf180mcuD/pdk.toml#physical \
   build/support/gf180-physical-v2
-python -m layout_eval.prepare_support \
-  third_party/open-pdks tasks/gf180mcuD/pdk.toml#magic \
+python -m benchmarking.engine.prepare_support \
+  tasks/gf180mcuD/pdk.toml#magic \
   build/support/gf180-magic
 python -m pytest tests/integration/test_public_references.py -k gf180mcuD -q
 ```
@@ -363,7 +473,9 @@ The following example derives an unscored characterization from a case's frozen
 simulation jobs. Replace the case and output arguments to characterize any of
 these circuits; it automatically retains all configured operating points.
 The script consumes the source netlist in place of extracted candidate data.
-It does not modify or bypass the scored post-layout plan.
+It removes scoring metadata and retains functional bounds. An unbounded target
+observation becomes an unscored scalar diagnostic; its direction has no scoring
+effect. It does not modify or bypass the scored post-layout plan.
 
 ```bash
 uv run --locked python - \
@@ -374,9 +486,9 @@ import sys
 import tomllib
 from pathlib import Path
 from benchmarking.tasks import load_task
-from layout_eval.toolchains import load_toolchain
+from benchmarking.engine.toolchains import load_toolchain
 from benchmarking.evaluation import parse_evaluation
-from layout_eval.evaluate import run_evaluation
+from benchmarking.engine.evaluate import run_evaluation
 
 case, output = map(Path, sys.argv[1:])
 task = load_task(case)
@@ -392,8 +504,11 @@ for job in plan["jobs"]:
     )
 plan["metrics"] = [m for m in plan["metrics"] if m["category"] == "performance"]
 for metric in plan["metrics"]:
-    for key in ("dimension", "zero_lower", "zero_upper"):
+    for key in ("dimension", "zero_lower", "zero_upper", "baseline", "normalization", "scale"):
         metric.pop(key, None)
+    if metric["direction"] == "target" and not {"lower", "upper"} <= metric.keys():
+        # Unbounded target quality becomes an unscored scalar diagnostic.
+        metric["direction"] = "maximize"
 report = run_evaluation(
     parse_evaluation(json.dumps(plan).encode(), file_format="json"),
     task.evaluation_inputs(), load_toolchain(case), output,
@@ -416,65 +531,52 @@ formal admission and fabrication signoff are separate.
 Five public cases are `qualified` through input consistency and reference evaluation. Their
 references are evaluated at **1.0 V, 27 C**, using nominal predictive
 FreePDK45 BSIM4 models and candidate-derived Magic RC. Every case ships a passing
-reference, its source netlist and testbench, fixed `layout-v1` scoring, and
+reference, its source netlist and testbench, fixed `layout-v2` scoring, and
 reference results with reproduction commands. These are standalone transistor-level tasks.
 
-| Collection / case | Function | Coefficient | Area target / zero (um2) |
+| Collection / case | Function | Coefficient | Area reference (um2) |
 | --- | --- | --- | --- |
-| [OpenRAM / cell_6t](../tasks/freepdk45/OpenRAM/cases/cell_6t/README.md) | Write, hold and nondestructive read | 6 | 1.4 / 2.8 |
-| [OpenRAM / sense_amp](../tasks/freepdk45/OpenRAM/cases/sense_amp/README.md) | Clocked differential decision | 5 | 3.8 / 7.6 |
-| [OpenRAM / write_driver](../tasks/freepdk45/OpenRAM/cases/write_driver/README.md) | Loaded complementary tri-state drive | 3 | 3.6 / 7.2 |
-| [nangate45-pdk / NAND2_X1](../tasks/freepdk45/nangate45-pdk/cases/NAND2_X1/README.md) | Two-input NAND truth table and transitions | 1 | 1.7 / 3.4 |
-| [nangate45-pdk / AOI21_X1](../tasks/freepdk45/nangate45-pdk/cases/AOI21_X1/README.md) | Compound AOI truth table and transitions | 2 | 2.1 / 4.2 |
+| [OpenRAM / cell_6t](../tasks/freepdk45/OpenRAM/cases/cell_6t/README.md) | Write, hold and nondestructive read | 6 | 1.46 |
+| [OpenRAM / sense_amp](../tasks/freepdk45/OpenRAM/cases/sense_amp/README.md) | Clocked differential decision | 5 | 2.82 |
+| [OpenRAM / write_driver](../tasks/freepdk45/OpenRAM/cases/write_driver/README.md) | Loaded complementary tri-state drive | 3 | 3.36 |
+| [nangate45-pdk / NAND2_X1](../tasks/freepdk45/nangate45-pdk/cases/NAND2_X1/README.md) | Two-input NAND truth table and transitions | 1 | 1.6789 |
+| [nangate45-pdk / AOI21_X1](../tasks/freepdk45/nangate45-pdk/cases/AOI21_X1/README.md) | Compound AOI truth table and transitions | 2 | 2.0049 |
 
 Each problem is self-contained. Its configuration owns the exact devices, loads,
-stimuli, observation times, bounds, dimensions and area anchors. References prove
-feasibility; they are not scoring denominators or standard solver inputs.
+stimuli, observation times, bounds, dimensions and area anchors. Source simulation defines the electrical scoring baseline. Standard-cell area
+uses the reference layout; other areas use the frozen compact estimate. Witnesses
+are excluded from standard solver inputs.
 
 #### Prepare resources
 
 For automatic setup and reference evaluation, use
-`python -m layout_eval.preview quickstart --case cell_6t`.
+`python -m benchmarking.engine.preview quickstart --case cell_6t`.
 It fetches the required FreePDK45 sources and prepares fresh resources without a
 pre-existing `build/support` directory. Use `list` to select other FreePDK45 cases.
 
-For direct evaluation with the source case configurations, run the manual
-preparation from a Git checkout at the repository root:
+For direct evaluation with source case configurations, initialize the single
+FreePDK45 submodule, then prepare its four profiles:
 
 ```bash
-git submodule update --init --depth 1 \
-  third_party/FreePDK45_for_KLayout third_party/FreePDK45 \
-  third_party/nangate45-pdk
+git submodule update --init --depth 1 third_party/freepdk45-open-pdks
 uv sync --locked --group eda
-# First installation only; otherwise reuse the compatible tools image.
-python -m layout_eval.preview build --network host --image iclayout-bench-tools:local
-python -m layout_eval.prepare_support \
-  third_party/FreePDK45_for_KLayout tasks/freepdk45/pdk.toml#klayout \
-  build/support/freepdk45-klayout
-python -m layout_eval.prepare_support \
-  third_party/FreePDK45 tasks/freepdk45/pdk.toml#models \
-  build/support/freepdk45-models
-python -m layout_eval.prepare_support \
-  third_party/nangate45-pdk tasks/freepdk45/pdk.toml#magic-vtg \
-  build/support/freepdk45-magic-vtg
-python -m layout_eval.prepare_support \
-  third_party/nangate45-pdk tasks/freepdk45/pdk.toml#magic-vtl \
-  build/support/freepdk45-magic-vtl
+for profile in klayout models magic-vtg magic-vtl; do
+  uv run --locked python -m benchmarking.engine.prepare_support \
+    third_party/freepdk45-open-pdks "tasks/freepdk45/pdk.toml#$profile" \
+    "build/support/freepdk45-$profile"
+done
 ```
 
-Reuse a verified existing image and support bundle instead of overwriting them.
-The support commands create immutable snapshots in new directories. Distributed-reference regression uses the three evaluator checkouts above.
-Circuit-source repositories are not needed to prepare or evaluate these cases.
-
-Profiles in [pdk.toml](../tasks/freepdk45/pdk.toml) select their own source checkout and revision.
-Model sources come from the Apache FreePDK45 1.4 publication with SVRF files
-removed. The runtime bundles contain neither the full source libraries nor
-reference GDS. All EDA operations use the shared tools image.
+These commands require new destination directories. Reference evaluation uses the
+same trusted tools image as other processes. Circuit-source repositories are not
+needed to prepare or evaluate the maintained cases. Component licenses and model
+notices accompany the exported resources.
 
 #### Physical and extraction scope
 
 The KLayout profile enables all implemented DRC, manufacturing-grid and antenna
-checks without waivers. The source deck explicitly lacks its different-potential
+checks without waivers. The community deck's POLY.3 spacing is 50 nm, as documented
+upstream for Nangate compatibility. The source deck explicitly lacks its different-potential
 well-spacing check, so a pass is not complete manufacturing signoff. Strict LVS
 flattens an isolated candidate copy with its labels, removes library-specific
 `cheat` blocks and implicit/global rail joins, and compares models, W/L, named
@@ -494,35 +596,24 @@ RC topology is checked during qualification against the source after removing
 capacitors and collapsing parasitic resistors. Simulation always uses the full,
 unchanged extracted RC network.
 
-The predictive extraction model uses:
+The predictive extraction uses the community Magic technology's estimated
+resistance/capacitance coefficients and its native placement of coupling and
+ground capacitance, with nominal VTG/VTL ngspice models at 27 C. Wells and substrate
+are lumped connections. This is not calibrated field-solver extraction or a
+foundry signoff claim; process variation, substrate noise and RF/EM are outside scope.
 
-- Nominal, unmodified VTG/VTL BSIM4 models at 27 C, with junction area/perimeter
-  from layout. Diffusion sheet resistance is 5 ohm/square from model `rsh`.
-- Poly/metal sheet and contact/via resistance from the
-  [NCSU FreePDK45 metal-layer specification](https://eda.ncsu.edu/freepdk/freepdk45/).
-  Poly is 7.8 ohm/square; M1 is 0.38, M2/M3 0.25, M4–M6 0.21,
-  M7/M8 0.075, and M9/M10 0.03. Contacts are 8 ohm; vias use
-  6, 5, 5, 3, 3, 3, 1, 1 and 0.5 ohm, respectively.
-- Isolated-wire area and edge fits to the pinned original
-  [ElCap PTF table](https://foss-eda-tools.googlesource.com/third_party/freepdk45/+/356e90646f5ef26ea09b1ed8ce4796871403a0c7/Cap_Tables/NCSU_FreePDK_45nm.ptf).
-  Fits reproduce the width endpoints and have at most 5.44% error at the other
-  published isolated-wire widths. This error describes those samples only.
-- Same-plane coupling anchored to the table's minimum-width/minimum-spacing
-  sample; wider spacings use Magic's native inverse-spacing approximation.
-  Cross-plane overlap uses the published dielectric stack and relative
-  permittivity 2.5, with Magic's shielding and native capacitance placement.
-  Some coupling remains lumped at original nets; not every capacitance is
-  distributed along a wire resistance.
-- Lumped wells and substrate connections. Well/substrate sheet resistance,
-  well-to-substrate capacitance, inductance, process variation and temperature
-  coefficients are outside this nominal scope. The four terminal MOS junction
-  model is retained. No substrate-noise or foundry field-solver claim is made.
+Use `/resources/support/magic-vtg/freepdk45.tech` or the `magic-vtl` counterpart
+for evaluation-equivalent extraction, as specified by the case problem. The unified
+PDK directory retains the upstream views; reviewed profiles include the adaptations.
 
-The original Nangate Magic file's estimated parasitic table is replaced by these
-reviewed coefficients. `lambda=2.5` expresses 25 nm in Magic's centimicron units;
-confusing it with microns would corrupt MOS dimensions. The shared image fixes
-Magic 8.3.678. Coefficient interpretation must be revalidated when changing the
-extraction implementation or tool version.
+The explicit manifest adaptations map MOS extraction to the LVS-selected model
+class, import threshold/annotation markers as non-electrical comments, and correct
+`lambda` from 0.025 to **2.5**. Magic expresses this length in centimicrons, so 2.5
+represents the technology's 25 nm internal grid; the upstream value otherwise
+extracts a 50 nm gate as 0.5 nm. Upstream coefficients are retained. Qualification
+checks all five published layouts through the complete extraction and simulation
+path. This does not establish stream-out equivalence between Magic and KLayout;
+the community repository documents known via/metal stream-out differences.
 
 #### Reference regression
 
@@ -538,7 +629,7 @@ python -m pytest tests/integration/test_public_references.py
 
 Use `-k freepdk45` to select this PDK. Native reports, extracted netlists and
 waveforms are generated in the test's temporary output directories. Direct
-`python -m layout_eval.cli evaluate` commands in each README write them to a selected `build/runs/`
+`python -m benchmarking.engine.cli evaluate` commands in each README write them to a selected `build/runs/`
 directory. This regression verifies ready-to-use references. Apply the
 [case and shared validation rules](tasks.md#qualification) when changing a circuit,
 judge or extraction model. Generic scoring, simulator error handling and analytical
@@ -561,20 +652,38 @@ PVT, mismatch, SRAM-array abutment, manufacturing signoff or formal admission.
 
 ## EDA Backend Contract
 
-The backend extension interface is described in [architecture](architecture.md#ownership). `python -m layout_eval.cli characterize` performs an independent measurement and `python -m layout_eval.cli evaluate` re-evaluates a GDS. Tool bindings may be embedded in a schema-2 case as `[toolchain]`, following the [task configuration guide](tasks.md#evaluation-plan). `evaluate` and `run` use these bindings when `--toolchain` is omitted; `characterize` still requires an explicit toolchain configuration. A plan returns 0 when it passes, 1 when a check or specification fails, and 2 for a configuration or execution error. Output includes `report.json` and artifacts saved by digest. Characterization fixtures are not formal layout tasks.
+The backend extension interface is described in [architecture](architecture.md#ownership). `python -m benchmarking.engine.cli characterize` performs an independent measurement and `python -m benchmarking.engine.cli evaluate` re-evaluates a GDS. Tool bindings may be embedded in a schema-2 case as `[toolchain]`, following the [task configuration guide](tasks.md#evaluation-plan). `evaluate` and `run` use these bindings when `--toolchain` is omitted; `characterize` still requires an explicit toolchain configuration. A plan returns 0 when it passes, 1 when a check or specification fails, and 2 for a configuration or execution error. Output includes `report.json` and artifacts saved by digest. Characterization fixtures are not formal layout tasks.
 
 The shared `DockerTool` executor caps each tool container at 4 CPU equivalents,
 4 GiB memory and 256 processes, including tool-version probes. These limits are
 recorded in the backend identity alongside the image, timeout and implementation
 digest. They are fixed measurement conditions, not automatically scaled to the
 host. Reserve capacity for concurrent containers and host services. Solver-session
-budgets are configured separately in the [run configuration](running.md#official-harness).
+budgets are configured separately in the [run configuration](running.md#observation).
 Changing execution budgets creates a new condition; it does not change scoring
 formulas, case requirements or per-tool timeouts.
 
 ### ngspice and Magic
 
 ngspice writes an input role as `<role>.spice` and uses `deck.spice` as its entry point. The testbench declares analyses and measurements; `parameters.values` generates `parameters.spice`, `parameters.measurements` specifies names and units, and `parameters.exports` names declared artifacts. Exit 0 still requires a complete set of finite measurements. See the [RC](architecture.md#ownership), [divider](architecture.md#ownership), and [MOS post-layout](architecture.md#ownership) characterization fixtures.
+
+For high-impedance cores with low-ohmic extracted wiring, trusted ngspice backend
+settings may select `resistor_formulation = "branch"` (default: `"conductance"`).
+This represents each positive, literal, four-field R card in non-deck input roles
+by a zero-volt series sensor and a CCVS imposing `V = R*I`, avoiding large `1/R`
+nodal stamps. It retains every terminal and value; it adds no bias or leakage.
+PDK support/model files and testbench fixtures are unchanged. Extended/model/TC
+resistor cards and generated-name collisions are rejected. The original input
+digest remains in the report; `effective_<role>` evidence records the actual
+simulator netlist, and the formulation is part of backend identity.
+This deterministic equivalent supports OP/DC/AC/transient analysis but omits
+resistor thermal noise, so noise analysis is rejected in branch mode. Use the
+[ngspice CCVS definition](https://ngspice.sourceforge.io/docs/ngspice-manual.pdf)
+and analytical characterization regressions to review the equivalence. The
+[two-NMOS temperature core](../tasks/gf180mcuD/analog-db/cases/tsn_001_ptat_2t/README.md)
+uses Sparse 1.3 with explicit pivot settings and independent KCL checks. Changing
+matrix formulation does not establish convergence or permit relaxed validity
+checks. Internal current sensors must not be counted as external power/KCL ports.
 
 Magic takes the top cell and ordered `ports` from trusted configuration; check the port list against the authoritative netlist. Later jobs must consume the exported netlist as-is. `magic-capacitance-docker` retains its capacitance-only behavior and records `wire_resistance=false`. `magic-rc-docker` adds distributed resistance and capacitance, and can be bound to `layout.extract_rc`.
 
@@ -619,7 +728,7 @@ exercise both the rejected deep-well-only route and the explicit N-well route.
 SG13G2 Magic extraction treats well/substrate ties as ideal connections;
 it does not preserve the finite `ntap1`/`ptap1` resistance cards used by the
 source simulator netlists. The pinned PDK's
-[tap connectivity rules](../third_party/IHP-Open-PDK/ihp-sg13g2/libs.tech/klayout/tech/lvs/rule_decks/tap_connections.lvs)
+[tap connectivity rules](https://github.com/IHP-GmbH/IHP-Open-PDK/blob/22f43352dd8219f9007eb659e422e0d5fe28c5fb/ihp-sg13g2/libs.tech/klayout/tech/lvs/rule_decks/tap_connections.lvs)
 document this interpretation for Magic and Netgen. Physical LVS can still
 check explicit tap geometry. Cases using this RC boundary must disclose the
 idealization and calibrate its effect on their declared nominal measurements.
@@ -653,6 +762,13 @@ The artifact check uses KLayout's native reader to validate the GDSII stream, th
 
 ### IHP physical-check profiles
 
+IHP resources come from one pinned ciel release with `sg13g2_pr` and common
+technology files. The model, KLayout, Magic and PCell selections use that release's
+native contents. PSP and passive Verilog-A sources are compiled with the selected
+tools image during support preparation. Agent resources include the required
+PCell Python dependencies from the prebuilt package; no nested Git initialization
+or local open-pdks build is needed. The per-file PCell view uses the same cache.
+
 Prepare support from the `klayout` profile in `tasks/ihp-sg13g2/pdk.toml`.
 Frozen bundles are not updated in place; prepare a new bundle when the manifest
 changes. Cases select their check profiles through `[toolchain]`.
@@ -671,6 +787,15 @@ for reference results and reproduction instructions.
 ### Geometry and Port Correspondence
 
 `klayout-geometry-docker` interprets schema 1 of the geometry constraints, supplied as a JSON snapshot from either `[task.constraints]` or a declared constraints file: `bbox_max` names the functional layers that contribute to the outline and sets maximum width and height; `named_metal_ports` names each port, its drawing/pin/text layers, logical connection layer, and minimum square side that can be contacted; `functional_bbox_area` measures area using the layer set from an outline constraint. The top cell must contain exactly one label with each required name. Its center square must lie completely in the intersection of the pin, drawing, and correctly extracted network regions. Adapters extend the set of constraint kinds; the generic plan executor does not interpret process layers or geometry semantics.
+
+`cell_frame` checks a standard cell's complete `functional_layers` bounding box:
+fixed `height_um` and integral `width_grid_um` within half the candidate DBU.
+Its nonempty `rails` list declares unique supply `name`, drawing `layer`, native
+`connectivity_layer`, centre `y_um`, minimum `thickness_um` and `left_um`/`right_um`
+insets. Coordinates are relative to the functional lower-left bound, so global
+translation is allowed. Each required strip must be continuously covered by metal
+on the supply net matched through LVS. A text label alone is insufficient.
+This row-interface check does not establish neighbor abutment or external pin access.
 
 LVS can export a native `klayout-lvs` database and a JSON binding. The binding records the candidate GDS, database digest, top cell, and logical-layer mapping. After validating the binding, the geometry adapter uses the native [LayoutVsSchematic](https://www.klayout.de/doc/code/class_LayoutVsSchematic.html), [NetlistCrossReference](https://www.klayout.de/doc/code/class_NetlistCrossReference.html), and [LayoutToNetlist](https://www.klayout.de/doc/code/class_LayoutToNetlist.html) APIs for network correspondence and geometry. Process support bundles declare deck-layer variables; the adapter reads the names actually registered by the run instead of fixing runtime indices such as `l10`, and it does not modify upstream rules.
 
@@ -704,6 +829,37 @@ HBT extraction with Magic distributed interconnect R/C. Its `klayout_support`
 and `magic_support` settings use separately reviewed bundles; declare their
 profiles through `support_profiles` as shown above. Physical LVS remains a
 separate gate against the maintained circuit, including the named interface.
+
+The `sg13g2-kpex-cc-docker` backend provides nominal 2.5D coupling capacitance
+with KPEX from the locked `eda` dependency group. Its only tool settings are
+`image` and `timeout_seconds`; jobs consume the candidate GDS, the native LVS
+database and its candidate/database/top-cell binding. It independently extracts
+annotated geometry with KPEX's bundled SG13G2 technology, compares devices and
+connectivity against the native candidate database, then preserves supported
+`npn13g2`, `rsil` and `cap_cmim` model calls with their extracted geometry. It
+rejects unsupported physical models. Native MIM classes lack KPEX's expected
+scalar `C`: the writer adapts those classes to their physical model parameters
+without removing layers or reinserting schematic devices. Output evidence
+includes both databases, the candidate-derived reference, geometry log and
+extracted netlist; the tool image identity binds the bundled technology.
+This backend declares **CC only**, an ideal substrate reference, no wire
+resistance and no inductance. A task must explicitly choose this scope; it is
+not a substitute for a required RC flow.
+
+For upstream flows requiring HSPICE-style syntax, `ngspice-docker` accepts
+`compatibility = "hsa"`. The effective `.spiceinit` is archived and the choice
+is part of backend identity. The default remains the prepared model profile's
+startup. Use ngspice 45 or later for this HBT flow.
+
+The pinned Magic support profile adds the missing local `gec,*m1` connection.
+The upstream CIF importer paints `gec` on the physical emitter window; without
+this connection, its Metal1-covered emitter is exported as an isolated compact
+terminal. The digest-checked replacement is recorded in `pdk.toml` and prepared
+resource identities; the upstream checkout and KLayout rules are unchanged.
+HBT graph matching also uses retained native resistor geometry and named tail
+ports to distinguish otherwise identical branches. Truly ambiguous graphs still
+fail, and all passive and final-RC connectivity checks remain mandatory.
+
 
 For a declared ideal-body compact-model boundary, the optional boolean
 `disable_tap_extraction = true` setting enables the pinned KLayout PDK's
@@ -764,17 +920,17 @@ On first installation, build and check that image directly. For iteration, reuse
 an existing compatible image and run the checks without the build command:
 
 ```bash
-python -m layout_eval.preview build --image iclayout-bench-tools:local
+python -m benchmarking.engine.preview build --image iclayout-bench-tools:local
 bash tests/integration/test_toolchain.sh
 ```
 
 Role-specific image tags are not part of the supported workflow. This keeps tool versions and backend availability consistent across preparation, solving, and evaluation. Prepare the shared support paths with the commands below:
 
 ```bash
-python -m layout_eval.environment third_party/IHP-Open-PDK build/support/pdk-view
-python -m layout_eval.prepare_support third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#magic build/support/sg13g2-magic
-python -m layout_eval.prepare_support third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#mos-models build/support/sg13g2-mos-models
-python -m layout_eval.prepare_support third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#klayout build/support/sg13g2-klayout
+python -m benchmarking.engine.environment tasks/ihp-sg13g2/pdk.toml build/support/pdk-view
+python -m benchmarking.engine.prepare_support tasks/ihp-sg13g2/pdk.toml#magic build/support/sg13g2-magic
+python -m benchmarking.engine.prepare_support tasks/ihp-sg13g2/pdk.toml#mos-models build/support/sg13g2-mos-models
+python -m benchmarking.engine.prepare_support tasks/ihp-sg13g2/pdk.toml#klayout build/support/sg13g2-klayout
 ```
 
 The IHP `mixed-mos-models` profile adds the pinned HV PSP library closure to

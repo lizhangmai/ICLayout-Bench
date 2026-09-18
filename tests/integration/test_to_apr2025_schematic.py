@@ -13,13 +13,13 @@ from pathlib import Path
 import pytest
 from helpers.stimuli import command, number
 
+from benchmarking.engine.docker import DockerTool
+from benchmarking.engine.evaluate import run_evaluation
+from benchmarking.engine.klayout import KLayoutDocker
+from benchmarking.engine.ngspice import NgspiceDocker
+from benchmarking.engine.prepare_support import prepare_support
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
-from layout_eval.docker import DockerTool
-from layout_eval.evaluate import run_evaluation
-from layout_eval.klayout import KLayoutDocker
-from layout_eval.ngspice import NgspiceDocker
-from layout_eval.prepare_support import prepare_support
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,7 +35,7 @@ def context(tmp_path_factory):
     config = tomllib.loads((CASE / "case.toml").read_text())
     image = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
     for name in ("klayout", "magic", "hbt-models"):
-        prepare_support(PUBLIC_ROOT / "third_party/IHP-Open-PDK", f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{name}",
+        prepare_support(None, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#{name}",
                         directory / name, compiler_image=image)
     for entry in config["assets"]:
         assert Asset((CASE / entry["path"]).read_bytes(), entry["format"]).sha256 == entry["sha256"]
@@ -180,7 +180,7 @@ layout.write("rotated.gds")
 
 def _task_backends(context, tmp_path):
     """Evaluator backends for the frozen task plan, using fresh support bundles."""
-    from layout_eval.toolchains import load_toolchain
+    from benchmarking.engine.toolchains import load_toolchain
     _, image, directory = context
     task_config = (CASE / "case.toml").read_text()
     for name in ("klayout", "magic"):

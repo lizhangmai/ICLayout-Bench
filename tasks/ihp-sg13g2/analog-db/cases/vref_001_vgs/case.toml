@@ -4,7 +4,22 @@ id = "ihp-sg13g2.analog-db.vref_001_vgs"
 title = "Mixed LV/HV VGS Reference with Picoampere Load and Zero-State Recovery"
 status = "qualified"
 
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "043e0933da7caf1f9cc1c866656a301184720173455cba898d1259f9a8d84bfd"
+
+[[assets]]
+path = "reference/vref_001_vgs.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "bd06f42574302e32d144af40740e9179ae3b3a7f539943cdd3d720a3aedc9400"
+
 [task]
+hours = 3
 coefficient = 5
 kind = "netlist_to_gds"
 family = "ihp-sg13g2_vgs_reference"
@@ -13,7 +28,7 @@ environment = "ihp-sg13g2-vgs-reference-mixed-mos-rc"
 [task.inputs.description]
 path = "problem.md"
 format = "text"
-sha256 = "9e8b251b422b24f53bcaf1d1b5e9426f7bcf41d571a9f39c472d46e2506765bb"
+sha256 = "3b6e19921335f3602baac164bf98aaadd4b4c3b7a2289a8f79501ba2a11674be"
 
 [task.inputs.netlist]
 path = "materials/circuit.cdl"
@@ -732,6 +747,429 @@ line = "line.raw"
 temperature = "temperature.raw"
 load = "load.raw"
 
+[[task.evaluation.jobs]]
+id = "source_tm20_v10"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = -20
+supply_v = 1.0
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "source_tm20_v12"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = -20
+supply_v = 1.2
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "source_tm20_v15"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = -20
+supply_v = 1.5
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "source_t27_v10"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = 27
+supply_v = 1.0
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "source_t27_v12"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = 27
+supply_v = 1.2
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "source_t27_v15"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = 27
+supply_v = 1.5
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "source_t85_v10"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = 85
+supply_v = 1.0
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "source_t85_v12"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = 85
+supply_v = 1.2
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "source_t85_v15"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = 85
+supply_v = 1.5
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
 [[task.evaluation.metrics]]
 id = "functional_area"
 category = "physical"
@@ -760,10 +1198,21 @@ unit = "V"
 direction = "target"
 aggregation = "max"
 dimension = "bias"
-lower = 0.35
-upper = 0.37
-zero_lower = 0.3
-zero_upper = 0.42
+baseline = [
+    "source_tm20_v10:reference_v",
+    "source_tm20_v12:reference_v",
+    "source_tm20_v15:reference_v",
+    "source_t27_v10:reference_v",
+    "source_t27_v12:reference_v",
+    "source_t27_v15:reference_v",
+    "source_t85_v10:reference_v",
+    "source_t85_v12:reference_v",
+    "source_t85_v15:reference_v",
+]
+normalization = "target"
+scale = 1.5
+lower = 0
+upper = 1.5
 
 [[task.evaluation.metrics]]
 id = "supply_a"
@@ -780,13 +1229,23 @@ observations = [
     "t85_v15:supply_a",
 ]
 unit = "A"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
 dimension = "bias"
-lower = 5e-12
-upper = 3e-09
-zero_lower = 0
-zero_upper = 6e-09
+baseline = [
+    "source_tm20_v10:supply_a",
+    "source_tm20_v12:supply_a",
+    "source_tm20_v15:supply_a",
+    "source_t27_v10:supply_a",
+    "source_t27_v12:supply_a",
+    "source_t27_v15:supply_a",
+    "source_t85_v10:supply_a",
+    "source_t85_v12:supply_a",
+    "source_t85_v15:supply_a",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "power_w"
@@ -803,13 +1262,23 @@ observations = [
     "t85_v15:power_w",
 ]
 unit = "W"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
 dimension = "supply"
+baseline = [
+    "source_tm20_v10:power_w",
+    "source_tm20_v12:power_w",
+    "source_tm20_v15:power_w",
+    "source_t27_v10:power_w",
+    "source_t27_v12:power_w",
+    "source_t27_v15:power_w",
+    "source_t85_v10:power_w",
+    "source_t85_v12:power_w",
+    "source_t85_v15:power_w",
+]
+normalization = "ratio"
 lower = 0
-upper = 5e-09
-zero_lower = 0
-zero_upper = 1e-08
+scale = 1e-12
 
 [[task.evaluation.metrics]]
 id = "startup_error_v"
@@ -829,8 +1298,20 @@ unit = "V"
 direction = "minimize"
 aggregation = "max"
 dimension = "response"
-upper = 1e-05
-zero_upper = 0.001
+baseline = [
+    "source_tm20_v10:startup_error_v",
+    "source_tm20_v12:startup_error_v",
+    "source_tm20_v15:startup_error_v",
+    "source_t27_v10:startup_error_v",
+    "source_t27_v12:startup_error_v",
+    "source_t27_v15:startup_error_v",
+    "source_t85_v10:startup_error_v",
+    "source_t85_v12:startup_error_v",
+    "source_t85_v15:startup_error_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "load_error_v"
@@ -850,8 +1331,20 @@ unit = "V"
 direction = "minimize"
 aggregation = "max"
 dimension = "response"
-upper = 0.004
-zero_upper = 0.012
+baseline = [
+    "source_tm20_v10:load_error_v",
+    "source_tm20_v12:load_error_v",
+    "source_tm20_v15:load_error_v",
+    "source_t27_v10:load_error_v",
+    "source_t27_v12:load_error_v",
+    "source_t27_v15:load_error_v",
+    "source_t85_v10:load_error_v",
+    "source_t85_v12:load_error_v",
+    "source_t85_v15:load_error_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "release_error_v"
@@ -871,8 +1364,20 @@ unit = "V"
 direction = "minimize"
 aggregation = "max"
 dimension = "response"
-upper = 1e-05
-zero_upper = 0.001
+baseline = [
+    "source_tm20_v10:release_error_v",
+    "source_tm20_v12:release_error_v",
+    "source_tm20_v15:release_error_v",
+    "source_t27_v10:release_error_v",
+    "source_t27_v12:release_error_v",
+    "source_t27_v15:release_error_v",
+    "source_t85_v10:release_error_v",
+    "source_t85_v12:release_error_v",
+    "source_t85_v15:release_error_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "injection_error_v"
@@ -892,8 +1397,20 @@ unit = "V"
 direction = "minimize"
 aggregation = "max"
 dimension = "response"
-upper = 0.004
-zero_upper = 0.012
+baseline = [
+    "source_tm20_v10:injection_error_v",
+    "source_tm20_v12:injection_error_v",
+    "source_tm20_v15:injection_error_v",
+    "source_t27_v10:injection_error_v",
+    "source_t27_v12:injection_error_v",
+    "source_t27_v15:injection_error_v",
+    "source_t85_v10:injection_error_v",
+    "source_t85_v12:injection_error_v",
+    "source_t85_v15:injection_error_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "return_error_v"
@@ -913,8 +1430,20 @@ unit = "V"
 direction = "minimize"
 aggregation = "max"
 dimension = "response"
-upper = 1e-05
-zero_upper = 0.001
+baseline = [
+    "source_tm20_v10:return_error_v",
+    "source_tm20_v12:return_error_v",
+    "source_tm20_v15:return_error_v",
+    "source_t27_v10:return_error_v",
+    "source_t27_v12:return_error_v",
+    "source_t27_v15:return_error_v",
+    "source_t85_v10:return_error_v",
+    "source_t85_v12:return_error_v",
+    "source_t85_v15:return_error_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "minimum_v"
@@ -931,11 +1460,22 @@ observations = [
     "t85_v15:minimum_v",
 ]
 unit = "V"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
 dimension = "bias"
-lower = -1e-05
-zero_lower = -0.01
+baseline = [
+    "source_tm20_v10:minimum_v",
+    "source_tm20_v12:minimum_v",
+    "source_tm20_v15:minimum_v",
+    "source_t27_v10:minimum_v",
+    "source_t27_v12:minimum_v",
+    "source_t27_v15:minimum_v",
+    "source_t85_v10:minimum_v",
+    "source_t85_v12:minimum_v",
+    "source_t85_v15:minimum_v",
+]
+normalization = "target"
+scale = 1.5
 
 [[task.evaluation.metrics]]
 id = "maximum_v"
@@ -952,11 +1492,24 @@ observations = [
     "t85_v15:maximum_v",
 ]
 unit = "V"
-direction = "minimize"
+direction = "target"
 aggregation = "max"
 dimension = "bias"
-upper = 0.375
-zero_upper = 0.42
+baseline = [
+    "source_tm20_v10:maximum_v",
+    "source_tm20_v12:maximum_v",
+    "source_tm20_v15:maximum_v",
+    "source_t27_v10:maximum_v",
+    "source_t27_v12:maximum_v",
+    "source_t27_v15:maximum_v",
+    "source_t85_v10:maximum_v",
+    "source_t85_v12:maximum_v",
+    "source_t85_v15:maximum_v",
+]
+normalization = "target"
+scale = 1.5
+lower = 0
+upper = 1.5
 
 [[task.evaluation.metrics]]
 id = "line_min_v"
@@ -973,11 +1526,24 @@ observations = [
     "t85_v15:line_min_v",
 ]
 unit = "V"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
 dimension = "bias"
-lower = 0.35
-zero_lower = 0.3
+baseline = [
+    "source_tm20_v10:line_min_v",
+    "source_tm20_v12:line_min_v",
+    "source_tm20_v15:line_min_v",
+    "source_t27_v10:line_min_v",
+    "source_t27_v12:line_min_v",
+    "source_t27_v15:line_min_v",
+    "source_t85_v10:line_min_v",
+    "source_t85_v12:line_min_v",
+    "source_t85_v15:line_min_v",
+]
+normalization = "target"
+scale = 1.5
+lower = 0
+upper = 1.5
 
 [[task.evaluation.metrics]]
 id = "line_max_v"
@@ -994,11 +1560,24 @@ observations = [
     "t85_v15:line_max_v",
 ]
 unit = "V"
-direction = "minimize"
+direction = "target"
 aggregation = "max"
 dimension = "bias"
-upper = 0.37
-zero_upper = 0.42
+baseline = [
+    "source_tm20_v10:line_max_v",
+    "source_tm20_v12:line_max_v",
+    "source_tm20_v15:line_max_v",
+    "source_t27_v10:line_max_v",
+    "source_t27_v12:line_max_v",
+    "source_t27_v15:line_max_v",
+    "source_t85_v10:line_max_v",
+    "source_t85_v12:line_max_v",
+    "source_t85_v15:line_max_v",
+]
+normalization = "target"
+scale = 1.5
+lower = 0
+upper = 1.5
 
 [[task.evaluation.metrics]]
 id = "line_span_v"
@@ -1015,13 +1594,23 @@ observations = [
     "t85_v15:line_span_v",
 ]
 unit = "V"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
 dimension = "response"
+baseline = [
+    "source_tm20_v10:line_span_v",
+    "source_tm20_v12:line_span_v",
+    "source_tm20_v15:line_span_v",
+    "source_t27_v10:line_span_v",
+    "source_t27_v12:line_span_v",
+    "source_t27_v15:line_span_v",
+    "source_t85_v10:line_span_v",
+    "source_t85_v12:line_span_v",
+    "source_t85_v15:line_span_v",
+]
+normalization = "ratio"
+scale = 1e-06
 lower = 0
-upper = 0.012
-zero_lower = 0
-zero_upper = 0.03
 
 [[task.evaluation.metrics]]
 id = "temperature_min_v"
@@ -1038,11 +1627,24 @@ observations = [
     "t85_v15:temperature_min_v",
 ]
 unit = "V"
-direction = "maximize"
+direction = "target"
 aggregation = "min"
 dimension = "bias"
-lower = 0.35
-zero_lower = 0.3
+baseline = [
+    "source_tm20_v10:temperature_min_v",
+    "source_tm20_v12:temperature_min_v",
+    "source_tm20_v15:temperature_min_v",
+    "source_t27_v10:temperature_min_v",
+    "source_t27_v12:temperature_min_v",
+    "source_t27_v15:temperature_min_v",
+    "source_t85_v10:temperature_min_v",
+    "source_t85_v12:temperature_min_v",
+    "source_t85_v15:temperature_min_v",
+]
+normalization = "target"
+scale = 1.5
+lower = 0
+upper = 1.5
 
 [[task.evaluation.metrics]]
 id = "temperature_max_v"
@@ -1059,11 +1661,24 @@ observations = [
     "t85_v15:temperature_max_v",
 ]
 unit = "V"
-direction = "minimize"
+direction = "target"
 aggregation = "max"
 dimension = "bias"
-upper = 0.37
-zero_upper = 0.42
+baseline = [
+    "source_tm20_v10:temperature_max_v",
+    "source_tm20_v12:temperature_max_v",
+    "source_tm20_v15:temperature_max_v",
+    "source_t27_v10:temperature_max_v",
+    "source_t27_v12:temperature_max_v",
+    "source_t27_v15:temperature_max_v",
+    "source_t85_v10:temperature_max_v",
+    "source_t85_v12:temperature_max_v",
+    "source_t85_v15:temperature_max_v",
+]
+normalization = "target"
+scale = 1.5
+lower = 0
+upper = 1.5
 
 [[task.evaluation.metrics]]
 id = "temperature_span_v"
@@ -1080,13 +1695,23 @@ observations = [
     "t85_v15:temperature_span_v",
 ]
 unit = "V"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
 dimension = "response"
+baseline = [
+    "source_tm20_v10:temperature_span_v",
+    "source_tm20_v12:temperature_span_v",
+    "source_tm20_v15:temperature_span_v",
+    "source_t27_v10:temperature_span_v",
+    "source_t27_v12:temperature_span_v",
+    "source_t27_v15:temperature_span_v",
+    "source_t85_v10:temperature_span_v",
+    "source_t85_v12:temperature_span_v",
+    "source_t85_v15:temperature_span_v",
+]
+normalization = "ratio"
+scale = 1e-06
 lower = 0
-upper = 0.003
-zero_lower = 0
-zero_upper = 0.01
 
 [[task.evaluation.metrics]]
 id = "output_resistance_ohm"
@@ -1103,13 +1728,23 @@ observations = [
     "t85_v15:output_resistance_ohm",
 ]
 unit = "ohm"
-direction = "target"
+direction = "minimize"
 aggregation = "max"
 dimension = "response"
+baseline = [
+    "source_tm20_v10:output_resistance_ohm",
+    "source_tm20_v12:output_resistance_ohm",
+    "source_tm20_v15:output_resistance_ohm",
+    "source_t27_v10:output_resistance_ohm",
+    "source_t27_v12:output_resistance_ohm",
+    "source_t27_v15:output_resistance_ohm",
+    "source_t85_v10:output_resistance_ohm",
+    "source_t85_v12:output_resistance_ohm",
+    "source_t85_v15:output_resistance_ohm",
+]
+normalization = "ratio"
 lower = 0
-upper = 4000000000.0
-zero_lower = 0
-zero_upper = 10000000000.0
+scale = 1e-06
 
 [[task.evaluation.metrics]]
 id = "loaded_reference_v"
@@ -1129,16 +1764,26 @@ unit = "V"
 direction = "target"
 aggregation = "max"
 dimension = "bias"
-lower = 0.35
-upper = 0.37
-zero_lower = 0.3
-zero_upper = 0.42
+baseline = [
+    "source_tm20_v10:loaded_reference_v",
+    "source_tm20_v12:loaded_reference_v",
+    "source_tm20_v15:loaded_reference_v",
+    "source_t27_v10:loaded_reference_v",
+    "source_t27_v12:loaded_reference_v",
+    "source_t27_v15:loaded_reference_v",
+    "source_t85_v10:loaded_reference_v",
+    "source_t85_v12:loaded_reference_v",
+    "source_t85_v15:loaded_reference_v",
+]
+normalization = "target"
+scale = 1.5
+lower = 0
+upper = 1.5
 
 [task.evaluation.scoring]
-method = "layout-v1"
+method = "layout-v2"
 area_metric = "functional_area"
-area_target = 1600
-area_zero = 6400
+area_target = 210.61
 
 [toolchain]
 schema_version = 1
@@ -1225,13 +1870,6 @@ support = "mixed-mos-models"
 image = "iclayout-bench-tools:local"
 support = "build/support/mixed-mos-models"
 timeout_seconds = 300
-
-[[assets]]
-path = "reference/vref_001_vgs.gds"
-role = "physical-witness"
-visibility = "maintainer"
-format = "gds"
-sha256 = "bd06f42574302e32d144af40740e9179ae3b3a7f539943cdd3d720a3aedc9400"
 
 [qualification]
 evidence = "README.md"

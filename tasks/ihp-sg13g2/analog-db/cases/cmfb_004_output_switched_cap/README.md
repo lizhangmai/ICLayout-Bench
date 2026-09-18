@@ -1,4 +1,4 @@
-> Qualification commands require the installed Private operator package (`layout_eval`); run them from the Public task checkout. Participant-only installations use the HTTP service.
+> Qualification commands use the Public evaluation engine (`benchmarking.engine`); run them from the Public task checkout. Remote participants use the HTTP service.
 
 # MIM Switched-Capacitor Common-Mode Sampler
 
@@ -21,41 +21,71 @@ Vcm = 0.75 V; Vbias = 0.6 V. Each condition starts with input common mode 0.75 V
 | [materials/testbench.spice](materials/testbench.spice) | Shared source/post-layout measurements |
 | [reference/cmfb_004_output_switched_cap.gds](reference/cmfb_004_output_switched_cap.gds) | Independent witness, excluded from solver inputs |
 
+[Analog Canvas schematic](materials/schematic.svg) is a maintainer-only result
+browsing asset, excluded from solver inputs. Same-name labels denote connected
+nets; repeated-device banks retain individual instances in editable child sheets.
+SVG metadata binds the source digest and records authoring/verification limitations.
+The authoritative netlist, simulation decks and evaluation requirements are unchanged.
+
 ## Reference Results
 
-The independently constructed reference passes artifact checks, main/maximal DRC without waivers, strict named-port LVS, hard geometry, candidate RC extraction and all 20 electrical observations. Functional area is 20589.5824 um2 and the reference score is 100/100; this is witness qualification, not a model score. The table reports min–max across all 5 conditions; each observation is checked separately.
+Reference results use the pinned IHP SG13G2 ciel release described in
+[resource preparation](../../../../../docs/tools.md#ihp-physical-check-profiles).
 
-| Metric | Unit | Pre-layout | Post-layout |
-| --- | --- | --- | --- |
-| `output_v` | V | 0.5001887–0.6998088 | 0.5025711–0.697334 |
-| `sample_error_v` | V | 2.520536e-06–0.0001925041 | 4.491021e-05–0.002666033 |
-| `hold_drift_v` | V | 9.400405e-05–0.0001883919 | 0.0002111748–0.0002683448 |
-| `clock_power_w` | W | 3.654853e-10–3.768236e-10 | 2.173587e-08–2.207999e-08 |
+The declared reference passes artifact, DRC, LVS, hard geometry, candidate-derived
+extraction and the functional checks in the current case plan. Conditions, model
+boundaries, measurement windows and normalization rules are specified in
+[problem.md](problem.md). Both simulation paths use the same declared testbenches
+and trusted resources. The source circuit supplies the electrical baseline;
+the reference GDS demonstrates an executable layout, not an optimal solution.
 
-Coefficient 5 reflects periodic charge transfer, independent clock routing and interacting floating capacitors. The 5 mV sampling limit resolves a 100 mV common-mode disturbance, and the 0.5 mV hold limit constrains clock feedthrough during disconnection. Clock-power acceptance is 40 nW. It measures the two clock drivers, not total energy supplied by all reference/input sources. Fixed functional area target/zero: 22000 / 88000 um2. See the [problem](problem.md) for all limits, measurement windows, scoring boundaries and footprint layers. The MIM bottom-plate/interconnect parasitics belong to candidate extraction, not an ideal-capacitor substitution.
+Measured `layout-v2` score: **18.804646**, with electrical quality
+**E = 0.13831794** and area quality **Q = 0.25565356**.
+The score is `100 * sqrt(E * Q)` after validity and functional checks; 100 is a
+reference, not a ceiling. Functional area is **20589.5824 um2**.
 
-Halving the transient step from 1 ns to 0.5 ns changed sampled output by at most 1.1 uV, hold drift by 1.93 uV and supplied clock power by 2.44%. Both steps satisfy the declared limits. Clock-energy numerical precision is limited by this comparison; it is not a sub-percent power claim.
+Area reference: **5263.8 um2**. 22 expanded device instances; sum of device/contact envelopes 3414.7414 um2, per-side envelope allowance 0.6 um, 50% routing allowance and outer margin 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 4 * margin * sqrt(envelope_sum) + 4 * margin^2)) / 100. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+| Metric | Unit | Pre-layout range | Post-layout range | Worst quality ratio |
+| --- | --- | ---: | ---: | ---: |
+| `output_v` | V | 0.5001887 … 0.6998088 | 0.5025711 … 0.697334 | 0.99835285 |
+| `sample_error_v` | V | 2.520536e-06 … 0.0001925041 | 4.491021e-05 … 0.002666033 | 0.072080585 |
+| `hold_drift_v` | V | 9.400405e-05 … 0.0001883919 | 0.0002111733 … 0.0002683448 | 0.35305009 |
+| `clock_power_w` | W | 3.654853e-10 … 3.768236e-10 | 2.173587e-08 … 2.207999e-08 | 0.01661591 |
+
+Ranges summarize all declared observations; quality is computed from paired
+observations, not from range endpoints. Reports retain each source and extracted
+measurement. The area estimate and metric definitions are frozen before model
+evaluation. Qualification does not establish PVT, statistical yield, manufacturing
+signoff or performance outside the declared simulation/extraction scope.
+
+Coefficient 5 reflects periodic charge transfer, independent clock routing and interacting floating capacitors.
 
 ## Reproduce
 
-Run from the repository root with the [shared IHP tools and resource setup](../../../../../docs/tools.md#manual-tools). Reuse verified bundles. These commands create the reader's own reports under a fresh `build/runs/` directory; generated evidence is not shipped with this case.
-
-The embedded bindings use these destinations. If they do not already exist, prepare them once from the pinned PDK (preparation refuses an existing destination):
-
-```bash
-python -m layout_eval.prepare_support third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#klayout build/support/input-pair-klayout
-python -m layout_eval.prepare_support third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#magic build/support/input-pair-magic
-python -m layout_eval.prepare_support third_party/IHP-Open-PDK tasks/ihp-sg13g2/pdk.toml#analog-models build/support/input-pair-models
-```
+Run from the Public checkout using the [shared tools setup](../../../../../docs/tools.md).
+Reuse a compatible tools image or build it from the published Dockerfile. These
+commands create fresh local output; the generated directories are not repository
+inputs. Public qualification does not require the Private package.
 
 ```bash
-python -m layout_eval.cli evaluate \
-  tasks/ihp-sg13g2/analog-db/cases/cmfb_004_output_switched_cap/case.toml \
-  tasks/ihp-sg13g2/analog-db/cases/cmfb_004_output_switched_cap/reference/cmfb_004_output_switched_cap.gds \
+python -m benchmarking.engine.preview prepare \
+  --case ihp-sg13g2.analog-db.cmfb_004_output_switched_cap --image iclayout-bench-tools:local \
+  --output build/runs/cmfb_004_output_switched_cap-prepared
+python -m benchmarking.engine.preview run \
+  --prepared build/runs/cmfb_004_output_switched_cap-prepared \
   --output build/runs/cmfb_004_output_switched_cap-reference
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:local \
+  python -m pytest tests/integration/test_public_references.py -k 'cmfb_004_output_switched_cap'
 ```
 
-For pre-layout calibration, apply the [source-characterization recipe](../../../../../docs/tools.md#gf180-source-calibration) to this case, replacing its `input:netlist` substitution with `input:simulation` for the separate IHP simulator representation. It retains every condition and measurement while removing scoring and candidate checks. The scored post-layout plan always consumes candidate RC.
+The reference run includes the `source_*` jobs; separate source-only plan editing
+is unnecessary. Inspect `report.json` under the chosen reference output for raw
+source/post-layout values, physical verdicts and the score decomposition. Use a
+fresh output directory on each run. The catalog regression checks the supplied
+witness and rejects an empty candidate; shared evaluator tests cover continuous
+scoring, unknown evidence and functional failure. Original model results are not
+relabelled or rescored when the task changes.
 
 ## Source and License
 

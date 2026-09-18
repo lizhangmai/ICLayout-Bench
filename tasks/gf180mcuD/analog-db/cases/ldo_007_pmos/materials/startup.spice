@@ -1,0 +1,29 @@
+* Regulator nominal and finite-window perturbation observations.
+.include support/models.spice
+.include dut.spice
+.include parameters.spice
+.temp 27
+.save v(vdd) v(vss) v(vout) v(cout) v(vref) i(vdd) i(vss) i(vref) v(ebias)
+VSS vss 0 0
+.options reltol=1e-6 abstol=1e-13 vntol=1e-9
+VDD vdd 0 PWL(0 0 10u 1.8 400u 1.8)
+IBIAS vdd ebias 60u
+VREF vref 0 1.05
+RLOAD vout 0 1200.0
+RESR vout cout .1
+COUT cout 0 1n
+XDUT vdd vout vss ebias vref ldo_007_pmos
+.control
+set numdgt=15
+set measdgt=15
+op
+write op.raw all
+tran 10n 400u 0 10n
+meas tran startup_final_v avg v(vout) from=380u to=400u
+meas tran startup_ripple_v pp v(vout) from=380u to=400u
+meas tran startup_min_v min v(vout) from=0 to=400u
+meas tran startup_max_v max v(vout) from=0 to=400u
+write transient.raw all
+quit
+.endc
+.end
