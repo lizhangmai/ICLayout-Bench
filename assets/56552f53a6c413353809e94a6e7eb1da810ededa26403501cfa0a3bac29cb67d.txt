@@ -1,0 +1,57 @@
+* Maintained Layout-Bench differential-switch characterization. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include dut.spice
+.include parameters.spice
+.temp 27
+.option rshunt=1e12 method=gear maxord=2
+VDD vdd 0 1.5
+VCM cm 0 0.75
+VAP ap 0 {0.75+diff_v/2}
+VAN an 0 {0.75-diff_v/2}
+VCK ck 0 DC {clock_v} PULSE(0 1.5 1u 2n 2n 5u 10u)
+VKN kn 0 DC {1.5-clock_v} PULSE(1.5 0 1u 2n 2n 5u 10u)
+RP bp cm 10k
+RN bn cm 10k
+CP bp 0 1p
+CN bn 0 1p
+XD ap an bp bn ck kn vdd 0 sw_002_chopper_diff
+.save v(ap) v(an) v(bp) v(bn) v(ck) v(kn) v(vdd) v(cm) i(vap) i(van) i(vck) i(vkn)
+.control
+set noaskquit
+set numdgt=12
+op
+let expected_p=v(an)+(v(ap)-v(an))*v(ck)/1.5
+let expected_n=v(ap)-(v(ap)-v(an))*v(ck)/1.5
+let ron_p=abs((expected_p-v(bp))*10000/(v(bp)-v(cm)))
+let ron_n=abs((expected_n-v(bn))*10000/(v(bn)-v(cm)))
+let transfer=(v(bp)-v(bn))/(expected_p-expected_n)
+let common_error_v=abs((v(bp)+v(bn))/2-v(cm))
+print ron_p ron_n transfer common_error_v
+write op.raw all
+tran 0.1n 12u
+let vd=(v(bp)-v(bn))/(v(ap)-v(an))
+meas tran straight_gain find vd at=4u
+meas tran crossed_gain find vd at=9u
+write switching.raw all
+* Equal input potentials isolate clock feedthrough/injection from signal reversal.
+alter VAP=0.75
+alter VAN=0.75
+tran 0.1n 12u
+let err=abs((v(bp)+v(bn))/2-0.75)
+let differential=abs(v(bp)-v(bn))
+let input_current=i(vap)+i(van)
+* Gross supplied drive power: returned energy is not credited.
+let pck=-v(ck)*i(vck)
+let pkn=-v(kn)*i(vkn)
+let clock_power=(pck+abs(pck)+pkn+abs(pkn))/2
+meas tran common_glitch_v max err from=1u to=1.1u
+meas tran differential_glitch_v max differential from=1u to=1.1u
+meas tran signed_charge integ input_current from=1u to=1.1u
+let input_charge_c=abs(signed_charge)
+print input_charge_c
+meas tran clock_power_w avg clock_power from=2u to=12u
+write injection.raw all
+quit
+.endc
+.end

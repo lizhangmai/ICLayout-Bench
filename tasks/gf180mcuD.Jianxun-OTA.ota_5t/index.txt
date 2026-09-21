@@ -1,0 +1,254 @@
+1:"$Sreact.fragment"
+2:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+3:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+4:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+5:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+7:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+8:"$Sreact.suspense"
+b:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+d:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+f:I[68027,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default",1]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+a:X
+0:{"P":null,"c":["","tasks","gf180mcuD.Jianxun-OTA.ota_5t",""],"q":"","i":false,"f":[[["",{"children":[["path","tasks/gf180mcuD.Jianxun-OTA.ota_5t","oc",[]],{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L2",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L3",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L2",null,{"href":"/","children":"Return to overview"}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L2",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}],{"children":[["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":[["$","$1","c",{"children":["$L6",[["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true,"nonce":"$undefined"}]],["$","$L7",null,{"children":["$","$8",null,{"name":"Next.MetadataOutlet","children":"$@9"}]}]]}],{},null,false,null]},null,false,"$a"]},null,false,null],["$","$1","h",{"children":[null,["$","$Lb",null,{"children":"$Lc"}],["$","div",null,{"hidden":true,"children":["$","$Ld",null,{"children":["$","$8",null,{"name":"Next.Metadata","children":"$Le"}]}]}],null]}],false]],"m":"$undefined","G":["$f",[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"U2oZdoUjWqT_XfcDHuQ5i"}
+10:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+a:C
+11:T2438,<h1 id="problem-five-transistor-ota-with-bias-and-dummies-layout-task">Five-Transistor OTA with Bias and Dummies Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Implement <code>ota_5t</code> in GF180MCU variant D while preserving the supplied circuit, device dimensions and ordered interface. Small-signal differential gain and unity frequency at 1.65 V common mode, 10 uA bias and 1 pF load.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p>The delivered files are <code>materials/circuit.spice</code> (authoritative circuit), <code>materials/testbench.spice</code> (stimuli and measurements), and this problem. Runtime task metadata supplies the same frozen constraints, evaluation conditions and output declaration.</p>
+<p>Ordered subcircuit and GDS interface: <code>vdd, out, in_p, in_n, i_bias, vss</code>.
+vdd/vss: supply/return; out: single-ended output; in_p/in_n: differential inputs; i_bias: current-bias input.</p>
+<p>Preserve topology and total device width, channel length, multiplicity, resistor dimensions and body connections. Equivalent hierarchy, diffusion sharing and parallel-finger implementations are allowed when they pass connectivity and electrical checks. No source-model replacement, idealized internal device or changed device sizing is permitted. A dummy device remains part of the circuit even when its terminals are tied together.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>Use 3.3 V and 27 C, a 10 uA current from vdd into i_bias, input common mode 1.65 V and 1 pF from out to ground. The differential AC excitation is 1 V (in_p: +0.5 V; in_n: -0.5 V). Measure the DC output and supply power, then sweep 10 Hz to 1 GHz at 40 points/decade.</p>
+<p>Use the reviewed typical primitive models with statistical variation disabled. Numerical parameters in the runtime simulation jobs supply the testbench's <code>parameters.spice</code>. Follow the delivered testbench for interpolation and detailed PWL definitions. This is a nominal compact-model task; temperature/process corners, mismatch yield, noise, RF/EM and full-chip density closure are outside its qualification scope.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Submit a nonempty GDS with top cell <code>ota_5t</code> and at most 10485760 bytes. Its functional bounding box must not exceed 320 by 80 um. All relevant device and routing polygons contribute, including implant/well, passive markers, contacts, vias and dummy routing. The complete layer/datatype set is:</p>
+<p><code>[[5,0],[11,17],[11,39],[12,0],[13,17],[21,0],[22,0],[22,4],[24,0],[24,5],[30,0],[30,4],[31,0],[32,0],[33,0],[34,0],[34,3],[34,4],[34,5],[35,0],[36,0],[36,3],[36,4],[36,5],[37,0],[38,0],[40,0],[41,0],[42,0],[42,3],[42,4],[42,5],[46,0],[46,3],[46,4],[46,5],[49,0],[53,0],[53,3],[53,4],[53,5],[55,0],[62,0],[75,0],[80,5],[81,0],[81,3],[81,4],[81,5],[82,0],[86,17],[88,17],[96,1],[100,5],[100,7],[100,8],[108,5],[110,5],[110,11],[110,12],[110,13],[110,14],[110,15],[110,16],[111,5],[112,1],[115,5],[116,5],[117,5],[117,10],[118,5],[119,5],[122,5],[123,5],[124,5],[125,5],[127,5],[128,17],[137,5],[151,5],[152,5],[153,51],[166,5],[167,5],[173,5],[178,0],[183,0],[184,0],[185,0],[204,0],[210,0],[220,0],[226,0],[227,0],[241,0]]</code>.</p>
+<p>Text and nonfunctional boundary layers 0/0 and 63/0 are excluded from area. Functional geometry may not be hidden on annotation layers. Pass the pinned GF180 D FEOL, BEOL, connectivity, off-grid and antenna checks without marker waivers. The stack is five metals with 1.1 um top metal and the 1 kOhm/square high-resistance poly option. Chip-level density and seal-ring closure are integration responsibilities outside this standalone block.</p>
+<p>LVS checks device topology, dimensions, body connections and every named top-level pin (case insensitive). Supply and substrate/well contacts must be physical. Distinct electrical nets must not be joined by touching silicided diffusion. After validity and geometry gates, extract the submitted candidate's devices and distributed interconnect resistance and capacitance. Simulations use that extracted circuit. The substrate compact-model boundary is one equipotential bulk domain with explicit well/body contacts; this does not model a distributed silicon substrate network. Unreliable extraction, absent named ports or incomplete measurements cannot establish success.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gain</code></td>
+<td>20 log10 of the single-ended differential voltage gain at 10 Hz.</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>unity</code></td>
+<td>First falling 0 dB gain crossing in the declared AC sweep.</td>
+<td>Hz</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td>DC operating-point voltage at out.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 3.3</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td><code>supply</code></td>
+<td>DC power delivered by the 3.3 V source, including the bias-current branch.</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>510.1 um2</strong>. 16 expanded device instances; sum of device/contact envelopes 291.8400 um2, per-side envelope allowance 1 um, 50% routing allowance and total outer width/height allowance 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>4</strong>; it is independent of
+the reference-relative task score.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Small-signal OTAs: gain 36%; bandwidth 30%; operating points 6%; power 18%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>gain</code></td>
+<td style="text-align:right">0.360000000000</td>
+</tr>
+<tr>
+<td><code>unity</code></td>
+<td style="text-align:right">0.300000000000</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td style="text-align:right">0.060000000000</td>
+</tr>
+<tr>
+<td><code>supply</code></td>
+<td style="text-align:right">0.180000000000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Use runtime task, resource and harness discovery to locate the delivered inputs and reviewed GF180 resources. Trusted feedback runs the declared physical and post-layout evaluation; source-only simulation is useful for design but is not acceptance. Write the final GDS to <code>/workspace/output/final.gds</code> and explicitly submit it using the harness submission interface. A generated file or successful standalone simulation alone does not complete the task.</p>
+<p>Use a GDS database unit of 0.001 um, as required by the GF180MCU DRC deck.</p>
+12:Tfe0,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gain</code></td>
+<td>20 log10 of the single-ended differential voltage gain at 10 Hz.</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>unity</code></td>
+<td>First falling 0 dB gain crossing in the declared AC sweep.</td>
+<td>Hz</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td>DC operating-point voltage at out.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 3.3</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td><code>supply</code></td>
+<td>DC power delivered by the 3.3 V source, including the bias-current branch.</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>510.1 um2</strong>. 16 expanded device instances; sum of device/contact envelopes 291.8400 um2, per-side envelope allowance 1 um, 50% routing allowance and total outer width/height allowance 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>4</strong>; it is independent of
+the reference-relative task score.</p>
+<h3>Score weights</h3>
+<p>Small-signal OTAs: gain 36%; bandwidth 30%; operating points 6%; power 18%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>gain</code></td>
+<td style="text-align:right">0.360000000000</td>
+</tr>
+<tr>
+<td><code>unity</code></td>
+<td style="text-align:right">0.300000000000</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td style="text-align:right">0.060000000000</td>
+</tr>
+<tr>
+<td><code>supply</code></td>
+<td style="text-align:right">0.180000000000</td>
+</tr>
+</tbody>
+</table>
+13:T886,<p>Submit a nonempty GDS with top cell <code>ota_5t</code> and at most 10485760 bytes. Its functional bounding box must not exceed 320 by 80 um. All relevant device and routing polygons contribute, including implant/well, passive markers, contacts, vias and dummy routing. The complete layer/datatype set is:</p>
+<p><code>[[5,0],[11,17],[11,39],[12,0],[13,17],[21,0],[22,0],[22,4],[24,0],[24,5],[30,0],[30,4],[31,0],[32,0],[33,0],[34,0],[34,3],[34,4],[34,5],[35,0],[36,0],[36,3],[36,4],[36,5],[37,0],[38,0],[40,0],[41,0],[42,0],[42,3],[42,4],[42,5],[46,0],[46,3],[46,4],[46,5],[49,0],[53,0],[53,3],[53,4],[53,5],[55,0],[62,0],[75,0],[80,5],[81,0],[81,3],[81,4],[81,5],[82,0],[86,17],[88,17],[96,1],[100,5],[100,7],[100,8],[108,5],[110,5],[110,11],[110,12],[110,13],[110,14],[110,15],[110,16],[111,5],[112,1],[115,5],[116,5],[117,5],[117,10],[118,5],[119,5],[122,5],[123,5],[124,5],[125,5],[127,5],[128,17],[137,5],[151,5],[152,5],[153,51],[166,5],[167,5],[173,5],[178,0],[183,0],[184,0],[185,0],[204,0],[210,0],[220,0],[226,0],[227,0],[241,0]]</code>.</p>
+<p>Text and nonfunctional boundary layers 0/0 and 63/0 are excluded from area. Functional geometry may not be hidden on annotation layers. Pass the pinned GF180 D FEOL, BEOL, connectivity, off-grid and antenna checks without marker waivers. The stack is five metals with 1.1 um top metal and the 1 kOhm/square high-resistance poly option. Chip-level density and seal-ring closure are integration responsibilities outside this standalone block.</p>
+<p>LVS checks device topology, dimensions, body connections and every named top-level pin (case insensitive). Supply and substrate/well contacts must be physical. Distinct electrical nets must not be joined by touching silicided diffusion. After validity and geometry gates, extract the submitted candidate's devices and distributed interconnect resistance and capacitance. Simulations use that extracted circuit. The substrate compact-model boundary is one equipotential bulk domain with explicit well/body contacts; this does not model a distributed silicon substrate network. Unreliable extraction, absent named ports or incomplete measurements cannot establish success.</p>
+6:["$","$8",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L10",null,{"task":{"case_path":"tasks/gf180mcuD/Jianxun-OTA/cases/ota_5t/case.toml","coefficient":4,"collection":"Jianxun-OTA","configuration_url":"/ICLayout-Bench/assets/a1a3a8a82fbbaabf2bb6863d59a97ac3b653abe614f6bf611d3afaed9f8f3781.txt","description_html":"$11","description_path":"tasks/gf180mcuD/Jianxun-OTA/cases/ota_5t/problem.md","hours":3,"id":"gf180mcuD.Jianxun-OTA.ota_5t","inputs":{"description":{"format":"text","path":"problem.md","sha256":"5853d081d83aa7341666f0d168a814acb189d55936f6ddca0e61a108aeefbae1"},"netlist":{"format":"spice","path":"materials/circuit.spice","sha256":"fe6966f64eb3bc72880adca79dac070e0c0e2ea05cdc46c83f49616611d36fac","subcircuit":"ota_5t"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"457a8a230c6f579fcb9152ea15f9f93bab53310efe2485a8b1e01dc04b69d452"}},"licenses":[{"name":"LICENSE","path":"tasks/gf180mcuD/Jianxun-OTA/LICENSE","url":"/ICLayout-Bench/assets/0d57a40237ce82f3e8d39464ce0bda0348504454c0eb79e335e9d87259bd2d5f.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/5853d081d83aa7341666f0d168a814acb189d55936f6ddca0e61a108aeefbae1.txt"},{"name":"materials/circuit.spice","role":"netlist","url":"/ICLayout-Bench/assets/fe6966f64eb3bc72880adca79dac070e0c0e2ea05cdc46c83f49616611d36fac.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/457a8a230c6f579fcb9152ea15f9f93bab53310efe2485a8b1e01dc04b69d452.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"min","baseline":["source_nominal:gain_db"],"category":"performance","dimension":"response","direction":"maximize","id":"gain","normalization":"db20","observations":["nominal:gain_db"],"unit":"dB"},{"aggregation":"min","baseline":["source_nominal:unity_hz"],"category":"performance","dimension":"response","direction":"maximize","id":"unity","lower":0,"normalization":"ratio","observations":["nominal:unity_hz"],"unit":"Hz"},{"aggregation":"min","baseline":["source_nominal:bias_v"],"category":"performance","dimension":"bias","direction":"target","id":"output_bias","lower":0,"normalization":"target","observations":["nominal:bias_v"],"scale":3.3,"unit":"V","upper":3.3},{"aggregation":"min","baseline":["source_nominal:power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"supply","lower":0,"normalization":"ratio","observations":["nominal:power_w"],"scale":1e-12,"unit":"W"}],"pdk":"gf180mcuD","reader":{"category":"Amplifiers & RF","summary":"Amplifies a differential input with a compact five-transistor OTA core and bias network.","title":"Five-Transistor OTA with Bias and Dummies"},"schematic_url":"/ICLayout-Bench/assets/e0cb36185bb1c30f23e23a53ed943bc83687c8901f83fc87d6e3b3035a68f388.svg","scoring":{"area_metric":"functional_area","area_target":510.1,"method":"layout","rationale":"Small-signal OTAs: gain 36%; bandwidth 30%; operating points 6%; power 18%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"functional_area":0.1,"gain":0.36,"output_bias":0.06,"supply":0.18,"unity":0.3}},"sections":{"Electrical Requirements and Scoring":"$12","Objective":"<p>Implement <code>ota_5t</code> in GF180MCU variant D while preserving the supplied circuit, device dimensions and ordered interface. Small-signal differential gain and unity frequency at 1.65 V common mode, 10 uA bias and 1 pF load.</p>\n","Operating Conditions":"<p>Use 3.3 V and 27 C, a 10 uA current from vdd into i_bias, input common mode 1.65 V and 1 pF from out to ground. The differential AC excitation is 1 V (in_p: +0.5 V; in_n: -0.5 V). Measure the DC output and supply power, then sweep 10 Hz to 1 GHz at 40 points/decade.</p>\n<p>Use the reviewed typical primitive models with statistical variation disabled. Numerical parameters in the runtime simulation jobs supply the testbench's <code>parameters.spice</code>. Follow the delivered testbench for interpolation and detailed PWL definitions. This is a nominal compact-model task; temperature/process corners, mismatch yield, noise, RF/EM and full-chip density closure are outside its qualification scope.</p>\n","Physical Requirements":"$13"},"source_url":"https://github.com/Jianxun/iic-osic-tools-project-template/tree/178a401d847ce7a602d0ce70a1ba90a15b5f9536/designs/libs/core_analog/ota_5t/ota_5t.spice","status":"qualified","title":"Five-Transistor OTA with Bias and Dummies"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}]
+c:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+14:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+9:null
+e:[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L14","3",{}]]

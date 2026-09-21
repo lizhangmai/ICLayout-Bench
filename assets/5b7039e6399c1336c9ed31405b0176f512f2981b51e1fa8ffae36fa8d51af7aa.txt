@@ -1,0 +1,9 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Fixed IHP binding; external bias ports and native physical taps.
+.subckt adc_001_inv1b vdd vin vout vss
+XT0 vss sub ptap1 A=4e-12 P=8e-6
+XMN vout vin vss sub sg13_lv_nmos w=1u l=0.13u m=1
+XT1 vdd well_1 ntap1 A=4e-12 P=8e-6
+XMP vout vin vdd well_1 sg13_lv_pmos w=2.5u l=0.13u m=1
+XTSUB vss sub ptap1 A=4e-12 P=8e-6
+.ends adc_001_inv1b

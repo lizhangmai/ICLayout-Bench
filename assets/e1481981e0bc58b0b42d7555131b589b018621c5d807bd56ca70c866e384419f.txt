@@ -1,0 +1,20 @@
+* Derived from pinned analog-db; Copyright 2026 Danial Noori Zadeh.
+* See collection license; 5 nm geometry, physical R/C, explicit interface.
+.subckt amp_033_ti_ldo_ref_selfbias vdd vout vinp vinn vss
+XCC_0 ncz vout cap_mim_2f0_m4m5_noshield c_width=20u c_length=18.785u
+XCC_1 ncz vout cap_mim_2f0_m4m5_noshield c_width=20u c_length=18.785u
+XCC_2 ncz vout cap_mim_2f0_m4m5_noshield c_width=20u c_length=18.785u
+XCC_3 ncz vout cap_mim_2f0_m4m5_noshield c_width=20u c_length=18.785u
+XCC_4 ncz vout cap_mim_2f0_m4m5_noshield c_width=20u c_length=18.785u
+XCC_5 ncz vout cap_mim_2f0_m4m5_noshield c_width=20u c_length=18.785u
+XRZ_0 nb ncz vss ppolyf_u_1k r_width=1u r_length=30.855u
+XM1_0 na vinn tail vss nfet_06v0 w=86.42u l=0.7u
+XM2_0 nb vinp tail vss nfet_06v0 w=86.42u l=0.7u
+XM3_0 na na vdd vdd pfet_06v0 w=20u l=1u
+XM4_0 nb na vdd vdd pfet_06v0 w=20u l=1u
+XM5_0 vout nb vdd vdd pfet_06v0 w=37.76u l=2.645u
+XMB0_0 ibias ibias vss vss nfet_06v0 w=12u l=2u
+XMBC_0 tail ibias vss vss nfet_06v0 w=8.315u l=2u
+XMBO_0 vout ibias vss vss nfet_06v0 w=4u l=2u
+XMBP_0 ibias ibias vdd vdd pfet_06v0 w=10.845u l=2u
+.ends amp_033_ti_ldo_ref_selfbias

@@ -1,0 +1,233 @@
+Layout-Bench analog-db GF180 collection
+======================================
+
+Required Notice: Copyright 2026 Danial Noori Zadeh
+
+References below to MIT for independently authored Bench measurement or
+observation decks refer to the repository root LICENSE (../../../LICENSE).
+Include that root LICENSE when redistributing those decks separately.
+
+Circuit materials derive from MacAnalog/spicexplorer-release analog-db,
+commit 263d0322f8900dc331536fbbe6c0e804514fc454.
+The database LICENSE and NOTICE identify original circuit definitions under
+PolyForm Noncommercial 1.0.0; these terms are retained in LICENSE. The entry's
+provenance metadata separately refers to an MIT source architecture; this
+collection does not assume that metadata relicenses the normalized database
+material. It is not covered as a whole by the framework's MIT license.
+
+Layout-Bench changes: expose the reference and error-amplifier tail interfaces;
+retain the GF180 MOS dimensions and pass-device multiplicity; replace the ideal
+divider by GF180 1 kohm/square poly devices; remove the internal loop-probe source;
+use a 0.9 V external reference for a nominal 1.8 V output; independently construct
+the physical witness. Testbenches are separately identified as MIT.
+Retain LICENSE and these notices with distributions of these materials.
+
+Batch additions at the same fixed analog-db commit
+-------------------------------------------------
+amp_004_folded_cascode: first-party SpiceXplorer / CORA-benchmark material,
+identified as such by the database NOTICE. The provenance MIT label does not
+relicense the normalized material. Layout-Bench exposes vb1/vb2, retains total
+W/L and multiplicity and uses single-finger MOS instances with physical bodies.
+
+gs_001_cascode_cs, dp_001_resistive_load, cmp_001_hyst_diffpair: manifests
+attribute the source topology to Token Zhang, Arcadia-1/ferrosim, MIT.
+Layout-Bench retains MOS W/L and multiplicity, binds physical poly loads or
+feedback/tail resistors where applicable, and authors independent witnesses.
+The supplied attribution and standard component terms are retained in LICENSE.
+
+tsn_003_ptat_4t_xcoupled: source topology attributed to CODA-Team AnalogGym
+Sensing Front End, BSD-3-Clause. Copyright (c) 2024, CODA-Team. The supplied
+component license is reproduced in LICENSE. Layout-Bench fixes the GF180
+circuit and independently authors a physical witness and temperature contract.
+
+All five normalized circuit derivatives retain the database PolyForm
+Noncommercial terms and Required Notice: Copyright 2026 Danial Noori Zadeh.
+New measurement decks are independently authored Layout-Bench code under MIT.
+Physical witnesses are distributed with the corresponding circuit terms.
+Upstream proprietary-process reference decks, generators, DSL, optimization
+traces and scoreboard are not included in these maintained case materials.
+
+Additional fixed-snapshot cases
+-------------------------------
+amp_018_telescopic_cascode: the database NOTICE identifies original first-party
+SpiceXplorer / CORA-benchmark material. Layout-Bench retains W/L/m and exposes
+gate_pc, casc_n and tail to preserve both relative external voltage biases.
+
+cmfb_003_5t_nmos_input: original normalized analog-db material. Layout-Bench
+retains the seven MOS and implements each 5 Mohm sense arm as twenty series
+250-kohm physical poly segments, with explicit substrate terminals.
+
+These derivatives and their independent witnesses retain PolyForm Noncommercial
+1.0.0 and Required Notice: Copyright 2026 Danial Noori Zadeh. Independently
+authored measurement decks are separately MIT.
+
+Isolated-body PTAT at the same fixed snapshot
+--------------------------------------------
+tsn_002_ptat_classic: source topology attributed to CODA-Team AnalogGym Sensing
+Front End, BSD-3-Clause. Copyright (c) 2024, CODA-Team. Applicable component
+terms are retained in LICENSE. Layout-Bench preserves the four core MOS W/L/m
+and output-connected body, implements the 20 kohm resistor with physical poly,
+and adds three MOS for startup. The independently authored witness uses an
+isolated P-well, deep N-well and explicit N-well enclosure. The normalized
+derivative and witness retain PolyForm Noncommercial 1.0.0 and Required Notice:
+Copyright 2026 Danial Noori Zadeh. The independent measurement deck is MIT.
+
+Self-biased amplifiers, buffered LDO and StrongARM at the fixed snapshot
+---------------------------------------------------------------------
+amp_032_ti_ldo_error_selfbias, amp_033_ti_ldo_ref_selfbias and
+ldo_005_buffered_ref retain the first-party MacAnalog GF180-native circuit
+implementations and their distinct sizing defaults. Layout-Bench quantizes
+geometry to 5 nm, raises subminimum 6 V PMOS lengths to 0.55 um, and implements
+R/C with native poly/MIM primitives. The LDO exposes the ideal reference as an
+external port and replaces its zero-volt loop-probe marker with a wire.
+
+cmp_002_strongarm is attributed by the fixed manifest to Token Zhang,
+Arcadia-1/ferrosim, MIT. The applicable component terms in LICENSE also apply to
+this topology. Layout-Bench selects the fixed GF180 binding, expands MOS
+multiplicity and independently constructs the physical witness and test fixture.
+
+All four normalized derivatives and witnesses retain PolyForm Noncommercial
+1.0.0 and Required Notice: Copyright 2026 Danial Noori Zadeh. Independently
+authored measurement decks are separately identified as MIT. Retain this NOTICE
+and LICENSE with source and static material distributions.
+
+Faithful compensated amplifier additions
+----------------------------------------
+amp_017_tan_clia retains its own process binding, sizing defaults,
+explicit multiplicity ratios and full compensation network from MacAnalog
+spicexplorer-release commit 263d0322f8900dc331536fbbe6c0e804514fc454.
+The upstream manifests identify CODA-Team AnalogGym, BSD-3-Clause; retain
+Copyright (c) 2024, CODA-Team and its component terms in LICENSE, alongside
+PolyForm Noncommercial 1.0.0 and Required Notice: Copyright 2026 Danial Noori Zadeh.
+Adaptations externalize the independent bias current, quantize geometry to the
+process grid, add physical contacts and implement all R/C with native primitives.
+The independent reference layouts preserve the core topology and device ratios.
+Independently authored measurement decks are separately MIT.
+
+Externally biased amplifier, standalone CMFB, simple LDO and transmission gate
+----------------------------------------------------------------------------
+amp_019_ti_ldo_error retains the fixed MacAnalog GF180 binding of the original
+first-party TI-architecture error amplifier. The fixed database NOTICE and its
+reference README identify the authored source and rights; the TI architecture
+reference does not license TI figures or certify a particular TI product. No TI
+figure is redistributed. The historical schematic's placeholder geometry is not
+the maintained sizing. All twelve MOS, na-to-nd RND and series Rz/Cc are retained.
+
+ldo_003_analoggym_simple pairs the ChrisZonghaoLi/sky130_ldo_rl netlist
+(Apache-2.0) with CODA-Team/AnalogGym variable/testbench provenance
+(BSD-3-Clause; Copyright (c) 2024, CODA-Team). The fixed MacAnalog corpus
+PROVENANCE.md and both actual component license texts are retained in Designs.
+The applicable component terms are already reproduced in this LICENSE.
+Layout-Bench externalizes VB/VREF and replaces only the zero-volt loop marker
+with a wire. It retains the 360-fold pass device, compensation and physical bleed.
+
+Both GF180 circuits apply native minimum lengths, quantize dimensions, map
+passives to native poly/MIM, and use independently authored witnesses and fixtures.
+The normalized derivatives retain PolyForm Noncommercial 1.0.0 and
+Required Notice: Copyright 2026 Danial Noori Zadeh. New measurement decks are MIT.
+
+Passive detector, two-NMOS temperature core and source-follower stub
+-----------------------------------------------------------------
+sup_001_vcm_detector, tsn_001_ptat_2t and ldo_006_stub retain independent
+snapshots of MacAnalog/spicexplorer-release commit
+263d0322f8900dc331536fbbe6c0e804514fc454. SUP001 is Noorizadeh's authored
+resistive leaf after Hsu et al.; only its ideal two-resistor binding is used,
+implemented in native GF180 poly resistors with an explicit substrate port.
+TSN001 identifies CODA-Team AnalogGym BSD-3-Clause provenance, Copyright (c)
+2024, CODA-Team; it uses the fixed GF180 two-group NMOS binding. LDO006 is
+a first-party SpiceXplorer divider/source-follower stub, not a full LDO.
+Native contacts, routing and series resistor realizations are independently
+authored. Core connectivity, total MOS dimensions and explicit multiplicities
+remain. Database derivatives and witnesses retain PolyForm Noncommercial 1.0.0
+and Required Notice: Copyright 2026 Danial Noori Zadeh, with applicable
+component terms in LICENSE. New observation decks and diagnostics are MIT.
+
+
+Direct-source notice and manifest scope
+=======================================
+
+The upstream analog-db NOTICE is reproduced verbatim below from:
+https://github.com/MacAnalog/spicexplorer-release/blob/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/NOTICE
+The upstream LICENSE is retained verbatim within this collection's LICENSE:
+https://github.com/MacAnalog/spicexplorer-release/blob/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/LICENSE
+
+In the notice below, circuits/ferrosim_* refers to reference-only pointer entries.
+The concrete entries listed in the ferrosim attribution section of our LICENSE
+have their own circuit.yaml manifests at the same commit. Those manifests describe
+promoted device-generic circuits and open-PDK bindings and retain the ferrosim
+source attribution and MIT label. Bench uses those analog-db circuit materials;
+this does not import the proprietary-process reference decks mentioned by the
+manifests. The text below describes upstream's repository, not Bench's file tree.
+Our case-specific adaptations are recorded above and in each case's task materials.
+
+----- BEGIN UPSTREAM analog-db/NOTICE -----
+spicexplorer-analog-db
+======================
+
+This repository contains the SpiceXplorer analog circuit database (the canonical
+topology/circuit registry + the tiered `verify` harness) and is part of the SpiceXplorer
+platform. The harness code (`src/`) and the original circuit definitions are licensed under
+the PolyForm Noncommercial License 1.0.0 (see LICENSE), Copyright 2026 Danial Noori Zadeh.
+
+Provenance of derived circuit artifacts
+---------------------------------------
+Some circuits are normalized from upstream open-source corpora. Their abstract netlists,
+sizing, datasheets and schematic provenance are derived works; the upstream licenses apply to
+the upstream material and are acknowledged here:
+
+* circuits/amp_001_5t (formerly circuits/5t_ota) — derived from IIC-JKU / Harald Pretl
+  `analog-circuit-design` (https://github.com/iic-jku/analog-circuit-design), Apache License 2.0.
+  The datasheet is modeled on that project's CACE `voltage-buffer-ota.yaml`; the canonical
+  schematic.svg and the xschem provenance are from that project.
+
+* The **verifiable AnalogGym amplifier imports** — the 16 `amp_*` circuits whose `circuit.yaml`
+  records `provenance.source: AnalogGym` (currently amp_002, amp_003, amp_005–amp_017 and amp_021)
+  — normalized from CODA-Team `AnalogGym` (https://github.com/CODA-Team/AnalogGym), BSD 3-Clause
+  License. These 3-stage amplifiers are lowered to open PDKs and simulated by this DB. This is
+  **not** a contiguous id range — amp_004 is a CORA design and amp_018/amp_019 are original /
+  template designs (see below). Reference snapshots of two un-imported AnalogGym amplifiers are
+  kept at `_shared/references/analoggym/`.
+
+* circuits/ldo_001_analoggym_basic, ldo_002_analoggym_folded_cascode, ldo_003_analoggym_simple —
+  the **verifiable AnalogGym LDO imports**. ldo_001 normalizes AnalogGym's `Basic_LDO`
+  (BSD 3-Clause); ldo_002 and ldo_003 pair AnalogGym testbenches + design-variable lists
+  (BSD 3-Clause) with subcircuit netlists from `ChrisZonghaoLi/sky130_ldo_rl`
+  (https://github.com/ChrisZonghaoLi/sky130_ldo_rl, Apache License 2.0). The full upstream→DB file
+  mapping and both license texts are in corpora/analoggym-ldo/PROVENANCE.md.
+
+* circuits/amp_004_folded_cascode (provenance.source: CORA), amp_018_telescopic_cascode,
+  amp_019_ti_ldo_error, and ldo_004_basic_pmos / ldo_005_buffered_ref
+  / ldo_006_stub / ldo_007_pmos — original first-party SpiceXplorer / CORA-benchmark designs
+  (ldo_004/ldo_005 + amp_019 are
+  first-party MacAnalog material modeled on a TI application-note LDO architecture, GF180-native,
+  kept verbatim under each circuit's reference/). The NEWCAS 2026 research traces under
+  circuits/amp_018_telescopic_cascode/artifacts/newcas2026/ are preserved verbatim.
+
+* circuits/ferrosim_* (kind: reference, plan D-9) — POINTER entries for reference circuits from
+  `Arcadia-1/ferrosim` (https://github.com/Arcadia-1/ferrosim), authored by Token Zhang, under the
+  MIT License (some noted upstream as "ported from circuit-bench"). Each entry records upstream
+  repository, designer, license, and classification ONLY — the upstream netlists and testbenches
+  are NOT redistributed here, NOT lowered to an open PDK, and NOT simulated by this database.
+  See corpora/ferrosim/README.md for the corpus-level pointer.
+
+* circuits/sfe_* (kind: reference, plan D-9) — POINTER entries for the "Sensing Front End"
+  category of CODA-Team `AnalogGym` (https://github.com/CODA-Team/AnalogGym), BSD 3-Clause
+  License. Each entry records upstream provenance and classification ONLY — the upstream decks
+  and testbenches are NOT redistributed here, NOT lowered to an open PDK, and NOT simulated by
+  this database. The upstream→DB mapping is in corpora/analoggym-sensing-fe/PROVENANCE.md.
+
+PDK corner libraries are NOT vendored here (plan D-6): circuits reference them by
+`lib_file` + `section`; the database clones and runs its PDK-free tiers without any PDK.
+----- END UPSTREAM analog-db/NOTICE -----
+
+
+Attribution scope
+-----------------
+Upstream MIT, BSD or Apache attribution does not remove the retained PolyForm
+terms from distributed analog-db derivatives and corresponding reference layouts.
+Independently authored measurement decks use the root MIT license where identified
+above. For ferrosim-derived entries, the direct source is the pinned analog-db
+release: its circuit manifests supply attribution and the MIT label retained in
+LICENSE. These records do not add a substitute ferrosim license or claim an
+independent license grant from the indirect source. Technical qualification does
+not independently verify copyright ownership or permission.

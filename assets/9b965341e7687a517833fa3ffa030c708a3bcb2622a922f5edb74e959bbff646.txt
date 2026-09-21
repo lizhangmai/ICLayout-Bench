@@ -1,0 +1,20 @@
+* Derived from pinned analog-db; Copyright 2026 Danial Noori Zadeh.
+* See collection license; 5 nm geometry, physical R/C, explicit interface.
+.subckt amp_033_ti_ldo_ref_selfbias vdd vout vinp vinn vss
+CC_0 ncz vout cap_mim_2f0fF w=20u l=18.785u
+CC_1 ncz vout cap_mim_2f0fF w=20u l=18.785u
+CC_2 ncz vout cap_mim_2f0fF w=20u l=18.785u
+CC_3 ncz vout cap_mim_2f0fF w=20u l=18.785u
+CC_4 ncz vout cap_mim_2f0fF w=20u l=18.785u
+CC_5 ncz vout cap_mim_2f0fF w=20u l=18.785u
+RZ_0 nb ncz vss ppolyf_u_1k w=1u l=30.855u
+MM1_0 na vinn tail vss nfet_06v0 w=86.42u l=0.7u
+MM2_0 nb vinp tail vss nfet_06v0 w=86.42u l=0.7u
+MM3_0 na na vdd vdd pfet_06v0 w=20u l=1u
+MM4_0 nb na vdd vdd pfet_06v0 w=20u l=1u
+MM5_0 vout nb vdd vdd pfet_06v0 w=37.76u l=2.645u
+MMB0_0 ibias ibias vss vss nfet_06v0 w=12u l=2u
+MMBC_0 tail ibias vss vss nfet_06v0 w=8.315u l=2u
+MMBO_0 vout ibias vss vss nfet_06v0 w=4u l=2u
+MMBP_0 ibias ibias vdd vdd pfet_06v0 w=10.845u l=2u
+.ends amp_033_ti_ldo_ref_selfbias

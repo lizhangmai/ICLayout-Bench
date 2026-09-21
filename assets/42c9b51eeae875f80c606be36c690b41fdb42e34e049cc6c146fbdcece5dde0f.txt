@@ -1,0 +1,55 @@
+* Native VGS-reference qualification deck. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerMOShv.lib mos_tt
+.include dut.spice
+.param supply_v=1.2 temperature_c=27
+.include parameters.spice
+.option reltol=1e-6 abstol=1e-18 vntol=1e-10 gmin=1e-16 method=gear maxord=2
+.temp {temperature_c}
+VDD vdd 0 dc {supply_v} pwl(0 0 100u {supply_v})
+ILOAD vref 0 dc 0 pwl(0 0 10m 0 10.01m 1p 20m 1p 20.01m 0 30m 0 30.01m -1p 40m -1p 40.01m 0)
+* Dimensionless DC sweep avoids ngspice's tiny-current endpoint tolerance.
+VLOADCTRL loadctrl 0 0
+GLOAD vref 0 loadctrl 0 1p
+XDUT vdd vref 0 vref_001_vgs
+CLOAD vref 0 100f
+.ic v(vref)=0
+.control
+set numdgt=12
+op
+let reference_v=v(vref)
+let supply_a=-i(vdd)
+let power_w=-v(vdd)*i(vdd)
+print reference_v supply_a power_w
+write op.raw all
+tran 1u 50m 0 1u uic
+let error=abs(v(vref)-op1.reference_v)
+meas tran startup_error_v max error from=8m to=9m
+meas tran load_error_v max error from=18m to=19m
+meas tran release_error_v max error from=28m to=29m
+meas tran injection_error_v max error from=38m to=39m
+meas tran return_error_v max error from=48m to=49m
+meas tran minimum_v min v(vref)
+meas tran maximum_v max v(vref)
+write transient.raw v(vref) v(vdd) i(vdd)
+dc VDD 1.0 1.5 .01
+let line_min_v=vecmin(v(vref))
+let line_max_v=vecmax(v(vref))
+let line_span_v=line_max_v-line_min_v
+print line_min_v line_max_v line_span_v
+write line.raw all
+dc VLOADCTRL -1 1 .1
+let loaded_reference_v=v(vref)[length(v(vref))-1]
+print loaded_reference_v
+let output_resistance_ohm=(op1.reference_v-loaded_reference_v)/1p
+print output_resistance_ohm
+write load.raw all
+dc temp -20 85 5
+let temperature_min_v=vecmin(v(vref))
+let temperature_max_v=vecmax(v(vref))
+let temperature_span_v=temperature_max_v-temperature_min_v
+print temperature_min_v temperature_max_v temperature_span_v
+write temperature.raw all
+quit
+.endc
+.end

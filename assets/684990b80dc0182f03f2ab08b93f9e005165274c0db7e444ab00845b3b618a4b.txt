@@ -1,0 +1,1123 @@
+in_core = false
+kind = "layout_case"
+id = "ihp-sg13g2.analog-db.sw_002_chopper_diff"
+title = "Differential Polarity-Commutating Switch"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "fa4c4d63813ca0aa7541f21faf9f9da68ab514a8f57801802adad49dbfd8f85e"
+
+[[assets]]
+path = "reference/sw_002_chopper_diff.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "5bba8eb0cfb8d75cc8f1c09cb6c81436c5a16d12d92c5e6f78fadf5b7c926a20"
+
+[task]
+hours = 3
+coefficient = 5
+kind = "netlist_to_gds"
+family = "ihp-sg13g2_sw_002_chopper_diff"
+environment = "ihp-sg13g2-sw_002_chopper_diff-nominal-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "a0744dca5b491bfc88ae32b27b4b31422112b7617fed60c142bc7a632a64e786"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+sha256 = "e0b1c58cdd6e35af46612beae826db9d950ca0e83ddb0297ee224699fd9c3c7a"
+subcircuit = "sw_002_chopper_diff"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "56552f53a6c413353809e94a6e7eb1da810ededa26403501cfa0a3bac29cb67d"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "d3d5b57dbbdf26ff26fd6ed6ab2db414bfbe43c847b48847b66218d6177a1e09"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 90
+max_height_um = 40
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "sw_002_chopper_diff"
+max_bytes = 10485760
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 459.68
+rationale = "Transmission/chopper switches: on-state conduction 23.7%; transfer fidelity 28.4%; switching disturbance 28.4%; clock power 9.47%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+ron_n = 0.118421052632
+ron_p = 0.118421052632
+common_error_v = 0.071052631579
+crossed_gain = 0.071052631579
+straight_gain = 0.071052631579
+transfer = 0.071052631579
+common_glitch_v = 0.094736842105
+differential_glitch_v = 0.094736842105
+input_charge_c = 0.094736842105
+clock_power_w = 0.094736842105
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "va_p",
+    "va_n",
+    "vb_p",
+    "vb_n",
+    "vctl",
+    "vctl_not",
+    "vdd",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+switching = "ngspice-raw"
+injection = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+clock_v = 0
+diff_v = -0.2
+
+[task.evaluation.jobs.parameters.measurements]
+ron_p = "ohm"
+ron_n = "ohm"
+transfer = "V/V"
+common_error_v = "V"
+common_glitch_v = "V"
+differential_glitch_v = "V"
+input_charge_c = "C"
+clock_power_w = "W"
+straight_gain = "V/V"
+crossed_gain = "V/V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+switching = "switching.raw"
+injection = "injection.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+switching = "ngspice-raw"
+injection = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+clock_v = 0
+diff_v = 0.2
+
+[task.evaluation.jobs.parameters.measurements]
+ron_p = "ohm"
+ron_n = "ohm"
+transfer = "V/V"
+common_error_v = "V"
+common_glitch_v = "V"
+differential_glitch_v = "V"
+input_charge_c = "C"
+clock_power_w = "W"
+straight_gain = "V/V"
+crossed_gain = "V/V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+switching = "switching.raw"
+injection = "injection.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+switching = "ngspice-raw"
+injection = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+clock_v = 1.5
+diff_v = -0.2
+
+[task.evaluation.jobs.parameters.measurements]
+ron_p = "ohm"
+ron_n = "ohm"
+transfer = "V/V"
+common_error_v = "V"
+common_glitch_v = "V"
+differential_glitch_v = "V"
+input_charge_c = "C"
+clock_power_w = "W"
+straight_gain = "V/V"
+crossed_gain = "V/V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+switching = "switching.raw"
+injection = "injection.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+switching = "ngspice-raw"
+injection = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+clock_v = 1.5
+diff_v = 0.2
+
+[task.evaluation.jobs.parameters.measurements]
+ron_p = "ohm"
+ron_n = "ohm"
+transfer = "V/V"
+common_error_v = "V"
+common_glitch_v = "V"
+differential_glitch_v = "V"
+input_charge_c = "C"
+clock_power_w = "W"
+straight_gain = "V/V"
+crossed_gain = "V/V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+switching = "switching.raw"
+injection = "injection.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "ron_p"
+category = "performance"
+observations = [
+    "condition_0:ron_p",
+    "condition_1:ron_p",
+    "condition_2:ron_p",
+    "condition_3:ron_p",
+]
+unit = "ohm"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:ron_p",
+    "source_condition_1:ron_p",
+    "source_condition_2:ron_p",
+    "source_condition_3:ron_p",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "ron_n"
+category = "performance"
+observations = [
+    "condition_0:ron_n",
+    "condition_1:ron_n",
+    "condition_2:ron_n",
+    "condition_3:ron_n",
+]
+unit = "ohm"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:ron_n",
+    "source_condition_1:ron_n",
+    "source_condition_2:ron_n",
+    "source_condition_3:ron_n",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "transfer"
+category = "performance"
+observations = [
+    "condition_0:transfer",
+    "condition_1:transfer",
+    "condition_2:transfer",
+    "condition_3:transfer",
+]
+unit = "V/V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:transfer",
+    "source_condition_1:transfer",
+    "source_condition_2:transfer",
+    "source_condition_3:transfer",
+]
+normalization = "target"
+scale = 1.0
+
+[[task.evaluation.metrics]]
+id = "common_error_v"
+category = "performance"
+observations = [
+    "condition_0:common_error_v",
+    "condition_1:common_error_v",
+    "condition_2:common_error_v",
+    "condition_3:common_error_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:common_error_v",
+    "source_condition_1:common_error_v",
+    "source_condition_2:common_error_v",
+    "source_condition_3:common_error_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "straight_gain"
+category = "performance"
+observations = [
+    "condition_0:straight_gain",
+    "condition_1:straight_gain",
+    "condition_2:straight_gain",
+    "condition_3:straight_gain",
+]
+unit = "V/V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:straight_gain",
+    "source_condition_1:straight_gain",
+    "source_condition_2:straight_gain",
+    "source_condition_3:straight_gain",
+]
+normalization = "target"
+scale = 1.0
+
+[[task.evaluation.metrics]]
+id = "crossed_gain"
+category = "performance"
+observations = [
+    "condition_0:crossed_gain",
+    "condition_1:crossed_gain",
+    "condition_2:crossed_gain",
+    "condition_3:crossed_gain",
+]
+unit = "V/V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:crossed_gain",
+    "source_condition_1:crossed_gain",
+    "source_condition_2:crossed_gain",
+    "source_condition_3:crossed_gain",
+]
+normalization = "target"
+scale = 1.0
+
+[[task.evaluation.metrics]]
+id = "common_glitch_v"
+category = "performance"
+observations = [
+    "condition_0:common_glitch_v",
+    "condition_1:common_glitch_v",
+    "condition_2:common_glitch_v",
+    "condition_3:common_glitch_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:common_glitch_v",
+    "source_condition_1:common_glitch_v",
+    "source_condition_2:common_glitch_v",
+    "source_condition_3:common_glitch_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "differential_glitch_v"
+category = "performance"
+observations = [
+    "condition_0:differential_glitch_v",
+    "condition_1:differential_glitch_v",
+    "condition_2:differential_glitch_v",
+    "condition_3:differential_glitch_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:differential_glitch_v",
+    "source_condition_1:differential_glitch_v",
+    "source_condition_2:differential_glitch_v",
+    "source_condition_3:differential_glitch_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "input_charge_c"
+category = "performance"
+observations = [
+    "condition_0:input_charge_c",
+    "condition_1:input_charge_c",
+    "condition_2:input_charge_c",
+    "condition_3:input_charge_c",
+]
+unit = "C"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:input_charge_c",
+    "source_condition_1:input_charge_c",
+    "source_condition_2:input_charge_c",
+    "source_condition_3:input_charge_c",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-21
+
+[[task.evaluation.metrics]]
+id = "clock_power_w"
+category = "performance"
+observations = [
+    "condition_0:clock_power_w",
+    "condition_1:clock_power_w",
+    "condition_2:clock_power_w",
+    "condition_3:clock_power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:clock_power_w",
+    "source_condition_1:clock_power_w",
+    "source_condition_2:clock_power_w",
+    "source_condition_3:clock_power_w",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "10298701f3b60e4e8a6d9229cea91beeb7c108cfb6a2381344986541ac5199e0"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:34eff92f7ffca7b8b010bcded394c4625c14143c757fda519e873b7ef8e87dc5\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"a5fb74b539734100712b0940a9cd07c4299cf0e803ff8e4831105b2f431bd92d\", \"timeout_seconds\": 600.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_condition_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.outputs]
+op = "ngspice-raw"
+switching = "ngspice-raw"
+injection = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.values]
+clock_v = 0
+diff_v = -0.2
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.measurements]
+ron_p = "ohm"
+ron_n = "ohm"
+transfer = "V/V"
+common_error_v = "V"
+common_glitch_v = "V"
+differential_glitch_v = "V"
+input_charge_c = "C"
+clock_power_w = "W"
+straight_gain = "V/V"
+crossed_gain = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.exports]
+op = "op.raw"
+switching = "switching.raw"
+injection = "injection.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.input_sha256]
+deck = "56552f53a6c413353809e94a6e7eb1da810ededa26403501cfa0a3bac29cb67d"
+dut = "d3d5b57dbbdf26ff26fd6ed6ab2db414bfbe43c847b48847b66218d6177a1e09"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.clock_power_w]
+value = 2.250818e-09
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.common_error_v]
+value = 0.002335667213767
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.common_glitch_v]
+value = 1.35409e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.crossed_gain]
+value = -0.9014684
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.differential_glitch_v]
+value = 3.219647e-15
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.input_charge_c]
+value = 3.422271e-18
+unit = "C"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.ron_n]
+value = 812.8557023351
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.ron_p]
+value = 1388.072543106
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.straight_gain]
+value = 0.9014684
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.transfer]
+value = 0.9014683949203
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.outputs]
+op = "ngspice-raw"
+switching = "ngspice-raw"
+injection = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.values]
+clock_v = 0
+diff_v = 0.2
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.measurements]
+ron_p = "ohm"
+ron_n = "ohm"
+transfer = "V/V"
+common_error_v = "V"
+common_glitch_v = "V"
+differential_glitch_v = "V"
+input_charge_c = "C"
+clock_power_w = "W"
+straight_gain = "V/V"
+crossed_gain = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.exports]
+op = "op.raw"
+switching = "switching.raw"
+injection = "injection.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.input_sha256]
+deck = "56552f53a6c413353809e94a6e7eb1da810ededa26403501cfa0a3bac29cb67d"
+dut = "d3d5b57dbbdf26ff26fd6ed6ab2db414bfbe43c847b48847b66218d6177a1e09"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.clock_power_w]
+value = 2.250818e-09
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.common_error_v]
+value = 0.002335667213767
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.common_glitch_v]
+value = 1.35409e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.crossed_gain]
+value = -0.9014684
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.differential_glitch_v]
+value = 3.219647e-15
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.input_charge_c]
+value = 3.422271e-18
+unit = "C"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.ron_n]
+value = 1388.072543106
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.ron_p]
+value = 812.8557023351
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.straight_gain]
+value = 0.9014684
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.transfer]
+value = 0.9014683949203
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.outputs]
+op = "ngspice-raw"
+switching = "ngspice-raw"
+injection = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.values]
+clock_v = 1.5
+diff_v = -0.2
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.measurements]
+ron_p = "ohm"
+ron_n = "ohm"
+transfer = "V/V"
+common_error_v = "V"
+common_glitch_v = "V"
+differential_glitch_v = "V"
+input_charge_c = "C"
+clock_power_w = "W"
+straight_gain = "V/V"
+crossed_gain = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.exports]
+op = "op.raw"
+switching = "switching.raw"
+injection = "injection.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.input_sha256]
+deck = "56552f53a6c413353809e94a6e7eb1da810ededa26403501cfa0a3bac29cb67d"
+dut = "d3d5b57dbbdf26ff26fd6ed6ab2db414bfbe43c847b48847b66218d6177a1e09"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.clock_power_w]
+value = 2.250818e-09
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.common_error_v]
+value = 0.002335667213767
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.common_glitch_v]
+value = 1.35409e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.crossed_gain]
+value = -0.9014684
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.differential_glitch_v]
+value = 3.219647e-15
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.input_charge_c]
+value = 3.422271e-18
+unit = "C"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.ron_n]
+value = 1388.072543106
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.ron_p]
+value = 812.8557023351
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.straight_gain]
+value = 0.9014684
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.transfer]
+value = 0.9014683949203
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.outputs]
+op = "ngspice-raw"
+switching = "ngspice-raw"
+injection = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.values]
+clock_v = 1.5
+diff_v = 0.2
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.measurements]
+ron_p = "ohm"
+ron_n = "ohm"
+transfer = "V/V"
+common_error_v = "V"
+common_glitch_v = "V"
+differential_glitch_v = "V"
+input_charge_c = "C"
+clock_power_w = "W"
+straight_gain = "V/V"
+crossed_gain = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.exports]
+op = "op.raw"
+switching = "switching.raw"
+injection = "injection.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.input_sha256]
+deck = "56552f53a6c413353809e94a6e7eb1da810ededa26403501cfa0a3bac29cb67d"
+dut = "d3d5b57dbbdf26ff26fd6ed6ab2db414bfbe43c847b48847b66218d6177a1e09"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.clock_power_w]
+value = 2.250818e-09
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.common_error_v]
+value = 0.002335667213767
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.common_glitch_v]
+value = 1.35409e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.crossed_gain]
+value = -0.9014684
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.differential_glitch_v]
+value = 3.219647e-15
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.input_charge_c]
+value = 3.422271e-18
+unit = "C"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.ron_n]
+value = 812.8557023351
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.ron_p]
+value = 1388.072543106
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.straight_gain]
+value = 0.9014684
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.transfer]
+value = 0.9014683949203
+unit = "V/V"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 600
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+support = "build/support/input-pair-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+support = "build/support/input-pair-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/input-pair-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+capacitance_threshold_ff = 0
+timeout_seconds = 600
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 120
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-models"
+
+[toolchain.backends.simulation.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/input-pair-models"
+timeout_seconds = 600
+
+[qualification]
+reference = "reference/sw_002_chopper_diff.gds"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/sw_002_chopper_diff"
+
+[presentation]
+category = "Mixed-signal"
+summary = "Commutates differential signal polarity with a clock-controlled switch network."

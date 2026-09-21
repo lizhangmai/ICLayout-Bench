@@ -1,0 +1,519 @@
+1:"$Sreact.fragment"
+2:"$Sreact.suspense"
+3:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+4:T2db4,<h1 id="problem-self-starting-isolated-body-ptat-core-layout-task">Self-Starting Isolated-Body PTAT Core Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Implement <code>tsn_002_ptat_classic</code> in GF180MCU D and submit self-contained GDS.
+The resistor-degenerated four-MOS source core has a positive temperature slope;
+candidate slope is measured and source-paired without a positive-slope acceptance bound.
+A maintained three-MOS startup branch establishes its operating state after
+power-up. Supply sensitivity remains: this is not a precision temperature
+reference or a calibrated thermometer.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p><code>materials/circuit.cdl</code> is the physical LVS authority;
+<code>materials/circuit.spice</code> is its simulator representation.
+<code>materials/testbench.spice</code> defines stimuli and observations. This problem is
+the description input. Ordered ports are <code>vdd vout vss</code>: supply,
+temperature-dependent output and return.</p>
+<p>Retain all device dimensions, multiplicities and four-terminal connections.
+The 8/1 um core NMOS has both source and body on <code>vout</code>; its body must remain
+isolated from VSS. The physical primitive <code>MM0 ... nfet_03v3_dn</code> maps to
+<code>XM0 ... nfet_03v3</code> in the simulator, with the same D/G/S/B and W/L/m.
+Use an isolated P-well inside a supply-tied deep N-well, with explicit
+N-well enclosure and physical well/substrate contacts. Extraction must retain
+the separation between the output body and substrate return. No body-to-VSS
+substitution is permitted. The core resistor is physical 1 kohm/square poly,
+W=2 um, L=40 um, nominal 20 kohm.</p>
+<p>The added startup devices have W/L of 0.42/20 um (weak PMOS pull-up),
+2/0.28 um (NMOS detector) and 0.42/1 um (NMOS injector). The detector reduces
+the startup control voltage after bias is established, turning off the
+injection path. The weak pull-up/detector branch still draws static current;
+all DUT supply power is measured. Preserve this branch as part of the DUT.
+Placement, routing, splitting and source/drain interchange are permitted only
+where accepted by the declared LVS equivalence rules. No statistical matching
+or placement style is scored. External stimulus and the output load belong to
+the testbench and must not be placed inside the DUT.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>Use typical GF180 3.3 V MOS and poly models with statistical variation disabled.
+VSS is 0 V. Evaluate all 18 combinations of VDD = 2.7/3.0/3.3 V,
+temperature = -20/27/100 C and supply rise time = 0.1/10 us.
+Each condition measures its DC operating point and a -20 to 100 C sweep in
+1 C steps. The temperature is then restored to the selected value before
+startup simulation. The external output capacitance is exactly 100 fF.</p>
+<p>For startup, ramp VDD linearly from 0 to its selected value, then hold it.
+Use a zero-initial-state <code>uic</code> transient through 100 us with no internal
+initial-condition bias or auxiliary startup source. Gear order 2 and a
+maximum timestep of 1 ns are declared. Measure final error, ripple and average
+power over 90–100 us. These are finite-window error and ripple observations with no settling-error
+acceptance threshold; they do not establish settling time or bound overshoot.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Submit top cell <code>tsn_002_ptat_classic</code>, all named electrical ports, resolved
+hierarchy and at most 10 MiB. Artifact, GF180 variant-D DRC including antenna,
+strict named-port LVS and geometry must pass with no DRC waivers. Chip-level
+density and seal-ring closure are outside this standalone-block scope.</p>
+<p>The functional bounding box must fit within 220 by 65 um. Its area includes
+all declared device and routing drawing layers: wells (including deep N-well
+and isolated P-well), implants, active, poly, contacts, metals/vias and device
+markers. Annotation and pin-purpose shapes are excluded. All functional
+routing must use drawing layers. <code>/protocol/task.json</code> freezes the layer set.</p>
+<p>Independent candidate extraction retains MOS and resistor geometry and adds
+distributed wiring RC. All scored simulation consumes that extracted DUT.
+This does not include a distributed silicon substrate model. Larger output
+loads are unqualified and can cause oscillation; this is not a pF-load output
+buffer. Brownout/restart, arbitrary supply ramps, process/statistical corners,
+noise, absolute temperature accuracy, supply rejection, EM and fabrication
+signoff are outside scope.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>DC output at the selected supply and temperature</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 3.3</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>DC delivered supply power, -V(vdd)*I(VDD), including startup bias</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>cold_v</code></td>
+<td>Output at -20 C</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 3.3</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td><code>hot_v</code></td>
+<td>Output at 100 C</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 3.3</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td><code>slope_v_per_c</code></td>
+<td>(hot_v - cold_v)/120 C</td>
+<td>V/C</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>0.00047</td>
+</tr>
+<tr>
+<td><code>curvature_v</code></td>
+<td>Maximum absolute deviation from the endpoint line at all 121 temperatures</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>minimum_slope</code></td>
+<td>Minimum ngspice deriv(output) over temperature</td>
+<td>V/C</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>0.00055</td>
+</tr>
+<tr>
+<td><code>maximum_slope</code></td>
+<td>Maximum ngspice deriv(output) over temperature</td>
+<td>V/C</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>0.00055</td>
+</tr>
+<tr>
+<td><code>peak_power_w</code></td>
+<td>Maximum delivered supply power over temperature</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>startup_error_v</code></td>
+<td>Maximum absolute output error against the selected DC operating point during 90–100 us</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>ripple_v</code></td>
+<td>Maximum minus minimum output during 90–100 us</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>final_power_w</code></td>
+<td>Time-average delivered supply power during 90–100 us</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>529.13 um2</strong>. 8 expanded device instances; sum of device/contact envelopes 303.6200 um2, per-side envelope allowance 1 um, 50% routing allowance and total outer width/height allowance 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>6</strong>; it is independent of
+the reference-relative task score.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Temperature-slope cores: temperature slope 36%; curvature 27%; startup 13.5%; output endpoints 4.5%; power 9%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>maximum_slope</code></td>
+<td style="text-align:right">0.120000000000</td>
+</tr>
+<tr>
+<td><code>minimum_slope</code></td>
+<td style="text-align:right">0.120000000000</td>
+</tr>
+<tr>
+<td><code>slope_v_per_c</code></td>
+<td style="text-align:right">0.120000000000</td>
+</tr>
+<tr>
+<td><code>curvature_v</code></td>
+<td style="text-align:right">0.270000000000</td>
+</tr>
+<tr>
+<td><code>ripple_v</code></td>
+<td style="text-align:right">0.067500000000</td>
+</tr>
+<tr>
+<td><code>startup_error_v</code></td>
+<td style="text-align:right">0.067500000000</td>
+</tr>
+<tr>
+<td><code>cold_v</code></td>
+<td style="text-align:right">0.015000000000</td>
+</tr>
+<tr>
+<td><code>hot_v</code></td>
+<td style="text-align:right">0.015000000000</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.015000000000</td>
+</tr>
+<tr>
+<td><code>final_power_w</code></td>
+<td style="text-align:right">0.030000000000</td>
+</tr>
+<tr>
+<td><code>peak_power_w</code></td>
+<td style="text-align:right">0.030000000000</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.030000000000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Use the reviewed GF180 resources in <code>/protocol/resources.json</code>. KLayout checks
+physical validity and geometry, Magic extracts RC and ngspice simulates the
+circuit. <code>/protocol/task.json</code> provides frozen requirements and
+<code>/protocol/harness.json</code> describes the harness. When <code>process-feedback</code> is
+exposed, use its published helper for interim checks. Write
+<code>/workspace/output/final.gds</code>, then submit with <code>python -I /protocol/submit.py</code>.</p>
+<p>Use a GDS database unit of 0.001 um, as required by the GF180MCU DRC deck.</p>
+5:T185d,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>DC output at the selected supply and temperature</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 3.3</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>DC delivered supply power, -V(vdd)*I(VDD), including startup bias</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>cold_v</code></td>
+<td>Output at -20 C</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 3.3</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td><code>hot_v</code></td>
+<td>Output at 100 C</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 3.3</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td><code>slope_v_per_c</code></td>
+<td>(hot_v - cold_v)/120 C</td>
+<td>V/C</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>0.00047</td>
+</tr>
+<tr>
+<td><code>curvature_v</code></td>
+<td>Maximum absolute deviation from the endpoint line at all 121 temperatures</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>minimum_slope</code></td>
+<td>Minimum ngspice deriv(output) over temperature</td>
+<td>V/C</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>0.00055</td>
+</tr>
+<tr>
+<td><code>maximum_slope</code></td>
+<td>Maximum ngspice deriv(output) over temperature</td>
+<td>V/C</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>0.00055</td>
+</tr>
+<tr>
+<td><code>peak_power_w</code></td>
+<td>Maximum delivered supply power over temperature</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>startup_error_v</code></td>
+<td>Maximum absolute output error against the selected DC operating point during 90–100 us</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>ripple_v</code></td>
+<td>Maximum minus minimum output during 90–100 us</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>final_power_w</code></td>
+<td>Time-average delivered supply power during 90–100 us</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>529.13 um2</strong>. 8 expanded device instances; sum of device/contact envelopes 303.6200 um2, per-side envelope allowance 1 um, 50% routing allowance and total outer width/height allowance 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>6</strong>; it is independent of
+the reference-relative task score.</p>
+<h3>Score weights</h3>
+<p>Temperature-slope cores: temperature slope 36%; curvature 27%; startup 13.5%; output endpoints 4.5%; power 9%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>maximum_slope</code></td>
+<td style="text-align:right">0.120000000000</td>
+</tr>
+<tr>
+<td><code>minimum_slope</code></td>
+<td style="text-align:right">0.120000000000</td>
+</tr>
+<tr>
+<td><code>slope_v_per_c</code></td>
+<td style="text-align:right">0.120000000000</td>
+</tr>
+<tr>
+<td><code>curvature_v</code></td>
+<td style="text-align:right">0.270000000000</td>
+</tr>
+<tr>
+<td><code>ripple_v</code></td>
+<td style="text-align:right">0.067500000000</td>
+</tr>
+<tr>
+<td><code>startup_error_v</code></td>
+<td style="text-align:right">0.067500000000</td>
+</tr>
+<tr>
+<td><code>cold_v</code></td>
+<td style="text-align:right">0.015000000000</td>
+</tr>
+<tr>
+<td><code>hot_v</code></td>
+<td style="text-align:right">0.015000000000</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.015000000000</td>
+</tr>
+<tr>
+<td><code>final_power_w</code></td>
+<td style="text-align:right">0.030000000000</td>
+</tr>
+<tr>
+<td><code>peak_power_w</code></td>
+<td style="text-align:right">0.030000000000</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.030000000000</td>
+</tr>
+</tbody>
+</table>
+6:T4bd,<p>Submit top cell <code>tsn_002_ptat_classic</code>, all named electrical ports, resolved
+hierarchy and at most 10 MiB. Artifact, GF180 variant-D DRC including antenna,
+strict named-port LVS and geometry must pass with no DRC waivers. Chip-level
+density and seal-ring closure are outside this standalone-block scope.</p>
+<p>The functional bounding box must fit within 220 by 65 um. Its area includes
+all declared device and routing drawing layers: wells (including deep N-well
+and isolated P-well), implants, active, poly, contacts, metals/vias and device
+markers. Annotation and pin-purpose shapes are excluded. All functional
+routing must use drawing layers. <code>/protocol/task.json</code> freezes the layer set.</p>
+<p>Independent candidate extraction retains MOS and resistor geometry and adds
+distributed wiring RC. All scored simulation consumes that extracted DUT.
+This does not include a distributed silicon substrate model. Larger output
+loads are unqualified and can cause oscillation; this is not a pF-load output
+buffer. Brownout/restart, arbitrary supply ramps, process/statistical corners,
+noise, absolute temperature accuracy, supply rejection, EM and fabrication
+signoff are outside scope.</p>
+a:X
+f:X
+f:C
+0:{"buildId":"U2oZdoUjWqT_XfcDHuQ5i","data":[{"rsc":["$","$1","c",{"children":[["$","$2",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L3",null,{"task":{"case_path":"tasks/gf180mcuD/analog-db/cases/tsn_002_ptat_classic/case.toml","coefficient":6,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/7e55370aaf8b7af565f5184681e6716ec83d8a276446c05c92522b4eb3b10114.txt","description_html":"$4","description_path":"tasks/gf180mcuD/analog-db/cases/tsn_002_ptat_classic/problem.md","hours":3,"id":"gf180mcuD.analog-db.tsn_002_ptat_classic","inputs":{"description":{"format":"text","path":"problem.md","sha256":"8449712bf0fe41920b2b0736cdab7d1aefe6ff15f056e0524465023b0b4e2abf"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"1efc6b4da14d95c12ff19bd3a1e8a10a8c986a97befff37dadb44ce6f10ef5ea","subcircuit":"tsn_002_ptat_classic"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"29661fc18d6c7d50086b0d333cf1c625845fea7a604ac82ff08072a3be2eb2a4"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"bd0c82d0bdfa7c4041d6a043d9482e71472ea1319a71704ac3ffbbcdcb9d6652"}},"licenses":[{"name":"LICENSE","path":"tasks/gf180mcuD/analog-db/LICENSE","url":"/ICLayout-Bench/assets/d6c09a4fa902f192f05e697110788e520f294a97446ababab65986137c16fceb.txt"},{"name":"NOTICE","path":"tasks/gf180mcuD/analog-db/NOTICE","url":"/ICLayout-Bench/assets/75d61165620fd72b89f65e52c2b6c85b73d410bd293062873390bd20ab820a41.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/8449712bf0fe41920b2b0736cdab7d1aefe6ff15f056e0524465023b0b4e2abf.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/1efc6b4da14d95c12ff19bd3a1e8a10a8c986a97befff37dadb44ce6f10ef5ea.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/bd0c82d0bdfa7c4041d6a043d9482e71472ea1319a71704ac3ffbbcdcb9d6652.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/29661fc18d6c7d50086b0d333cf1c625845fea7a604ac82ff08072a3be2eb2a4.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"max","baseline":["source_condition_0:output_v","source_condition_1:output_v","source_condition_2:output_v","source_condition_3:output_v","source_condition_4:output_v","source_condition_5:output_v","source_condition_6:output_v","source_condition_7:output_v","source_condition_8:output_v","source_condition_9:output_v","source_condition_10:output_v","source_condition_11:output_v","source_condition_12:output_v","source_condition_13:output_v","source_condition_14:output_v","source_condition_15:output_v","source_condition_16:output_v","source_condition_17:output_v"],"category":"performance","dimension":"bias","direction":"target","id":"output_v","lower":0,"normalization":"target","observations":["condition_0:output_v","condition_1:output_v","condition_2:output_v","condition_3:output_v","condition_4:output_v","condition_5:output_v","condition_6:output_v","condition_7:output_v","condition_8:output_v","condition_9:output_v","condition_10:output_v","condition_11:output_v","condition_12:output_v","condition_13:output_v","condition_14:output_v","condition_15:output_v","condition_16:output_v","condition_17:output_v"],"scale":3.3,"unit":"V","upper":3.3},{"aggregation":"max","baseline":["source_condition_0:power_w","source_condition_1:power_w","source_condition_2:power_w","source_condition_3:power_w","source_condition_4:power_w","source_condition_5:power_w","source_condition_6:power_w","source_condition_7:power_w","source_condition_8:power_w","source_condition_9:power_w","source_condition_10:power_w","source_condition_11:power_w","source_condition_12:power_w","source_condition_13:power_w","source_condition_14:power_w","source_condition_15:power_w","source_condition_16:power_w","source_condition_17:power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"power_w","lower":0,"normalization":"ratio","observations":["condition_0:power_w","condition_1:power_w","condition_2:power_w","condition_3:power_w","condition_4:power_w","condition_5:power_w","condition_6:power_w","condition_7:power_w","condition_8:power_w","condition_9:power_w","condition_10:power_w","condition_11:power_w","condition_12:power_w","condition_13:power_w","condition_14:power_w","condition_15:power_w","condition_16:power_w","condition_17:power_w"],"scale":1e-12,"unit":"W"},{"aggregation":"max","baseline":["source_condition_0:cold_v","source_condition_1:cold_v","source_condition_2:cold_v","source_condition_3:cold_v","source_condition_4:cold_v","source_condition_5:cold_v","source_condition_6:cold_v","source_condition_7:cold_v","source_condition_8:cold_v","source_condition_9:cold_v","source_condition_10:cold_v","source_condition_11:cold_v","source_condition_12:cold_v","source_condition_13:cold_v","source_condition_14:cold_v","source_condition_15:cold_v","source_condition_16:cold_v","source_condition_17:cold_v"],"category":"performance","dimension":"bias","direction":"target","id":"cold_v","lower":0,"normalization":"target","observations":["condition_0:cold_v","condition_1:cold_v","condition_2:cold_v","condition_3:cold_v","condition_4:cold_v","condition_5:cold_v","condition_6:cold_v","condition_7:cold_v","condition_8:cold_v","condition_9:cold_v","condition_10:cold_v","condition_11:cold_v","condition_12:cold_v","condition_13:cold_v","condition_14:cold_v","condition_15:cold_v","condition_16:cold_v","condition_17:cold_v"],"scale":3.3,"unit":"V","upper":3.3},{"aggregation":"max","baseline":["source_condition_0:hot_v","source_condition_1:hot_v","source_condition_2:hot_v","source_condition_3:hot_v","source_condition_4:hot_v","source_condition_5:hot_v","source_condition_6:hot_v","source_condition_7:hot_v","source_condition_8:hot_v","source_condition_9:hot_v","source_condition_10:hot_v","source_condition_11:hot_v","source_condition_12:hot_v","source_condition_13:hot_v","source_condition_14:hot_v","source_condition_15:hot_v","source_condition_16:hot_v","source_condition_17:hot_v"],"category":"performance","dimension":"bias","direction":"target","id":"hot_v","lower":0,"normalization":"target","observations":["condition_0:hot_v","condition_1:hot_v","condition_2:hot_v","condition_3:hot_v","condition_4:hot_v","condition_5:hot_v","condition_6:hot_v","condition_7:hot_v","condition_8:hot_v","condition_9:hot_v","condition_10:hot_v","condition_11:hot_v","condition_12:hot_v","condition_13:hot_v","condition_14:hot_v","condition_15:hot_v","condition_16:hot_v","condition_17:hot_v"],"scale":3.3,"unit":"V","upper":3.3},{"aggregation":"max","baseline":["source_condition_0:slope_v_per_c","source_condition_1:slope_v_per_c","source_condition_2:slope_v_per_c","source_condition_3:slope_v_per_c","source_condition_4:slope_v_per_c","source_condition_5:slope_v_per_c","source_condition_6:slope_v_per_c","source_condition_7:slope_v_per_c","source_condition_8:slope_v_per_c","source_condition_9:slope_v_per_c","source_condition_10:slope_v_per_c","source_condition_11:slope_v_per_c","source_condition_12:slope_v_per_c","source_condition_13:slope_v_per_c","source_condition_14:slope_v_per_c","source_condition_15:slope_v_per_c","source_condition_16:slope_v_per_c","source_condition_17:slope_v_per_c"],"category":"performance","dimension":"response","direction":"target","id":"slope_v_per_c","normalization":"target","observations":["condition_0:slope_v_per_c","condition_1:slope_v_per_c","condition_2:slope_v_per_c","condition_3:slope_v_per_c","condition_4:slope_v_per_c","condition_5:slope_v_per_c","condition_6:slope_v_per_c","condition_7:slope_v_per_c","condition_8:slope_v_per_c","condition_9:slope_v_per_c","condition_10:slope_v_per_c","condition_11:slope_v_per_c","condition_12:slope_v_per_c","condition_13:slope_v_per_c","condition_14:slope_v_per_c","condition_15:slope_v_per_c","condition_16:slope_v_per_c","condition_17:slope_v_per_c"],"scale":0.00047,"unit":"V/C"},{"aggregation":"max","baseline":["source_condition_0:curvature_v","source_condition_1:curvature_v","source_condition_2:curvature_v","source_condition_3:curvature_v","source_condition_4:curvature_v","source_condition_5:curvature_v","source_condition_6:curvature_v","source_condition_7:curvature_v","source_condition_8:curvature_v","source_condition_9:curvature_v","source_condition_10:curvature_v","source_condition_11:curvature_v","source_condition_12:curvature_v","source_condition_13:curvature_v","source_condition_14:curvature_v","source_condition_15:curvature_v","source_condition_16:curvature_v","source_condition_17:curvature_v"],"category":"performance","dimension":"response","direction":"minimize","id":"curvature_v","lower":0,"normalization":"ratio","observations":["condition_0:curvature_v","condition_1:curvature_v","condition_2:curvature_v","condition_3:curvature_v","condition_4:curvature_v","condition_5:curvature_v","condition_6:curvature_v","condition_7:curvature_v","condition_8:curvature_v","condition_9:curvature_v","condition_10:curvature_v","condition_11:curvature_v","condition_12:curvature_v","condition_13:curvature_v","condition_14:curvature_v","condition_15:curvature_v","condition_16:curvature_v","condition_17:curvature_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:minimum_slope","source_condition_1:minimum_slope","source_condition_2:minimum_slope","source_condition_3:minimum_slope","source_condition_4:minimum_slope","source_condition_5:minimum_slope","source_condition_6:minimum_slope","source_condition_7:minimum_slope","source_condition_8:minimum_slope","source_condition_9:minimum_slope","source_condition_10:minimum_slope","source_condition_11:minimum_slope","source_condition_12:minimum_slope","source_condition_13:minimum_slope","source_condition_14:minimum_slope","source_condition_15:minimum_slope","source_condition_16:minimum_slope","source_condition_17:minimum_slope"],"category":"performance","dimension":"response","direction":"target","id":"minimum_slope","normalization":"target","observations":["condition_0:minimum_slope","condition_1:minimum_slope","condition_2:minimum_slope","condition_3:minimum_slope","condition_4:minimum_slope","condition_5:minimum_slope","condition_6:minimum_slope","condition_7:minimum_slope","condition_8:minimum_slope","condition_9:minimum_slope","condition_10:minimum_slope","condition_11:minimum_slope","condition_12:minimum_slope","condition_13:minimum_slope","condition_14:minimum_slope","condition_15:minimum_slope","condition_16:minimum_slope","condition_17:minimum_slope"],"scale":0.00055,"unit":"V/C"},{"aggregation":"max","baseline":["source_condition_0:maximum_slope","source_condition_1:maximum_slope","source_condition_2:maximum_slope","source_condition_3:maximum_slope","source_condition_4:maximum_slope","source_condition_5:maximum_slope","source_condition_6:maximum_slope","source_condition_7:maximum_slope","source_condition_8:maximum_slope","source_condition_9:maximum_slope","source_condition_10:maximum_slope","source_condition_11:maximum_slope","source_condition_12:maximum_slope","source_condition_13:maximum_slope","source_condition_14:maximum_slope","source_condition_15:maximum_slope","source_condition_16:maximum_slope","source_condition_17:maximum_slope"],"category":"performance","dimension":"response","direction":"target","id":"maximum_slope","normalization":"target","observations":["condition_0:maximum_slope","condition_1:maximum_slope","condition_2:maximum_slope","condition_3:maximum_slope","condition_4:maximum_slope","condition_5:maximum_slope","condition_6:maximum_slope","condition_7:maximum_slope","condition_8:maximum_slope","condition_9:maximum_slope","condition_10:maximum_slope","condition_11:maximum_slope","condition_12:maximum_slope","condition_13:maximum_slope","condition_14:maximum_slope","condition_15:maximum_slope","condition_16:maximum_slope","condition_17:maximum_slope"],"scale":0.00055,"unit":"V/C"},{"aggregation":"max","baseline":["source_condition_0:peak_power_w","source_condition_1:peak_power_w","source_condition_2:peak_power_w","source_condition_3:peak_power_w","source_condition_4:peak_power_w","source_condition_5:peak_power_w","source_condition_6:peak_power_w","source_condition_7:peak_power_w","source_condition_8:peak_power_w","source_condition_9:peak_power_w","source_condition_10:peak_power_w","source_condition_11:peak_power_w","source_condition_12:peak_power_w","source_condition_13:peak_power_w","source_condition_14:peak_power_w","source_condition_15:peak_power_w","source_condition_16:peak_power_w","source_condition_17:peak_power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"peak_power_w","lower":0,"normalization":"ratio","observations":["condition_0:peak_power_w","condition_1:peak_power_w","condition_2:peak_power_w","condition_3:peak_power_w","condition_4:peak_power_w","condition_5:peak_power_w","condition_6:peak_power_w","condition_7:peak_power_w","condition_8:peak_power_w","condition_9:peak_power_w","condition_10:peak_power_w","condition_11:peak_power_w","condition_12:peak_power_w","condition_13:peak_power_w","condition_14:peak_power_w","condition_15:peak_power_w","condition_16:peak_power_w","condition_17:peak_power_w"],"scale":1e-12,"unit":"W"},{"aggregation":"max","baseline":["source_condition_0:startup_error_v","source_condition_1:startup_error_v","source_condition_2:startup_error_v","source_condition_3:startup_error_v","source_condition_4:startup_error_v","source_condition_5:startup_error_v","source_condition_6:startup_error_v","source_condition_7:startup_error_v","source_condition_8:startup_error_v","source_condition_9:startup_error_v","source_condition_10:startup_error_v","source_condition_11:startup_error_v","source_condition_12:startup_error_v","source_condition_13:startup_error_v","source_condition_14:startup_error_v","source_condition_15:startup_error_v","source_condition_16:startup_error_v","source_condition_17:startup_error_v"],"category":"performance","dimension":"response","direction":"minimize","id":"startup_error_v","lower":0,"normalization":"ratio","observations":["condition_0:startup_error_v","condition_1:startup_error_v","condition_2:startup_error_v","condition_3:startup_error_v","condition_4:startup_error_v","condition_5:startup_error_v","condition_6:startup_error_v","condition_7:startup_error_v","condition_8:startup_error_v","condition_9:startup_error_v","condition_10:startup_error_v","condition_11:startup_error_v","condition_12:startup_error_v","condition_13:startup_error_v","condition_14:startup_error_v","condition_15:startup_error_v","condition_16:startup_error_v","condition_17:startup_error_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:ripple_v","source_condition_1:ripple_v","source_condition_2:ripple_v","source_condition_3:ripple_v","source_condition_4:ripple_v","source_condition_5:ripple_v","source_condition_6:ripple_v","source_condition_7:ripple_v","source_condition_8:ripple_v","source_condition_9:ripple_v","source_condition_10:ripple_v","source_condition_11:ripple_v","source_condition_12:ripple_v","source_condition_13:ripple_v","source_condition_14:ripple_v","source_condition_15:ripple_v","source_condition_16:ripple_v","source_condition_17:ripple_v"],"category":"performance","dimension":"response","direction":"minimize","id":"ripple_v","lower":0,"normalization":"ratio","observations":["condition_0:ripple_v","condition_1:ripple_v","condition_2:ripple_v","condition_3:ripple_v","condition_4:ripple_v","condition_5:ripple_v","condition_6:ripple_v","condition_7:ripple_v","condition_8:ripple_v","condition_9:ripple_v","condition_10:ripple_v","condition_11:ripple_v","condition_12:ripple_v","condition_13:ripple_v","condition_14:ripple_v","condition_15:ripple_v","condition_16:ripple_v","condition_17:ripple_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:final_power_w","source_condition_1:final_power_w","source_condition_2:final_power_w","source_condition_3:final_power_w","source_condition_4:final_power_w","source_condition_5:final_power_w","source_condition_6:final_power_w","source_condition_7:final_power_w","source_condition_8:final_power_w","source_condition_9:final_power_w","source_condition_10:final_power_w","source_condition_11:final_power_w","source_condition_12:final_power_w","source_condition_13:final_power_w","source_condition_14:final_power_w","source_condition_15:final_power_w","source_condition_16:final_power_w","source_condition_17:final_power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"final_power_w","lower":0,"normalization":"ratio","observations":["condition_0:final_power_w","condition_1:final_power_w","condition_2:final_power_w","condition_3:final_power_w","condition_4:final_power_w","condition_5:final_power_w","condition_6:final_power_w","condition_7:final_power_w","condition_8:final_power_w","condition_9:final_power_w","condition_10:final_power_w","condition_11:final_power_w","condition_12:final_power_w","condition_13:final_power_w","condition_14:final_power_w","condition_15:final_power_w","condition_16:final_power_w","condition_17:final_power_w"],"scale":1e-12,"unit":"W"}],"pdk":"gf180mcuD","reader":{"category":"Power & references","summary":"Produces a temperature-dependent response whose slope and curvature are measured across the declared range.","title":"Self-Starting Isolated-Body PTAT Core"},"schematic_url":"/ICLayout-Bench/assets/dfc9b7c37cb196083d817aad48a6eb7877f9a613f4aa0f66ca56a1284ff1554f.svg","scoring":{"area_metric":"functional_area","area_target":529.13,"method":"layout","rationale":"Temperature-slope cores: temperature slope 36%; curvature 27%; startup 13.5%; output endpoints 4.5%; power 9%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"cold_v":0.015,"curvature_v":0.27,"final_power_w":0.03,"functional_area":0.1,"hot_v":0.015,"maximum_slope":0.12,"minimum_slope":0.12,"output_v":0.015,"peak_power_w":0.03,"power_w":0.03,"ripple_v":0.0675,"slope_v_per_c":0.12,"startup_error_v":0.0675}},"sections":{"Electrical Requirements and Scoring":"$5","Objective":"<p>Implement <code>tsn_002_ptat_classic</code> in GF180MCU D and submit self-contained GDS.\nThe resistor-degenerated four-MOS source core has a positive temperature slope;\ncandidate slope is measured and source-paired without a positive-slope acceptance bound.\nA maintained three-MOS startup branch establishes its operating state after\npower-up. Supply sensitivity remains: this is not a precision temperature\nreference or a calibrated thermometer.</p>\n","Operating Conditions":"<p>Use typical GF180 3.3 V MOS and poly models with statistical variation disabled.\nVSS is 0 V. Evaluate all 18 combinations of VDD = 2.7/3.0/3.3 V,\ntemperature = -20/27/100 C and supply rise time = 0.1/10 us.\nEach condition measures its DC operating point and a -20 to 100 C sweep in\n1 C steps. The temperature is then restored to the selected value before\nstartup simulation. The external output capacitance is exactly 100 fF.</p>\n<p>For startup, ramp VDD linearly from 0 to its selected value, then hold it.\nUse a zero-initial-state <code>uic</code> transient through 100 us with no internal\ninitial-condition bias or auxiliary startup source. Gear order 2 and a\nmaximum timestep of 1 ns are declared. Measure final error, ripple and average\npower over 90–100 us. These are finite-window error and ripple observations with no settling-error\nacceptance threshold; they do not establish settling time or bound overshoot.</p>\n","Physical Requirements":"$6"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/tsn_002_ptat_classic","status":"qualified","title":"Self-Starting Isolated-Body PTAT Core"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}],["$L7"],"$L8"]}],"isPartial":"$@9","staleTime":"$a","varyParams":null},{"rsc":"$Lb","isPartial":"$@c","staleTime":"$a","varyParams":null},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$a","varyParams":"$f"},{"rsc":"$L10","isPartial":"$@11","staleTime":"$a","varyParams":null}],"isUpgradeableISRFallback":false,"a":"$@12","rootVaryParams":null,"needsRuntimeRequest":"$@13"}
+14:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+16:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+17:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+18:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+19:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1a:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1b:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+1c:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+7:["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true}]
+8:["$","$L14",null,{"children":["$","$2",null,{"name":"Next.MetadataOutlet","children":"$@15"}]}]
+b:["$","$1","h",{"children":[null,["$","$L16",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L17",null,{"children":["$","$2",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L18","3",{}]]}]}]}],null]}]
+d:["$","$1","c",{"children":[null,["$","$L19",null,{"parallelRouterKey":"children","template":["$","$L1a",null,{}]}]]}]
+10:["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L1b",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L1c",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L19",null,{"parallelRouterKey":"children","template":["$","$L1a",null,{}],"notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L1b",null,{"href":"/","children":"Return to overview"}]]}],[]]}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L1b",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}]
+15:null
+13:true
+a:300
+a:C
+12:0
+c:"$undefined"
+e:"$undefined"
+11:"$undefined"
+9:"$undefined"

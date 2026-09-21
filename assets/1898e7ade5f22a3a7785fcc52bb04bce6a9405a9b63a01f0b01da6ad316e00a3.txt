@@ -1,0 +1,84 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Fixed IHP binding; external bias ports and native physical taps.
+.subckt amp_034_fan_chopper_cmfb vinp vinn voutp voutn vdd vss core__vb1 core__vb2 core__vb3 core__vb4 vref_cm core__out1_p core__out1_n vb4o
+RT0 vdd well_0 ntap1 A=4e-12 P=8e-6
+MM10_CORE core__out1_n core__vb3 core__casc_src_n well_0 sg13_lv_pmos w=10u l=0.3u m=1
+RT1 vdd well_1 ntap1 A=4e-12 P=8e-6
+MM11_CORE core__out1_p core__vb3 core__casc_src_p well_1 sg13_lv_pmos w=10u l=0.3u m=1
+RT2 vss sub ptap1 A=4e-12 P=8e-6
+MM12_CORE core__out1_p core__vb2 core__fold_p sub sg13_lv_nmos w=5u l=0.3u m=1
+RT3 vss sub ptap1 A=4e-12 P=8e-6
+MM13_CORE core__out1_n core__vb2 core__fold_n sub sg13_lv_nmos w=5u l=0.3u m=1
+RT4 vss sub ptap1 A=4e-12 P=8e-6
+MM14_CORE voutp core__g2_p vss sub sg13_lv_nmos w=20u l=0.25u m=1
+RT5 vss sub ptap1 A=4e-12 P=8e-6
+MM15_CORE voutn core__g2_n vss sub sg13_lv_nmos w=20u l=0.25u m=1
+RT6 vss sub ptap1 A=4e-12 P=8e-6
+MM16_CORE core__out1_n vdd core__g2_n sub sg13_lv_nmos w=2u l=0.13u m=1
+RT7 vdd well_7 ntap1 A=4e-12 P=8e-6
+MM17_CORE core__g2_n vss core__out1_n well_7 sg13_lv_pmos w=2u l=0.13u m=1
+RT8 vss sub ptap1 A=4e-12 P=8e-6
+MM18_CORE core__out1_p vdd core__g2_p sub sg13_lv_nmos w=2u l=0.13u m=1
+RT9 vdd well_9 ntap1 A=4e-12 P=8e-6
+MM19_CORE core__g2_p vss core__out1_p well_9 sg13_lv_pmos w=2u l=0.13u m=1
+RT10 vdd well_10 ntap1 A=4e-12 P=8e-6
+MM1_CMFB cmfb__ptail cmfb__bias vdd well_10 sg13_lv_pmos w=0.33u l=0.26u m=1
+RT11 vdd well_11 ntap1 A=4e-12 P=8e-6
+MM1_CORE core__tail core__vb4 vdd well_11 sg13_lv_pmos w=20u l=1u m=1
+RT12 vss sub ptap1 A=4e-12 P=8e-6
+MM20_CORE core__out1_p vss core__g2_n sub sg13_lv_nmos w=2u l=0.13u m=1
+RT13 vdd well_13 ntap1 A=4e-12 P=8e-6
+MM21_CORE core__g2_n vdd core__out1_p well_13 sg13_lv_pmos w=2u l=0.13u m=1
+RT14 vss sub ptap1 A=4e-12 P=8e-6
+MM22_CORE core__out1_n vss core__g2_p sub sg13_lv_nmos w=2u l=0.13u m=1
+RT15 vdd well_15 ntap1 A=4e-12 P=8e-6
+MM23_CORE core__g2_p vdd core__out1_n well_15 sg13_lv_pmos w=2u l=0.13u m=1
+RT16 vss sub ptap1 A=4e-12 P=8e-6
+MM2_CMFB vb4o cmfb__mirr vss sub sg13_lv_nmos w=2.32u l=1.31u m=1
+RT17 vdd well_17 ntap1 A=4e-12 P=8e-6
+MM2_CORE core__fold_p vinp core__tail well_17 sg13_lv_pmos w=20u l=0.5u m=1
+RT18 vdd well_18 ntap1 A=4e-12 P=8e-6
+MM3_CMFB cmfb__bias cmfb__bias vdd well_18 sg13_lv_pmos w=0.88u l=0.26u m=1
+RT19 vdd well_19 ntap1 A=4e-12 P=8e-6
+MM3_CORE core__fold_n vinn core__tail well_19 sg13_lv_pmos w=20u l=0.5u m=1
+RT20 vdd well_20 ntap1 A=4e-12 P=8e-6
+MM4_CMFB cmfb__mirr cmfb__cm_sense cmfb__ptail well_20 sg13_lv_pmos w=1.42u l=0.27u m=1
+RT21 vss sub ptap1 A=4e-12 P=8e-6
+MM4_CORE core__fold_p core__vb1 vss sub sg13_lv_nmos w=10u l=1u m=1
+RT22 vdd well_22 ntap1 A=4e-12 P=8e-6
+MM5_CMFB vb4o vref_cm cmfb__ptail well_22 sg13_lv_pmos w=1.42u l=0.27u m=1
+RT23 vss sub ptap1 A=4e-12 P=8e-6
+MM5_CORE core__fold_n core__vb1 vss sub sg13_lv_nmos w=10u l=1u m=1
+RT24 vss sub ptap1 A=4e-12 P=8e-6
+MM6_CMFB cmfb__mirr cmfb__mirr vss sub sg13_lv_nmos w=2.32u l=1.31u m=1
+RT25 vdd well_25 ntap1 A=4e-12 P=8e-6
+MM6_CORE core__casc_src_n core__vb4 vdd well_25 sg13_lv_pmos w=10u l=1u m=1
+RT26 vss sub ptap1 A=4e-12 P=8e-6
+MM7_CMFB cmfb__bias cmfb__bias vss sub sg13_lv_nmos w=0.3u l=0.22u m=1
+RT27 vdd well_27 ntap1 A=4e-12 P=8e-6
+MM7_CORE core__casc_src_p core__vb4 vdd well_27 sg13_lv_pmos w=10u l=1u m=1
+RT28 vdd well_28 ntap1 A=4e-12 P=8e-6
+MM8O voutp vb4o vdd well_28 sg13_lv_pmos w=20u l=1u m=1
+RT29 vdd well_29 ntap1 A=4e-12 P=8e-6
+MM9O voutn vb4o vdd well_29 sg13_lv_pmos w=20u l=1u m=1
+RTSUB vss sub ptap1 A=4e-12 P=8e-6
+CCM0_0 vb4o ccm_s1 cap_cmim w=2.11u l=2.11u m=1
+CCM1_0 ccm_s1 ccm_s2 cap_cmim w=2.11u l=2.11u m=1
+CCM2_0 ccm_s2 ccm_s3 cap_cmim w=2.11u l=2.11u m=1
+CCM3_0 ccm_s3 ccm_s4 cap_cmim w=2.11u l=2.11u m=1
+CCM4_0 ccm_s4 ccm_s5 cap_cmim w=2.11u l=2.11u m=1
+CCM5_0 ccm_s5 ccm_s6 cap_cmim w=2.11u l=2.11u m=1
+CCM6_0 ccm_s6 vss cap_cmim w=2.11u l=2.11u m=1
+CM1_CORE_0 core__g2_p voutp cap_cmim w=44.67u l=44.67u m=1
+CM1_CORE_1 core__g2_p voutp cap_cmim w=44.67u l=44.67u m=1
+CM2_CORE_0 core__g2_n voutn cap_cmim w=44.67u l=44.67u m=1
+CM2_CORE_1 core__g2_n voutn cap_cmim w=44.67u l=44.67u m=1
+RRMN_CMFB_0 voutn RMN_CMFB_s1 sub rhigh w=.5u l=84.45u m=1 b=0
+RRMN_CMFB_1 RMN_CMFB_s1 RMN_CMFB_s2 sub rhigh w=.5u l=84.45u m=1 b=0
+RRMN_CMFB_2 RMN_CMFB_s2 RMN_CMFB_s3 sub rhigh w=.5u l=84.45u m=1 b=0
+RRMN_CMFB_3 RMN_CMFB_s3 cmfb__cm_sense sub rhigh w=.5u l=84.45u m=1 b=0
+RRMP_CMFB_0 cmfb__cm_sense RMP_CMFB_s1 sub rhigh w=.5u l=84.45u m=1 b=0
+RRMP_CMFB_1 RMP_CMFB_s1 RMP_CMFB_s2 sub rhigh w=.5u l=84.45u m=1 b=0
+RRMP_CMFB_2 RMP_CMFB_s2 RMP_CMFB_s3 sub rhigh w=.5u l=84.45u m=1 b=0
+RRMP_CMFB_3 RMP_CMFB_s3 voutp sub rhigh w=.5u l=84.45u m=1 b=0
+.ends amp_034_fan_chopper_cmfb

@@ -1,0 +1,94 @@
+# MIM-Compensated Local-Feedback Source Follower Layout Task
+
+## Objective
+
+Implement `buf_001_super_follower` in ihp-sg13g2 and submit self-contained GDS. Six MOS entries expand to 17 physical MOS instances in a local-feedback source follower. Fixed IHP W/L/m are retained. The internal na-to-VSS 250 fF compensation is implemented as a 12.85 by 12.85 um cap_cmim (nominally 249.74 fF at 27 C, including model perimeter capacitance); it is not removed or moved to the output. Explicit physical taps and the MIM dimensions are common to LVS, source simulation and extracted simulation.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the authoritative physical circuit. `materials/circuit.spice` is its equivalent simulator model-call representation. `materials/testbench.spice` defines measurements, and this problem is the description input.
+Ordered ports: `vdd vout vin ibias vss`. In order: Supply, output, signal input, reference-current input, and return.
+
+Preserve connectivity, W/L/m, passive geometry and body connections. Provide physical contacts. Placement and routing are free; splitting and source/drain interchange are allowed only under the declared LVS equivalences. No statistical matching or common-centroid constraint is scored. Ideal external sources, loads and fixtures belong to the testbench, not the DUT.
+
+## Operating Conditions
+
+Temperature is 27 C. Typical IHP low-voltage MOS and resistor models and typical capacitor models; explicit finite physical tap models and a 1e12 ohm ngspice numerical shunt at each node. Candidate Magic RC is extracted with zero coupling-capacitance threshold.
+
+VDD = 1.5 V; VSS = 0 V; a 20 uA current source from VDD into ibias. VIN = 0.55 V DC, AC amplitude 1 V. External output loads are 5, 10 and 20 pF. AC uses 100 points/decade from 1 Hz to 1 GHz. VIN stays at 0.55 V through 1 us, ramps to 0.65 V at 1.001 us, holds through 3 us, ramps back at 3.001 us and holds through 5 us. Transient output/max step is 0.2 ns. Recovered errors compare output to its 2.5 us and 0.5 us samples, over 1.5–2.9 us and 3.5–4.9 us respectively.
+
+## Physical Requirements
+
+Top cell `buf_001_super_follower`, named ports, resolved hierarchy, at most 10 MiB. Pass artifact, IHP main and maximal DRC, with density and antenna outside this standalone scope; strict named-port LVS; geometry, without DRC waivers. Functional bounding box must fit within 160 by 45 um. The footprint includes every process device and routing drawing layer in the frozen runtime outline list: active, wells, implants, poly, contacts, metals/vias and device/passive markers. Annotation and pin-purpose shapes are excluded. All functional routing must use drawing layers.
+
+Every scored simulation consumes the submitted GDS-derived distributed wiring RC and extracted device geometry. This is a level-shifting source follower with about 0.84 small-signal gain, not a unity-gain rail-to-rail buffer. Qualification is restricted to the stated low-input range; higher input bias compresses the gain. Noise, mismatch, other input levels, PVT and RF/EM are outside scope. Fabrication signoff is not claimed.
+
+## Electrical Requirements and Scoring
+
+All 3 operating conditions must complete. Every finite observation must meet its inclusive band; aggregation cannot hide a failing condition. Missing measurements/crossings or incomplete extraction do not establish success.
+
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
+
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+Scoring uses `layout`. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `output_v` | DC output/control voltage | V | target / target | 0 … 1.5 | 1.5 |
+| `bias_v` | DC V(ibias) | V | target / target | 0 … 1.5 | 1.5 |
+| `power_w` | DC power delivered by VDD, -V(vdd)*I(VDD) | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `gain_vv` | Magnitude V(vout) at 10 Hz with unit AC input | V/V | target / target | −∞ … +∞ | 1.0 |
+| `bandwidth_hz` | First falling 3 dB crossing relative to the 10 Hz gain | Hz | maximize / ratio | 0 … +∞ | — |
+| `step_gain` | (Vout at 2.5 us - Vout at 0.5 us) / 0.1 V | V/V | target / target | −∞ … +∞ | 1.0 |
+| `recovery_up_v` | Maximum absolute recovered error over the upward-step window | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `recovery_down_v` | Maximum absolute recovered error over the downward-step window | V | minimize / ratio | 0 … +∞ | 1e-06 |
+| `mean_power_w` | Time-average -V(vdd)*I(VDD) over the complete transient | W | minimize / ratio | 0 … +∞ | 1e-12 |
+
+Area reference: **1242.88 um2**. 20 expanded device instances; sum of device/contact envelopes 782.8540 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **5**; it is independent of
+the reference-relative task score.
+
+
+### Score weights
+
+Super source follower: loaded recovery 36%; source-follower transfer 27%; bandwidth 13.5%; bias 4.5%; power 9%; area 10%. Each objective's weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `recovery_down_v` | 0.180000000000 |
+| `recovery_up_v` | 0.180000000000 |
+| `gain_vv` | 0.135000000000 |
+| `step_gain` | 0.135000000000 |
+| `bandwidth_hz` | 0.135000000000 |
+| `bias_v` | 0.022500000000 |
+| `output_v` | 0.022500000000 |
+| `mean_power_w` | 0.045000000000 |
+| `power_w` | 0.045000000000 |
+
+## Tools and Submission
+
+Solve budget: **3 hours**.
+
+Use reviewed resources from `/protocol/resources.json`. KLayout checks, Magic extracts RC, and ngspice simulates. Frozen constraints and requirements are in `/protocol/task.json`; `/protocol/harness.json` describes the harness. If available, use the published `process-feedback` helper for interim checks. Write `/workspace/output/final.gds` and explicitly submit using `python -I /protocol/submit.py`.

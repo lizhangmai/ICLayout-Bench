@@ -1,0 +1,15 @@
+* Derived from analog-db sw_002_chopper_diff, fixed snapshot
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Fixed dimensions and explicit physical taps.
+.subckt sw_002_chopper_diff va_p va_n vb_p vb_n vctl vctl_not vdd vss
+MM1 va_p vctl vb_p sub sg13_lv_nmos w=2u l=0.13u m=1
+MM3 va_n vctl vb_n sub sg13_lv_nmos w=2u l=0.13u m=1
+MM5 va_p vctl_not vb_n sub sg13_lv_nmos w=2u l=0.13u m=1
+MM7 va_n vctl_not vb_p sub sg13_lv_nmos w=2u l=0.13u m=1
+MM2 vb_p vctl_not va_p well sg13_lv_pmos w=2u l=0.13u m=1
+MM4 vb_n vctl_not va_n well sg13_lv_pmos w=2u l=0.13u m=1
+MM6 vb_n vctl va_p well sg13_lv_pmos w=2u l=0.13u m=1
+MM8 vb_p vctl va_n well sg13_lv_pmos w=2u l=0.13u m=1
+RRptap1 vss sub ptap1 A=130.08e-12 P=134.08e-6
+RRntap1 vdd well ntap1 A=65.04e-12 P=69.04e-6
+.ends sw_002_chopper_diff

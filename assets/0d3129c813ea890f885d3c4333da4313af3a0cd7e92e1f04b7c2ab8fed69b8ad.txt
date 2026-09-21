@@ -1,0 +1,51 @@
+* Layout-Bench independent characterization. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerRES.lib res_typ
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.include dut.spice
+.include parameters.spice
+.temp 27
+.option rshunt=1e12 method=gear maxord=2
+VDD vdd 0 1.5
+VI vinp 0 DC .65 AC 1 PWL(0 .65 10u .65 10.002u .85 30u .85 30.002u .65 50u .65)
+VC vcm 0 .75
+VD0 d0 0 {b0*1.5}
+VDN0 dn0 0 {(1-b0)*1.5}
+VD1 d1 0 {b1*1.5}
+VDN1 dn1 0 {(1-b1)*1.5}
+VD2 d2 0 {b2*1.5}
+VDN2 dn2 0 {(1-b2)*1.5}
+VT expected 0 {(1+b0+2*b1+4*b2)/8}
+RL out 0 1e12
+XD vinp out vcm vdd 0 d0 dn0 d1 dn1 d2 dn2 sw_003_binary_capbank
+.save v(out) v(vinp) v(expected) i(vi)
+.control
+set noaskquit
+set numdgt=12
+op
+
+ac dec 50 1k 100Meg
+let gain=mag(v(out))
+meas ac gain_vv find gain at=10k
+let ph=180/PI*vp(out)
+meas ac phase_deg find ph at=10k
+let ci=imag(-i(vi))/(2*PI*frequency)
+meas ac input_cap_f find ci at=10k
+let gain_error=abs(gain_vv-op1.v(expected))
+print gain_error
+write ac.raw all
+tran 1n 50u
+let output=v(out)
+meas tran initial_v find output at=9u
+meas tran high_v find output at=29u
+meas tran final_v find output at=49u
+let step_gain=(high_v-initial_v)/.2
+let step_error=abs(step_gain-op1.v(expected))
+let return_error_v=abs(final_v-initial_v)
+let settled=abs(output-high_v)
+meas tran settling_error_v max settled from=20u to=29u
+print step_gain step_error return_error_v
+write transient.raw all
+quit
+.endc
+.end

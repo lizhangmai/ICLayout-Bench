@@ -1,0 +1,750 @@
+in_core = true
+kind = "layout_case"
+id = "ihp-sg13g2.analog-db.drv_001_pam4_sige_dac"
+title = "Upstream broadband SiGe PAM4 current-steering driver"
+status = "qualified"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/drv_001_pam4_sige_dac"
+
+[screening]
+decision = "include"
+reason = "Faithful upstream signoff-point circuit and layout validated through native DRC/LVS, candidate-derived CC extraction and source-paired RF/tone scoring."
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "b3bd687b00e596c675870da71a94dc2ecbffc1500c95fe3a9ff457546760cfa6"
+
+[[assets]]
+path = "materials/provenance.json"
+role = "source-material"
+visibility = "maintainer"
+format = "json"
+sha256 = "5e63639ea4f3741a3fe802b45ceef5e8401d93e4396d3d13028d779cd03cbd06"
+
+[[assets]]
+path = "materials/upstream/abstract/params.yaml"
+role = "source-material"
+visibility = "maintainer"
+format = "yaml"
+sha256 = "8172c026e922770e079f2d62b5e1709341b314883c374c574acdd19706547574"
+
+[[assets]]
+path = "materials/upstream/circuit.yaml"
+role = "source-material"
+visibility = "maintainer"
+format = "yaml"
+sha256 = "92420c12fbb461938459797fbb2159033798e13827a72f218596818f01ca034b"
+
+[[assets]]
+path = "materials/upstream/datasheet.yaml"
+role = "source-material"
+visibility = "maintainer"
+format = "yaml"
+sha256 = "19a5ac43dc5041b8e54d50a5b3e8cfad30a5681d24f6fa3eed39a22692a25cc7"
+
+[[assets]]
+path = "materials/upstream/pdk/ihp-sg13g2/corners.yaml"
+role = "source-material"
+visibility = "maintainer"
+format = "yaml"
+sha256 = "a7a7c751cfdb5184dd86da6e1106deb97c5c1dcc40e52d2722de236519aa960e"
+
+[[assets]]
+path = "materials/upstream/pdk/ihp-sg13g2/layout-001-inductorless-cascode/layout.yaml"
+role = "source-material"
+visibility = "maintainer"
+format = "yaml"
+sha256 = "1b0222cd7ff6621ce990a1727de43df38b8ba1c8dee41d40323e3da92f54e4f3"
+
+[[assets]]
+path = "materials/upstream/pdk/ihp-sg13g2/layout-001-inductorless-cascode/out/dut_pam4_lvs.spice"
+role = "source-material"
+visibility = "maintainer"
+format = "spice"
+sha256 = "956e007f757835e994777a1e30e55a2b1df678831e8da41bc86c16a40e9f06e4"
+
+[[assets]]
+path = "materials/upstream/pdk/ihp-sg13g2/layout-001-inductorless-cascode/out/dut_pam4_sim.spice"
+role = "source-material"
+visibility = "maintainer"
+format = "spice"
+sha256 = "54e5da9d47efea6a63e92298f62b20b24f4c6654b21f48fcadf88bf1dfdeda3a"
+
+[[assets]]
+path = "materials/upstream/pdk/ihp-sg13g2/netlist.spice"
+role = "source-material"
+visibility = "maintainer"
+format = "spice"
+sha256 = "cd2e2440b0856783ab28b66525fb626374fcfea5fdefe07deacd3522633435ce"
+
+[[assets]]
+path = "materials/upstream/pdk/ihp-sg13g2/sizing.yaml"
+role = "source-material"
+visibility = "maintainer"
+format = "yaml"
+sha256 = "ea29506686940e2c8442eabe3137bb732f6c6b69e7422b232688cff57be796ea"
+
+[[assets]]
+path = "materials/upstream/testbenches/.spiceinit"
+role = "source-material"
+visibility = "maintainer"
+format = "text"
+sha256 = "7bc18341ee5c7854a263b671fa9273bf42ca2d66580c90f91ea0bda2d043216a"
+
+[[assets]]
+path = "materials/upstream/testbenches/dut.spice"
+role = "source-material"
+visibility = "maintainer"
+format = "spice"
+sha256 = "803c7bd8d6affb39b1f98518d3c39c8973738386195d8f78600b5f28c00747fa"
+
+[[assets]]
+path = "materials/upstream/testbenches/tb_bias.spice"
+role = "source-material"
+visibility = "maintainer"
+format = "spice"
+sha256 = "19079d7ffe444119fe9ad8d805fc2db336e5b8c5a181772616075a52ecdfbbce"
+
+[[assets]]
+path = "materials/upstream/testbenches/tb_gain_lsb.spice"
+role = "source-material"
+visibility = "maintainer"
+format = "spice"
+sha256 = "ad03e54695165725b0817a4b0b8736ff57c1d99e8a72e40ff8053dbedabddf36"
+
+[[assets]]
+path = "materials/upstream/testbenches/tb_gain_msb.spice"
+role = "source-material"
+visibility = "maintainer"
+format = "spice"
+sha256 = "c8cef8fd20c48a410bd7519bee1cbeef5468cad36b74777f91a75c7ca48ede1c"
+
+[[assets]]
+path = "materials/upstream/testbenches/tb_s11.spice"
+role = "source-material"
+visibility = "maintainer"
+format = "spice"
+sha256 = "7bb6a74b89b65b925be4b44bffa9a4df07038d3b26939cb7036fa472aef12ffb"
+
+[[assets]]
+path = "materials/upstream/testbenches/tb_s22.spice"
+role = "source-material"
+visibility = "maintainer"
+format = "spice"
+sha256 = "78169d798a27efa6847bb7db38204f7cba31e215b341db8b5f5a5696d3a8c6e6"
+
+[[assets]]
+path = "materials/upstream/testbenches/tb_swing.spice"
+role = "source-material"
+visibility = "maintainer"
+format = "spice"
+sha256 = "8bf9f563b72ce67a98505d19c2793cf42d04bb677f27959fc83cc2a0cd5ed56e"
+
+[[assets]]
+path = "reference/pam4drv_pam4_lay.gds"
+role = "physical-witness"
+format = "gds"
+visibility = "maintainer"
+sha256 = "4a30c543ed1f4142d4c624c425c5a8bed881949bf49303485208c49d32dc60cd"
+
+[task]
+hours = 4
+coefficient = 4
+kind = "netlist_to_gds"
+family = "ihp-sg13g2_pam4_driver"
+environment = "ihp-sg13g2-pam4-signoff-cc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "f293d5119508f41a3d4b5cf940eb934d822097ed4ab4299b82a538f04f9cf10d"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+sha256 = "310d1f67d5d237cfc88525f26568c5bcf45680bb2e8141982600669ee81a2ead"
+subcircuit = "pam4drv_pam4_lay"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "54e5da9d47efea6a63e92298f62b20b24f4c6654b21f48fcadf88bf1dfdeda3a"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "3b4e7c1c84b2dfb82e22cbc59b4abad5948608e463b789d97e057de9094197ca"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        69,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        7,
+        21,
+    ],
+]
+max_width_um = 160
+max_height_um = 120
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "pam4drv_pam4_lay"
+max_bytes = 10485760
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 10000.0
+rationale = "PAM4 SiGe driver: binary weighting 22.5%; high-frequency transfer 22.5%; port matching 18%; gain and swing 18%; power 9%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+dac_weight_db = 0.225
+lsb_rel50_db = 0.1125
+msb_rel50_db = 0.1125
+s11_32g_db = 0.09
+s22_50g_db = 0.09
+lsb_gain_db = 0.06
+msb_gain_db = 0.06
+swing_vpp = 0.06
+power_mw = 0.09
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_capacitance"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "lsbp",
+    "lsbn",
+    "msbp",
+    "msbn",
+    "outp",
+    "outn",
+    "vcc",
+    "vcasc",
+    "vcmb",
+    "tmsb0",
+    "tlsb0",
+    "tmsb1",
+    "sub",
+]
+substrate = "sub"
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+circuit = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+lsb = "ngspice-raw"
+msb = "ngspice-raw"
+s22 = "ngspice-raw"
+swing = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+lsb_gain_db = "dB"
+msb_gain_db = "dB"
+dac_weight_db = "dB"
+lsb_rel50_db = "dB"
+msb_rel50_db = "dB"
+s11_32g_db = "dB"
+s22_50g_db = "dB"
+power_mw = "mW"
+swing_vpp = "V"
+
+[task.evaluation.jobs.parameters.exports]
+lsb = "lsb.raw"
+msb = "msb.raw"
+s22 = "s22.raw"
+swing = "swing.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "lsb_gain_db"
+category = "performance"
+observations = [
+    "nominal:lsb_gain_db",
+]
+baseline = [
+    "source_nominal:lsb_gain_db",
+]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+normalization = "db20"
+
+[[task.evaluation.metrics]]
+id = "msb_gain_db"
+category = "performance"
+observations = [
+    "nominal:msb_gain_db",
+]
+baseline = [
+    "source_nominal:msb_gain_db",
+]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+normalization = "db20"
+
+[[task.evaluation.metrics]]
+id = "dac_weight_db"
+category = "performance"
+observations = [
+    "nominal:dac_weight_db",
+]
+baseline = [
+    "source_nominal:dac_weight_db",
+]
+unit = "dB"
+direction = "target"
+aggregation = "min"
+dimension = "bias"
+normalization = "target"
+scale = 6.020599913279624
+
+[[task.evaluation.metrics]]
+id = "lsb_rel50_db"
+category = "performance"
+observations = [
+    "nominal:lsb_rel50_db",
+]
+baseline = [
+    "source_nominal:lsb_rel50_db",
+]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+normalization = "db20"
+
+[[task.evaluation.metrics]]
+id = "msb_rel50_db"
+category = "performance"
+observations = [
+    "nominal:msb_rel50_db",
+]
+baseline = [
+    "source_nominal:msb_rel50_db",
+]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+normalization = "db20"
+
+[[task.evaluation.metrics]]
+id = "s11_32g_db"
+category = "performance"
+observations = [
+    "nominal:s11_32g_db",
+]
+baseline = [
+    "source_nominal:s11_32g_db",
+]
+unit = "dB"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+normalization = "db20"
+
+[[task.evaluation.metrics]]
+id = "s22_50g_db"
+category = "performance"
+observations = [
+    "nominal:s22_50g_db",
+]
+baseline = [
+    "source_nominal:s22_50g_db",
+]
+unit = "dB"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+normalization = "db20"
+
+[[task.evaluation.metrics]]
+id = "power_mw"
+category = "performance"
+observations = [
+    "nominal:power_mw",
+]
+baseline = [
+    "source_nominal:power_mw",
+]
+unit = "mW"
+direction = "minimize"
+aggregation = "max"
+dimension = "supply"
+normalization = "ratio"
+lower = 0.0
+
+[[task.evaluation.metrics]]
+id = "swing_vpp"
+category = "performance"
+observations = [
+    "nominal:swing_vpp",
+]
+baseline = [
+    "source_nominal:swing_vpp",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+normalization = "ratio"
+lower = 0.0
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "cb18a7c3f720e0471893698e2cd5dd7c5edb29cb2f23eab10314b2388285ed9b"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": \"hsa\", \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:6562558774d43c085a289bbba696c55959eb8051a0996f96633451fbeb9c652d\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"b9527ba49c9eab307a254db28aa45c302eadd71b2563bdec44c610780fa6ed62\", \"timeout_seconds\": 600.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_nominal]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_nominal.inputs]
+deck = "input:performance"
+circuit = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_nominal.outputs]
+lsb = "ngspice-raw"
+msb = "ngspice-raw"
+s22 = "ngspice-raw"
+swing = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.measurements]
+lsb_gain_db = "dB"
+msb_gain_db = "dB"
+dac_weight_db = "dB"
+lsb_rel50_db = "dB"
+msb_rel50_db = "dB"
+s11_32g_db = "dB"
+s22_50g_db = "dB"
+power_mw = "mW"
+swing_vpp = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.exports]
+lsb = "lsb.raw"
+msb = "msb.raw"
+s22 = "s22.raw"
+swing = "swing.raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.input_sha256]
+deck = "3b4e7c1c84b2dfb82e22cbc59b4abad5948608e463b789d97e057de9094197ca"
+circuit = "54e5da9d47efea6a63e92298f62b20b24f4c6654b21f48fcadf88bf1dfdeda3a"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.dac_weight_db]
+value = 5.975638
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.lsb_gain_db]
+value = 2.336826
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.lsb_rel50_db]
+value = -0.915497
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.msb_gain_db]
+value = 8.312464
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.msb_rel50_db]
+value = -1.7118
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.power_mw]
+value = 179.0668
+unit = "mW"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.s11_32g_db]
+value = -11.28668
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.s22_50g_db]
+value = -14.48708
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.swing_vpp]
+value = 2.739725
+unit = "V"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_capacitance" = "cc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 600
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+timeout_seconds = 600
+support = "build/support/pam4-native/klayout"
+profile = "drc-upstream.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+timeout_seconds = 600
+support = "build/support/pam4-native/klayout"
+profile = "lvs-upstream.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 120
+
+[toolchain.backends.cc]
+type = "sg13g2-kpex-cc-docker"
+
+[toolchain.backends.cc.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 600
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/pam4-native/hbt-models"
+compatibility = "hsa"
+timeout_seconds = 600
+
+[toolchain.backends.simulation.support_profiles]
+support = "hbt-models"
+
+[qualification]
+reference = "reference/pam4drv_pam4_lay.gds"
+
+[presentation]
+category = "Amplifiers & RF"
+summary = "Combines weighted current-steering cells into a SiGe PAM4 driver."

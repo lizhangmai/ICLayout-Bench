@@ -1,0 +1,58 @@
+* OTA core transfer and common-mode recovery. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include parameters.spice
+.include dut.spice
+.temp 27
+.options reltol=1e-6 abstol=1e-14 vntol=1e-9 method=gear maxord=2
+VDD vdd 0 1.2
+VB1 vb1 0 0.3983759766
+VB2 vb2 0 0.65
+VB3 vb3 0 0.45
+VB4 vb4 0 0.55
+VSIG sig 0 pulse(0 {step_v} 10u 10n 10n 30u 200u)
+VCM icm 0 .6
+EFP fp icm value={(v(sig)-v(outp)+v(outn))/2}
+EFN fn icm value={-(v(sig)-v(outp)+v(outn))/2}
+VP inp fp dc 0 ac .5
+VN inn fn dc 0 ac -.5
+CP outp 0 {load_f}
+CN outn 0 {load_f}
+IP 0 outp pulse(0 {kick_a} 60u 10n 10n 1u 200u)
+IN 0 outn pulse(0 {kick_a} 60u 10n 10n 1u 200u)
+XD inp inn outp outn vdd 0 vb1 vb2 vb3 vb4 amp_026_fan_chopper_ota
+.control
+set noaskquit
+set numdgt=15
+op
+let cm_bias_v=(v(outp)+v(outn))/2
+let dm_bias_v=v(outp)-v(outn)
+let power_w=-v(vdd)*i(VDD)-v(vb1)*i(VB1)-v(vb2)*i(VB2)-v(vb3)*i(VB3)-v(vb4)*i(VB4)
+print cm_bias_v dm_bias_v power_w
+write op.raw all
+ac dec 100 10 1G
+let transfer=(v(outp)-v(outn))/(v(inp)-v(inn))
+let gain=db(transfer)
+let phase_deg=180*cph(transfer)/pi
+meas ac gain_db find gain at=10
+meas ac gain_100khz_db find gain at=100k
+meas ac phase_100khz_deg find phase_deg at=100k
+write ac.raw all
+tran 2n 100u 0 2n
+let dm=v(outp)-v(outn)
+let cm=(v(outp)+v(outn))/2
+meas tran dm_before_v avg dm from=8u to=9u
+meas tran dm_high_v avg dm from=38u to=39u
+let step_response_v=dm_high_v-dm_before_v
+meas tran cm_before_v avg cm from=58u to=59u
+let cm_delta=abs(cm-cm_before_v)
+meas tran cm_kick_v max cm_delta from=60u to=62u
+meas tran cm_recovery_v max cm_delta from=98u to=99u
+meas tran cm_min_v min cm from=0 to=100u
+meas tran cm_max_v max cm from=0 to=100u
+print step_response_v
+write transient.raw v(inp) v(inn) v(outp) v(outn) i(VDD)
+quit
+.endc
+.end

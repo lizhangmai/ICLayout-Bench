@@ -1,0 +1,32 @@
+* Maintained Layout-Bench testbench. SPDX-License-Identifier: MIT
+.include support/models.spice
+.include dut.spice
+.include parameters.spice
+.temp 27
+VDD vdd 0 DC {supply_v}
+XDUT vdd vout 0 tsn_003_ptat_4t_xcoupled
+.control
+set noaskquit
+set numdgt=12
+op
+let output_v=v(vout)
+let power_w=-v(vdd)*i(vdd)
+print output_v power_w
+write op.raw v(vdd) v(vout) i(vdd)
+dc temp -20 100 1
+let vv=v(vout)
+let pp=-v(vdd)*i(vdd)
+meas dc cold_v find vv at=-20
+meas dc hot_v find vv at=100
+let slope_v_per_c=(hot_v-cold_v)/120
+let error_v=abs(vv-(cold_v+slope_v_per_c*(vector(length(vv)))))
+meas dc curvature_v max error_v
+let local_slope=deriv(vv)
+meas dc minimum_slope min local_slope
+meas dc maximum_slope max local_slope
+meas dc peak_power_w max pp
+print slope_v_per_c
+write temperature.raw v(vout) v(vdd) i(vdd)
+quit
+.endc
+.end

@@ -1,0 +1,9 @@
+* Required Notice: Copyright 2026 Danial Noori Zadeh
+* Native physical adaptation; see collection LICENSE and NOTICE.
+.subckt ldo_006_stub vdd vout vss
+XR1_0 vdd R1_seg1 vss ppolyf_u_1k r_width=1u r_length=48.44u
+XR1_1 R1_seg1 vref vss ppolyf_u_1k r_width=1u r_length=48.44u
+XR2_0 vref R2_seg1 vss ppolyf_u_1k r_width=1u r_length=48.44u
+XR2_1 R2_seg1 vss vss ppolyf_u_1k r_width=1u r_length=48.44u
+XM1_0 vdd vref vout vss nfet_03v3 w=50u l=0.5u
+.ends ldo_006_stub

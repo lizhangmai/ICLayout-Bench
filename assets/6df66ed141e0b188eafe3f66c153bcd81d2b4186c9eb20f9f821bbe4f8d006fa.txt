@@ -1,0 +1,15 @@
+* Derived from analog-db amp_018_telescopic_cascode, GF180 binding at
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Layout-Bench changes: External gate_pc/casc_n/tail ports preserve both relative bias sources.
+.subckt amp_018_telescopic_cascode vdd vout vinp vinn ibias vss gate_pc casc_n tail
+XM1 d1 vinp tail vss nfet_03v3 w=23.3u l=1u m=1
+XM1C gate_p casc_n d1 vss nfet_03v3 w=5.7u l=0.5u m=1
+XM2 d2 vinn tail vss nfet_03v3 w=23.3u l=1u m=1
+XM2C vout casc_n d2 vss nfet_03v3 w=5.7u l=0.5u m=1
+XM3 s3 gate_p vdd vdd pfet_03v3 w=4.7u l=0.5u m=1
+XM3C gate_p gate_pc s3 vdd pfet_03v3 w=7.2u l=0.5u m=1
+XM4 s4 gate_p vdd vdd pfet_03v3 w=4.7u l=0.5u m=1
+XM4C vout gate_pc s4 vdd pfet_03v3 w=7.2u l=0.5u m=1
+XM5 tail ibias vss vss nfet_03v3 w=4.95u l=0.5u m=1
+XM6 ibias ibias vss vss nfet_03v3 w=8.3u l=0.5u m=1
+.ends amp_018_telescopic_cascode

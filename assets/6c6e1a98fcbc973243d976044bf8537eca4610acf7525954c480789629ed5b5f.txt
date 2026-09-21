@@ -1,0 +1,73 @@
+* Derived from pinned analog-db; Copyright 2026 Danial Noori Zadeh.
+* See collection license; 5 nm geometry, physical R/C, explicit interface.
+.subckt ldo_005_buffered_ref vdd vout vss vref
+XC1_0 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC1_1 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC1_2 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC1_3 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC1_4 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC1_5 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC1_6 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC1_7 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC1_8 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC1_9 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC1_10 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC1_11 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC1_12 vout vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XCEAC_0 ea_ncz ea_out cap_mim_2f0_m4m5_noshield c_width=10u c_length=10u
+XCRAC_0 ra_ncz v_ref_out cap_mim_2f0_m4m5_noshield c_width=20u c_length=18.785u
+XCRAC_1 ra_ncz v_ref_out cap_mim_2f0_m4m5_noshield c_width=20u c_length=18.785u
+XCRAC_2 ra_ncz v_ref_out cap_mim_2f0_m4m5_noshield c_width=20u c_length=18.785u
+XCRAC_3 ra_ncz v_ref_out cap_mim_2f0_m4m5_noshield c_width=20u c_length=18.785u
+XCRAC_4 ra_ncz v_ref_out cap_mim_2f0_m4m5_noshield c_width=20u c_length=18.785u
+XCRAC_5 ra_ncz v_ref_out cap_mim_2f0_m4m5_noshield c_width=20u c_length=18.785u
+XC_LPF_0 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC_LPF_1 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC_LPF_2 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC_LPF_3 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC_LPF_4 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC_LPF_5 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC_LPF_6 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC_LPF_7 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC_LPF_8 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC_LPF_9 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC_LPF_10 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC_LPF_11 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XC_LPF_12 v_lpf_out vss cap_mim_2f0_m4m5_noshield c_width=20u c_length=19.23u
+XR1_0 v_ref_out R1_seg1 vss ppolyf_u_1k r_width=1u r_length=50u
+XR1_1 R1_seg1 v_ref_fb vss ppolyf_u_1k r_width=1u r_length=50u
+XR2_0 v_ref_fb R2_seg1 vss ppolyf_u_1k r_width=1u r_length=50u
+XR2_1 R2_seg1 vss vss ppolyf_u_1k r_width=1u r_length=50u
+XR3_0 vout vss vss ppolyf_u_1k r_width=1u r_length=10u
+XREAND_0 ea_na ea_nd vss ppolyf_u_1k r_width=1u r_length=50u
+XREAZ_0 ea_nb ea_ncz vss ppolyf_u_1k r_width=1u r_length=28.43u
+XRRAZ_0 ra_nb ra_ncz vss ppolyf_u_1k r_width=1u r_length=30.855u
+XR_LPF_0 v_ref_out v_lpf_out vss ppolyf_u_1k r_width=1u r_length=10u
+XMEA_1_0 ea_na v_lpf_out ea_tail vss nfet_06v0 w=68.54u l=0.7u
+XMEA_2_0 ea_nb vout ea_tail vss nfet_06v0 w=68.54u l=0.7u
+XMEA_3_0 ea_na ea_nd vdd vdd pfet_06v0 w=100u l=0.55u
+XMEA_4_0 ea_nlev ea_na ea_nd vdd pfet_06v0 w=10u l=0.55u
+XMEA_5_0 ea_nb ea_nd vdd vdd pfet_06v0 w=100u l=0.55u
+XMEA_6_0 ea_out ea_nb vdd vdd pfet_06v0 w=14u l=3.835u
+XMEA_B0_0 ea_ibias ea_ibias vss vss nfet_06v0 w=34.535u l=2u
+XMEA_BC_0 ea_tail ea_ibias vss vss nfet_06v0 w=34.535u l=2u
+XMEA_BF_0 ea_nlev ea_ibias vss vss nfet_06v0 w=5u l=2u
+XMEA_BO_0 ea_out ea_ibias vss vss nfet_06v0 w=34.535u l=2u
+XMEA_BP_0 ea_ibias ea_ibias vdd vdd pfet_06v0 w=6.31u l=2u
+XMP_0 vout ea_out vdd vdd pfet_06v0 w=20u l=0.6u
+XMP_1 vout ea_out vdd vdd pfet_06v0 w=20u l=0.6u
+XMP_2 vout ea_out vdd vdd pfet_06v0 w=20u l=0.6u
+XMP_3 vout ea_out vdd vdd pfet_06v0 w=20u l=0.6u
+XMP_4 vout ea_out vdd vdd pfet_06v0 w=20u l=0.6u
+XMP_5 vout ea_out vdd vdd pfet_06v0 w=20u l=0.6u
+XMP_6 vout ea_out vdd vdd pfet_06v0 w=20u l=0.6u
+XMRA_1_0 ra_na v_ref_fb ra_tail vss nfet_06v0 w=86.42u l=0.7u
+XMRA_2_0 ra_nb vref ra_tail vss nfet_06v0 w=86.42u l=0.7u
+XMRA_3_0 ra_na ra_na vdd vdd pfet_06v0 w=20u l=1u
+XMRA_4_0 ra_nb ra_na vdd vdd pfet_06v0 w=20u l=1u
+XMRA_5_0 v_ref_out ra_nb vdd vdd pfet_06v0 w=37.76u l=2.645u
+XMRA_B0_0 ra_ibias ra_ibias vss vss nfet_06v0 w=12u l=2u
+XMRA_BC_0 ra_tail ra_ibias vss vss nfet_06v0 w=8.315u l=2u
+XMRA_BO_0 v_ref_out ra_ibias vss vss nfet_06v0 w=4u l=2u
+XMRA_BP_0 ra_ibias ra_ibias vdd vdd pfet_06v0 w=10.845u l=2u
+.ends ldo_005_buffered_ref

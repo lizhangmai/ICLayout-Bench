@@ -1,0 +1,216 @@
+1:"$Sreact.fragment"
+2:"$Sreact.suspense"
+3:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+4:T2317,<h1 id="problem-eight-bit-r-2r-dac-core-layout-task">Eight-Bit R-2R DAC Core Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Implement <code>r2r</code> in GF180MCU variant D while preserving the supplied circuit, device dimensions and ordered interface. Eight-bit passive voltage conversion with ideal external bit drivers and a 1 pF output load; zero, eight one-hot codes and full scale.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p>The delivered files are <code>materials/circuit.spice</code> (authoritative circuit), <code>materials/testbench.spice</code> (stimuli and measurements), and this problem. Runtime task metadata supplies the same frozen constraints, evaluation conditions and output declaration.</p>
+<p>Ordered subcircuit and GDS interface: <code>b7, b1, b0, b2, b3, b4, b5, b6, out, VGND</code>.
+b0–b7: ideal-driver bit inputs (b0 is LSB); out: analog output; VGND: substrate and ladder return.</p>
+<p>Preserve topology and total device width, channel length, multiplicity, resistor dimensions and body connections. Equivalent hierarchy, diffusion sharing and parallel-finger implementations are allowed when they pass connectivity and electrical checks. No source-model replacement, idealized internal device or changed device sizing is permitted. A dummy device remains part of the circuit even when its terminals are tied together.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>Use 3.3 V bit-driver levels and 27 C, with 1 pF from out to VGND. Evaluate codes 0, 1, 2, 4, 8, 16, 32, 64, 128 and 255 separately. bit0 is the least significant bit. Each bit starts at 0 V and changes from 10 ns to 10.1 ns to 3.3<em>bitN V. Simulate through 2 us with a 1 ns requested step. The expected settled voltage is 3.3</em>code/256 V. The external drivers and load are testbench components, outside the required passive circuit.</p>
+<p>Use the reviewed typical primitive models with statistical variation disabled. Numerical parameters in the runtime simulation jobs supply the testbench's <code>parameters.spice</code>. Follow the delivered testbench for interpolation and detailed PWL definitions. This is a nominal compact-model task; temperature/process corners, mismatch yield, noise, RF/EM and full-chip density closure are outside its qualification scope.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Submit a nonempty GDS with top cell <code>r2r</code> and at most 10485760 bytes. Its functional bounding box must not exceed 200 by 200 um. All relevant device and routing polygons contribute, including implant/well, passive markers, contacts, vias and dummy routing. The complete layer/datatype set is:</p>
+<p><code>[[5,0],[11,17],[11,39],[12,0],[13,17],[21,0],[22,0],[22,4],[24,0],[24,5],[30,0],[30,4],[31,0],[32,0],[33,0],[34,0],[34,3],[34,4],[34,5],[35,0],[36,0],[36,3],[36,4],[36,5],[37,0],[38,0],[40,0],[41,0],[42,0],[42,3],[42,4],[42,5],[46,0],[46,3],[46,4],[46,5],[49,0],[53,0],[53,3],[53,4],[53,5],[55,0],[62,0],[75,0],[80,5],[81,0],[81,3],[81,4],[81,5],[82,0],[86,17],[88,17],[96,1],[100,5],[100,7],[100,8],[108,5],[110,5],[110,11],[110,12],[110,13],[110,14],[110,15],[110,16],[111,5],[112,1],[115,5],[116,5],[117,5],[117,10],[118,5],[119,5],[122,5],[123,5],[124,5],[125,5],[127,5],[128,17],[137,5],[151,5],[152,5],[153,51],[166,5],[167,5],[173,5],[178,0],[183,0],[184,0],[185,0],[204,0],[210,0],[220,0],[226,0],[227,0],[241,0]]</code>.</p>
+<p>Text and nonfunctional boundary layers 0/0 and 63/0 are excluded from area. Functional geometry may not be hidden on annotation layers. Pass the pinned GF180 D FEOL, BEOL, connectivity, off-grid and antenna checks without marker waivers. The stack is five metals with 1.1 um top metal and the 1 kOhm/square high-resistance poly option. Chip-level density and seal-ring closure are integration responsibilities outside this standalone block.</p>
+<p>LVS checks device topology, dimensions, body connections and every named top-level pin (case insensitive). Supply and substrate/well contacts must be physical. Distinct electrical nets must not be joined by touching silicided diffusion. After validity and geometry gates, extract the submitted candidate's devices and distributed interconnect resistance and capacitance. Simulations use that extracted circuit. The substrate compact-model boundary is one equipotential bulk domain with explicit well/body contacts; this does not model a distributed silicon substrate network. Unreliable extraction, absent named ports or incomplete measurements cannot establish success.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>accuracy</code></td>
+<td>Absolute difference between output at 1.9 us and 3.3*code/256, checked independently for each declared code.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>settling</code></td>
+<td>Absolute difference between output at 1 us and 3.3*code/256 after the 10 ns input transition.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>8727.76 um2</strong>. 27 expanded device instances; sum of device/contact envelopes 5616.0000 um2, per-side envelope allowance 1 um, 50% routing allowance and total outer width/height allowance 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>4</strong>; it is independent of
+the reference-relative task score.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Passive R-2R DAC: conversion accuracy 63%; dynamic residual 27%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>accuracy</code></td>
+<td style="text-align:right">0.630000000000</td>
+</tr>
+<tr>
+<td><code>settling</code></td>
+<td style="text-align:right">0.270000000000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Use runtime task, resource and harness discovery to locate the delivered inputs and reviewed GF180 resources. Trusted feedback runs the declared physical and post-layout evaluation; source-only simulation is useful for design but is not acceptance. Write the final GDS to <code>/workspace/output/final.gds</code> and explicitly submit it using the harness submission interface. A generated file or successful standalone simulation alone does not complete the task.</p>
+<p>Use a GDS database unit of 0.001 um, as required by the GF180MCU DRC deck.</p>
+5:Te1b,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>accuracy</code></td>
+<td>Absolute difference between output at 1.9 us and 3.3*code/256, checked independently for each declared code.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>settling</code></td>
+<td>Absolute difference between output at 1 us and 3.3*code/256 after the 10 ns input transition.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>8727.76 um2</strong>. 27 expanded device instances; sum of device/contact envelopes 5616.0000 um2, per-side envelope allowance 1 um, 50% routing allowance and total outer width/height allowance 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>4</strong>; it is independent of
+the reference-relative task score.</p>
+<h3>Score weights</h3>
+<p>Passive R-2R DAC: conversion accuracy 63%; dynamic residual 27%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>accuracy</code></td>
+<td style="text-align:right">0.630000000000</td>
+</tr>
+<tr>
+<td><code>settling</code></td>
+<td style="text-align:right">0.270000000000</td>
+</tr>
+</tbody>
+</table>
+6:T884,<p>Submit a nonempty GDS with top cell <code>r2r</code> and at most 10485760 bytes. Its functional bounding box must not exceed 200 by 200 um. All relevant device and routing polygons contribute, including implant/well, passive markers, contacts, vias and dummy routing. The complete layer/datatype set is:</p>
+<p><code>[[5,0],[11,17],[11,39],[12,0],[13,17],[21,0],[22,0],[22,4],[24,0],[24,5],[30,0],[30,4],[31,0],[32,0],[33,0],[34,0],[34,3],[34,4],[34,5],[35,0],[36,0],[36,3],[36,4],[36,5],[37,0],[38,0],[40,0],[41,0],[42,0],[42,3],[42,4],[42,5],[46,0],[46,3],[46,4],[46,5],[49,0],[53,0],[53,3],[53,4],[53,5],[55,0],[62,0],[75,0],[80,5],[81,0],[81,3],[81,4],[81,5],[82,0],[86,17],[88,17],[96,1],[100,5],[100,7],[100,8],[108,5],[110,5],[110,11],[110,12],[110,13],[110,14],[110,15],[110,16],[111,5],[112,1],[115,5],[116,5],[117,5],[117,10],[118,5],[119,5],[122,5],[123,5],[124,5],[125,5],[127,5],[128,17],[137,5],[151,5],[152,5],[153,51],[166,5],[167,5],[173,5],[178,0],[183,0],[184,0],[185,0],[204,0],[210,0],[220,0],[226,0],[227,0],[241,0]]</code>.</p>
+<p>Text and nonfunctional boundary layers 0/0 and 63/0 are excluded from area. Functional geometry may not be hidden on annotation layers. Pass the pinned GF180 D FEOL, BEOL, connectivity, off-grid and antenna checks without marker waivers. The stack is five metals with 1.1 um top metal and the 1 kOhm/square high-resistance poly option. Chip-level density and seal-ring closure are integration responsibilities outside this standalone block.</p>
+<p>LVS checks device topology, dimensions, body connections and every named top-level pin (case insensitive). Supply and substrate/well contacts must be physical. Distinct electrical nets must not be joined by touching silicided diffusion. After validity and geometry gates, extract the submitted candidate's devices and distributed interconnect resistance and capacitance. Simulations use that extracted circuit. The substrate compact-model boundary is one equipotential bulk domain with explicit well/body contacts; this does not model a distributed silicon substrate network. Unreliable extraction, absent named ports or incomplete measurements cannot establish success.</p>
+a:X
+f:X
+f:C
+0:{"buildId":"U2oZdoUjWqT_XfcDHuQ5i","data":[{"rsc":["$","$1","c",{"children":[["$","$2",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L3",null,{"task":{"case_path":"tasks/gf180mcuD/gf-r2r-dac/cases/r2r/case.toml","coefficient":4,"collection":"gf-r2r-dac","configuration_url":"/ICLayout-Bench/assets/4b8fa1f0e83dc6d5b3a65e1c8a04e59f6a00e66df24f61477013ab7a3335bed2.txt","description_html":"$4","description_path":"tasks/gf180mcuD/gf-r2r-dac/cases/r2r/problem.md","hours":3,"id":"gf180mcuD.gf-r2r-dac.r2r","inputs":{"description":{"format":"text","path":"problem.md","sha256":"b1e8810757059a8b061570e52ed71525a1bb31990719472d96b7ee9689a432d9"},"netlist":{"format":"spice","path":"materials/circuit.spice","sha256":"64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957","subcircuit":"r2r"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a"}},"licenses":[{"name":"LICENSE","path":"tasks/gf180mcuD/gf-r2r-dac/LICENSE","url":"/ICLayout-Bench/assets/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/b1e8810757059a8b061570e52ed71525a1bb31990719472d96b7ee9689a432d9.txt"},{"name":"materials/circuit.spice","role":"netlist","url":"/ICLayout-Bench/assets/64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"max","baseline":["source_code0:error_v","source_code1:error_v","source_code2:error_v","source_code4:error_v","source_code8:error_v","source_code16:error_v","source_code32:error_v","source_code64:error_v","source_code128:error_v","source_code255:error_v"],"category":"performance","dimension":"response","direction":"minimize","id":"accuracy","lower":0,"normalization":"ratio","observations":["code0:error_v","code1:error_v","code2:error_v","code4:error_v","code8:error_v","code16:error_v","code32:error_v","code64:error_v","code128:error_v","code255:error_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_code0:settling_error_v","source_code1:settling_error_v","source_code2:settling_error_v","source_code4:settling_error_v","source_code8:settling_error_v","source_code16:settling_error_v","source_code32:settling_error_v","source_code64:settling_error_v","source_code128:settling_error_v","source_code255:settling_error_v"],"category":"performance","dimension":"response","direction":"minimize","id":"settling","lower":0,"normalization":"ratio","observations":["code0:settling_error_v","code1:settling_error_v","code2:settling_error_v","code4:settling_error_v","code8:settling_error_v","code16:settling_error_v","code32:settling_error_v","code64:settling_error_v","code128:settling_error_v","code255:settling_error_v"],"scale":0.000001,"unit":"V"}],"pdk":"gf180mcuD","reader":{"category":"Mixed-signal","summary":"Converts an eight-bit digital code into an analog voltage through an R-2R network.","title":"Eight-Bit R-2R DAC Core"},"schematic_url":"/ICLayout-Bench/assets/f6846d1ab58e335db992e0759e5fa57988247cbc761667b9aaed9a8bf04bdcfe.svg","scoring":{"area_metric":"functional_area","area_target":8727.76,"method":"layout","rationale":"Passive R-2R DAC: conversion accuracy 63%; dynamic residual 27%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"accuracy":0.63,"functional_area":0.1,"settling":0.27}},"sections":{"Electrical Requirements and Scoring":"$5","Objective":"<p>Implement <code>r2r</code> in GF180MCU variant D while preserving the supplied circuit, device dimensions and ordered interface. Eight-bit passive voltage conversion with ideal external bit drivers and a 1 pF output load; zero, eight one-hot codes and full scale.</p>\n","Operating Conditions":"<p>Use 3.3 V bit-driver levels and 27 C, with 1 pF from out to VGND. Evaluate codes 0, 1, 2, 4, 8, 16, 32, 64, 128 and 255 separately. bit0 is the least significant bit. Each bit starts at 0 V and changes from 10 ns to 10.1 ns to 3.3<em>bitN V. Simulate through 2 us with a 1 ns requested step. The expected settled voltage is 3.3</em>code/256 V. The external drivers and load are testbench components, outside the required passive circuit.</p>\n<p>Use the reviewed typical primitive models with statistical variation disabled. Numerical parameters in the runtime simulation jobs supply the testbench's <code>parameters.spice</code>. Follow the delivered testbench for interpolation and detailed PWL definitions. This is a nominal compact-model task; temperature/process corners, mismatch yield, noise, RF/EM and full-chip density closure are outside its qualification scope.</p>\n","Physical Requirements":"$6"},"source_url":"https://github.com/mattvenn/gf-r2r-dac/tree/1c5c8ddec54fc4e70ce03a19510d4d7461b919e9/xschem/simulation/r2r.spice","status":"qualified","title":"Eight-Bit R-2R DAC Core"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}],["$L7"],"$L8"]}],"isPartial":"$@9","staleTime":"$a","varyParams":null},{"rsc":"$Lb","isPartial":"$@c","staleTime":"$a","varyParams":null},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$a","varyParams":"$f"},{"rsc":"$L10","isPartial":"$@11","staleTime":"$a","varyParams":null}],"isUpgradeableISRFallback":false,"a":"$@12","rootVaryParams":null,"needsRuntimeRequest":"$@13"}
+14:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+16:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+17:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+18:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+19:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1a:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1b:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+1c:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+7:["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true}]
+8:["$","$L14",null,{"children":["$","$2",null,{"name":"Next.MetadataOutlet","children":"$@15"}]}]
+b:["$","$1","h",{"children":[null,["$","$L16",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L17",null,{"children":["$","$2",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L18","3",{}]]}]}]}],null]}]
+d:["$","$1","c",{"children":[null,["$","$L19",null,{"parallelRouterKey":"children","template":["$","$L1a",null,{}]}]]}]
+10:["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L1b",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L1c",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L19",null,{"parallelRouterKey":"children","template":["$","$L1a",null,{}],"notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L1b",null,{"href":"/","children":"Return to overview"}]]}],[]]}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L1b",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}]
+15:null
+13:true
+a:300
+a:C
+12:0
+c:"$undefined"
+e:"$undefined"
+11:"$undefined"
+9:"$undefined"

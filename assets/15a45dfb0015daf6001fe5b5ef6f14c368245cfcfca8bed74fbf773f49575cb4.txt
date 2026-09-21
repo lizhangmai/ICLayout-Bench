@@ -1,0 +1,594 @@
+in_core = false
+kind = "layout_case"
+id = "ihp-sg13g2.analog-db.adc_001_inv1b"
+title = "CMOS Inverter Threshold Core"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "a8cccb07772179454cce99b4d0e172c6a622160212c25ddda6f451e08f2350d8"
+
+[[assets]]
+path = "reference/adc_001_inv1b.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "27510ca7e17cde4f7a27c1de94d682eeffa46803b1930ec88146b936d6b7fe03"
+
+[task]
+hours = 6
+coefficient = 1
+kind = "netlist_to_gds"
+family = "physical_core"
+environment = "ihp-sg13g2-mos-rc-tt"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "f77341695350c9c22f0f938c9deb1c21d4085419f90b9c92448364039ae9d4e8"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+sha256 = "ac17dacdee7c373b47d4038a7318a7b0fedc024031b06f93011f8eaab684caf4"
+subcircuit = "adc_001_inv1b"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "5b7039e6399c1336c9ed31405b0176f512f2981b51e1fa8ffae36fa8d51af7aa"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "c7fa64149fb838b9ae6b0fbcd173883a86be2db0869ba9f7a3d13e61def94476"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 5000
+max_height_um = 1000
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "adc_001_inv1b"
+max_bytes = 10485760
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 120
+rationale = "Inverter threshold element: switching threshold 25.5%; delay 34%; transition 12.8%; power 12.8%; area 15%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.15
+threshold_v = 0.255
+delay_s = 0.34
+transition_s = 0.1275
+power_w = 0.1275
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "vin",
+    "vout",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+dc = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+
+[task.evaluation.jobs.parameters.measurements]
+threshold_v = "V"
+delay_s = "s"
+transition_s = "s"
+power_w = "W"
+swing_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+dc = "dc.raw"
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "threshold_v"
+unit = "V"
+aggregation = "max"
+direction = "target"
+dimension = "response"
+normalization = "target"
+scale = 0.6
+category = "performance"
+observations = [
+    "condition_0:threshold_v",
+]
+baseline = [
+    "source_condition_0:threshold_v",
+]
+
+[[task.evaluation.metrics]]
+id = "delay_s"
+unit = "s"
+aggregation = "max"
+direction = "minimize"
+dimension = "response"
+normalization = "ratio"
+scale = 1e-12
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:delay_s",
+]
+baseline = [
+    "source_condition_0:delay_s",
+]
+
+[[task.evaluation.metrics]]
+id = "transition_s"
+unit = "s"
+aggregation = "max"
+direction = "minimize"
+dimension = "response"
+normalization = "ratio"
+scale = 1e-12
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:transition_s",
+]
+baseline = [
+    "source_condition_0:transition_s",
+]
+
+[[task.evaluation.metrics]]
+id = "power_w"
+unit = "W"
+aggregation = "max"
+direction = "minimize"
+dimension = "supply"
+normalization = "ratio"
+scale = 1e-12
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:power_w",
+]
+baseline = [
+    "source_condition_0:power_w",
+]
+
+[[task.evaluation.metrics]]
+id = "swing_v"
+unit = "V"
+aggregation = "max"
+direction = "maximize"
+lower = 0.6
+category = "performance"
+observations = [
+    "condition_0:swing_v",
+]
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "7a5787418bbed57c79c831f242b405561f2bc6441ec1f54299d52e60df0fe36e"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:6562558774d43c085a289bbba696c55959eb8051a0996f96633451fbeb9c652d\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"d178a2dbf7b8ae93537de0a83c4368f730c62167c354adcc54ce4b03ab9abf29\", \"timeout_seconds\": 600.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_condition_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.outputs]
+op = "ngspice-raw"
+dc = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.values]
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.measurements]
+threshold_v = "V"
+delay_s = "s"
+transition_s = "s"
+power_w = "W"
+swing_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.exports]
+op = "op.raw"
+dc = "dc.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.input_sha256]
+deck = "c7fa64149fb838b9ae6b0fbcd173883a86be2db0869ba9f7a3d13e61def94476"
+dut = "5b7039e6399c1336c9ed31405b0176f512f2981b51e1fa8ffae36fa8d51af7aa"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.delay_s]
+value = 6.921866e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.power_w]
+value = 1.879725e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.swing_v]
+value = 1.19999991955607
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.threshold_v]
+value = 0.6299057
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.transition_s]
+value = 7.341807e-11
+unit = "s"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 600
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+support = "build/support/analog-db-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+support = "build/support/analog-db-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/analog-db-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+capacitance_threshold_ff = 0
+timeout_seconds = 600
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 120
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-models"
+
+[toolchain.backends.simulation.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/analog-db-analog-models"
+timeout_seconds = 600
+
+[qualification]
+reference = "reference/adc_001_inv1b.gds"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/adc_001_inv1b"
+
+[presentation]
+category = "Mixed-signal"
+summary = "Characterizes an inverter switching threshold, output swing and timing."

@@ -1,0 +1,392 @@
+1:"$Sreact.fragment"
+2:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+3:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+4:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+5:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+7:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+8:"$Sreact.suspense"
+b:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+d:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+f:I[68027,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default",1]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+a:X
+0:{"P":null,"c":["","tasks","ihp-sg13g2.analog-db.sw_002_chopper_diff",""],"q":"","i":false,"f":[[["",{"children":[["path","tasks/ihp-sg13g2.analog-db.sw_002_chopper_diff","oc",[]],{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L2",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L3",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L2",null,{"href":"/","children":"Return to overview"}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L2",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}],{"children":[["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":[["$","$1","c",{"children":["$L6",[["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true,"nonce":"$undefined"}]],["$","$L7",null,{"children":["$","$8",null,{"name":"Next.MetadataOutlet","children":"$@9"}]}]]}],{},null,false,null]},null,false,"$a"]},null,false,null],["$","$1","h",{"children":[null,["$","$Lb",null,{"children":"$Lc"}],["$","div",null,{"hidden":true,"children":["$","$Ld",null,{"children":["$","$8",null,{"name":"Next.Metadata","children":"$Le"}]}]}],null]}],false]],"m":"$undefined","G":["$f",[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"U2oZdoUjWqT_XfcDHuQ5i"}
+10:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+a:C
+11:T28cd,<h1 id="problem-differential-polarity-commutating-switch-layout-task">Differential Polarity-Commutating Switch Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Implement <code>sw_002_chopper_diff</code> in ihp-sg13g2 and submit self-contained GDS. Eight MOS devices form four transmission paths that connect a differential input directly or with reversed polarity. The two complementary clock nets are independent layout ports. Fixed IHP W/L/m are retained; explicit substrate/well taps are included in both maintained circuit representations.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p><code>materials/circuit.cdl</code> is the authoritative physical circuit. <code>materials/circuit.spice</code> is its equivalent simulator model-call representation. <code>materials/testbench.spice</code> defines measurements, and this problem is the description input.
+Ordered ports: <code>va_p va_n vb_p vb_n vctl vctl_not vdd vss</code>. In order: Positive input, negative input, positive output, negative output, direct-path clock, complementary clock, supply, and return.</p>
+<p>Preserve connectivity, W/L/m, passive geometry and body connections. Provide physical contacts. Placement and routing are free; splitting and source/drain interchange are allowed only under the declared LVS equivalences. No statistical matching or common-centroid constraint is scored. Ideal external sources, loads and fixtures belong to the testbench, not the DUT.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>Temperature is 27 C. Typical IHP low-voltage MOS and resistor models; explicit finite physical tap models and a 1e12 ohm ngspice numerical shunt at each node. Candidate Magic RC is extracted with zero coupling-capacitance threshold.</p>
+<p>VDD = 1.5 V; VSS = 0 V; input common mode = 0.75 V; differential input = -0.2 or +0.2 V. Each output has an external 10 kohm resistor to common mode and 1 pF to ground. DC checks both clock states (vctl = 0 or 1.5 V), giving four conditions. Transient clocks are complementary 0/1.5 V pulses, delay 1 us, rise/fall 2 ns, high width 5 us and period 10 us; output/max step is 0.1 ns with Gear order 2, stop time 12 us. A second transient sets both inputs to 0.75 V to separate clock feedthrough/injection from signal reversal. The finite clock slopes deliberately permit overlap; non-overlap operation is not claimed.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Top cell <code>sw_002_chopper_diff</code>, named ports, resolved hierarchy, at most 10 MiB. Pass artifact, IHP main and maximal DRC, with density and antenna outside this standalone scope; strict named-port LVS; geometry, without DRC waivers. Functional bounding box must fit within 90 by 40 um. The footprint includes every process device and routing drawing layer in the frozen runtime outline list: active, wells, implants, poly, contacts, metals/vias and device/passive markers. Annotation and pin-purpose shapes are excluded. All functional routing must use drawing layers.</p>
+<p>Every scored simulation consumes the submitted GDS-derived distributed wiring RC and extracted device geometry. Ron includes the declared terminal loading and common mode. Injection is net terminal charge integrated under driven equal inputs, not stored charge on a disconnected sampler. Noise, chopping an amplifier, RF/EM, mismatch and other clock rates are outside scope. Fabrication signoff is not claimed.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>All 4 operating conditions must complete. Every finite observation must meet its inclusive band; aggregation cannot hide a failing condition. Missing measurements/crossings or incomplete extraction do not establish success.</p>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ron_p</code></td>
+<td>Absolute (selected positive-output input minus V(vb_p)) / current through its 10 kohm load</td>
+<td>ohm</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>ron_n</code></td>
+<td>Absolute (selected negative-output input minus V(vb_n)) / current through its 10 kohm load</td>
+<td>ohm</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>transfer</code></td>
+<td>DC output differential divided by the selected signed input differential</td>
+<td>V/V</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td><code>common_error_v</code></td>
+<td>Absolute DC output common-mode minus 0.75 V</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>straight_gain</code></td>
+<td>Output differential / input differential at 4 us</td>
+<td>V/V</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td><code>crossed_gain</code></td>
+<td>Output differential / input differential at 9 us</td>
+<td>V/V</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td><code>common_glitch_v</code></td>
+<td>Maximum absolute output common-mode minus 0.75 V over 1–1.1 us with equal inputs</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>differential_glitch_v</code></td>
+<td>Maximum absolute output differential over 1–1.1 us with equal inputs</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>input_charge_c</code></td>
+<td>Absolute integral of I(VAP)+I(VAN) over 1–1.1 us with equal inputs</td>
+<td>C</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-21</td>
+</tr>
+<tr>
+<td><code>clock_power_w</code></td>
+<td>Average positive supplied power from both clock sources over 2–12 us with equal inputs; returned energy is not credited</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>459.68 um2</strong>. 10 expanded device instances; sum of device/contact envelopes 278.7760 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>5</strong>; it is independent of
+the reference-relative task score.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Transmission/chopper switches: on-state conduction 23.7%; transfer fidelity 28.4%; switching disturbance 28.4%; clock power 9.47%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>ron_n</code></td>
+<td style="text-align:right">0.118421052632</td>
+</tr>
+<tr>
+<td><code>ron_p</code></td>
+<td style="text-align:right">0.118421052632</td>
+</tr>
+<tr>
+<td><code>common_error_v</code></td>
+<td style="text-align:right">0.071052631579</td>
+</tr>
+<tr>
+<td><code>crossed_gain</code></td>
+<td style="text-align:right">0.071052631579</td>
+</tr>
+<tr>
+<td><code>straight_gain</code></td>
+<td style="text-align:right">0.071052631579</td>
+</tr>
+<tr>
+<td><code>transfer</code></td>
+<td style="text-align:right">0.071052631579</td>
+</tr>
+<tr>
+<td><code>common_glitch_v</code></td>
+<td style="text-align:right">0.094736842105</td>
+</tr>
+<tr>
+<td><code>differential_glitch_v</code></td>
+<td style="text-align:right">0.094736842105</td>
+</tr>
+<tr>
+<td><code>input_charge_c</code></td>
+<td style="text-align:right">0.094736842105</td>
+</tr>
+<tr>
+<td><code>clock_power_w</code></td>
+<td style="text-align:right">0.094736842105</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Use reviewed resources from <code>/protocol/resources.json</code>. KLayout checks, Magic extracts RC, and ngspice simulates. Frozen constraints and requirements are in <code>/protocol/task.json</code>; <code>/protocol/harness.json</code> describes the harness. If available, use the published <code>process-feedback</code> helper for interim checks. Write <code>/workspace/output/final.gds</code> and explicitly submit using <code>python -I /protocol/submit.py</code>.</p>
+12:T1871,<p>All 4 operating conditions must complete. Every finite observation must meet its inclusive band; aggregation cannot hide a failing condition. Missing measurements/crossings or incomplete extraction do not establish success.</p>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ron_p</code></td>
+<td>Absolute (selected positive-output input minus V(vb_p)) / current through its 10 kohm load</td>
+<td>ohm</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>ron_n</code></td>
+<td>Absolute (selected negative-output input minus V(vb_n)) / current through its 10 kohm load</td>
+<td>ohm</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>transfer</code></td>
+<td>DC output differential divided by the selected signed input differential</td>
+<td>V/V</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td><code>common_error_v</code></td>
+<td>Absolute DC output common-mode minus 0.75 V</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>straight_gain</code></td>
+<td>Output differential / input differential at 4 us</td>
+<td>V/V</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td><code>crossed_gain</code></td>
+<td>Output differential / input differential at 9 us</td>
+<td>V/V</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td><code>common_glitch_v</code></td>
+<td>Maximum absolute output common-mode minus 0.75 V over 1–1.1 us with equal inputs</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>differential_glitch_v</code></td>
+<td>Maximum absolute output differential over 1–1.1 us with equal inputs</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>input_charge_c</code></td>
+<td>Absolute integral of I(VAP)+I(VAN) over 1–1.1 us with equal inputs</td>
+<td>C</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-21</td>
+</tr>
+<tr>
+<td><code>clock_power_w</code></td>
+<td>Average positive supplied power from both clock sources over 2–12 us with equal inputs; returned energy is not credited</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>459.68 um2</strong>. 10 expanded device instances; sum of device/contact envelopes 278.7760 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>5</strong>; it is independent of
+the reference-relative task score.</p>
+<h3>Score weights</h3>
+<p>Transmission/chopper switches: on-state conduction 23.7%; transfer fidelity 28.4%; switching disturbance 28.4%; clock power 9.47%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>ron_n</code></td>
+<td style="text-align:right">0.118421052632</td>
+</tr>
+<tr>
+<td><code>ron_p</code></td>
+<td style="text-align:right">0.118421052632</td>
+</tr>
+<tr>
+<td><code>common_error_v</code></td>
+<td style="text-align:right">0.071052631579</td>
+</tr>
+<tr>
+<td><code>crossed_gain</code></td>
+<td style="text-align:right">0.071052631579</td>
+</tr>
+<tr>
+<td><code>straight_gain</code></td>
+<td style="text-align:right">0.071052631579</td>
+</tr>
+<tr>
+<td><code>transfer</code></td>
+<td style="text-align:right">0.071052631579</td>
+</tr>
+<tr>
+<td><code>common_glitch_v</code></td>
+<td style="text-align:right">0.094736842105</td>
+</tr>
+<tr>
+<td><code>differential_glitch_v</code></td>
+<td style="text-align:right">0.094736842105</td>
+</tr>
+<tr>
+<td><code>input_charge_c</code></td>
+<td style="text-align:right">0.094736842105</td>
+</tr>
+<tr>
+<td><code>clock_power_w</code></td>
+<td style="text-align:right">0.094736842105</td>
+</tr>
+</tbody>
+</table>
+6:["$","$8",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L10",null,{"task":{"case_path":"tasks/ihp-sg13g2/analog-db/cases/sw_002_chopper_diff/case.toml","coefficient":5,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/684990b80dc0182f03f2ab08b93f9e005165274c0db7e444ab00845b3b618a4b.txt","description_html":"$11","description_path":"tasks/ihp-sg13g2/analog-db/cases/sw_002_chopper_diff/problem.md","hours":3,"id":"ihp-sg13g2.analog-db.sw_002_chopper_diff","inputs":{"description":{"format":"text","path":"problem.md","sha256":"a0744dca5b491bfc88ae32b27b4b31422112b7617fed60c142bc7a632a64e786"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"e0b1c58cdd6e35af46612beae826db9d950ca0e83ddb0297ee224699fd9c3c7a","subcircuit":"sw_002_chopper_diff"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"56552f53a6c413353809e94a6e7eb1da810ededa26403501cfa0a3bac29cb67d"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"d3d5b57dbbdf26ff26fd6ed6ab2db414bfbe43c847b48847b66218d6177a1e09"}},"licenses":[{"name":"LICENSE","path":"tasks/ihp-sg13g2/analog-db/LICENSE","url":"/ICLayout-Bench/assets/644dd511526bc2da77ee7c74714118315db91255376d0ea93a1975b4dbfbfb3d.txt"},{"name":"NOTICE","path":"tasks/ihp-sg13g2/analog-db/NOTICE","url":"/ICLayout-Bench/assets/69f7110d12f142806dfdd53f516082a82032da57d1ad47d0bc792d3a68329145.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/a0744dca5b491bfc88ae32b27b4b31422112b7617fed60c142bc7a632a64e786.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/e0b1c58cdd6e35af46612beae826db9d950ca0e83ddb0297ee224699fd9c3c7a.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/56552f53a6c413353809e94a6e7eb1da810ededa26403501cfa0a3bac29cb67d.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/d3d5b57dbbdf26ff26fd6ed6ab2db414bfbe43c847b48847b66218d6177a1e09.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"max","baseline":["source_condition_0:ron_p","source_condition_1:ron_p","source_condition_2:ron_p","source_condition_3:ron_p"],"category":"performance","dimension":"response","direction":"minimize","id":"ron_p","lower":0,"normalization":"ratio","observations":["condition_0:ron_p","condition_1:ron_p","condition_2:ron_p","condition_3:ron_p"],"scale":0.000001,"unit":"ohm"},{"aggregation":"max","baseline":["source_condition_0:ron_n","source_condition_1:ron_n","source_condition_2:ron_n","source_condition_3:ron_n"],"category":"performance","dimension":"response","direction":"minimize","id":"ron_n","lower":0,"normalization":"ratio","observations":["condition_0:ron_n","condition_1:ron_n","condition_2:ron_n","condition_3:ron_n"],"scale":0.000001,"unit":"ohm"},{"aggregation":"max","baseline":["source_condition_0:transfer","source_condition_1:transfer","source_condition_2:transfer","source_condition_3:transfer"],"category":"performance","dimension":"response","direction":"target","id":"transfer","normalization":"target","observations":["condition_0:transfer","condition_1:transfer","condition_2:transfer","condition_3:transfer"],"scale":1,"unit":"V/V"},{"aggregation":"max","baseline":["source_condition_0:common_error_v","source_condition_1:common_error_v","source_condition_2:common_error_v","source_condition_3:common_error_v"],"category":"performance","dimension":"bias","direction":"minimize","id":"common_error_v","lower":0,"normalization":"ratio","observations":["condition_0:common_error_v","condition_1:common_error_v","condition_2:common_error_v","condition_3:common_error_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:straight_gain","source_condition_1:straight_gain","source_condition_2:straight_gain","source_condition_3:straight_gain"],"category":"performance","dimension":"response","direction":"target","id":"straight_gain","normalization":"target","observations":["condition_0:straight_gain","condition_1:straight_gain","condition_2:straight_gain","condition_3:straight_gain"],"scale":1,"unit":"V/V"},{"aggregation":"max","baseline":["source_condition_0:crossed_gain","source_condition_1:crossed_gain","source_condition_2:crossed_gain","source_condition_3:crossed_gain"],"category":"performance","dimension":"response","direction":"target","id":"crossed_gain","normalization":"target","observations":["condition_0:crossed_gain","condition_1:crossed_gain","condition_2:crossed_gain","condition_3:crossed_gain"],"scale":1,"unit":"V/V"},{"aggregation":"max","baseline":["source_condition_0:common_glitch_v","source_condition_1:common_glitch_v","source_condition_2:common_glitch_v","source_condition_3:common_glitch_v"],"category":"performance","dimension":"response","direction":"minimize","id":"common_glitch_v","lower":0,"normalization":"ratio","observations":["condition_0:common_glitch_v","condition_1:common_glitch_v","condition_2:common_glitch_v","condition_3:common_glitch_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:differential_glitch_v","source_condition_1:differential_glitch_v","source_condition_2:differential_glitch_v","source_condition_3:differential_glitch_v"],"category":"performance","dimension":"response","direction":"minimize","id":"differential_glitch_v","lower":0,"normalization":"ratio","observations":["condition_0:differential_glitch_v","condition_1:differential_glitch_v","condition_2:differential_glitch_v","condition_3:differential_glitch_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:input_charge_c","source_condition_1:input_charge_c","source_condition_2:input_charge_c","source_condition_3:input_charge_c"],"category":"performance","dimension":"response","direction":"minimize","id":"input_charge_c","lower":0,"normalization":"ratio","observations":["condition_0:input_charge_c","condition_1:input_charge_c","condition_2:input_charge_c","condition_3:input_charge_c"],"scale":1e-21,"unit":"C"},{"aggregation":"max","baseline":["source_condition_0:clock_power_w","source_condition_1:clock_power_w","source_condition_2:clock_power_w","source_condition_3:clock_power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"clock_power_w","lower":0,"normalization":"ratio","observations":["condition_0:clock_power_w","condition_1:clock_power_w","condition_2:clock_power_w","condition_3:clock_power_w"],"scale":1e-12,"unit":"W"}],"pdk":"ihp-sg13g2","reader":{"category":"Mixed-signal","summary":"Commutates differential signal polarity with a clock-controlled switch network.","title":"Differential Polarity-Commutating Switch"},"schematic_url":"/ICLayout-Bench/assets/fa4c4d63813ca0aa7541f21faf9f9da68ab514a8f57801802adad49dbfd8f85e.svg","scoring":{"area_metric":"functional_area","area_target":459.68,"method":"layout","rationale":"Transmission/chopper switches: on-state conduction 23.7%; transfer fidelity 28.4%; switching disturbance 28.4%; clock power 9.47%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"clock_power_w":0.094736842105,"common_error_v":0.071052631579,"common_glitch_v":0.094736842105,"crossed_gain":0.071052631579,"differential_glitch_v":0.094736842105,"functional_area":0.1,"input_charge_c":0.094736842105,"ron_n":0.118421052632,"ron_p":0.118421052632,"straight_gain":0.071052631579,"transfer":0.071052631579}},"sections":{"Electrical Requirements and Scoring":"$12","Objective":"<p>Implement <code>sw_002_chopper_diff</code> in ihp-sg13g2 and submit self-contained GDS. Eight MOS devices form four transmission paths that connect a differential input directly or with reversed polarity. The two complementary clock nets are independent layout ports. Fixed IHP W/L/m are retained; explicit substrate/well taps are included in both maintained circuit representations.</p>\n","Operating Conditions":"<p>Temperature is 27 C. Typical IHP low-voltage MOS and resistor models; explicit finite physical tap models and a 1e12 ohm ngspice numerical shunt at each node. Candidate Magic RC is extracted with zero coupling-capacitance threshold.</p>\n<p>VDD = 1.5 V; VSS = 0 V; input common mode = 0.75 V; differential input = -0.2 or +0.2 V. Each output has an external 10 kohm resistor to common mode and 1 pF to ground. DC checks both clock states (vctl = 0 or 1.5 V), giving four conditions. Transient clocks are complementary 0/1.5 V pulses, delay 1 us, rise/fall 2 ns, high width 5 us and period 10 us; output/max step is 0.1 ns with Gear order 2, stop time 12 us. A second transient sets both inputs to 0.75 V to separate clock feedthrough/injection from signal reversal. The finite clock slopes deliberately permit overlap; non-overlap operation is not claimed.</p>\n","Physical Requirements":"<p>Top cell <code>sw_002_chopper_diff</code>, named ports, resolved hierarchy, at most 10 MiB. Pass artifact, IHP main and maximal DRC, with density and antenna outside this standalone scope; strict named-port LVS; geometry, without DRC waivers. Functional bounding box must fit within 90 by 40 um. The footprint includes every process device and routing drawing layer in the frozen runtime outline list: active, wells, implants, poly, contacts, metals/vias and device/passive markers. Annotation and pin-purpose shapes are excluded. All functional routing must use drawing layers.</p>\n<p>Every scored simulation consumes the submitted GDS-derived distributed wiring RC and extracted device geometry. Ron includes the declared terminal loading and common mode. Injection is net terminal charge integrated under driven equal inputs, not stored charge on a disconnected sampler. Noise, chopping an amplifier, RF/EM, mismatch and other clock rates are outside scope. Fabrication signoff is not claimed.</p>\n"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/sw_002_chopper_diff","status":"qualified","title":"Differential Polarity-Commutating Switch"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}]
+c:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+13:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+9:null
+e:[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L13","3",{}]]

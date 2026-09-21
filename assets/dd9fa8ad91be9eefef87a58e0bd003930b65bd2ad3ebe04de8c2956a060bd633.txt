@@ -1,0 +1,52 @@
+* Same-condition finite-window amplifier observations. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include parameters.spice
+.include dut.spice
+.temp 27
+VSS vss 0 0
+.save v(vdd) v(vout) v(vp) v(vm) v(net1) i(VDD) i(VSS) i(VIN)
+.options reltol=1e-7 abstol=1e-14 vntol=1e-10 itl4=1000
+VDD vdd 0 1.5
+VIN vp 0 dc 0.6 ac 0.5
+IBIAS vdd net1 20u
+LFB vout basem 1T
+CFB basem 0 1
+VNEG vm basem dc 0 ac 0.5 180
+XDUT vdd vout vp vm net1 vss amp_022_fer_two_stage
+CLOAD vout 0 {load_f}
+.control
+set noaskquit
+set num_threads=1
+set numdgt=15
+op
+let kcl_a=abs(i(vdd)+i(vss)+i(vin))
+* Current conservation validates the observation, not circuit performance.
+if kcl_a > 1e-08
+  echo Invalid DC current conservation: kcl_a exceeds 1e-08 A
+  quit 1
+end
+print kcl_a
+let dc_feedback_error_v=abs(v(vout)-v(vm))
+print dc_feedback_error_v
+if dc_feedback_error_v > 1e-6
+  echo Error: invalid DC feedback operating point
+  quit 1
+end
+write op.raw all
+ac dec 200 1 1g
+let transfer=v(vout)/(v(vp)-v(vm))
+let gain_db_vec=db(transfer)
+let fixture_cm_max=vecmax(mag((v(vp)+v(vm))/2))
+meas ac gain_db find gain_db_vec at=1
+meas ac gain_10khz_db find gain_db_vec at=10k
+print fixture_cm_max
+if fixture_cm_max > 1e-6
+  echo Error: invalid differential AC excitation
+  quit 1
+end
+write ac.raw all
+quit
+.endc
+.end

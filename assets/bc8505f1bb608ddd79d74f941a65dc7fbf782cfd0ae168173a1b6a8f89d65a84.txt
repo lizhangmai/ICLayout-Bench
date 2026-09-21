@@ -1,0 +1,995 @@
+in_core = false
+kind = "layout_case"
+id = "gf180mcuD.analog-db.cmp_001_hyst_diffpair"
+title = "Resistive-Feedback Hysteretic Comparator"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "1fb35b157f7bc6fd76a3ff59344aea63d29f48be2a51127947f026c4cb758ec4"
+
+[[assets]]
+path = "reference/cmp_001_hyst_diffpair.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "7afff35caa5ea847d445950d7d0e6336b255a69806944f3c45bf101cb6e29c22"
+
+[task]
+hours = 3
+kind = "netlist_to_gds"
+family = "gf180_resistive_hysteretic_comparator"
+coefficient = 5
+environment = "gf180mcuD-typical-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "123d1face1400587cf10ed8d890ba5480304973b62ba4a5f13311c5f7cd45af2"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "cdca67d855bfc4b89e55bcd53d1cab7a1c46a2fd78e97f3d1cc7b574c4f1dadd"
+subcircuit = "cmp_001_hyst_diffpair"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "8929bab9abc5e6051a5b8075a2ac1d3d60fdadecec8b3cdec6bb4d0bf93f4bdc"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "cmp_001_hyst_diffpair"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
+]
+max_width_um = 1300
+max_height_um = 200
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "vout",
+    "vinp",
+    "vinn",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-12
+
+[task.evaluation.jobs.parameters.measurements]
+rising_input = "V"
+falling_input = "V"
+hysteresis_v = "V"
+mean_power_w = "W"
+low_v = "V"
+high_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 5e-12
+
+[task.evaluation.jobs.parameters.measurements]
+rising_input = "V"
+falling_input = "V"
+hysteresis_v = "V"
+mean_power_w = "W"
+low_v = "V"
+high_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-11
+
+[task.evaluation.jobs.parameters.measurements]
+rising_input = "V"
+falling_input = "V"
+hysteresis_v = "V"
+mean_power_w = "W"
+low_v = "V"
+high_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "rising_input"
+category = "performance"
+observations = [
+    "condition_0:rising_input",
+    "condition_1:rising_input",
+    "condition_2:rising_input",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:rising_input",
+    "source_condition_1:rising_input",
+    "source_condition_2:rising_input",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
+
+[[task.evaluation.metrics]]
+id = "falling_input"
+category = "performance"
+observations = [
+    "condition_0:falling_input",
+    "condition_1:falling_input",
+    "condition_2:falling_input",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:falling_input",
+    "source_condition_1:falling_input",
+    "source_condition_2:falling_input",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
+
+[[task.evaluation.metrics]]
+id = "hysteresis_v"
+category = "performance"
+observations = [
+    "condition_0:hysteresis_v",
+    "condition_1:hysteresis_v",
+    "condition_2:hysteresis_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:hysteresis_v",
+    "source_condition_1:hysteresis_v",
+    "source_condition_2:hysteresis_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
+
+[[task.evaluation.metrics]]
+id = "mean_power_w"
+category = "performance"
+observations = [
+    "condition_0:mean_power_w",
+    "condition_1:mean_power_w",
+    "condition_2:mean_power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:mean_power_w",
+    "source_condition_1:mean_power_w",
+    "source_condition_2:mean_power_w",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[[task.evaluation.metrics]]
+id = "low_v"
+category = "performance"
+observations = [
+    "condition_0:low_v",
+    "condition_1:low_v",
+    "condition_2:low_v",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+upper = 0.1
+
+[[task.evaluation.metrics]]
+id = "high_v"
+category = "performance"
+observations = [
+    "condition_0:high_v",
+    "condition_1:high_v",
+    "condition_2:high_v",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+lower = 3.2
+upper = 3.31
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 8386.58
+rationale = "Hysteretic comparator: switching thresholds 49.5%; hysteresis 27%; supply power 13.5%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+falling_input = 0.2475
+rising_input = 0.2475
+hysteresis_v = 0.27
+mean_power_w = 0.135
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "35002328c76574f04d7f3553817fcf70ef27596d3d719f7fa2ae47f1f3a648f1"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:6562558774d43c085a289bbba696c55959eb8051a0996f96633451fbeb9c652d\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"a340269fb13edfad479628bd59a0b72b878e648c0740e89671cd95b64adc03ef\", \"timeout_seconds\": 240.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_condition_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.values]
+load_f = 1e-12
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.measurements]
+rising_input = "V"
+falling_input = "V"
+hysteresis_v = "V"
+mean_power_w = "W"
+low_v = "V"
+high_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.input_sha256]
+deck = "8929bab9abc5e6051a5b8075a2ac1d3d60fdadecec8b3cdec6bb4d0bf93f4bdc"
+dut = "cdca67d855bfc4b89e55bcd53d1cab7a1c46a2fd78e97f3d1cc7b574c4f1dadd"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.falling_input]
+value = 1.681959
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.high_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.hysteresis_v]
+value = 0.012438
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.low_v]
+value = 2.86915e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.mean_power_w]
+value = 0.0005599238
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.rising_input]
+value = 1.694397
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.values]
+load_f = 5e-12
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.measurements]
+rising_input = "V"
+falling_input = "V"
+hysteresis_v = "V"
+mean_power_w = "W"
+low_v = "V"
+high_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.input_sha256]
+deck = "8929bab9abc5e6051a5b8075a2ac1d3d60fdadecec8b3cdec6bb4d0bf93f4bdc"
+dut = "cdca67d855bfc4b89e55bcd53d1cab7a1c46a2fd78e97f3d1cc7b574c4f1dadd"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.falling_input]
+value = 1.682001
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.high_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.hysteresis_v]
+value = 0.012372
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.low_v]
+value = 2.86915e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.mean_power_w]
+value = 0.0005595666
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.rising_input]
+value = 1.694373
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.values]
+load_f = 1e-11
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.measurements]
+rising_input = "V"
+falling_input = "V"
+hysteresis_v = "V"
+mean_power_w = "W"
+low_v = "V"
+high_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.input_sha256]
+deck = "8929bab9abc5e6051a5b8075a2ac1d3d60fdadecec8b3cdec6bb4d0bf93f4bdc"
+dut = "cdca67d855bfc4b89e55bcd53d1cab7a1c46a2fd78e97f3d1cc7b574c4f1dadd"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.falling_input]
+value = 1.682
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.high_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.hysteresis_v]
+value = 0.012397
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.low_v]
+value = 2.869148e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.mean_power_w]
+value = 0.0005597131
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.rising_input]
+value = 1.694397
+unit = "V"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 180
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "lvs.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 180
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/gf180-magic"
+technology = "gf180mcuD.tech"
+tech_name = "gf180mcuD"
+style = "ngspice()"
+gds_readonly = false
+grid_subdivision = 10
+case_insensitive_ports = true
+timeout_seconds = 240
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/gf180-models"
+timeout_seconds = 240
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/cmp_001_hyst_diffpair"
+
+[qualification]
+reference = "reference/cmp_001_hyst_diffpair.gds"
+
+[presentation]
+category = "Mixed-signal"
+summary = "Produces distinct rising and falling switching thresholds through resistive hysteresis."

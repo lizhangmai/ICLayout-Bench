@@ -1,0 +1,176 @@
+* Same-condition finite-window amplifier observations. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include parameters.spice
+.include dut.spice
+.temp 27
+.save v(vdd) v(vout) v(vp) v(net1) i(VDD)
+.options rshunt=1e12 reltol=1e-5 abstol=1e-12 vntol=1e-8 method=gear maxord=2 itl4=1000
+VDD vdd 0 1.5
+VIN vp 0 dc 0.3 ac 1 pulse(0.3 { 0.3+step_v } 2u 100n 100n 8u 20u)
+IBIAS net1 0 1e-6
+XDUT 0 vdd vout vp vout net1 amp_013_qu2017_azc
+CLOAD vout 0 {load_f}
+.control
+set noaskquit
+set num_threads=1
+set numdgt=15
+set measdgt=15
+op
+let output_v=v(vout)
+let bias_v=v(net1)
+let power_w=-v(vdd)*i(VDD)
+print output_v bias_v power_w
+write op.raw all
+ac dec 200 1 1g
+let closed_gain_db=db(v(vout))
+meas ac closed_gain_10khz_db find closed_gain_db at=10k
+write ac.raw all
+tran 0.5n 20u 0 0.5n
+let end_time=time[length(time)-1]
+if abs(end_time-20u) > 1e-12
+ echo Error: incomplete transient window
+ quit 1
+end
+let sample_index=vector(length(time))
+meas tran edge_0 find sample_index at=0
+let edge_0=floor(edge_0)
+if edge_0 >= length(time)-1
+ let edge_0=length(time)-2
+end
+if time[edge_0] > 0
+ let edge_0=edge_0-1
+end
+if time[edge_0+1] < 0
+ let edge_0=edge_0+1
+end
+let frac_edge_0=(0-time[edge_0])/(time[edge_0+1]-time[edge_0])
+meas tran edge_10u find sample_index at=10u
+let edge_10u=floor(edge_10u)
+if edge_10u >= length(time)-1
+ let edge_10u=length(time)-2
+end
+if time[edge_10u] > 10u
+ let edge_10u=edge_10u-1
+end
+if time[edge_10u+1] < 10u
+ let edge_10u=edge_10u+1
+end
+let frac_edge_10u=(10u-time[edge_10u])/(time[edge_10u+1]-time[edge_10u])
+meas tran edge_18u find sample_index at=18u
+let edge_18u=floor(edge_18u)
+if edge_18u >= length(time)-1
+ let edge_18u=length(time)-2
+end
+if time[edge_18u] > 18u
+ let edge_18u=edge_18u-1
+end
+if time[edge_18u+1] < 18u
+ let edge_18u=edge_18u+1
+end
+let frac_edge_18u=(18u-time[edge_18u])/(time[edge_18u+1]-time[edge_18u])
+meas tran edge_20u find sample_index at=20u
+let edge_20u=floor(edge_20u)
+if edge_20u >= length(time)-1
+ let edge_20u=length(time)-2
+end
+if time[edge_20u] > 20u
+ let edge_20u=edge_20u-1
+end
+if time[edge_20u+1] < 20u
+ let edge_20u=edge_20u+1
+end
+let frac_edge_20u=(20u-time[edge_20u])/(time[edge_20u+1]-time[edge_20u])
+meas tran edge_2u find sample_index at=2u
+let edge_2u=floor(edge_2u)
+if edge_2u >= length(time)-1
+ let edge_2u=length(time)-2
+end
+if time[edge_2u] > 2u
+ let edge_2u=edge_2u-1
+end
+if time[edge_2u+1] < 2u
+ let edge_2u=edge_2u+1
+end
+let frac_edge_2u=(2u-time[edge_2u])/(time[edge_2u+1]-time[edge_2u])
+meas tran edge_8u find sample_index at=8u
+let edge_8u=floor(edge_8u)
+if edge_8u >= length(time)-1
+ let edge_8u=length(time)-2
+end
+if time[edge_8u] > 8u
+ let edge_8u=edge_8u-1
+end
+if time[edge_8u+1] < 8u
+ let edge_8u=edge_8u+1
+end
+let frac_edge_8u=(8u-time[edge_8u])/(time[edge_8u+1]-time[edge_8u])
+let error_v=abs(v(vout)-v(vp))
+let supply=-v(vdd)*i(VDD)
+let int_late_error_v=integ(error_v)
+let val_late_error_v=error_v
+let a_late_error_v=int_late_error_v[edge_8u]+(8u-time[edge_8u])*(val_late_error_v[edge_8u]+0.5*frac_edge_8u*(val_late_error_v[edge_8u+1]-val_late_error_v[edge_8u]))
+let b_late_error_v=int_late_error_v[edge_10u]+(10u-time[edge_10u])*(val_late_error_v[edge_10u]+0.5*frac_edge_10u*(val_late_error_v[edge_10u+1]-val_late_error_v[edge_10u]))
+let late_error_v=(b_late_error_v-a_late_error_v)/(10u-8u)
+print late_error_v
+let int_return_error_v=integ(error_v)
+let val_return_error_v=error_v
+let a_return_error_v=int_return_error_v[edge_18u]+(18u-time[edge_18u])*(val_return_error_v[edge_18u]+0.5*frac_edge_18u*(val_return_error_v[edge_18u+1]-val_return_error_v[edge_18u]))
+let b_return_error_v=int_return_error_v[edge_20u]+(20u-time[edge_20u])*(val_return_error_v[edge_20u]+0.5*frac_edge_20u*(val_return_error_v[edge_20u+1]-val_return_error_v[edge_20u]))
+let return_error_v=(b_return_error_v-a_return_error_v)/(20u-18u)
+print return_error_v
+let int_high_v=integ(v(vout))
+let val_high_v=v(vout)
+let a_high_v=int_high_v[edge_8u]+(8u-time[edge_8u])*(val_high_v[edge_8u]+0.5*frac_edge_8u*(val_high_v[edge_8u+1]-val_high_v[edge_8u]))
+let b_high_v=int_high_v[edge_10u]+(10u-time[edge_10u])*(val_high_v[edge_10u]+0.5*frac_edge_10u*(val_high_v[edge_10u+1]-val_high_v[edge_10u]))
+let high_v=(b_high_v-a_high_v)/(10u-8u)
+print high_v
+let int_low_v=integ(v(vout))
+let val_low_v=v(vout)
+let a_low_v=int_low_v[edge_18u]+(18u-time[edge_18u])*(val_low_v[edge_18u]+0.5*frac_edge_18u*(val_low_v[edge_18u+1]-val_low_v[edge_18u]))
+let b_low_v=int_low_v[edge_20u]+(20u-time[edge_20u])*(val_low_v[edge_20u]+0.5*frac_edge_20u*(val_low_v[edge_20u+1]-val_low_v[edge_20u]))
+let low_v=(b_low_v-a_low_v)/(20u-18u)
+print low_v
+let val_ripple_v=v(vout)
+let win_ripple_v=val_ripple_v[edge_8u+1,edge_10u]
+let end_a_ripple_v=val_ripple_v[edge_8u]+frac_edge_8u*(val_ripple_v[edge_8u+1]-val_ripple_v[edge_8u])
+let end_b_ripple_v=val_ripple_v[edge_10u]+frac_edge_10u*(val_ripple_v[edge_10u+1]-val_ripple_v[edge_10u])
+let min_ripple_v=min(vecmin(win_ripple_v),min(end_a_ripple_v,end_b_ripple_v))
+let max_ripple_v=max(vecmax(win_ripple_v),max(end_a_ripple_v,end_b_ripple_v))
+let ripple_v=max_ripple_v-min_ripple_v
+print ripple_v
+let val_return_ripple_v=v(vout)
+let win_return_ripple_v=val_return_ripple_v[edge_18u+1,edge_20u]
+let end_a_return_ripple_v=val_return_ripple_v[edge_18u]+frac_edge_18u*(val_return_ripple_v[edge_18u+1]-val_return_ripple_v[edge_18u])
+let end_b_return_ripple_v=val_return_ripple_v[edge_20u]+frac_edge_20u*(val_return_ripple_v[edge_20u+1]-val_return_ripple_v[edge_20u])
+let min_return_ripple_v=min(vecmin(win_return_ripple_v),min(end_a_return_ripple_v,end_b_return_ripple_v))
+let max_return_ripple_v=max(vecmax(win_return_ripple_v),max(end_a_return_ripple_v,end_b_return_ripple_v))
+let return_ripple_v=max_return_ripple_v-min_return_ripple_v
+print return_ripple_v
+let int_mean_power_w=integ(supply)
+let val_mean_power_w=supply
+let a_mean_power_w=int_mean_power_w[edge_2u]+(2u-time[edge_2u])*(val_mean_power_w[edge_2u]+0.5*frac_edge_2u*(val_mean_power_w[edge_2u+1]-val_mean_power_w[edge_2u]))
+let b_mean_power_w=int_mean_power_w[edge_20u]+(20u-time[edge_20u])*(val_mean_power_w[edge_20u]+0.5*frac_edge_20u*(val_mean_power_w[edge_20u+1]-val_mean_power_w[edge_20u]))
+let mean_power_w=(b_mean_power_w-a_mean_power_w)/(20u-2u)
+print mean_power_w
+let val_output_min_v=v(vout)
+let win_output_min_v=val_output_min_v[edge_0+1,edge_20u]
+let end_a_output_min_v=val_output_min_v[edge_0]+frac_edge_0*(val_output_min_v[edge_0+1]-val_output_min_v[edge_0])
+let end_b_output_min_v=val_output_min_v[edge_20u]+frac_edge_20u*(val_output_min_v[edge_20u+1]-val_output_min_v[edge_20u])
+let min_output_min_v=min(vecmin(win_output_min_v),min(end_a_output_min_v,end_b_output_min_v))
+let max_output_min_v=max(vecmax(win_output_min_v),max(end_a_output_min_v,end_b_output_min_v))
+let output_min_v=min_output_min_v
+print output_min_v
+let val_output_max_v=v(vout)
+let win_output_max_v=val_output_max_v[edge_0+1,edge_20u]
+let end_a_output_max_v=val_output_max_v[edge_0]+frac_edge_0*(val_output_max_v[edge_0+1]-val_output_max_v[edge_0])
+let end_b_output_max_v=val_output_max_v[edge_20u]+frac_edge_20u*(val_output_max_v[edge_20u+1]-val_output_max_v[edge_20u])
+let min_output_max_v=min(vecmin(win_output_max_v),min(end_a_output_max_v,end_b_output_max_v))
+let max_output_max_v=max(vecmax(win_output_max_v),max(end_a_output_max_v,end_b_output_max_v))
+let output_max_v=max_output_max_v
+print output_max_v
+write transient.raw v(vout) v(vp) i(VDD) error_v supply
+quit
+.endc
+.end

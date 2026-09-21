@@ -1,0 +1,1876 @@
+in_core = false
+kind = "layout_case"
+id = "ihp-sg13g2.analog-db.sw_001_transmission_gate_pair"
+title = "Bidirectional CMOS Transmission Gate"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "8e811a4d7fee5768bd29ec38509effa8eb53045272d6009402d82dccd1d2c183"
+
+[[assets]]
+path = "reference/sw_001_transmission_gate_pair.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "4b53f31ee3b44d09691ce00b6ccd8316c8e8e2b25afcb90ae33b6ef4c2ccc78a"
+
+[task]
+hours = 8
+coefficient = 3
+kind = "netlist_to_gds"
+family = "sw_physical_core"
+environment = "ihp-sg13g2-mos-rc-tt"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "a251ae653b52adca55dbcff41ffc6bb264bfda69bb216cba0f79e2c9ba34a7a1"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+sha256 = "541f878fd2a9d6f0eab4f125d64563a2a2e56b0deb4fa7adef4d2db88adc11cf"
+subcircuit = "sw_001_transmission_gate_pair"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "864061d38ce90c87d8f9d9dd0025a54bc4f7f2932a45828b1c5bb20f4c6d4c0c"
+
+[task.inputs.forward]
+path = "materials/forward.spice"
+format = "spice"
+sha256 = "bcc2a19f30f00a56351532f9d75a5236d1c0063fb09d2b88f9b6a70bf1b29aa1"
+
+[task.inputs.reverse]
+path = "materials/reverse.spice"
+format = "spice"
+sha256 = "0ba443ecbb534fa350a2200cadffdcc5182806d0398fbcdcd3fcf51f06aed0e8"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 5000
+max_height_um = 1000
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "sw_001_transmission_gate_pair"
+max_bytes = 10485760
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 300
+rationale = "Transmission/chopper switches: on-state conduction 21.4%; off-state leakage 17.1%; transfer fidelity 25.7%; switching disturbance 25.7%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+ron_ohm = 0.214285714286
+leakage_a = 0.171428571429
+tracking_error_v = 0.257142857143
+feedthrough_v = 0.128571428571
+hold_shift_v = 0.128571428571
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "port_a",
+    "port_b",
+    "vctl",
+    "vctl_not",
+    "vdd",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+off = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.15
+direction = 1
+
+[task.evaluation.jobs.parameters.measurements]
+ron_ohm = "ohm"
+on_current_a = "A"
+leakage_a = "A"
+kcl_a = "A"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+off = "off.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+off = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.15
+direction = -1
+
+[task.evaluation.jobs.parameters.measurements]
+ron_ohm = "ohm"
+on_current_a = "A"
+leakage_a = "A"
+kcl_a = "A"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+off = "off.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+off = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.75
+direction = 1
+
+[task.evaluation.jobs.parameters.measurements]
+ron_ohm = "ohm"
+on_current_a = "A"
+leakage_a = "A"
+kcl_a = "A"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+off = "off.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+off = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.75
+direction = -1
+
+[task.evaluation.jobs.parameters.measurements]
+ron_ohm = "ohm"
+on_current_a = "A"
+leakage_a = "A"
+kcl_a = "A"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+off = "off.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_4"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+off = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 1.35
+direction = 1
+
+[task.evaluation.jobs.parameters.measurements]
+ron_ohm = "ohm"
+on_current_a = "A"
+leakage_a = "A"
+kcl_a = "A"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+off = "off.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_5"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+off = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 1.35
+direction = -1
+
+[task.evaluation.jobs.parameters.measurements]
+ron_ohm = "ohm"
+on_current_a = "A"
+leakage_a = "A"
+kcl_a = "A"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+off = "off.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_6"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:forward"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.15
+signal = 0
+
+[task.evaluation.jobs.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_7"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:forward"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.15
+signal = 1
+
+[task.evaluation.jobs.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_8"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:forward"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.75
+signal = 0
+
+[task.evaluation.jobs.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_9"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:forward"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.75
+signal = 1
+
+[task.evaluation.jobs.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_10"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:forward"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 1.35
+signal = 0
+
+[task.evaluation.jobs.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_11"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:forward"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 1.35
+signal = 1
+
+[task.evaluation.jobs.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_12"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:reverse"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.15
+signal = 0
+
+[task.evaluation.jobs.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_13"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:reverse"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.15
+signal = 1
+
+[task.evaluation.jobs.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_14"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:reverse"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.75
+signal = 0
+
+[task.evaluation.jobs.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_15"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:reverse"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.75
+signal = 1
+
+[task.evaluation.jobs.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_16"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:reverse"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 1.35
+signal = 0
+
+[task.evaluation.jobs.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_17"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:reverse"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 1.35
+signal = 1
+
+[task.evaluation.jobs.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "ron_ohm"
+unit = "ohm"
+aggregation = "max"
+direction = "minimize"
+dimension = "response"
+normalization = "ratio"
+scale = 1
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:ron_ohm",
+    "condition_1:ron_ohm",
+    "condition_2:ron_ohm",
+    "condition_3:ron_ohm",
+    "condition_4:ron_ohm",
+    "condition_5:ron_ohm",
+]
+baseline = [
+    "source_condition_0:ron_ohm",
+    "source_condition_1:ron_ohm",
+    "source_condition_2:ron_ohm",
+    "source_condition_3:ron_ohm",
+    "source_condition_4:ron_ohm",
+    "source_condition_5:ron_ohm",
+]
+
+[[task.evaluation.metrics]]
+id = "on_current_a"
+unit = "A"
+aggregation = "max"
+direction = "minimize"
+lower = 1e-09
+category = "performance"
+observations = [
+    "condition_0:on_current_a",
+    "condition_1:on_current_a",
+    "condition_2:on_current_a",
+    "condition_3:on_current_a",
+    "condition_4:on_current_a",
+    "condition_5:on_current_a",
+]
+
+[[task.evaluation.metrics]]
+id = "leakage_a"
+unit = "A"
+aggregation = "max"
+direction = "minimize"
+dimension = "bias"
+normalization = "ratio"
+scale = 1e-12
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:leakage_a",
+    "condition_1:leakage_a",
+    "condition_2:leakage_a",
+    "condition_3:leakage_a",
+    "condition_4:leakage_a",
+    "condition_5:leakage_a",
+]
+baseline = [
+    "source_condition_0:leakage_a",
+    "source_condition_1:leakage_a",
+    "source_condition_2:leakage_a",
+    "source_condition_3:leakage_a",
+    "source_condition_4:leakage_a",
+    "source_condition_5:leakage_a",
+]
+
+[[task.evaluation.metrics]]
+id = "kcl_a"
+unit = "A"
+aggregation = "max"
+direction = "minimize"
+category = "performance"
+observations = [
+    "condition_0:kcl_a",
+    "condition_1:kcl_a",
+    "condition_2:kcl_a",
+    "condition_3:kcl_a",
+    "condition_4:kcl_a",
+    "condition_5:kcl_a",
+]
+
+[[task.evaluation.metrics]]
+id = "tracking_error_v"
+unit = "V"
+aggregation = "max"
+direction = "minimize"
+dimension = "response"
+normalization = "ratio"
+scale = 0.0001
+lower = 0
+category = "performance"
+observations = [
+    "condition_6:tracking_error_v",
+    "condition_7:tracking_error_v",
+    "condition_8:tracking_error_v",
+    "condition_9:tracking_error_v",
+    "condition_10:tracking_error_v",
+    "condition_11:tracking_error_v",
+    "condition_12:tracking_error_v",
+    "condition_13:tracking_error_v",
+    "condition_14:tracking_error_v",
+    "condition_15:tracking_error_v",
+    "condition_16:tracking_error_v",
+    "condition_17:tracking_error_v",
+]
+baseline = [
+    "source_condition_6:tracking_error_v",
+    "source_condition_7:tracking_error_v",
+    "source_condition_8:tracking_error_v",
+    "source_condition_9:tracking_error_v",
+    "source_condition_10:tracking_error_v",
+    "source_condition_11:tracking_error_v",
+    "source_condition_12:tracking_error_v",
+    "source_condition_13:tracking_error_v",
+    "source_condition_14:tracking_error_v",
+    "source_condition_15:tracking_error_v",
+    "source_condition_16:tracking_error_v",
+    "source_condition_17:tracking_error_v",
+]
+
+[[task.evaluation.metrics]]
+id = "feedthrough_v"
+unit = "V"
+aggregation = "max"
+direction = "minimize"
+dimension = "response"
+normalization = "ratio"
+scale = 0.0001
+lower = 0
+category = "performance"
+observations = [
+    "condition_6:feedthrough_v",
+    "condition_7:feedthrough_v",
+    "condition_8:feedthrough_v",
+    "condition_9:feedthrough_v",
+    "condition_10:feedthrough_v",
+    "condition_11:feedthrough_v",
+    "condition_12:feedthrough_v",
+    "condition_13:feedthrough_v",
+    "condition_14:feedthrough_v",
+    "condition_15:feedthrough_v",
+    "condition_16:feedthrough_v",
+    "condition_17:feedthrough_v",
+]
+baseline = [
+    "source_condition_6:feedthrough_v",
+    "source_condition_7:feedthrough_v",
+    "source_condition_8:feedthrough_v",
+    "source_condition_9:feedthrough_v",
+    "source_condition_10:feedthrough_v",
+    "source_condition_11:feedthrough_v",
+    "source_condition_12:feedthrough_v",
+    "source_condition_13:feedthrough_v",
+    "source_condition_14:feedthrough_v",
+    "source_condition_15:feedthrough_v",
+    "source_condition_16:feedthrough_v",
+    "source_condition_17:feedthrough_v",
+]
+
+[[task.evaluation.metrics]]
+id = "hold_shift_v"
+unit = "V"
+aggregation = "max"
+direction = "target"
+dimension = "response"
+normalization = "target"
+scale = 0.1
+category = "performance"
+observations = [
+    "condition_6:hold_shift_v",
+    "condition_7:hold_shift_v",
+    "condition_8:hold_shift_v",
+    "condition_9:hold_shift_v",
+    "condition_10:hold_shift_v",
+    "condition_11:hold_shift_v",
+    "condition_12:hold_shift_v",
+    "condition_13:hold_shift_v",
+    "condition_14:hold_shift_v",
+    "condition_15:hold_shift_v",
+    "condition_16:hold_shift_v",
+    "condition_17:hold_shift_v",
+]
+baseline = [
+    "source_condition_6:hold_shift_v",
+    "source_condition_7:hold_shift_v",
+    "source_condition_8:hold_shift_v",
+    "source_condition_9:hold_shift_v",
+    "source_condition_10:hold_shift_v",
+    "source_condition_11:hold_shift_v",
+    "source_condition_12:hold_shift_v",
+    "source_condition_13:hold_shift_v",
+    "source_condition_14:hold_shift_v",
+    "source_condition_15:hold_shift_v",
+    "source_condition_16:hold_shift_v",
+    "source_condition_17:hold_shift_v",
+]
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "2ee3359ee064678a19b065a4c8c3a7dad7db185fd4a4c969ae96b2d7746d0145"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:34eff92f7ffca7b8b010bcded394c4625c14143c757fda519e873b7ef8e87dc5\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"ec7be417ea7b6e68e735126bb75d32d0f2f00b961da2b5d109d0c2c9d4908b14\", \"timeout_seconds\": 600.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_condition_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.outputs]
+op = "ngspice-raw"
+off = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.values]
+common_v = 0.15
+direction = 1
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.measurements]
+ron_ohm = "ohm"
+on_current_a = "A"
+leakage_a = "A"
+kcl_a = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.exports]
+op = "op.raw"
+off = "off.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.input_sha256]
+deck = "864061d38ce90c87d8f9d9dd0025a54bc4f7f2932a45828b1c5bb20f4c6d4c0c"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.kcl_a]
+value = 5.467397528019297e-19
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.leakage_a]
+value = 5.225431085025349e-12
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.on_current_a]
+value = 3.418258019745907e-05
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.ron_ohm]
+value = 292.5466697433025
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.outputs]
+op = "ngspice-raw"
+off = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.values]
+common_v = 0.15
+direction = -1
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.measurements]
+ron_ohm = "ohm"
+on_current_a = "A"
+leakage_a = "A"
+kcl_a = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.exports]
+op = "op.raw"
+off = "off.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.input_sha256]
+deck = "864061d38ce90c87d8f9d9dd0025a54bc4f7f2932a45828b1c5bb20f4c6d4c0c"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.kcl_a]
+value = 5.467397528019297e-19
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.leakage_a]
+value = 5.581069846117431e-12
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.on_current_a]
+value = 3.418272616321964e-05
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.ron_ohm]
+value = 292.545420521782
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_2]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.outputs]
+op = "ngspice-raw"
+off = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.values]
+common_v = 0.75
+direction = 1
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.measurements]
+ron_ohm = "ohm"
+on_current_a = "A"
+leakage_a = "A"
+kcl_a = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.exports]
+op = "op.raw"
+off = "off.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.input_sha256]
+deck = "864061d38ce90c87d8f9d9dd0025a54bc4f7f2932a45828b1c5bb20f4c6d4c0c"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.kcl_a]
+value = 7.476084960740552e-19
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.leakage_a]
+value = 3.158730538795454e-13
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.on_current_a]
+value = 9.236300590761957e-06
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.ron_ohm]
+value = 1082.684555546178
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_3]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.outputs]
+op = "ngspice-raw"
+off = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.values]
+common_v = 0.75
+direction = -1
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.measurements]
+ron_ohm = "ohm"
+on_current_a = "A"
+leakage_a = "A"
+kcl_a = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.exports]
+op = "op.raw"
+off = "off.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.input_sha256]
+deck = "864061d38ce90c87d8f9d9dd0025a54bc4f7f2932a45828b1c5bb20f4c6d4c0c"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.kcl_a]
+value = 7.476084936506745e-19
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.leakage_a]
+value = 3.693045767334869e-13
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.on_current_a]
+value = 9.236297929657803e-06
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.ron_ohm]
+value = 1082.684867482453
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_4]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.outputs]
+op = "ngspice-raw"
+off = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.parameters.values]
+common_v = 1.35
+direction = 1
+
+[task.evaluation.pre_layout.jobs.source_condition_4.parameters.measurements]
+ron_ohm = "ohm"
+on_current_a = "A"
+leakage_a = "A"
+kcl_a = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.parameters.exports]
+op = "op.raw"
+off = "off.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.input_sha256]
+deck = "864061d38ce90c87d8f9d9dd0025a54bc4f7f2932a45828b1c5bb20f4c6d4c0c"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.kcl_a]
+value = 3.252646118728339e-18
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.leakage_a]
+value = 4.900553384477247e-12
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.on_current_a]
+value = 1.120145164079445e-05
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.ron_ohm]
+value = 892.7414339388932
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_5]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.outputs]
+op = "ngspice-raw"
+off = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.parameters.values]
+common_v = 1.35
+direction = -1
+
+[task.evaluation.pre_layout.jobs.source_condition_5.parameters.measurements]
+ron_ohm = "ohm"
+on_current_a = "A"
+leakage_a = "A"
+kcl_a = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.parameters.exports]
+op = "op.raw"
+off = "off.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.input_sha256]
+deck = "864061d38ce90c87d8f9d9dd0025a54bc4f7f2932a45828b1c5bb20f4c6d4c0c"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.kcl_a]
+value = 3.035805684231238e-18
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.leakage_a]
+value = 4.591467734399066e-12
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.on_current_a]
+value = 1.12013990718516e-05
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.ron_ohm]
+value = 892.7456236363698
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_condition_6]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.inputs]
+deck = "input:forward"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.parameters.values]
+common_v = 0.15
+signal = 0
+
+[task.evaluation.pre_layout.jobs.source_condition_6.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.input_sha256]
+deck = "bcc2a19f30f00a56351532f9d75a5236d1c0063fb09d2b88f9b6a70bf1b29aa1"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.feedthrough_v]
+value = 0.00102290435574412
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.hold_shift_v]
+value = -0.00099854892225
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.tracking_error_v]
+value = 3.592214749999999e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.inputs]
+deck = "input:forward"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.parameters.values]
+common_v = 0.15
+signal = 1
+
+[task.evaluation.pre_layout.jobs.source_condition_7.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.input_sha256]
+deck = "bcc2a19f30f00a56351532f9d75a5236d1c0063fb09d2b88f9b6a70bf1b29aa1"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.feedthrough_v]
+value = 0.001018386045139097
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.hold_shift_v]
+value = 0.000187150000000004
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.tracking_error_v]
+value = 0.0019943776825
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_8]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_8.inputs]
+deck = "input:forward"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_8.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_8.parameters.values]
+common_v = 0.75
+signal = 0
+
+[task.evaluation.pre_layout.jobs.source_condition_8.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_8.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_8.input_sha256]
+deck = "bcc2a19f30f00a56351532f9d75a5236d1c0063fb09d2b88f9b6a70bf1b29aa1"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_8.measurements.feedthrough_v]
+value = 0.0003744137619038357
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_8.measurements.hold_shift_v]
+value = -0.00036526649615
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_8.measurements.tracking_error_v]
+value = 1.70384e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_9]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_9.inputs]
+deck = "input:forward"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_9.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_9.parameters.values]
+common_v = 0.75
+signal = 1
+
+[task.evaluation.pre_layout.jobs.source_condition_9.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_9.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_9.input_sha256]
+deck = "bcc2a19f30f00a56351532f9d75a5236d1c0063fb09d2b88f9b6a70bf1b29aa1"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_9.measurements.feedthrough_v]
+value = 0.0004088747126308467
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_9.measurements.hold_shift_v]
+value = 0.0007815749999999788
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_9.measurements.tracking_error_v]
+value = 0.006039576375
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_10]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_10.inputs]
+deck = "input:forward"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_10.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_10.parameters.values]
+common_v = 1.35
+signal = 0
+
+[task.evaluation.pre_layout.jobs.source_condition_10.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_10.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_10.input_sha256]
+deck = "bcc2a19f30f00a56351532f9d75a5236d1c0063fb09d2b88f9b6a70bf1b29aa1"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_10.measurements.feedthrough_v]
+value = 0.0003484213252500368
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_10.measurements.hold_shift_v]
+value = 0.0003000688905000002
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_10.measurements.tracking_error_v]
+value = 2.8690585e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_11]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_11.inputs]
+deck = "input:forward"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_11.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_11.parameters.values]
+common_v = 1.35
+signal = 1
+
+[task.evaluation.pre_layout.jobs.source_condition_11.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_11.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_11.input_sha256]
+deck = "bcc2a19f30f00a56351532f9d75a5236d1c0063fb09d2b88f9b6a70bf1b29aa1"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_11.measurements.feedthrough_v]
+value = 0.0004957117103574493
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_11.measurements.hold_shift_v]
+value = 0.001471475000000028
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_11.measurements.tracking_error_v]
+value = 0.005029772400000001
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_12]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_12.inputs]
+deck = "input:reverse"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_12.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_12.parameters.values]
+common_v = 0.15
+signal = 0
+
+[task.evaluation.pre_layout.jobs.source_condition_12.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_12.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_12.input_sha256]
+deck = "0ba443ecbb534fa350a2200cadffdcc5182806d0398fbcdcd3fcf51f06aed0e8"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_12.measurements.feedthrough_v]
+value = 0.001022904355744481
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_12.measurements.hold_shift_v]
+value = -0.00099854892225
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_12.measurements.tracking_error_v]
+value = 3.592214749999999e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_13]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_13.inputs]
+deck = "input:reverse"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_13.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_13.parameters.values]
+common_v = 0.15
+signal = 1
+
+[task.evaluation.pre_layout.jobs.source_condition_13.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_13.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_13.input_sha256]
+deck = "0ba443ecbb534fa350a2200cadffdcc5182806d0398fbcdcd3fcf51f06aed0e8"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_13.measurements.feedthrough_v]
+value = 0.001018386045139083
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_13.measurements.hold_shift_v]
+value = 0.000187150000000004
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_13.measurements.tracking_error_v]
+value = 0.0019943776825
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_14]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_14.inputs]
+deck = "input:reverse"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_14.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_14.parameters.values]
+common_v = 0.75
+signal = 0
+
+[task.evaluation.pre_layout.jobs.source_condition_14.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_14.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_14.input_sha256]
+deck = "0ba443ecbb534fa350a2200cadffdcc5182806d0398fbcdcd3fcf51f06aed0e8"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_14.measurements.feedthrough_v]
+value = 0.0003744137619019483
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_14.measurements.hold_shift_v]
+value = -0.00036526649615
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_14.measurements.tracking_error_v]
+value = 1.70384e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_15]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_15.inputs]
+deck = "input:reverse"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_15.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_15.parameters.values]
+common_v = 0.75
+signal = 1
+
+[task.evaluation.pre_layout.jobs.source_condition_15.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_15.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_15.input_sha256]
+deck = "0ba443ecbb534fa350a2200cadffdcc5182806d0398fbcdcd3fcf51f06aed0e8"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_15.measurements.feedthrough_v]
+value = 0.000408874712637175
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_15.measurements.hold_shift_v]
+value = 0.0007815749999999788
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_15.measurements.tracking_error_v]
+value = 0.006039576375
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_16]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_16.inputs]
+deck = "input:reverse"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_16.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_16.parameters.values]
+common_v = 1.35
+signal = 0
+
+[task.evaluation.pre_layout.jobs.source_condition_16.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_16.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_16.input_sha256]
+deck = "0ba443ecbb534fa350a2200cadffdcc5182806d0398fbcdcd3fcf51f06aed0e8"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_16.measurements.feedthrough_v]
+value = 0.0003484213252475943
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_16.measurements.hold_shift_v]
+value = 0.0003000688905000002
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_16.measurements.tracking_error_v]
+value = 2.8690585e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_17]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_17.inputs]
+deck = "input:reverse"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_17.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_17.parameters.values]
+common_v = 1.35
+signal = 1
+
+[task.evaluation.pre_layout.jobs.source_condition_17.parameters.measurements]
+tracking_error_v = "V"
+feedthrough_v = "V"
+hold_shift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_17.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_17.input_sha256]
+deck = "0ba443ecbb534fa350a2200cadffdcc5182806d0398fbcdcd3fcf51f06aed0e8"
+dut = "e8db280b7f1bff9218d038f96d04fc05491137bde1c0b57fac0430e3c5506a3e"
+
+[task.evaluation.pre_layout.jobs.source_condition_17.measurements.feedthrough_v]
+value = 0.0004957117103590036
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_17.measurements.hold_shift_v]
+value = 0.001471475000000028
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_17.measurements.tracking_error_v]
+value = 0.005029772400000001
+unit = "V"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 600
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+support = "build/support/analog-db-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+support = "build/support/analog-db-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/analog-db-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+capacitance_threshold_ff = 0
+timeout_seconds = 600
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 120
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-models"
+
+[toolchain.backends.simulation.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/analog-db-analog-models"
+timeout_seconds = 600
+
+[qualification]
+reference = "reference/sw_001_transmission_gate_pair.gds"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/sw_001_transmission_gate_pair"
+
+[presentation]
+category = "Mixed-signal"
+summary = "Transfers analog signals bidirectionally through a CMOS transmission gate."

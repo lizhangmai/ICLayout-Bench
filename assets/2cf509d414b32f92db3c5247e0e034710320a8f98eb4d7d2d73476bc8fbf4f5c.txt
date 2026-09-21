@@ -1,0 +1,25 @@
+* Maintained Layout-Bench testbench. SPDX-License-Identifier: MIT
+* Externally biased GF180 regulator: settled load-step response, no startup claim.
+.include support/models.spice
+.include dut.spice
+.include parameters.spice
+.temp 27
+VDD vdd 0 {supply_v}
+VREF vref 0 0.9
+ITAIL ibias 0 200u
+ILOAD vout 0 PWL(0 100u 1m 100u 1.0001m 5m 2m 5m 2.0001m 100u 3m 100u)
+COUT vout 0 1u
+XDUT vdd vout vref ibias 0 ldo_004_basic_pmos
+.control
+set noaskquit
+set numdgt=12
+tran 200n 3m
+let error_v=abs(v(vout)-1.8)
+meas tran peak_error_v max error_v from=0.9m to=3m
+meas tran high_settled_error_v max error_v from=1.2m to=1.9m
+meas tran low_settled_error_v max error_v from=2.2m to=3m
+meas tran tail_min_v min v(ibias) from=0.9m to=3m
+write ldo-transient.raw time v(vout) v(ibias)
+quit
+.endc
+.end

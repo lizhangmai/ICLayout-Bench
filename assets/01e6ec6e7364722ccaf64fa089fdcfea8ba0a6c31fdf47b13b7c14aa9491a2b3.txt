@@ -1,0 +1,912 @@
+in_core = false
+kind = "layout_case"
+id = "ihp-sg13g2.analog-db.amp_022_fer_two_stage"
+title = "Fer Two-Stage Miller Amplifier"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "4bad294c3b8cf76f40dc98555e823f0e156d2b6caafb9533c26bbf918c19890c"
+
+[[assets]]
+path = "reference/amp_022_fer_two_stage.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "d42e717face4c9172cc8fb240717f5a8348305fafa5ade96053293fdd8587d5c"
+
+[task]
+hours = 8
+coefficient = 6
+kind = "netlist_to_gds"
+family = "two_stage_miller_amplifier"
+environment = "ihp-sg13g2-mos-rc-tt"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "a47dee16031c295c1caf59b003f6b8b4140c388143edc464fbee87876f303093"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+sha256 = "2376cfd1faf596940cbb75f9c842a71c603ab59107c0e88575b03a351e5550dc"
+subcircuit = "amp_022_fer_two_stage"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "7faa764822a62fbfb24f91cf6b8ff300e9e0ac1c243e927713f8ff84bd9e17a9"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "fa1586ca940d04a748a07be107907892cf57e1474aa8244a331cdd06da7708ea"
+
+[task.inputs.frequency]
+path = "materials/ac.spice"
+format = "spice"
+sha256 = "dd9fa8ad91be9eefef87a58e0bd003930b65bd2ad3ebe04de8c2956a060bd633"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 2000
+max_height_um = 1000
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "amp_022_fer_two_stage"
+max_bytes = 67108864
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 7022.72
+rationale = "Finite-window amplifier response: tracking error 36%; ripple 22.5%; AC transfer 18%; bias and offset 4.5%; power 9%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+late_error_v = 0.18
+return_error_v = 0.18
+return_ripple_v = 0.1125
+ripple_v = 0.1125
+closed_gain_10khz_db = 0.06
+gain_10khz_db = 0.06
+gain_db = 0.06
+output_v = 0.045
+mean_power_w = 0.045
+power_w = 0.045
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "vout",
+    "vinp",
+    "vinn",
+    "ibias",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-11
+step_v = 0.2
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+closed_gain_10khz_db = "dB"
+late_error_v = "V"
+return_error_v = "V"
+ripple_v = "V"
+return_ripple_v = "V"
+mean_power_w = "W"
+bias_v = "V"
+high_v = "V"
+low_v = "V"
+output_min_v = "V"
+output_max_v = "V"
+kcl_a = "A"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:frequency"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+load_f = 1e-11
+
+[task.evaluation.jobs.parameters.measurements]
+gain_db = "dB"
+gain_10khz_db = "dB"
+fixture_cm_max = "V"
+dc_feedback_error_v = "V"
+kcl_a = "A"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "output_v"
+unit = "V"
+dimension = "bias"
+normalization = "target"
+direction = "target"
+aggregation = "max"
+scale = 1.5
+category = "performance"
+observations = [
+    "condition_0:output_v",
+]
+baseline = [
+    "source_condition_0:output_v",
+]
+
+[[task.evaluation.metrics]]
+id = "power_w"
+unit = "W"
+dimension = "supply"
+normalization = "ratio"
+direction = "minimize"
+aggregation = "max"
+scale = 1e-12
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:power_w",
+]
+baseline = [
+    "source_condition_0:power_w",
+]
+
+[[task.evaluation.metrics]]
+id = "gain_db"
+unit = "dB"
+dimension = "response"
+normalization = "db20"
+direction = "maximize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_1:gain_db",
+]
+baseline = [
+    "source_condition_1:gain_db",
+]
+
+[[task.evaluation.metrics]]
+id = "gain_10khz_db"
+unit = "dB"
+dimension = "response"
+normalization = "db20"
+direction = "maximize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_1:gain_10khz_db",
+]
+baseline = [
+    "source_condition_1:gain_10khz_db",
+]
+
+[[task.evaluation.metrics]]
+id = "closed_gain_10khz_db"
+unit = "dB"
+dimension = "response"
+normalization = "target"
+direction = "target"
+aggregation = "max"
+scale = 6
+category = "performance"
+observations = [
+    "condition_0:closed_gain_10khz_db",
+]
+baseline = [
+    "source_condition_0:closed_gain_10khz_db",
+]
+
+[[task.evaluation.metrics]]
+id = "late_error_v"
+unit = "V"
+dimension = "response"
+normalization = "ratio"
+direction = "minimize"
+aggregation = "max"
+scale = 0.001
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:late_error_v",
+]
+baseline = [
+    "source_condition_0:late_error_v",
+]
+
+[[task.evaluation.metrics]]
+id = "return_error_v"
+unit = "V"
+dimension = "response"
+normalization = "ratio"
+direction = "minimize"
+aggregation = "max"
+scale = 0.001
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:return_error_v",
+]
+baseline = [
+    "source_condition_0:return_error_v",
+]
+
+[[task.evaluation.metrics]]
+id = "ripple_v"
+unit = "V"
+dimension = "response"
+normalization = "ratio"
+direction = "minimize"
+aggregation = "max"
+scale = 0.001
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:ripple_v",
+]
+baseline = [
+    "source_condition_0:ripple_v",
+]
+
+[[task.evaluation.metrics]]
+id = "return_ripple_v"
+unit = "V"
+dimension = "response"
+normalization = "ratio"
+direction = "minimize"
+aggregation = "max"
+scale = 0.001
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:return_ripple_v",
+]
+baseline = [
+    "source_condition_0:return_ripple_v",
+]
+
+[[task.evaluation.metrics]]
+id = "mean_power_w"
+unit = "W"
+dimension = "supply"
+normalization = "ratio"
+direction = "minimize"
+aggregation = "max"
+scale = 1e-12
+lower = 0
+category = "performance"
+observations = [
+    "condition_0:mean_power_w",
+]
+baseline = [
+    "source_condition_0:mean_power_w",
+]
+
+[[task.evaluation.metrics]]
+id = "bias_v"
+unit = "V"
+direction = "minimize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_0:bias_v",
+]
+
+[[task.evaluation.metrics]]
+id = "high_v"
+unit = "V"
+direction = "minimize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_0:high_v",
+]
+
+[[task.evaluation.metrics]]
+id = "low_v"
+unit = "V"
+direction = "minimize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_0:low_v",
+]
+
+[[task.evaluation.metrics]]
+id = "output_min_v"
+unit = "V"
+direction = "minimize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_0:output_min_v",
+]
+
+[[task.evaluation.metrics]]
+id = "output_max_v"
+unit = "V"
+direction = "minimize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_0:output_max_v",
+]
+
+[[task.evaluation.metrics]]
+id = "fixture_cm_max"
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+upper = 1e-06
+category = "performance"
+observations = [
+    "condition_1:fixture_cm_max",
+]
+
+[[task.evaluation.metrics]]
+id = "dc_feedback_error_v"
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+lower = 0
+upper = 1e-06
+category = "performance"
+observations = [
+    "condition_1:dc_feedback_error_v",
+]
+
+[[task.evaluation.metrics]]
+id = "kcl_a"
+unit = "A"
+direction = "minimize"
+aggregation = "max"
+category = "performance"
+observations = [
+    "condition_0:kcl_a",
+    "condition_1:kcl_a",
+]
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "f003d93119133972e3194f1dc66293842e31b27e8158e9202475e55b70b257d8"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:34eff92f7ffca7b8b010bcded394c4625c14143c757fda519e873b7ef8e87dc5\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"0fedc0da83d4183ffc80a4ffcbf9d497a4ac259bc9f0f284082c552e2b149fc0\", \"timeout_seconds\": 600.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_condition_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.values]
+load_f = 1e-11
+step_v = 0.2
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.measurements]
+output_v = "V"
+power_w = "W"
+closed_gain_10khz_db = "dB"
+late_error_v = "V"
+return_error_v = "V"
+ripple_v = "V"
+return_ripple_v = "V"
+mean_power_w = "W"
+bias_v = "V"
+high_v = "V"
+low_v = "V"
+output_min_v = "V"
+output_max_v = "V"
+kcl_a = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.input_sha256]
+deck = "fa1586ca940d04a748a07be107907892cf57e1474aa8244a331cdd06da7708ea"
+dut = "7faa764822a62fbfb24f91cf6b8ff300e9e0ac1c243e927713f8ff84bd9e17a9"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.bias_v]
+value = 0.3867579407410864
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.closed_gain_10khz_db]
+value = -0.01778975
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.high_v]
+value = 0.7988389269650475
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.kcl_a]
+value = 1.958383542138842e-14
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.late_error_v]
+value = 0.001161073034947675
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.low_v]
+value = 0.5991740907845344
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.mean_power_w]
+value = 0.0003588599391214893
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.output_max_v]
+value = 0.80006486601298
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.output_min_v]
+value = 0.598200494414818
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.output_v]
+value = 0.5991740907847709
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.power_w]
+value = 0.000362342855808857
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.return_error_v]
+value = 0.0008259092153180601
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.return_ripple_v]
+value = 7.194334017412984e-11
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.ripple_v]
+value = 2.14697148948062e-11
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.inputs]
+deck = "input:frequency"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.values]
+load_f = 1e-11
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.measurements]
+gain_db = "dB"
+gain_10khz_db = "dB"
+fixture_cm_max = "V"
+dc_feedback_error_v = "V"
+kcl_a = "A"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.input_sha256]
+deck = "dd9fa8ad91be9eefef87a58e0bd003930b65bd2ad3ebe04de8c2956a060bd633"
+dut = "7faa764822a62fbfb24f91cf6b8ff300e9e0ac1c243e927713f8ff84bd9e17a9"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.dc_feedback_error_v]
+value = 0.0
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.fixture_cm_max]
+value = 7.46190924089787e-12
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.gain_10khz_db]
+value = 51.36271
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.gain_db]
+value = 51.50621
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.kcl_a]
+value = 1.094401804423162e-14
+unit = "A"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 600
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+support = "build/support/analog-db-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+support = "build/support/analog-db-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/analog-db-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+capacitance_threshold_ff = 0
+timeout_seconds = 600
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 120
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-res-models"
+
+[toolchain.backends.simulation.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/analog-db-analog-models"
+timeout_seconds = 600
+
+[qualification]
+reference = "reference/amp_022_fer_two_stage.gds"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/amp_022_fer_two_stage"
+
+[presentation]
+category = "Amplifiers & RF"
+summary = "Amplifies differential signals using a PMOS input pair, common-source second stage and Miller capacitor."

@@ -1,0 +1,49 @@
+* Native multistage compensation measurements. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include parameters.spice
+.include dut.spice
+.temp 27
+.option rshunt=1e12 reltol=1e-5 abstol=1e-14 vntol=1e-8 method=gear maxord=2
+VDD vdd 0 1.2
+VIN vp 0 dc 0.5 pulse(0.5 0.7 20u 100n 100n 80u 160u)
+IBIAS net013 0 1.80825e-06
+VPROBE vm vout dc 0 ac 1
+CLOAD vout 0 {load_f}
+XDUT 0 vdd vm vp vout net013 amp_010_peng_acbc
+.control
+set noaskquit
+set numdgt=12
+op
+let output_v=v(vout)
+let bias_v=v(net013)
+let power_w=-v(vdd)*i(VDD)
+print output_v bias_v power_w
+write op.raw v(vout) v(net013) i(VDD)
+ac dec 150 0.01 100meg
+let transfer=-v(vout)/v(vm)
+let gain_db=db(transfer)
+let phase_deg=180*cph(transfer)/pi
+meas ac dc_gain_db find gain_db at=0.01
+meas ac unity_hz when gain_db=0 fall=1
+meas ac phase_at_unity find phase_deg when gain_db=0 fall=1
+let phase_margin_deg=180+phase_at_unity
+print phase_margin_deg
+write ac.raw frequency v(vout) v(vm) transfer gain_db phase_deg
+tran 10n 180u 0 10n
+let error_v=abs(v(vout)-v(vp))
+let supply=-v(vdd)*i(VDD)
+meas tran recovery_up_v max error_v from=50u to=95u
+meas tran recovery_down_v max error_v from=130u to=175u
+meas tran high_v avg v(vout) from=90u to=95u
+meas tran low_v avg v(vout) from=170u to=175u
+let step_gain=(high_v-low_v)/0.2
+meas tran mean_power_w avg supply from=20u to=180u
+meas tran peak_v max v(vout) from=20u to=100u
+meas tran trough_v min v(vout) from=100.2u to=180u
+print step_gain
+write transient.raw v(vout) v(vp) i(VDD)
+quit
+.endc
+.end

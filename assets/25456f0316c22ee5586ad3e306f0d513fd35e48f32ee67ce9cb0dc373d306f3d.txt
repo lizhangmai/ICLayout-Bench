@@ -1,0 +1,13 @@
+* Maintained IHP AnalogAcademy derivative for the Layout-Bench input-pair case.
+* The shared source node is promoted to an explicit tail port so the pair can
+* be biased and its differential transconductance can be checked standalone.
+.subckt input_common_centroid v- v+ vdd dn3 dn4 tail
+*.PININFO v-:B v+:B vdd:B dn3:B dn4:B tail:B
+MM1 dn3 v- tail bulk sg13_lv_pmos w=3.64u l=3.7u ng=1 m=2
+MM2 dn4 v+ tail bulk sg13_lv_pmos w=3.64u l=3.7u ng=1 m=2
+MM8 dn4 vdd vdd bulk sg13_lv_pmos w=3.64u l=3.7u ng=1 m=2
+MM10 dn3 vdd vdd bulk sg13_lv_pmos w=3.64u l=3.7u ng=1 m=2
+MM15 tail vdd vdd bulk sg13_lv_pmos w=3.64u l=3.7u ng=1 m=2
+MM16 tail vdd vdd bulk sg13_lv_pmos w=3.64u l=3.7u ng=1 m=2
+RR1 vdd bulk ntap1 A=4.42e-10 P=9.4e-05
+.ends input_common_centroid

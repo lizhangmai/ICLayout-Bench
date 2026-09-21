@@ -1,0 +1,322 @@
+1:"$Sreact.fragment"
+2:"$Sreact.suspense"
+3:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+4:T21b6,<h1 id="problem-strongarm-dynamic-comparator-layout-task">StrongARM Dynamic Comparator Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Implement <code>cmp_002_strongarm</code> as a GF180MCU D layout. Fifteen upstream MOS instances implement the clocked StrongARM latch: differential input pair, clocked tail, cross-coupled regenerative devices, four precharge devices and two output inverters. The input pair multiplicities expand the physical circuit to seventeen devices. The maintained GF180 3.3 V binding uses the fixed sizing defaults and authored ties from the pinned accession.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p><code>materials/circuit.cdl</code> is the physical authority; <code>materials/circuit.spice</code>
+contains matching native simulator wrappers. <code>materials/testbench.spice</code> defines
+all measurements. Ordered ports: <code>vdd voutp voutn vinp vinn clk vss</code>.</p>
+<p><code>vdd/vss</code>: supply and return; <code>vinp/vinn</code>: differential inputs; <code>clk</code>: evaluate high, precharge low; <code>voutp/voutn</code>: buffered differential outputs. Positive input difference produces positive output difference. Supply, clock, input drivers and output loads are external apparatus. No offset-trim variant or proprietary process deck is included.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>Typical GF180 3.3 V MOS models at 3.3 V supply and 27 C, statistics disabled. Differential input is +20 or -20 mV at common modes 1.2 and 1.65 V, all four combinations. Each output has a 50 fF load. The 50 MHz clock first rises at 10 ns, uses 100 ps edges and 10 ns pulse width. Simulate to 100 ns at 10 ps requested steps; timing uses the fifth evaluation edge near 90 ns.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>GDS database unit 0.001 um, maximum 10 MiB, top cell <code>cmp_002_strongarm</code>.
+Native standalone DRC covers geometry, connectivity, manufacturing grid, dummy
+fill and antenna; chip-level density and seal-ring closure are excluded.
+LVS must match all devices, parameters and named ports. Metal1 labels identify
+ports. The functional bounding rectangle includes the device, well, implant,
+contact, passive and complete routing layers enumerated in the runtime outline;
+text annotations are excluded. Maximum outline is 5000 by 1000 um.</p>
+<p>Keep the 3.3 V models, 0.28 um channel length, fixed widths and multiplicities. Parallel equivalent fingers are permitted. All MOS dimensions lie on the native 5 nm construction grid. Body/well connections are explicit, with native guard-ring/tap geometry. The IHP binding has the same topology but different process sizing; it is not mixed into this GF180 task.</p>
+<p>Candidate-derived native Magic coupling capacitance and distributed wire
+resistance feed post-layout simulation, with zero omission thresholds.
+Physical MOS diffusion areas/perimeters come from the layout. Substrate/well
+connections are ideal: distributed substrate resistance/noise and inductance
+are not represented. Four nominal input-polarity/common-mode combinations, reset, decision delay/slew and average supply power. Coefficient 6 reflects regenerative decisions with clocked reset and buffered loads. Offset distribution, metastability statistics, noise, PVT and RF/EM are outside this declared scope.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition</th>
+<th>Unit</th>
+<th>Dimension</th>
+<th>Normalization</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>delay_s</code></td>
+<td>Clock 1.65 V crossing to signed output difference 1.65 V, fifth rising edge</td>
+<td>s</td>
+<td>response</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>slew_s</code></td>
+<td>Signed differential output rise from 0.33 to 2.97 V, fifth decision</td>
+<td>s</td>
+<td>response</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>Mean supply power over 20–100 ns</td>
+<td>W</td>
+<td>supply</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>decision_v</code></td>
+<td>Input-polarity-adjusted output difference at 99 ns</td>
+<td>V</td>
+<td>bias</td>
+<td>target</td>
+</tr>
+<tr>
+<td><code>reset_p_v</code></td>
+<td>Positive output at 89 ns in precharge</td>
+<td>V</td>
+<td>functional</td>
+<td>unscored</td>
+</tr>
+<tr>
+<td><code>reset_n_v</code></td>
+<td>Negative output at 89 ns in precharge</td>
+<td>V</td>
+<td>functional</td>
+<td>unscored</td>
+</tr>
+</tbody>
+</table>
+<p>Signed decision must be 1.65–3.3 V; both reset outputs must be 0–1.65 V. Half-supply separates the required resolved/reset logic states, independent of any upstream speed target. Delay, slew and mean supply power must be nonnegative. Timing has no hard upper bound beyond the declared observation window; a missing crossing is an invalid measurement.
+Every condition must complete; missing, nonfinite or wrong-unit observations
+produce an evaluation error. Upstream advertised performance is not a
+qualification requirement.</p>
+<p>Scored observations pair with independent source jobs using the identical
+stimuli, parameters, models and backend. Target scales are 3.3 V; ratio floors
+use 1 pW for power. These are normalization units, not allowed degradation.
+Delay/slew ratios have no floor.</p>
+<p>Area anchor <strong>490.86 um2</strong> uses a 234.840000 um2 sum of expanded
+<code>(W+2)*(L+2)</code> device/contact envelopes, a 50% routing allowance and 2 um outer
+margin: <code>ceil(100*(1.5*sum+8*sqrt(sum)+16))/100</code>. It is independent of witness
+area and is an engineering estimate, not a foundry minimum. Coefficient <strong>6</strong>
+is independent of this score.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Clocked comparators: decision delay 61.4%; output transition 8.18%; decision amplitude 4.09%; supply power 16.4%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>delay_s</code></td>
+<td style="text-align:right">0.613636363637</td>
+</tr>
+<tr>
+<td><code>slew_s</code></td>
+<td style="text-align:right">0.081818181818</td>
+</tr>
+<tr>
+<td><code>decision_v</code></td>
+<td style="text-align:right">0.040909090909</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.163636363636</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Read <code>/protocol/task.json</code>, <code>/protocol/resources.json</code> and
+<code>/protocol/harness.json</code>. KLayout performs physical checks, Magic extracts the
+candidate, and ngspice measures it. Use <code>process-feedback</code> if exposed.
+Write <code>/workspace/output/final.gds</code>, then explicitly submit using
+<code>python -I /protocol/submit.py</code>.</p>
+5:T1215,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition</th>
+<th>Unit</th>
+<th>Dimension</th>
+<th>Normalization</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>delay_s</code></td>
+<td>Clock 1.65 V crossing to signed output difference 1.65 V, fifth rising edge</td>
+<td>s</td>
+<td>response</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>slew_s</code></td>
+<td>Signed differential output rise from 0.33 to 2.97 V, fifth decision</td>
+<td>s</td>
+<td>response</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>Mean supply power over 20–100 ns</td>
+<td>W</td>
+<td>supply</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>decision_v</code></td>
+<td>Input-polarity-adjusted output difference at 99 ns</td>
+<td>V</td>
+<td>bias</td>
+<td>target</td>
+</tr>
+<tr>
+<td><code>reset_p_v</code></td>
+<td>Positive output at 89 ns in precharge</td>
+<td>V</td>
+<td>functional</td>
+<td>unscored</td>
+</tr>
+<tr>
+<td><code>reset_n_v</code></td>
+<td>Negative output at 89 ns in precharge</td>
+<td>V</td>
+<td>functional</td>
+<td>unscored</td>
+</tr>
+</tbody>
+</table>
+<p>Signed decision must be 1.65–3.3 V; both reset outputs must be 0–1.65 V. Half-supply separates the required resolved/reset logic states, independent of any upstream speed target. Delay, slew and mean supply power must be nonnegative. Timing has no hard upper bound beyond the declared observation window; a missing crossing is an invalid measurement.
+Every condition must complete; missing, nonfinite or wrong-unit observations
+produce an evaluation error. Upstream advertised performance is not a
+qualification requirement.</p>
+<p>Scored observations pair with independent source jobs using the identical
+stimuli, parameters, models and backend. Target scales are 3.3 V; ratio floors
+use 1 pW for power. These are normalization units, not allowed degradation.
+Delay/slew ratios have no floor.</p>
+<p>Area anchor <strong>490.86 um2</strong> uses a 234.840000 um2 sum of expanded
+<code>(W+2)*(L+2)</code> device/contact envelopes, a 50% routing allowance and 2 um outer
+margin: <code>ceil(100*(1.5*sum+8*sqrt(sum)+16))/100</code>. It is independent of witness
+area and is an engineering estimate, not a foundry minimum. Coefficient <strong>6</strong>
+is independent of this score.</p>
+<h3>Score weights</h3>
+<p>Clocked comparators: decision delay 61.4%; output transition 8.18%; decision amplitude 4.09%; supply power 16.4%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>delay_s</code></td>
+<td style="text-align:right">0.613636363637</td>
+</tr>
+<tr>
+<td><code>slew_s</code></td>
+<td style="text-align:right">0.081818181818</td>
+</tr>
+<tr>
+<td><code>decision_v</code></td>
+<td style="text-align:right">0.040909090909</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.163636363636</td>
+</tr>
+</tbody>
+</table>
+6:T600,<p>GDS database unit 0.001 um, maximum 10 MiB, top cell <code>cmp_002_strongarm</code>.
+Native standalone DRC covers geometry, connectivity, manufacturing grid, dummy
+fill and antenna; chip-level density and seal-ring closure are excluded.
+LVS must match all devices, parameters and named ports. Metal1 labels identify
+ports. The functional bounding rectangle includes the device, well, implant,
+contact, passive and complete routing layers enumerated in the runtime outline;
+text annotations are excluded. Maximum outline is 5000 by 1000 um.</p>
+<p>Keep the 3.3 V models, 0.28 um channel length, fixed widths and multiplicities. Parallel equivalent fingers are permitted. All MOS dimensions lie on the native 5 nm construction grid. Body/well connections are explicit, with native guard-ring/tap geometry. The IHP binding has the same topology but different process sizing; it is not mixed into this GF180 task.</p>
+<p>Candidate-derived native Magic coupling capacitance and distributed wire
+resistance feed post-layout simulation, with zero omission thresholds.
+Physical MOS diffusion areas/perimeters come from the layout. Substrate/well
+connections are ideal: distributed substrate resistance/noise and inductance
+are not represented. Four nominal input-polarity/common-mode combinations, reset, decision delay/slew and average supply power. Coefficient 6 reflects regenerative decisions with clocked reset and buffered loads. Offset distribution, metastability statistics, noise, PVT and RF/EM are outside this declared scope.</p>
+a:X
+f:X
+f:C
+0:{"buildId":"U2oZdoUjWqT_XfcDHuQ5i","data":[{"rsc":["$","$1","c",{"children":[["$","$2",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L3",null,{"task":{"case_path":"tasks/gf180mcuD/analog-db/cases/cmp_002_strongarm/case.toml","coefficient":6,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/2a2e079b46db026858622975af955aefaf7f3e134282079fc257261a30befb62.txt","description_html":"$4","description_path":"tasks/gf180mcuD/analog-db/cases/cmp_002_strongarm/problem.md","hours":3,"id":"gf180mcuD.analog-db.cmp_002_strongarm","inputs":{"description":{"format":"text","path":"problem.md","sha256":"e4c8454024559ffda301e247bbb161307754235742e6b3d6e85f2cbd2f4659c9"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"5b80e3a40ab19415481d51b8e6b4e4bcf45c4517ccc5071aa1b342038c94e14c","subcircuit":"cmp_002_strongarm"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"f23c6b7204b8c87a271e46c6515e8ade911c422c25da0ff6afd3b4680c5c8740"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"}},"licenses":[{"name":"LICENSE","path":"tasks/gf180mcuD/analog-db/LICENSE","url":"/ICLayout-Bench/assets/d6c09a4fa902f192f05e697110788e520f294a97446ababab65986137c16fceb.txt"},{"name":"NOTICE","path":"tasks/gf180mcuD/analog-db/NOTICE","url":"/ICLayout-Bench/assets/75d61165620fd72b89f65e52c2b6c85b73d410bd293062873390bd20ab820a41.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/e4c8454024559ffda301e247bbb161307754235742e6b3d6e85f2cbd2f4659c9.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/5b80e3a40ab19415481d51b8e6b4e4bcf45c4517ccc5071aa1b342038c94e14c.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/f23c6b7204b8c87a271e46c6515e8ade911c422c25da0ff6afd3b4680c5c8740.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"max","baseline":["source_condition_0:delay_s","source_condition_1:delay_s","source_condition_2:delay_s","source_condition_3:delay_s"],"category":"performance","dimension":"response","direction":"minimize","id":"delay_s","lower":0,"normalization":"ratio","observations":["condition_0:delay_s","condition_1:delay_s","condition_2:delay_s","condition_3:delay_s"],"unit":"s"},{"aggregation":"max","baseline":["source_condition_0:slew_s","source_condition_1:slew_s","source_condition_2:slew_s","source_condition_3:slew_s"],"category":"performance","dimension":"response","direction":"minimize","id":"slew_s","lower":0,"normalization":"ratio","observations":["condition_0:slew_s","condition_1:slew_s","condition_2:slew_s","condition_3:slew_s"],"unit":"s"},{"aggregation":"max","baseline":["source_condition_0:power_w","source_condition_1:power_w","source_condition_2:power_w","source_condition_3:power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"power_w","lower":0,"normalization":"ratio","observations":["condition_0:power_w","condition_1:power_w","condition_2:power_w","condition_3:power_w"],"scale":1e-12,"unit":"W"},{"aggregation":"max","baseline":["source_condition_0:decision_v","source_condition_1:decision_v","source_condition_2:decision_v","source_condition_3:decision_v"],"category":"performance","dimension":"bias","direction":"target","id":"decision_v","lower":1.65,"normalization":"target","observations":["condition_0:decision_v","condition_1:decision_v","condition_2:decision_v","condition_3:decision_v"],"scale":3.3,"unit":"V","upper":3.3},{"aggregation":"min","category":"performance","direction":"maximize","id":"reset_p_v","lower":0,"observations":["condition_0:reset_p_v","condition_1:reset_p_v","condition_2:reset_p_v","condition_3:reset_p_v"],"unit":"V","upper":1.65},{"aggregation":"min","category":"performance","direction":"maximize","id":"reset_n_v","lower":0,"observations":["condition_0:reset_n_v","condition_1:reset_n_v","condition_2:reset_n_v","condition_3:reset_n_v"],"unit":"V","upper":1.65}],"pdk":"gf180mcuD","reader":{"category":"Mixed-signal","summary":"Makes clocked differential decisions with a StrongARM regenerative latch.","title":"StrongARM Dynamic Comparator"},"schematic_url":"/ICLayout-Bench/assets/b3bf262cffb4d9a97c8fd2fbe456c42914c80486ea067028f1ec36ccff2e80f8.svg","scoring":{"area_metric":"functional_area","area_target":490.86,"method":"layout","rationale":"Clocked comparators: decision delay 61.4%; output transition 8.18%; decision amplitude 4.09%; supply power 16.4%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"decision_v":0.040909090909,"delay_s":0.613636363637,"functional_area":0.1,"power_w":0.163636363636,"slew_s":0.081818181818}},"sections":{"Electrical Requirements and Scoring":"$5","Objective":"<p>Implement <code>cmp_002_strongarm</code> as a GF180MCU D layout. Fifteen upstream MOS instances implement the clocked StrongARM latch: differential input pair, clocked tail, cross-coupled regenerative devices, four precharge devices and two output inverters. The input pair multiplicities expand the physical circuit to seventeen devices. The maintained GF180 3.3 V binding uses the fixed sizing defaults and authored ties from the pinned accession.</p>\n","Operating Conditions":"<p>Typical GF180 3.3 V MOS models at 3.3 V supply and 27 C, statistics disabled. Differential input is +20 or -20 mV at common modes 1.2 and 1.65 V, all four combinations. Each output has a 50 fF load. The 50 MHz clock first rises at 10 ns, uses 100 ps edges and 10 ns pulse width. Simulate to 100 ns at 10 ps requested steps; timing uses the fifth evaluation edge near 90 ns.</p>\n","Physical Requirements":"$6"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/cmp_002_strongarm","status":"qualified","title":"StrongARM Dynamic Comparator"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}],["$L7"],"$L8"]}],"isPartial":"$@9","staleTime":"$a","varyParams":null},{"rsc":"$Lb","isPartial":"$@c","staleTime":"$a","varyParams":null},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$a","varyParams":"$f"},{"rsc":"$L10","isPartial":"$@11","staleTime":"$a","varyParams":null}],"isUpgradeableISRFallback":false,"a":"$@12","rootVaryParams":null,"needsRuntimeRequest":"$@13"}
+14:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+16:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+17:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+18:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+19:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1a:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1b:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+1c:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+7:["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true}]
+8:["$","$L14",null,{"children":["$","$2",null,{"name":"Next.MetadataOutlet","children":"$@15"}]}]
+b:["$","$1","h",{"children":[null,["$","$L16",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L17",null,{"children":["$","$2",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L18","3",{}]]}]}]}],null]}]
+d:["$","$1","c",{"children":[null,["$","$L19",null,{"parallelRouterKey":"children","template":["$","$L1a",null,{}]}]]}]
+10:["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L1b",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L1c",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L19",null,{"parallelRouterKey":"children","template":["$","$L1a",null,{}],"notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L1b",null,{"href":"/","children":"Return to overview"}]]}],[]]}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L1b",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}]
+15:null
+13:true
+a:300
+a:C
+12:0
+c:"$undefined"
+e:"$undefined"
+11:"$undefined"
+9:"$undefined"

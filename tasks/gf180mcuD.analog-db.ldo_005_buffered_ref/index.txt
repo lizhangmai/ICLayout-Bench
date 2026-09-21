@@ -1,0 +1,358 @@
+1:"$Sreact.fragment"
+2:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+3:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+4:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+5:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+7:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+8:"$Sreact.suspense"
+b:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+d:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+f:I[68027,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default",1]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+a:X
+0:{"P":null,"c":["","tasks","gf180mcuD.analog-db.ldo_005_buffered_ref",""],"q":"","i":false,"f":[[["",{"children":[["path","tasks/gf180mcuD.analog-db.ldo_005_buffered_ref","oc",[]],{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L2",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L3",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L2",null,{"href":"/","children":"Return to overview"}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L2",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}],{"children":[["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":[["$","$1","c",{"children":["$L6",[["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true,"nonce":"$undefined"}]],["$","$L7",null,{"children":["$","$8",null,{"name":"Next.MetadataOutlet","children":"$@9"}]}]]}],{},null,false,null]},null,false,"$a"]},null,false,null],["$","$1","h",{"children":[null,["$","$Lb",null,{"children":"$Lc"}],["$","div",null,{"hidden":true,"children":["$","$Ld",null,{"children":["$","$8",null,{"name":"Next.Metadata","children":"$Le"}]}]}],null]}],false]],"m":"$undefined","G":["$f",[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"U2oZdoUjWqT_XfcDHuQ5i"}
+10:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+a:C
+11:T2476,<h1 id="problem-buffered-reference-ldo-layout-task">Buffered-Reference LDO Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Implement <code>ldo_005_buffered_ref</code> as a GF180MCU D layout. The fixed upstream GF180 6 V circuit combines its self-biased reference amplifier, gain-two reference divider, RC low-pass filter, self-biased error amplifier, PMOS pass device, bleeder and on-die output capacitor. The two inlined amplifiers retain this LDO accession's own dimensions and compensation values; they are not replaced by the standalone amplifier cases.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p><code>materials/circuit.cdl</code> is the physical authority; <code>materials/circuit.spice</code>
+contains matching native simulator wrappers. <code>materials/testbench.spice</code> defines
+all measurements. Ordered ports: <code>vdd vout vss vref</code>.</p>
+<p><code>vdd/vss</code>: supply and return; <code>vout</code>: regulated output; <code>vref</code>: external 0.8 V reference. The upstream ideal VREF becomes test apparatus at this explicit port. Its zero-volt VLP loop marker becomes a wire to the output; no physical functional element is removed. The reference divider, RC filter, bleeder and four internal capacitors remain inside the DUT. External load and output capacitor remain test apparatus.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>Typical native models at 27 C, statistics disabled. All four combinations of 3.0/3.3 V supply and 50/200 uA DC load are evaluated, with a 0.8 V external reference and 1 uF external output load. AC supply injection spans 1 Hz–1 MHz, 80 points/decade. The load doubles at 100 us and returns after 100 us, with 1 us edges; transient evaluation ends at 500 us with 0.1 us requested steps. This is steady-state load-step characterization, not cold-start or dropout qualification.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>GDS database unit 0.001 um, maximum 10 MiB, top cell <code>ldo_005_buffered_ref</code>.
+Native standalone DRC covers geometry, connectivity, manufacturing grid, dummy
+fill and antenna; chip-level density and seal-ring closure are excluded.
+LVS must match all devices, parameters and named ports. Metal1 labels identify
+ports. The functional bounding rectangle includes the device, well, implant,
+contact, passive and complete routing layers enumerated in the runtime outline;
+text annotations are excluded. Maximum outline is 5000 by 1000 um.</p>
+<p>6 V MOS minimum channel lengths are 0.70 um NMOS and 0.55 um PMOS. Only subminimum lengths are raised, and dimensions are quantized to 5 nm. Passives use 1 kohm/square poly, with series segmentation, and 2 fF/um2 MIM-B on M4/M5, with parallel tiling. Source and extracted candidates use the same native layer-specific capacitor models. Geometry, parasitic effects and physical values are authoritative; no ideal R/C replacements are made during post-layout simulation.</p>
+<p>Candidate-derived native Magic coupling capacitance and distributed wire
+resistance feed post-layout simulation, with zero omission thresholds.
+Physical MOS diffusion areas/perimeters come from the layout. Substrate/well
+connections are ideal: distributed substrate resistance/noise and inductance
+are not represented. Nominal DC regulation, 1 kHz supply rejection and load-step excursion/recovery across four supply/load points. Coefficient 7 reflects interacting regulation stages and recovery across loads. Noise, loop return-ratio, cold start, dropout, PVT and statistical yield are outside this declared scope.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition</th>
+<th>Unit</th>
+<th>Dimension</th>
+<th>Normalization</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>DC regulated output</td>
+<td>V</td>
+<td>bias</td>
+<td>target</td>
+</tr>
+<tr>
+<td><code>regulation_error_v</code></td>
+<td>Absolute DC error relative to 1.6 V</td>
+<td>V</td>
+<td>response</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>psrr_db</code></td>
+<td>Negative 20 log10 magnitude of supply-to-output response at 1 kHz</td>
+<td>dB</td>
+<td>response</td>
+<td>db20</td>
+</tr>
+<tr>
+<td><code>excursion_v</code></td>
+<td>Output maximum minus minimum over 90–500 us</td>
+<td>V</td>
+<td>response</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>recovery_v</code></td>
+<td>Mean output over 400–500 us after the load returns</td>
+<td>V</td>
+<td>bias</td>
+<td>target</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>DC supply power -VDD*I(VDD)</td>
+<td>W</td>
+<td>supply</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>minimum_v</code></td>
+<td>Minimum transient output over 90–500 us</td>
+<td>V</td>
+<td>functional</td>
+<td>unscored</td>
+</tr>
+<tr>
+<td><code>maximum_v</code></td>
+<td>Maximum transient output over 90–500 us</td>
+<td>V</td>
+<td>functional</td>
+<td>unscored</td>
+</tr>
+</tbody>
+</table>
+<p>Output and recovered output must be in 0–3.3 V; the transient minimum must be nonnegative and the maximum at most 3.3 V. Supply power and absolute/range errors must be nonnegative. These are supply-domain and physical measurement constraints. Accuracy, rejection and recovery differences enter continuous scoring; no upstream regulation target is a hard gate.
+Every condition must complete; missing, nonfinite or wrong-unit observations
+produce an evaluation error. Upstream advertised performance is not a
+qualification requirement.</p>
+<p>Scored observations pair with independent source jobs using the identical
+stimuli, parameters, models and backend. Target scales are 3.3 V; ratio floors
+are 1 pW for power and 1 mV for error/excursion. These are normalization units,
+not allowed degradation. <code>db20</code> compares
+amplitude ratios.</p>
+<p>Area anchor <strong>29565.16 um2</strong> uses a 18964.964200 um2 sum of expanded
+<code>(W+2)*(L+2)</code> device/contact envelopes, a 50% routing allowance and 2 um outer
+margin: <code>ceil(100*(1.5*sum+8*sqrt(sum)+16))/100</code>. It is independent of witness
+area and is an engineering estimate, not a foundry minimum. Coefficient <strong>7</strong>
+is independent of this score.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>GF180 compact regulator variants: regulation and recovery 52.9%; rejection and peaking 26.5%; power 10.6%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>excursion_v</code></td>
+<td style="text-align:right">0.132352941176</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.132352941176</td>
+</tr>
+<tr>
+<td><code>recovery_v</code></td>
+<td style="text-align:right">0.132352941176</td>
+</tr>
+<tr>
+<td><code>regulation_error_v</code></td>
+<td style="text-align:right">0.132352941176</td>
+</tr>
+<tr>
+<td><code>psrr_db</code></td>
+<td style="text-align:right">0.264705882355</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.105882352941</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Read <code>/protocol/task.json</code>, <code>/protocol/resources.json</code> and
+<code>/protocol/harness.json</code>. KLayout performs physical checks, Magic extracts the
+candidate, and ngspice measures it. Use <code>process-feedback</code> if exposed.
+Write <code>/workspace/output/final.gds</code>, then explicitly submit using
+<code>python -I /protocol/submit.py</code>.</p>
+12:T13ec,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition</th>
+<th>Unit</th>
+<th>Dimension</th>
+<th>Normalization</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>DC regulated output</td>
+<td>V</td>
+<td>bias</td>
+<td>target</td>
+</tr>
+<tr>
+<td><code>regulation_error_v</code></td>
+<td>Absolute DC error relative to 1.6 V</td>
+<td>V</td>
+<td>response</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>psrr_db</code></td>
+<td>Negative 20 log10 magnitude of supply-to-output response at 1 kHz</td>
+<td>dB</td>
+<td>response</td>
+<td>db20</td>
+</tr>
+<tr>
+<td><code>excursion_v</code></td>
+<td>Output maximum minus minimum over 90–500 us</td>
+<td>V</td>
+<td>response</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>recovery_v</code></td>
+<td>Mean output over 400–500 us after the load returns</td>
+<td>V</td>
+<td>bias</td>
+<td>target</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>DC supply power -VDD*I(VDD)</td>
+<td>W</td>
+<td>supply</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>minimum_v</code></td>
+<td>Minimum transient output over 90–500 us</td>
+<td>V</td>
+<td>functional</td>
+<td>unscored</td>
+</tr>
+<tr>
+<td><code>maximum_v</code></td>
+<td>Maximum transient output over 90–500 us</td>
+<td>V</td>
+<td>functional</td>
+<td>unscored</td>
+</tr>
+</tbody>
+</table>
+<p>Output and recovered output must be in 0–3.3 V; the transient minimum must be nonnegative and the maximum at most 3.3 V. Supply power and absolute/range errors must be nonnegative. These are supply-domain and physical measurement constraints. Accuracy, rejection and recovery differences enter continuous scoring; no upstream regulation target is a hard gate.
+Every condition must complete; missing, nonfinite or wrong-unit observations
+produce an evaluation error. Upstream advertised performance is not a
+qualification requirement.</p>
+<p>Scored observations pair with independent source jobs using the identical
+stimuli, parameters, models and backend. Target scales are 3.3 V; ratio floors
+are 1 pW for power and 1 mV for error/excursion. These are normalization units,
+not allowed degradation. <code>db20</code> compares
+amplitude ratios.</p>
+<p>Area anchor <strong>29565.16 um2</strong> uses a 18964.964200 um2 sum of expanded
+<code>(W+2)*(L+2)</code> device/contact envelopes, a 50% routing allowance and 2 um outer
+margin: <code>ceil(100*(1.5*sum+8*sqrt(sum)+16))/100</code>. It is independent of witness
+area and is an engineering estimate, not a foundry minimum. Coefficient <strong>7</strong>
+is independent of this score.</p>
+<h3>Score weights</h3>
+<p>GF180 compact regulator variants: regulation and recovery 52.9%; rejection and peaking 26.5%; power 10.6%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>excursion_v</code></td>
+<td style="text-align:right">0.132352941176</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.132352941176</td>
+</tr>
+<tr>
+<td><code>recovery_v</code></td>
+<td style="text-align:right">0.132352941176</td>
+</tr>
+<tr>
+<td><code>regulation_error_v</code></td>
+<td style="text-align:right">0.132352941176</td>
+</tr>
+<tr>
+<td><code>psrr_db</code></td>
+<td style="text-align:right">0.264705882355</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.105882352941</td>
+</tr>
+</tbody>
+</table>
+13:T671,<p>GDS database unit 0.001 um, maximum 10 MiB, top cell <code>ldo_005_buffered_ref</code>.
+Native standalone DRC covers geometry, connectivity, manufacturing grid, dummy
+fill and antenna; chip-level density and seal-ring closure are excluded.
+LVS must match all devices, parameters and named ports. Metal1 labels identify
+ports. The functional bounding rectangle includes the device, well, implant,
+contact, passive and complete routing layers enumerated in the runtime outline;
+text annotations are excluded. Maximum outline is 5000 by 1000 um.</p>
+<p>6 V MOS minimum channel lengths are 0.70 um NMOS and 0.55 um PMOS. Only subminimum lengths are raised, and dimensions are quantized to 5 nm. Passives use 1 kohm/square poly, with series segmentation, and 2 fF/um2 MIM-B on M4/M5, with parallel tiling. Source and extracted candidates use the same native layer-specific capacitor models. Geometry, parasitic effects and physical values are authoritative; no ideal R/C replacements are made during post-layout simulation.</p>
+<p>Candidate-derived native Magic coupling capacitance and distributed wire
+resistance feed post-layout simulation, with zero omission thresholds.
+Physical MOS diffusion areas/perimeters come from the layout. Substrate/well
+connections are ideal: distributed substrate resistance/noise and inductance
+are not represented. Nominal DC regulation, 1 kHz supply rejection and load-step excursion/recovery across four supply/load points. Coefficient 7 reflects interacting regulation stages and recovery across loads. Noise, loop return-ratio, cold start, dropout, PVT and statistical yield are outside this declared scope.</p>
+6:["$","$8",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L10",null,{"task":{"case_path":"tasks/gf180mcuD/analog-db/cases/ldo_005_buffered_ref/case.toml","coefficient":7,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/72472f50517883b49724573e7b61dd3b7f3272f0b9a9e2d0b24b46bccc29f8f4.txt","description_html":"$11","description_path":"tasks/gf180mcuD/analog-db/cases/ldo_005_buffered_ref/problem.md","hours":3,"id":"gf180mcuD.analog-db.ldo_005_buffered_ref","inputs":{"description":{"format":"text","path":"problem.md","sha256":"b789079a149475261e1d683ef982c81da2cd2c057f5b5e5a71a925a8b8820993"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"1e1c14a91036bf5d0069bcc2a22f99e65c5f6a0a963377cc1e0ff2120293c9ff","subcircuit":"ldo_005_buffered_ref"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"0c944b34efb418c5260805fb1f92d267dfc8eadb4ed5b19225989ea25aa9ed80"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"6c6e1a98fcbc973243d976044bf8537eca4610acf7525954c480789629ed5b5f"}},"licenses":[{"name":"LICENSE","path":"tasks/gf180mcuD/analog-db/LICENSE","url":"/ICLayout-Bench/assets/d6c09a4fa902f192f05e697110788e520f294a97446ababab65986137c16fceb.txt"},{"name":"NOTICE","path":"tasks/gf180mcuD/analog-db/NOTICE","url":"/ICLayout-Bench/assets/75d61165620fd72b89f65e52c2b6c85b73d410bd293062873390bd20ab820a41.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/b789079a149475261e1d683ef982c81da2cd2c057f5b5e5a71a925a8b8820993.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/1e1c14a91036bf5d0069bcc2a22f99e65c5f6a0a963377cc1e0ff2120293c9ff.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/6c6e1a98fcbc973243d976044bf8537eca4610acf7525954c480789629ed5b5f.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/0c944b34efb418c5260805fb1f92d267dfc8eadb4ed5b19225989ea25aa9ed80.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"max","baseline":["source_condition_0:output_v","source_condition_1:output_v","source_condition_2:output_v","source_condition_3:output_v"],"category":"performance","dimension":"bias","direction":"target","id":"output_v","lower":0,"normalization":"target","observations":["condition_0:output_v","condition_1:output_v","condition_2:output_v","condition_3:output_v"],"scale":3.3,"unit":"V","upper":3.3},{"aggregation":"max","baseline":["source_condition_0:regulation_error_v","source_condition_1:regulation_error_v","source_condition_2:regulation_error_v","source_condition_3:regulation_error_v"],"category":"performance","dimension":"response","direction":"minimize","id":"regulation_error_v","lower":0,"normalization":"ratio","observations":["condition_0:regulation_error_v","condition_1:regulation_error_v","condition_2:regulation_error_v","condition_3:regulation_error_v"],"scale":0.001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:psrr_db","source_condition_1:psrr_db","source_condition_2:psrr_db","source_condition_3:psrr_db"],"category":"performance","dimension":"response","direction":"maximize","id":"psrr_db","normalization":"db20","observations":["condition_0:psrr_db","condition_1:psrr_db","condition_2:psrr_db","condition_3:psrr_db"],"unit":"dB"},{"aggregation":"max","baseline":["source_condition_0:excursion_v","source_condition_1:excursion_v","source_condition_2:excursion_v","source_condition_3:excursion_v"],"category":"performance","dimension":"response","direction":"minimize","id":"excursion_v","lower":0,"normalization":"ratio","observations":["condition_0:excursion_v","condition_1:excursion_v","condition_2:excursion_v","condition_3:excursion_v"],"scale":0.001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:recovery_v","source_condition_1:recovery_v","source_condition_2:recovery_v","source_condition_3:recovery_v"],"category":"performance","dimension":"bias","direction":"target","id":"recovery_v","lower":0,"normalization":"target","observations":["condition_0:recovery_v","condition_1:recovery_v","condition_2:recovery_v","condition_3:recovery_v"],"scale":3.3,"unit":"V","upper":3.3},{"aggregation":"max","baseline":["source_condition_0:power_w","source_condition_1:power_w","source_condition_2:power_w","source_condition_3:power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"power_w","lower":0,"normalization":"ratio","observations":["condition_0:power_w","condition_1:power_w","condition_2:power_w","condition_3:power_w"],"scale":1e-12,"unit":"W"},{"aggregation":"min","category":"performance","direction":"maximize","id":"minimum_v","lower":0,"observations":["condition_0:minimum_v","condition_1:minimum_v","condition_2:minimum_v","condition_3:minimum_v"],"unit":"V"},{"aggregation":"min","category":"performance","direction":"maximize","id":"maximum_v","observations":["condition_0:maximum_v","condition_1:maximum_v","condition_2:maximum_v","condition_3:maximum_v"],"unit":"V","upper":3.3}],"pdk":"gf180mcuD","reader":{"category":"Power & references","summary":"Regulates a loaded output through the declared feedback loop, with layout-dependent recovery and power.","title":"Buffered-Reference LDO"},"schematic_url":"/ICLayout-Bench/assets/294c4e32cdf9ecd039f2406284a176238d4a0388e8349f98d055318cb49b98fc.svg","scoring":{"area_metric":"functional_area","area_target":29565.16,"method":"layout","rationale":"GF180 compact regulator variants: regulation and recovery 52.9%; rejection and peaking 26.5%; power 10.6%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"excursion_v":0.132352941176,"functional_area":0.1,"output_v":0.132352941176,"power_w":0.105882352941,"psrr_db":0.264705882355,"recovery_v":0.132352941176,"regulation_error_v":0.132352941176}},"sections":{"Electrical Requirements and Scoring":"$12","Objective":"<p>Implement <code>ldo_005_buffered_ref</code> as a GF180MCU D layout. The fixed upstream GF180 6 V circuit combines its self-biased reference amplifier, gain-two reference divider, RC low-pass filter, self-biased error amplifier, PMOS pass device, bleeder and on-die output capacitor. The two inlined amplifiers retain this LDO accession's own dimensions and compensation values; they are not replaced by the standalone amplifier cases.</p>\n","Operating Conditions":"<p>Typical native models at 27 C, statistics disabled. All four combinations of 3.0/3.3 V supply and 50/200 uA DC load are evaluated, with a 0.8 V external reference and 1 uF external output load. AC supply injection spans 1 Hz–1 MHz, 80 points/decade. The load doubles at 100 us and returns after 100 us, with 1 us edges; transient evaluation ends at 500 us with 0.1 us requested steps. This is steady-state load-step characterization, not cold-start or dropout qualification.</p>\n","Physical Requirements":"$13"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/ldo_005_buffered_ref","status":"qualified","title":"Buffered-Reference LDO"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}]
+c:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+14:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+9:null
+e:[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L14","3",{}]]

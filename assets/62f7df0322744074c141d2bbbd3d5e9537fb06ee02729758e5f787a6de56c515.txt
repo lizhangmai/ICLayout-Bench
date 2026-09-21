@@ -1,0 +1,16 @@
+** sch_path: /workspace/FDM_QNC_00_LN_TIA.sch
+.subckt FDM_QNC_00_LN_TIA RFin RFout VSS vcc1 vcc2 vcc3
+*.PININFO RFin:B RFout:B VSS:B vcc1:B vcc2:B vcc3:B
+XQ1 net1 RFin VSS SUBSTRATE npn13G2 Nx=5 mm_ok=0
+XRC1 vcc1 net1 SUBSTRATE rppd w=8u l=4.5u m=1 b=0 mm_ok=0
+XQ2 vcc2 net1 net2 SUBSTRATE npn13G2 Nx=10 mm_ok=0
+XQ3 RFout net2 net3 SUBSTRATE npn13G2 Nx=10 mm_ok=0
+XRF RFin net2 SUBSTRATE rppd w=2u l=6.5u m=1 b=0 mm_ok=0
+XRE2 net2 VSS SUBSTRATE rppd w=3u l=6u m=1 b=0 mm_ok=0
+XRE3 net3 VSS SUBSTRATE rsil w=4u l=3u m=1 mm_ok=0
+XRC3 vcc3 RFout SUBSTRATE rsil w=4u l=14.5u m=1 mm_ok=0
+XSUBTAP VSS SUBSTRATE ptap1 R=21.7391304348
+XC1 vcc1 VSS cap_cmim w=30u l=60u m=2 mm_ok=0
+XC2 vcc2 VSS cap_cmim w=30u l=60u m=2 mm_ok=0
+XC3 vcc3 VSS cap_cmim w=30u l=60u m=2 mm_ok=0
+.ends

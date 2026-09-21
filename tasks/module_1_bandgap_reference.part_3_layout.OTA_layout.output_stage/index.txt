@@ -1,0 +1,493 @@
+1:"$Sreact.fragment"
+2:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+3:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+4:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+5:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+7:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+8:"$Sreact.suspense"
+b:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+d:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+f:I[68027,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default",1]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+a:X
+0:{"P":null,"c":["","tasks","module_1_bandgap_reference.part_3_layout.OTA_layout.output_stage",""],"q":"","i":false,"f":[[["",{"children":[["path","tasks/module_1_bandgap_reference.part_3_layout.OTA_layout.output_stage","oc",[]],{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L2",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L3",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L2",null,{"href":"/","children":"Return to overview"}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L2",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}],{"children":[["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":[["$","$1","c",{"children":["$L6",[["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true,"nonce":"$undefined"}]],["$","$L7",null,{"children":["$","$8",null,{"name":"Next.MetadataOutlet","children":"$@9"}]}]]}],{},null,false,null]},null,false,"$a"]},null,false,null],["$","$1","h",{"children":[null,["$","$Lb",null,{"children":"$Lc"}],["$","div",null,{"hidden":true,"children":["$","$Ld",null,{"children":["$","$8",null,{"name":"Next.Metadata","children":"$Le"}]}]}],null]}],false]],"m":"$undefined","G":["$f",[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"U2oZdoUjWqT_XfcDHuQ5i"}
+10:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+a:C
+11:T2ffe,<h1 id="problem-cmos-ota-output-stage-layout-task">CMOS OTA Output Stage Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Create an IHP SG13G2 layout for the <code>output_stage</code> output stage of a two-stage
+CMOS operational transconductance amplifier. Preserve the device topology,
+dimensions, compensation capacitor, explicit well and substrate connections,
+and five-port interface in the authoritative materials. The submitted GDS must
+pass the physical checks, fit the functional outline, and meet the nominal
+output-response limits after candidate-derived RC extraction.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p>In addition to this problem, the solver receives the following declared
+materials. The structured constraints
+and evaluation plan are also available at runtime through <code>/protocol/task.json</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="/ICLayout-Bench/assets/81620ebba529edccd1beddbcb1349c0e3e7ee58b9e3749d8235433610bd98ad5.txt">materials/circuit.cdl</a></td>
+<td>Authoritative LVS netlist for <code>output_stage</code></td>
+</tr>
+<tr>
+<td><a href="/ICLayout-Bench/assets/d5c4009de00efbc07ad6c612fb371ef8cd7a837a49bec1a27f1d1729a2d8440d.txt">materials/circuit.spice</a></td>
+<td>Pre-layout simulator netlist</td>
+</tr>
+<tr>
+<td><a href="/ICLayout-Bench/assets/b857814e44bf0b95d14cd69944cbbdbc5da3b756290f76d824b26b7f73990678.txt">materials/testbench.spice</a></td>
+<td>Bias, load, AC sweep, and public measurement expressions</td>
+</tr>
+</tbody>
+</table>
+<p>Use one external label on each distinct conductor. Internal nodes must not be
+declared as external ports.</p>
+<table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Function</th>
+<th>Nominal connection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vdd</code></td>
+<td>PMOS supply and n-well reference</td>
+<td>1.2 V supply</td>
+</tr>
+<tr>
+<td><code>iout</code></td>
+<td>Bias replica/control node</td>
+<td>20 µA current sink to ground</td>
+</tr>
+<tr>
+<td><code>vout</code></td>
+<td>Single-ended output</td>
+<td>100 kΩ and 500 fF loads to ground</td>
+</tr>
+<tr>
+<td><code>vss</code></td>
+<td>NMOS supply and substrate reference</td>
+<td>Ground</td>
+</tr>
+<tr>
+<td><code>dn4</code></td>
+<td>NMOS gate and compensation-capacitor node</td>
+<td>0.33 V DC with 1 V AC</td>
+</tr>
+</tbody>
+</table>
+<p>The extraction port order is <code>vdd iout vout vss dn4</code>.</p>
+<p>The circuit contains the PMOS output current source <code>MM5</code>, diode-connected bias
+replica <code>MM9</code>, long-channel NMOS pull-down <code>MM6</code>, MIM compensation capacitor
+<code>CC2</code>, and explicit tap devices <code>RR4</code> and <code>RR5</code>.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>The pre-layout and candidate-derived simulations use the supplied deck and the
+same nominal model and parameter values.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Process corner</td>
+<td><code>mos_tt</code>, <code>cap_typ</code>, <code>res_typ</code></td>
+</tr>
+<tr>
+<td>Temperature</td>
+<td>27 °C</td>
+</tr>
+<tr>
+<td>Supply</td>
+<td><code>VDD = 1.2 V</code>, <code>VSS = 0 V</code></td>
+</tr>
+<tr>
+<td>Bias</td>
+<td>20 µA current sink at <code>iout</code></td>
+</tr>
+<tr>
+<td>Input stimulus</td>
+<td><code>dn4 = 0.33 V</code> DC with 1 V AC small signal</td>
+</tr>
+<tr>
+<td>Output load</td>
+<td>100 kΩ resistor and 500 fF capacitor to ground</td>
+</tr>
+<tr>
+<td>AC sweep</td>
+<td>40 points/decade from 1 Hz through 1 GHz</td>
+</tr>
+<tr>
+<td>Numerical conditioning</td>
+<td><code>rshunt = 1e12</code>: 1 TΩ from every analog node to ground, identical pre-layout and post-layout</td>
+</tr>
+</tbody>
+</table>
+<p>Supply power is <code>-V(vdd) × I(VDD)</code> at the DC operating point.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Submit a readable GDSII file with a nonempty <code>output_stage</code> top cell. The file
+must be at most 10 MiB (10,485,760 bytes) and must contain the complete
+hierarchy needed by the target cell.</p>
+<p>The evaluator runs the pinned SG13G2 main and additional maximal DRC rules in
+deep mode, with density and antenna checks disabled and no waivers. LVS uses the
+current <code>lvs-upstream.json</code> profile and strict named-port matching against
+<code>materials/circuit.cdl</code>; every declared port must stay on its own conductor
+with the declared connectivity and device parameters. Port names are matched
+case-insensitively.</p>
+<p>The functional outline is the recursive bounding box of polygons on these
+SG13G2 datatype-0 layers, including child cells and the complete routing stack:</p>
+<p><code>1, 3, 5, 6, 7, 8, 10, 11, 13, 14, 19, 24, 26, 28, 29, 30, 31, 32, 33, 35, 36, 40, 44, 46, 49, 50, 51, 52, 53, 55, 58, 66, 67, 90, 101, 111, 125, 126, 128, 129, 133, 134, 139, 152</code>.</p>
+<p>The maximum width is 55 µm and the maximum height is
+45 µm, measured along the submitted X and Y axes.
+Functional area is width multiplied by height. Text, annotation and filler
+layers are excluded. The area score below uses this same functional footprint.</p>
+<p>After the physical and geometry gates pass, Magic extracts distributed wire
+resistance and layout capacitance from the submitted GDS. Device merging and
+resistor-network simplification are disabled. The compact-device extraction
+boundary represents MOS bodies at ideal model rails; explicit taps remain in the
+physical LVS netlist but are not emitted as extracted tap elements. Substrate
+sheet and tap resistance as extracted quantities, body coupling, and noise are
+outside the declared scope. The finite source taps are used only in source calibration.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<p>Measurement definitions below use the supplied SPICE node/source names.
+<code>v(n)</code> is node voltage and <code>i(V)</code> is current into a voltage source; delivered
+power therefore uses a minus sign. <code>db(z)=20*log10(abs(z))</code>, <code>mag/abs</code>
+denote magnitude, and <code>cph</code> is continuous phase in radians. <code>find</code>, <code>when</code>,
+<code>from/to</code>, and <code>rise/fall</code> retain the deck's interpolation, window and
+crossing conventions; SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/
+milli/mega/giga. Nested <code>avg</code>, <code>min</code>, <code>max</code>, <code>vecmin/vecmax</code> and <code>deriv</code>
+mean the stated window average, extrema and sampled derivative. All
+declared conditions are measured separately and paired with the same
+source condition; a group uses its worst paired quality.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+<th>Dimension</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_gain</code></td>
+<td>AC: Value of <code>(abs((-v(vout)/v(dn4)))) at=1meg</code>.</td>
+<td>V/V</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>output_gain_high</code></td>
+<td>AC: Value of <code>(abs((-v(vout)/v(dn4)))) at=100meg</code>.</td>
+<td>V/V</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td>DC operating point: <code>v(vout)</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.2</td>
+<td>1.2</td>
+<td>bias</td>
+</tr>
+<tr>
+<td><code>supply_power</code></td>
+<td>DC operating point: <code>-v(vdd)*i(VDD)</code>.</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>supply</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>2292.35 um2</strong>. 6 expanded device instances; sum of device/contact envelopes 1466.0063 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>4</strong>; it is independent of
+the reference-relative task score.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Local gain stages: signal transfer 60.7%; operating points 6.07%; power 18.2%; area 15%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.15</td>
+</tr>
+<tr>
+<td><code>output_gain</code></td>
+<td style="text-align:right">0.303571428572</td>
+</tr>
+<tr>
+<td><code>output_gain_high</code></td>
+<td style="text-align:right">0.303571428571</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td style="text-align:right">0.060714285714</td>
+</tr>
+<tr>
+<td><code>supply_power</code></td>
+<td style="text-align:right">0.182142857143</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Runtime environment and support resources are declared in
+<code>/protocol/resources.json</code> and <code>/protocol/harness.json</code>; the working directory is
+<code>/workspace</code>. KLayout performs artifact, DRC, LVS, and geometry checks; Magic
+performs RC extraction; ngspice runs the supplied deck with the reviewed SG13G2
+models. The evaluator provides the tool and PDK resources named by the case
+toolchain.</p>
+<p>For pre-layout simulation, use <code>materials/circuit.spice</code> as <code>dut.spice</code> beside
+the supplied testbench. The evaluator generates <code>parameters.spice</code> from the
+per-job values in <code>/protocol/task.json</code> and supplies the model paths and settings
+through the runtime resource bundle. For the submitted layout, the evaluator
+supplies the candidate-derived extracted netlist. If the harness declares
+<code>process-feedback</code>, the optional command is
+<code>python -I /protocol/process_check.py</code>; the final evaluation remains independent.</p>
+<p>Write the result to <code>/workspace/output/final.gds</code>, then run
+<code>python -I /protocol/submit.py</code> and wait for the submission receipt. Solver
+netlists, waveforms, and measurements are not accepted as substitutes for the
+independent evaluator inputs.</p>
+12:T13bd,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<p>Measurement definitions below use the supplied SPICE node/source names.
+<code>v(n)</code> is node voltage and <code>i(V)</code> is current into a voltage source; delivered
+power therefore uses a minus sign. <code>db(z)=20*log10(abs(z))</code>, <code>mag/abs</code>
+denote magnitude, and <code>cph</code> is continuous phase in radians. <code>find</code>, <code>when</code>,
+<code>from/to</code>, and <code>rise/fall</code> retain the deck's interpolation, window and
+crossing conventions; SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/
+milli/mega/giga. Nested <code>avg</code>, <code>min</code>, <code>max</code>, <code>vecmin/vecmax</code> and <code>deriv</code>
+mean the stated window average, extrema and sampled derivative. All
+declared conditions are measured separately and paired with the same
+source condition; a group uses its worst paired quality.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+<th>Dimension</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_gain</code></td>
+<td>AC: Value of <code>(abs((-v(vout)/v(dn4)))) at=1meg</code>.</td>
+<td>V/V</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>output_gain_high</code></td>
+<td>AC: Value of <code>(abs((-v(vout)/v(dn4)))) at=100meg</code>.</td>
+<td>V/V</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td>DC operating point: <code>v(vout)</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.2</td>
+<td>1.2</td>
+<td>bias</td>
+</tr>
+<tr>
+<td><code>supply_power</code></td>
+<td>DC operating point: <code>-v(vdd)*i(VDD)</code>.</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>supply</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>2292.35 um2</strong>. 6 expanded device instances; sum of device/contact envelopes 1466.0063 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>4</strong>; it is independent of
+the reference-relative task score.</p>
+<h3>Score weights</h3>
+<p>Local gain stages: signal transfer 60.7%; operating points 6.07%; power 18.2%; area 15%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.15</td>
+</tr>
+<tr>
+<td><code>output_gain</code></td>
+<td style="text-align:right">0.303571428572</td>
+</tr>
+<tr>
+<td><code>output_gain_high</code></td>
+<td style="text-align:right">0.303571428571</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td style="text-align:right">0.060714285714</td>
+</tr>
+<tr>
+<td><code>supply_power</code></td>
+<td style="text-align:right">0.182142857143</td>
+</tr>
+</tbody>
+</table>
+13:T415,<p>The pre-layout and candidate-derived simulations use the supplied deck and the
+same nominal model and parameter values.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Process corner</td>
+<td><code>mos_tt</code>, <code>cap_typ</code>, <code>res_typ</code></td>
+</tr>
+<tr>
+<td>Temperature</td>
+<td>27 °C</td>
+</tr>
+<tr>
+<td>Supply</td>
+<td><code>VDD = 1.2 V</code>, <code>VSS = 0 V</code></td>
+</tr>
+<tr>
+<td>Bias</td>
+<td>20 µA current sink at <code>iout</code></td>
+</tr>
+<tr>
+<td>Input stimulus</td>
+<td><code>dn4 = 0.33 V</code> DC with 1 V AC small signal</td>
+</tr>
+<tr>
+<td>Output load</td>
+<td>100 kΩ resistor and 500 fF capacitor to ground</td>
+</tr>
+<tr>
+<td>AC sweep</td>
+<td>40 points/decade from 1 Hz through 1 GHz</td>
+</tr>
+<tr>
+<td>Numerical conditioning</td>
+<td><code>rshunt = 1e12</code>: 1 TΩ from every analog node to ground, identical pre-layout and post-layout</td>
+</tr>
+</tbody>
+</table>
+<p>Supply power is <code>-V(vdd) × I(VDD)</code> at the DC operating point.</p>
+14:T727,<p>Submit a readable GDSII file with a nonempty <code>output_stage</code> top cell. The file
+must be at most 10 MiB (10,485,760 bytes) and must contain the complete
+hierarchy needed by the target cell.</p>
+<p>The evaluator runs the pinned SG13G2 main and additional maximal DRC rules in
+deep mode, with density and antenna checks disabled and no waivers. LVS uses the
+current <code>lvs-upstream.json</code> profile and strict named-port matching against
+<code>materials/circuit.cdl</code>; every declared port must stay on its own conductor
+with the declared connectivity and device parameters. Port names are matched
+case-insensitively.</p>
+<p>The functional outline is the recursive bounding box of polygons on these
+SG13G2 datatype-0 layers, including child cells and the complete routing stack:</p>
+<p><code>1, 3, 5, 6, 7, 8, 10, 11, 13, 14, 19, 24, 26, 28, 29, 30, 31, 32, 33, 35, 36, 40, 44, 46, 49, 50, 51, 52, 53, 55, 58, 66, 67, 90, 101, 111, 125, 126, 128, 129, 133, 134, 139, 152</code>.</p>
+<p>The maximum width is 55 µm and the maximum height is
+45 µm, measured along the submitted X and Y axes.
+Functional area is width multiplied by height. Text, annotation and filler
+layers are excluded. The area score below uses this same functional footprint.</p>
+<p>After the physical and geometry gates pass, Magic extracts distributed wire
+resistance and layout capacitance from the submitted GDS. Device merging and
+resistor-network simplification are disabled. The compact-device extraction
+boundary represents MOS bodies at ideal model rails; explicit taps remain in the
+physical LVS netlist but are not emitted as extracted tap elements. Substrate
+sheet and tap resistance as extracted quantities, body coupling, and noise are
+outside the declared scope. The finite source taps are used only in source calibration.</p>
+6:["$","$8",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L10",null,{"task":{"case_path":"tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/output_stage/case.toml","coefficient":4,"collection":"IHP-AnalogAcademy","configuration_url":"/ICLayout-Bench/assets/24e04f3a64bd2477b89dbbef2c7789208eaa798e4e8e7b8efd60d080a80fa6fb.txt","description_html":"$11","description_path":"tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/output_stage/problem.md","hours":3,"id":"module_1_bandgap_reference.part_3_layout.OTA_layout.output_stage","inputs":{"description":{"format":"text","path":"problem.md","sha256":"129a8b29c8a92c2d912e0d6ffb5c09efc3d2c10b286e45c3bd53b0376f2c9b1a"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"81620ebba529edccd1beddbcb1349c0e3e7ee58b9e3749d8235433610bd98ad5","subcircuit":"output_stage"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"b857814e44bf0b95d14cd69944cbbdbc5da3b756290f76d824b26b7f73990678"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"d5c4009de00efbc07ad6c612fb371ef8cd7a837a49bec1a27f1d1729a2d8440d"}},"licenses":[{"name":"LICENSE","path":"tasks/ihp-sg13g2/IHP-AnalogAcademy/LICENSE","url":"/ICLayout-Bench/assets/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/129a8b29c8a92c2d912e0d6ffb5c09efc3d2c10b286e45c3bd53b0376f2c9b1a.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/81620ebba529edccd1beddbcb1349c0e3e7ee58b9e3749d8235433610bd98ad5.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/d5c4009de00efbc07ad6c612fb371ef8cd7a837a49bec1a27f1d1729a2d8440d.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/b857814e44bf0b95d14cd69944cbbdbc5da3b756290f76d824b26b7f73990678.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"min","baseline":["source_nominal:output_gain"],"category":"performance","dimension":"response","direction":"maximize","id":"output_gain","lower":0,"normalization":"ratio","observations":["nominal:output_gain"],"unit":"V/V"},{"aggregation":"min","baseline":["source_nominal:output_gain_high"],"category":"performance","dimension":"response","direction":"maximize","id":"output_gain_high","lower":0,"normalization":"ratio","observations":["nominal:output_gain_high"],"unit":"V/V"},{"aggregation":"min","baseline":["source_nominal:output_bias"],"category":"performance","dimension":"bias","direction":"target","id":"output_bias","lower":0,"normalization":"target","observations":["nominal:output_bias"],"scale":1.2,"unit":"V","upper":1.2},{"aggregation":"max","baseline":["source_nominal:supply_power"],"category":"performance","dimension":"supply","direction":"minimize","id":"supply_power","lower":0,"normalization":"ratio","observations":["nominal:supply_power"],"scale":1e-12,"unit":"W"}],"pdk":"ihp-sg13g2","reader":{"category":"Amplifiers & RF","summary":"Provides the loaded output response of a two-stage CMOS OTA.","title":"IHP AnalogAcademy output_stage"},"schematic_url":"/ICLayout-Bench/assets/dac4dbead6434a4bb345826211848b873d70a2725654491aadd7a64609c69684.svg","scoring":{"area_metric":"functional_area","area_target":2292.35,"method":"layout","rationale":"Local gain stages: signal transfer 60.7%; operating points 6.07%; power 18.2%; area 15%. Each objective's weight is divided equally among its metrics.","weights":{"functional_area":0.15,"output_bias":0.060714285714,"output_gain":0.303571428572,"output_gain_high":0.303571428571,"supply_power":0.182142857143}},"sections":{"Electrical Requirements and Scoring":"$12","Objective":"<p>Create an IHP SG13G2 layout for the <code>output_stage</code> output stage of a two-stage\nCMOS operational transconductance amplifier. Preserve the device topology,\ndimensions, compensation capacitor, explicit well and substrate connections,\nand five-port interface in the authoritative materials. The submitted GDS must\npass the physical checks, fit the functional outline, and meet the nominal\noutput-response limits after candidate-derived RC extraction.</p>\n","Operating Conditions":"$13","Physical Requirements":"$14"},"source_url":"https://github.com/IHP-GmbH/IHP-AnalogAcademy/blob/133ecf657572e021b5921b5a1b7693abfb209623/modules/module_1_bandgap_reference/part_3_layout/OTA_layout/output_stage/schematic_mod/output_stage.sch","status":"qualified","title":"IHP AnalogAcademy output_stage"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}]
+c:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+15:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+9:null
+e:[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L15","3",{}]]

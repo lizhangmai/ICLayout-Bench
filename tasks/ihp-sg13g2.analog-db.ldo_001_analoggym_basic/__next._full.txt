@@ -1,0 +1,996 @@
+1:"$Sreact.fragment"
+2:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+3:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+4:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+5:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+7:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+8:"$Sreact.suspense"
+b:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+d:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+f:I[68027,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default",1]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+a:X
+0:{"P":null,"c":["","tasks","ihp-sg13g2.analog-db.ldo_001_analoggym_basic",""],"q":"","i":false,"f":[[["",{"children":[["path","tasks/ihp-sg13g2.analog-db.ldo_001_analoggym_basic","oc",[]],{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L2",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L3",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L2",null,{"href":"/","children":"Return to overview"}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L2",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}],{"children":[["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":[["$","$1","c",{"children":["$L6",[["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true,"nonce":"$undefined"}]],["$","$L7",null,{"children":["$","$8",null,{"name":"Next.MetadataOutlet","children":"$@9"}]}]]}],{},null,false,null]},null,false,"$a"]},null,false,null],["$","$1","h",{"children":[null,["$","$Lb",null,{"children":"$Lc"}],["$","div",null,{"hidden":true,"children":["$","$Ld",null,{"children":["$","$8",null,{"name":"Next.Metadata","children":"$Le"}]}]}],null]}],false]],"m":"$undefined","G":["$f",[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"U2oZdoUjWqT_XfcDHuQ5i"}
+10:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+a:C
+11:T50f0,<h1 id="problem-multistage-error-amplifier-pmos-regulator-layout-task">Multistage Error-Amplifier PMOS Regulator Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Lay out <code>ldo_001_analoggym_basic</code>: a PMOS pass regulator with a folded
+PMOS-input error amplifier, cascoded bias branches, mirrored loads and an
+additional PMOS/NMOS intermediate branch driving the pass-gate node <code>net1</code>.
+The auxiliary PMOS source and body connect to <code>net1</code>; the input pair has a
+separate source-tied <code>net20</code> well. Internal compensation connects <code>net106</code>
+to output and the 3:1 physical divider returns one quarter of output voltage.
+This complete multistage error amplifier and its internal pass-gate drive
+are distinct from the simpler 5T and mirror-OTA regulator cases.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<ul>
+<li><code>materials/circuit.cdl</code>: authoritative native physical circuit.</li>
+<li><code>materials/circuit.spice</code>: matching simulator circuit with finite taps.</li>
+<li><code>materials/testbench.spice</code>: bilateral loop and current-load recovery.</li>
+<li><code>materials/startup.spice</code>: synchronized zero-state resistive startup.</li>
+<li><code>materials/sweeps.spice</code>: line/load and downward headroom sweeps.</li>
+</ul>
+<p>Ordered ports: <code>vdd vout vss ib vref vfb sense</code>. VDD/VSS are supply/return,
+VOUT output, IB connects an external current sink to VSS, and VREF is the
+external reference. VFB is the physical divider midpoint and SENSE is the
+inverting error-amplifier input. Connect them only through the testbench's
+zero-volt injection link; no additional servo or feedback element is permitted.
+The source's zero-volt output measurement link is collapsed into VOUT and
+relocated to this explicitly declared divider/input boundary.</p>
+<p>Retain all 24 source MOS groups. Integer regrouping converts 1,168 source
+fingers into 831 physical fingers with &lt;=10 um individual width, preserving
+each original group's total W, L and body connection exactly. Individual W/m
+and diffusion perimeter change, so the maintained simulator and extracted
+candidate are qualified independently. Other PMOS bodies use the VDD well;
+NMOS bodies and physical high-poly backplates use the VSS substrate contact.
+Explicit 2 x 2 um substrate/well taps use &lt;=20 um pitch. Preserve the current
+native circuit's dimensions and total multiplicities; equivalent parallel
+fingering requires all physical and electrical checks to pass.</p>
+<p>All internal passives are physical DUT elements:</p>
+<ul>
+<li>Three parallel 42.685 × 42.685 um <code>cap_cmim</code> units: top <code>net106</code>, bottom VOUT;
+approximately 8.22 pF total, retaining the source's approximately 8.2 pF branch.</li>
+<li>One 51.64 × 51.64 um <code>cap_cmim</code>: top <code>net10</code>, bottom VOUT, approximately
+4 pF. This added physical local compensation closes the internal dynamic mode.</li>
+<li>Twelve series <code>rhigh</code> segments from VOUT to VFB and four from VFB to VSS,
+each W=1 um, L=17.465 um, b=0: approximately 300/100 kohm total.</li>
+</ul>
+<p>There is no additional external output capacitor, but the compensation is
+real output-connected storage. Do not delete or idealize any internal passive.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>The loop/load testbench allows 1000 DC operating-point iterations (<code>itl1=1000</code>)
+for both source and extracted simulations. Error tolerances and physical stimuli
+are unchanged; this is a convergence setting, not added circuit damping.</p>
+<p>Use typical IHP LV MOS/MIM/poly models at 27 C. VDD is 1.2 or 1.3 V,
+VREF=0.225 V, and the external IB-to-VSS sink is 8 uA. The reference is
+explicitly changed from the normalized source's 0.4 V: the 3:1 divider then
+has a 0.9 V ideal output target, within the LV supply. The 8 uA bias and
+all original total MOS widths/lengths are retained. This is a bounded
+regulator core, not a precision reference, PVT or manufacturing-signoff task.</p>
+<p>Main measurements cover both supplies and initial current loads 0.2/0.5 mA.
+After an operating point, the load doubles at 2–2.2 us, remains high for
+8 us, and returns at 10.2–10.4 us; the period is 16 us. Simulate 0–18 us
+with KLU, Gear order 2, maximum step 1 ns, <code>rshunt=1e12</code>, <code>reltol=1e-5</code>,
+<code>abstol=1e-12</code> and <code>vntol=1e-8</code>. The numerical shunt is not a physical
+bias or startup device. Explicit <code>.save</code> lists retain all measured vectors;
+every extracted circuit element still participates in the solve.</p>
+<p>Measure the bilateral return ratio at the actual divider/input boundary:
+first inject unit series AC voltage from SENSE to VFB, with zero parallel
+current; then use zero series voltage and unit current into SENSE. With
+first-run <code>b=-I(VPROBE)</code>, <code>d=V(SENSE)</code> and second-run <code>a=-I(VPROBE)</code>,
+<code>c=V(SENSE)</code>, define <code>delta=a*d-b*c</code> and
+<code>T=(2*delta-a+d)/(1-2*delta+a-d)</code> (Tian et al., Eq. 30).
+Both injections retain divider, input and reverse-path loading. Exported
+voltages/currents permit an independent two-port admittance calculation.
+Sweep 0.01 Hz–1 GHz at 300 points/decade, using continuous natural phase
+without an arbitrary low-frequency offset. Check first/final descending
+unity crossings, minimum sampled <code>abs(1+T)</code>, full sampled return-difference
+phase and maximum 200 MHz–1 GHz gain. This finite external-loop contract
+is not an exhaustive proof of all internal poles.</p>
+<p>Sweep load 0.2–1 mA in 10 uA steps at each supply. Downward VDD sweeps
+1.3–0.8 V in 1 mV steps at 0.2/1 mA measure the first 30 mV output-error
+crossing. The line span uses both endpoints of 1.2–1.3 V. The regulation
+floor includes amplifier headroom and is not a pass-resistance-only dropout
+rating. These DC sweeps do not extend dynamic stability to every intermediate
+supply/load combination.</p>
+<p>Startup uses <code>uic</code> with supply, reference and bias ramping together from zero
+in 10 or 20 us. For both supplies, use 900/4500 ohm resistive loads (nominally
+1/0.2 mA at 0.9 V), maximum step 2 ns, and simulate to 50 us. This does not
+qualify arbitrary sequencing or a constant-current load imposed at zero supply.
+Faster 1 us startup and 20 ns current-load edges are outside qualification: they
+produce excessive peaks in the same extracted circuit. The README provides
+runnable failure probes. The maintained contract explicitly narrows the
+initial development stimuli without relaxing the voltage-excursion bounds.
+Loads below 0.2 mA are outside the qualified dynamic range.</p>
+<p>First and final crossing phase margins must both lie in [0, 180] degrees.
+Minimum return distance and return-phase excursion have only nonnegative
+domain bounds; high-frequency gain has no acceptance bound. These full-sweep
+metrics affect continuous quality without adding a stability acceptance screen.
+Missing crossings or invalid observations are evaluator errors.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Submit GDSII top cell <code>ldo_001_analoggym_basic</code>, at most 32 MiB. Pass native
+IHP main/maximal DRC without waivers (standalone density/antenna disabled),
+strict named-interface LVS with explicit taps, and a 5500 × 360 um functional
+envelope. All device/contact/interconnect drawing layers in the runtime
+<code>outline</code> contribute to area; annotation and pin-purpose layers do not.</p>
+<p>Candidate-derived Magic RC includes both capacitor plates, every poly segment,
+MOS and interconnect parasitic. Half-grid import and zero parasitic thresholds
+are explicit. Native LVS checks the original GDS's tap labels; the Magic
+extraction copy retains only Metal3 interface text, avoiding internal well-name
+aliases without altering geometry. Magic idealizes well/substrate taps while
+source simulation includes their finite models. Distributed substrate
+resistance/noise and fabrication signoff remain unqualified.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<p>Measurement definitions below use the supplied SPICE node/source names.
+<code>v(n)</code> is node voltage and <code>i(V)</code> is current into a voltage source; delivered
+power therefore uses a minus sign. <code>db(z)=20*log10(abs(z))</code>, <code>mag/abs</code>
+denote magnitude, and <code>cph</code> is continuous phase in radians. <code>find</code>, <code>when</code>,
+<code>from/to</code>, and <code>rise/fall</code> retain the deck's interpolation, window and
+crossing conventions; SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/
+milli/mega/giga. Nested <code>avg</code>, <code>min</code>, <code>max</code>, <code>vecmin/vecmax</code> and <code>deriv</code>
+mean the stated window average, extrema and sampled derivative. All
+declared conditions are measured separately and paired with the same
+source condition; a group uses its worst paired quality.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+<th>Dimension</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>DC operating point: <code>v(vout)</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.3</td>
+<td>1.3</td>
+<td>bias</td>
+</tr>
+<tr>
+<td><code>bias_v</code></td>
+<td>DC operating point: <code>v(ib)</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.3</td>
+<td>1.3</td>
+<td>bias</td>
+</tr>
+<tr>
+<td><code>quiescent_a</code></td>
+<td>DC operating point: <code>-i(VDD)-@iload[current]</code>.</td>
+<td>A</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>supply</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>DC operating point: <code>-v(vdd)*i(VDD)</code>.</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>supply</td>
+</tr>
+<tr>
+<td><code>dc_gain_db</code></td>
+<td>AC: Value of <code>(db((T))) at=0.01</code>.</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>unity_hz</code></td>
+<td>AC: Crossing coordinate where <code>(db((T)))=0 fall=1</code>.</td>
+<td>Hz</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>phase_margin_deg</code></td>
+<td>AC: <code>180+(find (180*cph((T))/pi) when (db((T)))=0 fall=1)</code>.</td>
+<td>deg</td>
+<td>target / target</td>
+<td>0 … 180</td>
+<td>180</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>final_unity_hz</code></td>
+<td>AC: Crossing coordinate where <code>(db((T)))=0 fall=last</code>.</td>
+<td>Hz</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>final_phase_margin_deg</code></td>
+<td>AC: <code>180+(find (180*cph((T))/pi) when (db((T)))=0 fall=last)</code>.</td>
+<td>deg</td>
+<td>target / target</td>
+<td>0 … 180</td>
+<td>180</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>minimum_return_distance</code></td>
+<td>AC: <code>vecmin((mag(1+(T))))</code>; sweep <code>dec 300 0.01 1g</code>.</td>
+<td>1</td>
+<td>target / target</td>
+<td>0 … +∞</td>
+<td>1.0</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>return_phase_excursion_deg</code></td>
+<td>AC: <code>vecmax(abs(180*cph(1+(T))/pi))</code>; sweep <code>dec 300 0.01 1g</code>.</td>
+<td>deg</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>hf_gain_db</code></td>
+<td>AC: Maximum of <code>(db((T))) from=200meg to=1g</code>.</td>
+<td>dB</td>
+<td>minimize / db20</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>minimum_v</code></td>
+<td>TRAN: Minimum of <code>v(vout) from=2u to=18u</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.3</td>
+<td>1.3</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>maximum_v</code></td>
+<td>TRAN: Maximum of <code>v(vout) from=2u to=18u</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.3</td>
+<td>1.3</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>recovery_load_v</code></td>
+<td>TRAN: Maximum of <code>(abs(v(vout)-0.9)) from=5u to=9.5u</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>recovery_release_v</code></td>
+<td>TRAN: Maximum of <code>(abs(v(vout)-0.9)) from=13u to=17.5u</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>mean_power_w</code></td>
+<td>TRAN: Mean of <code>(-v(vdd)*i(VDD)) from=2u to=18u</code>.</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>supply</td>
+</tr>
+<tr>
+<td><code>loaded_ripple_v</code></td>
+<td>Transient: <code>(max v(vout) from=9u to=9.5u)-(min v(vout) from=9u to=9.5u)</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>released_ripple_v</code></td>
+<td>Transient: <code>(max v(vout) from=17u to=17.5u)-(min v(vout) from=17u to=17.5u)</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>startup_error_v</code></td>
+<td>TRAN: Maximum of <code>(abs(v(vout)-0.9)) from=40u to=49u</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>startup_peak_v</code></td>
+<td>TRAN: Maximum of <code>v(vout) from=0 to=50u</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.3</td>
+<td>1.3</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>startup_minimum_v</code></td>
+<td>TRAN: Minimum of <code>v(vout) from=0 to=50u</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>1.3</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>regulation_floor_v</code></td>
+<td>DC: Crossing coordinate where <code>(abs(v(vout)-0.9))=0.03 rise=1</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.3</td>
+<td>1.3</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>headroom_v</code></td>
+<td>DC sweep: <code>(when (abs(v(vout)-0.9))=0.03 rise=1)-(find v(vout) when (abs(v(vout)-0.9))=0.03 rise=1)</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>line_span_v</code></td>
+<td>DC sweep: <code>(max v(vout) from=1.3 to=1.2)-(min v(vout) from=1.3 to=1.2)</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>load_span_v</code></td>
+<td>DC sweep: <code>(max v(vout))-(min v(vout))</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>42364.42 um2</strong>. 1240 expanded device instances; sum of device/contact envelopes 27974.3733 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>9</strong>; it is independent of
+the reference-relative task score.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>IHP regulators: regulation and headroom 22.5%; load recovery 22.5%; startup 13.5%; loop stability 13.5%; AC transfer and extrema 4.5%; internal bias 1.8%; quiescent current 7.2%; power 4.5%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>headroom_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>line_span_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>load_span_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>regulation_floor_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>loaded_ripple_v</code></td>
+<td style="text-align:right">0.056250000000</td>
+</tr>
+<tr>
+<td><code>recovery_load_v</code></td>
+<td style="text-align:right">0.056250000000</td>
+</tr>
+<tr>
+<td><code>recovery_release_v</code></td>
+<td style="text-align:right">0.056250000000</td>
+</tr>
+<tr>
+<td><code>released_ripple_v</code></td>
+<td style="text-align:right">0.056250000000</td>
+</tr>
+<tr>
+<td><code>startup_error_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>startup_minimum_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>startup_peak_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>final_phase_margin_deg</code></td>
+<td style="text-align:right">0.033750000000</td>
+</tr>
+<tr>
+<td><code>minimum_return_distance</code></td>
+<td style="text-align:right">0.033750000000</td>
+</tr>
+<tr>
+<td><code>phase_margin_deg</code></td>
+<td style="text-align:right">0.033750000000</td>
+</tr>
+<tr>
+<td><code>return_phase_excursion_deg</code></td>
+<td style="text-align:right">0.033750000000</td>
+</tr>
+<tr>
+<td><code>dc_gain_db</code></td>
+<td style="text-align:right">0.007500000000</td>
+</tr>
+<tr>
+<td><code>final_unity_hz</code></td>
+<td style="text-align:right">0.007500000000</td>
+</tr>
+<tr>
+<td><code>hf_gain_db</code></td>
+<td style="text-align:right">0.007500000000</td>
+</tr>
+<tr>
+<td><code>maximum_v</code></td>
+<td style="text-align:right">0.007500000000</td>
+</tr>
+<tr>
+<td><code>minimum_v</code></td>
+<td style="text-align:right">0.007500000000</td>
+</tr>
+<tr>
+<td><code>unity_hz</code></td>
+<td style="text-align:right">0.007500000000</td>
+</tr>
+<tr>
+<td><code>bias_v</code></td>
+<td style="text-align:right">0.018000000000</td>
+</tr>
+<tr>
+<td><code>quiescent_a</code></td>
+<td style="text-align:right">0.072000000000</td>
+</tr>
+<tr>
+<td><code>mean_power_w</code></td>
+<td style="text-align:right">0.022500000000</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.022500000000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Discover task/resources/feedback through <code>/protocol/task.json</code>,
+<code>/protocol/resources.json</code> and <code>/protocol/harness.json</code>. Use the supplied
+IHP primitives and KLayout/Magic/ngspice. Write <code>/workspace/output/final.gds</code>
+and explicitly submit via the harness protocol. Host configuration, source
+records and reference answers are excluded from standard solver inputs.</p>
+12:T2ece,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<p>Measurement definitions below use the supplied SPICE node/source names.
+<code>v(n)</code> is node voltage and <code>i(V)</code> is current into a voltage source; delivered
+power therefore uses a minus sign. <code>db(z)=20*log10(abs(z))</code>, <code>mag/abs</code>
+denote magnitude, and <code>cph</code> is continuous phase in radians. <code>find</code>, <code>when</code>,
+<code>from/to</code>, and <code>rise/fall</code> retain the deck's interpolation, window and
+crossing conventions; SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/
+milli/mega/giga. Nested <code>avg</code>, <code>min</code>, <code>max</code>, <code>vecmin/vecmax</code> and <code>deriv</code>
+mean the stated window average, extrema and sampled derivative. All
+declared conditions are measured separately and paired with the same
+source condition; a group uses its worst paired quality.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+<th>Dimension</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>DC operating point: <code>v(vout)</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.3</td>
+<td>1.3</td>
+<td>bias</td>
+</tr>
+<tr>
+<td><code>bias_v</code></td>
+<td>DC operating point: <code>v(ib)</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.3</td>
+<td>1.3</td>
+<td>bias</td>
+</tr>
+<tr>
+<td><code>quiescent_a</code></td>
+<td>DC operating point: <code>-i(VDD)-@iload[current]</code>.</td>
+<td>A</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>supply</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>DC operating point: <code>-v(vdd)*i(VDD)</code>.</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>supply</td>
+</tr>
+<tr>
+<td><code>dc_gain_db</code></td>
+<td>AC: Value of <code>(db((T))) at=0.01</code>.</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>unity_hz</code></td>
+<td>AC: Crossing coordinate where <code>(db((T)))=0 fall=1</code>.</td>
+<td>Hz</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>phase_margin_deg</code></td>
+<td>AC: <code>180+(find (180*cph((T))/pi) when (db((T)))=0 fall=1)</code>.</td>
+<td>deg</td>
+<td>target / target</td>
+<td>0 … 180</td>
+<td>180</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>final_unity_hz</code></td>
+<td>AC: Crossing coordinate where <code>(db((T)))=0 fall=last</code>.</td>
+<td>Hz</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>final_phase_margin_deg</code></td>
+<td>AC: <code>180+(find (180*cph((T))/pi) when (db((T)))=0 fall=last)</code>.</td>
+<td>deg</td>
+<td>target / target</td>
+<td>0 … 180</td>
+<td>180</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>minimum_return_distance</code></td>
+<td>AC: <code>vecmin((mag(1+(T))))</code>; sweep <code>dec 300 0.01 1g</code>.</td>
+<td>1</td>
+<td>target / target</td>
+<td>0 … +∞</td>
+<td>1.0</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>return_phase_excursion_deg</code></td>
+<td>AC: <code>vecmax(abs(180*cph(1+(T))/pi))</code>; sweep <code>dec 300 0.01 1g</code>.</td>
+<td>deg</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>hf_gain_db</code></td>
+<td>AC: Maximum of <code>(db((T))) from=200meg to=1g</code>.</td>
+<td>dB</td>
+<td>minimize / db20</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>minimum_v</code></td>
+<td>TRAN: Minimum of <code>v(vout) from=2u to=18u</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.3</td>
+<td>1.3</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>maximum_v</code></td>
+<td>TRAN: Maximum of <code>v(vout) from=2u to=18u</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.3</td>
+<td>1.3</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>recovery_load_v</code></td>
+<td>TRAN: Maximum of <code>(abs(v(vout)-0.9)) from=5u to=9.5u</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>recovery_release_v</code></td>
+<td>TRAN: Maximum of <code>(abs(v(vout)-0.9)) from=13u to=17.5u</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>mean_power_w</code></td>
+<td>TRAN: Mean of <code>(-v(vdd)*i(VDD)) from=2u to=18u</code>.</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>supply</td>
+</tr>
+<tr>
+<td><code>loaded_ripple_v</code></td>
+<td>Transient: <code>(max v(vout) from=9u to=9.5u)-(min v(vout) from=9u to=9.5u)</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>released_ripple_v</code></td>
+<td>Transient: <code>(max v(vout) from=17u to=17.5u)-(min v(vout) from=17u to=17.5u)</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>startup_error_v</code></td>
+<td>TRAN: Maximum of <code>(abs(v(vout)-0.9)) from=40u to=49u</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>startup_peak_v</code></td>
+<td>TRAN: Maximum of <code>v(vout) from=0 to=50u</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.3</td>
+<td>1.3</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>startup_minimum_v</code></td>
+<td>TRAN: Minimum of <code>v(vout) from=0 to=50u</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>−∞ … +∞</td>
+<td>1.3</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>regulation_floor_v</code></td>
+<td>DC: Crossing coordinate where <code>(abs(v(vout)-0.9))=0.03 rise=1</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.3</td>
+<td>1.3</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>headroom_v</code></td>
+<td>DC sweep: <code>(when (abs(v(vout)-0.9))=0.03 rise=1)-(find v(vout) when (abs(v(vout)-0.9))=0.03 rise=1)</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>line_span_v</code></td>
+<td>DC sweep: <code>(max v(vout) from=1.3 to=1.2)-(min v(vout) from=1.3 to=1.2)</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>load_span_v</code></td>
+<td>DC sweep: <code>(max v(vout))-(min v(vout))</code>.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>42364.42 um2</strong>. 1240 expanded device instances; sum of device/contact envelopes 27974.3733 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>9</strong>; it is independent of
+the reference-relative task score.</p>
+<h3>Score weights</h3>
+<p>IHP regulators: regulation and headroom 22.5%; load recovery 22.5%; startup 13.5%; loop stability 13.5%; AC transfer and extrema 4.5%; internal bias 1.8%; quiescent current 7.2%; power 4.5%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>headroom_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>line_span_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>load_span_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>regulation_floor_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>loaded_ripple_v</code></td>
+<td style="text-align:right">0.056250000000</td>
+</tr>
+<tr>
+<td><code>recovery_load_v</code></td>
+<td style="text-align:right">0.056250000000</td>
+</tr>
+<tr>
+<td><code>recovery_release_v</code></td>
+<td style="text-align:right">0.056250000000</td>
+</tr>
+<tr>
+<td><code>released_ripple_v</code></td>
+<td style="text-align:right">0.056250000000</td>
+</tr>
+<tr>
+<td><code>startup_error_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>startup_minimum_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>startup_peak_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>final_phase_margin_deg</code></td>
+<td style="text-align:right">0.033750000000</td>
+</tr>
+<tr>
+<td><code>minimum_return_distance</code></td>
+<td style="text-align:right">0.033750000000</td>
+</tr>
+<tr>
+<td><code>phase_margin_deg</code></td>
+<td style="text-align:right">0.033750000000</td>
+</tr>
+<tr>
+<td><code>return_phase_excursion_deg</code></td>
+<td style="text-align:right">0.033750000000</td>
+</tr>
+<tr>
+<td><code>dc_gain_db</code></td>
+<td style="text-align:right">0.007500000000</td>
+</tr>
+<tr>
+<td><code>final_unity_hz</code></td>
+<td style="text-align:right">0.007500000000</td>
+</tr>
+<tr>
+<td><code>hf_gain_db</code></td>
+<td style="text-align:right">0.007500000000</td>
+</tr>
+<tr>
+<td><code>maximum_v</code></td>
+<td style="text-align:right">0.007500000000</td>
+</tr>
+<tr>
+<td><code>minimum_v</code></td>
+<td style="text-align:right">0.007500000000</td>
+</tr>
+<tr>
+<td><code>unity_hz</code></td>
+<td style="text-align:right">0.007500000000</td>
+</tr>
+<tr>
+<td><code>bias_v</code></td>
+<td style="text-align:right">0.018000000000</td>
+</tr>
+<tr>
+<td><code>quiescent_a</code></td>
+<td style="text-align:right">0.072000000000</td>
+</tr>
+<tr>
+<td><code>mean_power_w</code></td>
+<td style="text-align:right">0.022500000000</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.022500000000</td>
+</tr>
+</tbody>
+</table>
+13:Te83,<p>The loop/load testbench allows 1000 DC operating-point iterations (<code>itl1=1000</code>)
+for both source and extracted simulations. Error tolerances and physical stimuli
+are unchanged; this is a convergence setting, not added circuit damping.</p>
+<p>Use typical IHP LV MOS/MIM/poly models at 27 C. VDD is 1.2 or 1.3 V,
+VREF=0.225 V, and the external IB-to-VSS sink is 8 uA. The reference is
+explicitly changed from the normalized source's 0.4 V: the 3:1 divider then
+has a 0.9 V ideal output target, within the LV supply. The 8 uA bias and
+all original total MOS widths/lengths are retained. This is a bounded
+regulator core, not a precision reference, PVT or manufacturing-signoff task.</p>
+<p>Main measurements cover both supplies and initial current loads 0.2/0.5 mA.
+After an operating point, the load doubles at 2–2.2 us, remains high for
+8 us, and returns at 10.2–10.4 us; the period is 16 us. Simulate 0–18 us
+with KLU, Gear order 2, maximum step 1 ns, <code>rshunt=1e12</code>, <code>reltol=1e-5</code>,
+<code>abstol=1e-12</code> and <code>vntol=1e-8</code>. The numerical shunt is not a physical
+bias or startup device. Explicit <code>.save</code> lists retain all measured vectors;
+every extracted circuit element still participates in the solve.</p>
+<p>Measure the bilateral return ratio at the actual divider/input boundary:
+first inject unit series AC voltage from SENSE to VFB, with zero parallel
+current; then use zero series voltage and unit current into SENSE. With
+first-run <code>b=-I(VPROBE)</code>, <code>d=V(SENSE)</code> and second-run <code>a=-I(VPROBE)</code>,
+<code>c=V(SENSE)</code>, define <code>delta=a*d-b*c</code> and
+<code>T=(2*delta-a+d)/(1-2*delta+a-d)</code> (Tian et al., Eq. 30).
+Both injections retain divider, input and reverse-path loading. Exported
+voltages/currents permit an independent two-port admittance calculation.
+Sweep 0.01 Hz–1 GHz at 300 points/decade, using continuous natural phase
+without an arbitrary low-frequency offset. Check first/final descending
+unity crossings, minimum sampled <code>abs(1+T)</code>, full sampled return-difference
+phase and maximum 200 MHz–1 GHz gain. This finite external-loop contract
+is not an exhaustive proof of all internal poles.</p>
+<p>Sweep load 0.2–1 mA in 10 uA steps at each supply. Downward VDD sweeps
+1.3–0.8 V in 1 mV steps at 0.2/1 mA measure the first 30 mV output-error
+crossing. The line span uses both endpoints of 1.2–1.3 V. The regulation
+floor includes amplifier headroom and is not a pass-resistance-only dropout
+rating. These DC sweeps do not extend dynamic stability to every intermediate
+supply/load combination.</p>
+<p>Startup uses <code>uic</code> with supply, reference and bias ramping together from zero
+in 10 or 20 us. For both supplies, use 900/4500 ohm resistive loads (nominally
+1/0.2 mA at 0.9 V), maximum step 2 ns, and simulate to 50 us. This does not
+qualify arbitrary sequencing or a constant-current load imposed at zero supply.
+Faster 1 us startup and 20 ns current-load edges are outside qualification: they
+produce excessive peaks in the same extracted circuit. The README provides
+runnable failure probes. The maintained contract explicitly narrows the
+initial development stimuli without relaxing the voltage-excursion bounds.
+Loads below 0.2 mA are outside the qualified dynamic range.</p>
+<p>First and final crossing phase margins must both lie in [0, 180] degrees.
+Minimum return distance and return-phase excursion have only nonnegative
+domain bounds; high-frequency gain has no acceptance bound. These full-sweep
+metrics affect continuous quality without adding a stability acceptance screen.
+Missing crossings or invalid observations are evaluator errors.</p>
+6:["$","$8",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L10",null,{"task":{"case_path":"tasks/ihp-sg13g2/analog-db/cases/ldo_001_analoggym_basic/case.toml","coefficient":9,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/53db61a2e3fbe8b58aaf94ca5228beb06b42fe8688ff538676485d51ede6fca6.txt","description_html":"$11","description_path":"tasks/ihp-sg13g2/analog-db/cases/ldo_001_analoggym_basic/problem.md","hours":3,"id":"ihp-sg13g2.analog-db.ldo_001_analoggym_basic","inputs":{"description":{"format":"text","path":"problem.md","sha256":"746049248099678645eb61767da0158b9bb407a74da57666677685279397c80b"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"eebb188d9aa510eb1d03395ad2a4fe8b12ca6e4e16d4172dbd4d72bad3d0d79b","subcircuit":"ldo_001_analoggym_basic"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"afe7c38e8417384a73d95e634318fed67c45c973cad29a549070052d2d6b373d"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"c3fd219b0a6bbce731ff1ad104c26838925f3f5cd3db063c2c476fdd6718372d"},"startup":{"format":"spice","path":"materials/startup.spice","sha256":"aa70d7d0598b0440d74931d76518cf55acae9241833aa7692bfa77d09de6761d"},"sweeps":{"format":"spice","path":"materials/sweeps.spice","sha256":"d222de54ff3743322617628cf4f21675a38ee63043ee845c255c709fe20955ab"}},"licenses":[{"name":"LICENSE","path":"tasks/ihp-sg13g2/analog-db/LICENSE","url":"/ICLayout-Bench/assets/644dd511526bc2da77ee7c74714118315db91255376d0ea93a1975b4dbfbfb3d.txt"},{"name":"NOTICE","path":"tasks/ihp-sg13g2/analog-db/NOTICE","url":"/ICLayout-Bench/assets/69f7110d12f142806dfdd53f516082a82032da57d1ad47d0bc792d3a68329145.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/746049248099678645eb61767da0158b9bb407a74da57666677685279397c80b.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/eebb188d9aa510eb1d03395ad2a4fe8b12ca6e4e16d4172dbd4d72bad3d0d79b.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/afe7c38e8417384a73d95e634318fed67c45c973cad29a549070052d2d6b373d.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/c3fd219b0a6bbce731ff1ad104c26838925f3f5cd3db063c2c476fdd6718372d.txt"},{"name":"materials/startup.spice","role":"startup","url":"/ICLayout-Bench/assets/aa70d7d0598b0440d74931d76518cf55acae9241833aa7692bfa77d09de6761d.txt"},{"name":"materials/sweeps.spice","role":"sweeps","url":"/ICLayout-Bench/assets/d222de54ff3743322617628cf4f21675a38ee63043ee845c255c709fe20955ab.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"max","baseline":["source_condition_0:output_v","source_condition_1:output_v","source_condition_2:output_v","source_condition_3:output_v"],"category":"performance","dimension":"bias","direction":"target","id":"output_v","lower":0,"normalization":"target","observations":["condition_0:output_v","condition_1:output_v","condition_2:output_v","condition_3:output_v"],"scale":1.3,"unit":"V","upper":1.3},{"aggregation":"max","baseline":["source_condition_0:bias_v","source_condition_1:bias_v","source_condition_2:bias_v","source_condition_3:bias_v"],"category":"performance","dimension":"bias","direction":"target","id":"bias_v","lower":0,"normalization":"target","observations":["condition_0:bias_v","condition_1:bias_v","condition_2:bias_v","condition_3:bias_v"],"scale":1.3,"unit":"V","upper":1.3},{"aggregation":"max","baseline":["source_condition_0:quiescent_a","source_condition_1:quiescent_a","source_condition_2:quiescent_a","source_condition_3:quiescent_a"],"category":"performance","dimension":"supply","direction":"minimize","id":"quiescent_a","lower":0,"normalization":"ratio","observations":["condition_0:quiescent_a","condition_1:quiescent_a","condition_2:quiescent_a","condition_3:quiescent_a"],"scale":1e-12,"unit":"A"},{"aggregation":"max","baseline":["source_condition_0:power_w","source_condition_1:power_w","source_condition_2:power_w","source_condition_3:power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"power_w","lower":0,"normalization":"ratio","observations":["condition_0:power_w","condition_1:power_w","condition_2:power_w","condition_3:power_w"],"scale":1e-12,"unit":"W"},{"aggregation":"max","baseline":["source_condition_0:dc_gain_db","source_condition_1:dc_gain_db","source_condition_2:dc_gain_db","source_condition_3:dc_gain_db"],"category":"performance","dimension":"response","direction":"maximize","id":"dc_gain_db","normalization":"db20","observations":["condition_0:dc_gain_db","condition_1:dc_gain_db","condition_2:dc_gain_db","condition_3:dc_gain_db"],"unit":"dB"},{"aggregation":"max","baseline":["source_condition_0:unity_hz","source_condition_1:unity_hz","source_condition_2:unity_hz","source_condition_3:unity_hz"],"category":"performance","dimension":"response","direction":"maximize","id":"unity_hz","lower":0,"normalization":"ratio","observations":["condition_0:unity_hz","condition_1:unity_hz","condition_2:unity_hz","condition_3:unity_hz"],"unit":"Hz"},{"aggregation":"max","baseline":["source_condition_0:phase_margin_deg","source_condition_1:phase_margin_deg","source_condition_2:phase_margin_deg","source_condition_3:phase_margin_deg"],"category":"performance","dimension":"response","direction":"target","id":"phase_margin_deg","lower":0,"normalization":"target","observations":["condition_0:phase_margin_deg","condition_1:phase_margin_deg","condition_2:phase_margin_deg","condition_3:phase_margin_deg"],"scale":180,"unit":"deg","upper":180},{"aggregation":"max","baseline":["source_condition_0:final_unity_hz","source_condition_1:final_unity_hz","source_condition_2:final_unity_hz","source_condition_3:final_unity_hz"],"category":"performance","dimension":"response","direction":"maximize","id":"final_unity_hz","lower":0,"normalization":"ratio","observations":["condition_0:final_unity_hz","condition_1:final_unity_hz","condition_2:final_unity_hz","condition_3:final_unity_hz"],"unit":"Hz"},{"aggregation":"max","baseline":["source_condition_0:final_phase_margin_deg","source_condition_1:final_phase_margin_deg","source_condition_2:final_phase_margin_deg","source_condition_3:final_phase_margin_deg"],"category":"performance","dimension":"response","direction":"target","id":"final_phase_margin_deg","lower":0,"normalization":"target","observations":["condition_0:final_phase_margin_deg","condition_1:final_phase_margin_deg","condition_2:final_phase_margin_deg","condition_3:final_phase_margin_deg"],"scale":180,"unit":"deg","upper":180},{"aggregation":"max","baseline":["source_condition_0:minimum_return_distance","source_condition_1:minimum_return_distance","source_condition_2:minimum_return_distance","source_condition_3:minimum_return_distance"],"category":"performance","dimension":"response","direction":"target","id":"minimum_return_distance","lower":0,"normalization":"target","observations":["condition_0:minimum_return_distance","condition_1:minimum_return_distance","condition_2:minimum_return_distance","condition_3:minimum_return_distance"],"scale":1,"unit":"1"},{"aggregation":"max","baseline":["source_condition_0:return_phase_excursion_deg","source_condition_1:return_phase_excursion_deg","source_condition_2:return_phase_excursion_deg","source_condition_3:return_phase_excursion_deg"],"category":"performance","dimension":"response","direction":"minimize","id":"return_phase_excursion_deg","lower":0,"normalization":"ratio","observations":["condition_0:return_phase_excursion_deg","condition_1:return_phase_excursion_deg","condition_2:return_phase_excursion_deg","condition_3:return_phase_excursion_deg"],"scale":1e-12,"unit":"deg"},{"aggregation":"max","baseline":["source_condition_0:hf_gain_db","source_condition_1:hf_gain_db","source_condition_2:hf_gain_db","source_condition_3:hf_gain_db"],"category":"performance","dimension":"response","direction":"minimize","id":"hf_gain_db","normalization":"db20","observations":["condition_0:hf_gain_db","condition_1:hf_gain_db","condition_2:hf_gain_db","condition_3:hf_gain_db"],"unit":"dB"},{"aggregation":"max","baseline":["source_condition_0:minimum_v","source_condition_1:minimum_v","source_condition_2:minimum_v","source_condition_3:minimum_v"],"category":"performance","dimension":"response","direction":"target","id":"minimum_v","lower":0,"normalization":"target","observations":["condition_0:minimum_v","condition_1:minimum_v","condition_2:minimum_v","condition_3:minimum_v"],"scale":1.3,"unit":"V","upper":1.3},{"aggregation":"max","baseline":["source_condition_0:maximum_v","source_condition_1:maximum_v","source_condition_2:maximum_v","source_condition_3:maximum_v"],"category":"performance","dimension":"response","direction":"target","id":"maximum_v","lower":0,"normalization":"target","observations":["condition_0:maximum_v","condition_1:maximum_v","condition_2:maximum_v","condition_3:maximum_v"],"scale":1.3,"unit":"V","upper":1.3},{"aggregation":"max","baseline":["source_condition_0:recovery_load_v","source_condition_1:recovery_load_v","source_condition_2:recovery_load_v","source_condition_3:recovery_load_v"],"category":"performance","dimension":"response","direction":"minimize","id":"recovery_load_v","lower":0,"normalization":"ratio","observations":["condition_0:recovery_load_v","condition_1:recovery_load_v","condition_2:recovery_load_v","condition_3:recovery_load_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:recovery_release_v","source_condition_1:recovery_release_v","source_condition_2:recovery_release_v","source_condition_3:recovery_release_v"],"category":"performance","dimension":"response","direction":"minimize","id":"recovery_release_v","lower":0,"normalization":"ratio","observations":["condition_0:recovery_release_v","condition_1:recovery_release_v","condition_2:recovery_release_v","condition_3:recovery_release_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:mean_power_w","source_condition_1:mean_power_w","source_condition_2:mean_power_w","source_condition_3:mean_power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"mean_power_w","lower":0,"normalization":"ratio","observations":["condition_0:mean_power_w","condition_1:mean_power_w","condition_2:mean_power_w","condition_3:mean_power_w"],"scale":1e-12,"unit":"W"},{"aggregation":"max","baseline":["source_condition_0:loaded_ripple_v","source_condition_1:loaded_ripple_v","source_condition_2:loaded_ripple_v","source_condition_3:loaded_ripple_v"],"category":"performance","dimension":"response","direction":"minimize","id":"loaded_ripple_v","lower":0,"normalization":"ratio","observations":["condition_0:loaded_ripple_v","condition_1:loaded_ripple_v","condition_2:loaded_ripple_v","condition_3:loaded_ripple_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:released_ripple_v","source_condition_1:released_ripple_v","source_condition_2:released_ripple_v","source_condition_3:released_ripple_v"],"category":"performance","dimension":"response","direction":"minimize","id":"released_ripple_v","lower":0,"normalization":"ratio","observations":["condition_0:released_ripple_v","condition_1:released_ripple_v","condition_2:released_ripple_v","condition_3:released_ripple_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_startup_0:startup_error_v","source_startup_1:startup_error_v","source_startup_2:startup_error_v","source_startup_3:startup_error_v","source_startup_4:startup_error_v","source_startup_5:startup_error_v","source_startup_6:startup_error_v","source_startup_7:startup_error_v"],"category":"performance","dimension":"response","direction":"minimize","id":"startup_error_v","lower":0,"normalization":"ratio","observations":["startup_0:startup_error_v","startup_1:startup_error_v","startup_2:startup_error_v","startup_3:startup_error_v","startup_4:startup_error_v","startup_5:startup_error_v","startup_6:startup_error_v","startup_7:startup_error_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_startup_0:peak_v","source_startup_1:peak_v","source_startup_2:peak_v","source_startup_3:peak_v","source_startup_4:peak_v","source_startup_5:peak_v","source_startup_6:peak_v","source_startup_7:peak_v"],"category":"performance","dimension":"response","direction":"target","id":"startup_peak_v","lower":0,"normalization":"target","observations":["startup_0:peak_v","startup_1:peak_v","startup_2:peak_v","startup_3:peak_v","startup_4:peak_v","startup_5:peak_v","startup_6:peak_v","startup_7:peak_v"],"scale":1.3,"unit":"V","upper":1.3},{"aggregation":"max","baseline":["source_startup_0:minimum_v","source_startup_1:minimum_v","source_startup_2:minimum_v","source_startup_3:minimum_v","source_startup_4:minimum_v","source_startup_5:minimum_v","source_startup_6:minimum_v","source_startup_7:minimum_v"],"category":"performance","dimension":"response","direction":"target","id":"startup_minimum_v","normalization":"target","observations":["startup_0:minimum_v","startup_1:minimum_v","startup_2:minimum_v","startup_3:minimum_v","startup_4:minimum_v","startup_5:minimum_v","startup_6:minimum_v","startup_7:minimum_v"],"scale":1.3,"unit":"V"},{"aggregation":"max","baseline":["source_sweeps_0:regulation_floor_v","source_sweeps_1:regulation_floor_v","source_sweeps_2:regulation_floor_v","source_sweeps_3:regulation_floor_v"],"category":"performance","dimension":"response","direction":"target","id":"regulation_floor_v","lower":0,"normalization":"target","observations":["sweeps_0:regulation_floor_v","sweeps_1:regulation_floor_v","sweeps_2:regulation_floor_v","sweeps_3:regulation_floor_v"],"scale":1.3,"unit":"V","upper":1.3},{"aggregation":"max","baseline":["source_sweeps_0:headroom_v","source_sweeps_1:headroom_v","source_sweeps_2:headroom_v","source_sweeps_3:headroom_v"],"category":"performance","dimension":"response","direction":"minimize","id":"headroom_v","lower":0,"normalization":"ratio","observations":["sweeps_0:headroom_v","sweeps_1:headroom_v","sweeps_2:headroom_v","sweeps_3:headroom_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_sweeps_0:line_span_v","source_sweeps_1:line_span_v","source_sweeps_2:line_span_v","source_sweeps_3:line_span_v"],"category":"performance","dimension":"response","direction":"minimize","id":"line_span_v","lower":0,"normalization":"ratio","observations":["sweeps_0:line_span_v","sweeps_1:line_span_v","sweeps_2:line_span_v","sweeps_3:line_span_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_sweeps_0:load_span_v","source_sweeps_1:load_span_v","source_sweeps_2:load_span_v","source_sweeps_3:load_span_v"],"category":"performance","dimension":"response","direction":"minimize","id":"load_span_v","lower":0,"normalization":"ratio","observations":["sweeps_0:load_span_v","sweeps_1:load_span_v","sweeps_2:load_span_v","sweeps_3:load_span_v"],"scale":0.000001,"unit":"V"}],"pdk":"ihp-sg13g2","reader":{"category":"Power & references","summary":"Regulates a loaded output through the declared feedback loop, with layout-dependent recovery and power.","title":"Multistage Error-Amplifier PMOS Regulator"},"schematic_url":"/ICLayout-Bench/assets/860f3660d4f3b4539be4bb5a6049aca13c06e32b029f0a1196b3410971f34c09.svg","scoring":{"area_metric":"functional_area","area_target":42364.42,"method":"layout","rationale":"IHP regulators: regulation and headroom 22.5%; load recovery 22.5%; startup 13.5%; loop stability 13.5%; AC transfer and extrema 4.5%; internal bias 1.8%; quiescent current 7.2%; power 4.5%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"bias_v":0.018,"dc_gain_db":0.0075,"final_phase_margin_deg":0.03375,"final_unity_hz":0.0075,"functional_area":0.1,"headroom_v":0.045,"hf_gain_db":0.0075,"line_span_v":0.045,"load_span_v":0.045,"loaded_ripple_v":0.05625,"maximum_v":0.0075,"mean_power_w":0.0225,"minimum_return_distance":0.03375,"minimum_v":0.0075,"output_v":0.045,"phase_margin_deg":0.03375,"power_w":0.0225,"quiescent_a":0.072,"recovery_load_v":0.05625,"recovery_release_v":0.05625,"regulation_floor_v":0.045,"released_ripple_v":0.05625,"return_phase_excursion_deg":0.03375,"startup_error_v":0.045,"startup_minimum_v":0.045,"startup_peak_v":0.045,"unity_hz":0.0075}},"sections":{"Electrical Requirements and Scoring":"$12","Objective":"<p>Lay out <code>ldo_001_analoggym_basic</code>: a PMOS pass regulator with a folded\nPMOS-input error amplifier, cascoded bias branches, mirrored loads and an\nadditional PMOS/NMOS intermediate branch driving the pass-gate node <code>net1</code>.\nThe auxiliary PMOS source and body connect to <code>net1</code>; the input pair has a\nseparate source-tied <code>net20</code> well. Internal compensation connects <code>net106</code>\nto output and the 3:1 physical divider returns one quarter of output voltage.\nThis complete multistage error amplifier and its internal pass-gate drive\nare distinct from the simpler 5T and mirror-OTA regulator cases.</p>\n","Operating Conditions":"$13","Physical Requirements":"<p>Submit GDSII top cell <code>ldo_001_analoggym_basic</code>, at most 32 MiB. Pass native\nIHP main/maximal DRC without waivers (standalone density/antenna disabled),\nstrict named-interface LVS with explicit taps, and a 5500 × 360 um functional\nenvelope. All device/contact/interconnect drawing layers in the runtime\n<code>outline</code> contribute to area; annotation and pin-purpose layers do not.</p>\n<p>Candidate-derived Magic RC includes both capacitor plates, every poly segment,\nMOS and interconnect parasitic. Half-grid import and zero parasitic thresholds\nare explicit. Native LVS checks the original GDS's tap labels; the Magic\nextraction copy retains only Metal3 interface text, avoiding internal well-name\naliases without altering geometry. Magic idealizes well/substrate taps while\nsource simulation includes their finite models. Distributed substrate\nresistance/noise and fabrication signoff remain unqualified.</p>\n"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/ldo_001_analoggym_basic","status":"qualified","title":"Multistage Error-Amplifier PMOS Regulator"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}]
+c:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+14:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+9:null
+e:[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L14","3",{}]]

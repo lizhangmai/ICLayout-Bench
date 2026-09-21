@@ -1,0 +1,413 @@
+1:"$Sreact.fragment"
+2:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+3:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+4:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+5:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+7:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+8:"$Sreact.suspense"
+b:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+d:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+f:I[68027,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default",1]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+a:X
+0:{"P":null,"c":["","tasks","freepdk45.nangate45-pdk.NAND2_X1",""],"q":"","i":false,"f":[[["",{"children":[["path","tasks/freepdk45.nangate45-pdk.NAND2_X1","oc",[]],{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L2",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L3",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L2",null,{"href":"/","children":"Return to overview"}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L2",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}],{"children":[["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":[["$","$1","c",{"children":["$L6",[["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true,"nonce":"$undefined"}]],["$","$L7",null,{"children":["$","$8",null,{"name":"Next.MetadataOutlet","children":"$@9"}]}]]}],{},null,false,null]},null,false,"$a"]},null,false,null],["$","$1","h",{"children":[null,["$","$Lb",null,{"children":"$Lc"}],["$","div",null,{"hidden":true,"children":["$","$Ld",null,{"children":["$","$8",null,{"name":"Next.Metadata","children":"$Le"}]}]}],null]}],false]],"m":"$undefined","G":["$f",[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"U2oZdoUjWqT_XfcDHuQ5i"}
+10:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+a:C
+11:T2cb3,<h1 id="problem-two-input-nand-layout-task">Two-Input NAND Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Implement ZN = NOT (A1 AND A2) using the supplied VTL transistors. Preserve the authoritative netlist's model classes, W/L, interface and connectivity. Submit top cell <code>NAND2_X1</code>.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p>Ordered SPICE ports: <code>A1 A2 ZN VDD VSS</code>. Names are case-insensitive; different names are not interchangeable. The delivered inputs are this problem, <code>materials/circuit.spice</code>, and <code>materials/testbench.spice</code>. The model and extraction resources are supplied as reviewed support bundles. Reference geometry and qualification evidence are maintainer materials, excluded from solver inputs.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>Use the nominal FreePDK45 BSIM4 models at <strong>1.0 V and 27 C</strong>, with ground at 0 V. All transistor lengths are 50 nm; widths and model classes come from the netlist.</p>
+<p>ZN drives 5 fF. Apply 00, 01, 11, 10, 00, 10, 11, 01, 00 to A1/A2 in 500 ps slots, with 10 ps edges. Sample ZN at slot start + 110 ps. This visits the full truth table and both directions of each single-input transition. Average DUT supply power over 0–4.4 ns.</p>
+<p>The deck defines stimuli and observation times exactly. Tests use only external ports. Qualification covers these nominal conditions, not PVT, mismatch, array abutment, substrate noise or manufacturing signoff.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Submit a nonempty GDSII of at most 10 MiB. Enable all checks present in the supplied KLayout DRC deck, including grid and antenna checks, with no waivers. Strict LVS checks named ports, models, W/L and actual well/tap connectivity; library-specific implicit or global rail connections are disabled. The upstream deck does not implement its documented different-potential well-spacing rule; it is not a complete foundry signoff deck.</p>
+<p>The hard functional envelope is 100 um by 100 um. Its bounding rectangle includes every drawing layer 1/0 through 29/0: active, wells, implants, threshold markers, poly, contacts, all ten metals and all nine vias. It supplies the scored footprint in um2. Put functional geometry on these layers; pin-purpose and annotation geometry is excluded. Electrical labels use poly or metal drawing layers (9/0 and 11/0, 13/0, ..., 29/0). Non-electrical annotation text is ignored by extraction.</p>
+<p>Translation, equivalent hierarchy and internal instance renaming are allowed. LVS permits source/drain exchange and equivalent parallel devices; any such layout must also pass the same RC-based electrical requirements. Preserve top-level port identities and explicit body connections.</p>
+<p>The standard-cell functional frame has fixed height 1.63 um and width on a 0.01 um grid. Coordinates below are relative to its lower-left functional bound; global translation remains allowed. Supply rails must be continuous on metal1 and bound by LVS to the named supply.</p>
+<ul>
+<li><code>VDD</code>: centre y = 1.515 um, thickness at least 0.07 um, from left + 0.115 um to right − 0.03 um.</li>
+<li><code>VSS</code>: centre y = 0.115 um, thickness at least 0.07 um, from left + 0.115 um to right − 0.03 um.</li>
+</ul>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Artifact, DRC, LVS and geometry gates precede candidate GDS extraction. Simulation consumes the candidate's Magic RC netlist unchanged; source simulation supplies the independent scoring baseline. VTG/VTL device classes are checked by independent LVS before the matching extraction profile is used. Extraction includes poly/metal sheet resistance, contacts/vias, geometry-dependent coupling and ground capacitance, and device junction area/perimeter. Wells are lumped connections; BSIM4 supplies device/junction behavior. Interconnect resistance and capacitance use the pinned community FreePDK45 Magic technology's estimated coefficients and native capacitance placement. The extraction adapter binds VTG/VTL models, preserves annotation layers and corrects the technology's dimensional unit conversion. This is a predictive approximation without field-solver signoff accuracy.</p>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>state_0</code></td>
+<td><code>find v(ZN) at=0.110n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_1</code></td>
+<td><code>find v(ZN) at=0.610n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_2</code></td>
+<td><code>find v(ZN) at=1.110n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>−∞ … 0.1</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_3</code></td>
+<td><code>find v(ZN) at=1.610n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_4</code></td>
+<td><code>find v(ZN) at=2.110n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_5</code></td>
+<td><code>find v(ZN) at=2.610n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_6</code></td>
+<td><code>find v(ZN) at=3.110n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>−∞ … 0.1</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_7</code></td>
+<td><code>find v(ZN) at=3.610n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_8</code></td>
+<td><code>find v(ZN) at=4.110n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>supply</code></td>
+<td><code>avg par('-v(vdd)*i(Vdd)') from=0 to=4.400n</code></td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>propagation_delay</code></td>
+<td>Worst paired quality over: delay_a1_fall_2, delay_a2_rise_3, delay_a2_fall_6, delay_a1_rise_7.</td>
+<td>s</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>output_transition</code></td>
+<td>Worst paired quality over: transition_a1_fall_2, transition_a2_rise_3, transition_a2_fall_6, transition_a1_rise_7.</td>
+<td>s</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>1.6789 um2</strong>. Complete functional bounding rectangle of the declared standard-cell reference GDS: 1.03 by 1.63 um = 1.6789 um2. Reference SHA-256: d077499ea242e1c8506c7a992ce713d46ea513c52b80073a2b7ae6d6515f2d3f. This footprint includes the maintained explicit taps and routing.</p>
+<p>The capability coefficient remains <strong>1</strong>; it is independent of
+the reference-relative task score.</p>
+<h3 id="problem-standard-cell-design-guidance">Standard-cell design guidance</h3>
+<p>Plan the device rows, power rails and signal access before routing. Represent
+pull-up and pull-down connectivity as transistor-edge graphs; explore compatible
+Euler trails and alternative orderings to share diffusion and reduce breaks.
+Choose among legal orderings using routing length, parasitic loading and signal
+access, rather than diffusion sharing alone. Preserve the fixed netlist sizes,
+models and connectivity; size optimization is outside this task.</p>
+<p>Use the task's declared row height, grid and rail geometry. Keep local routes
+compact, leave signal pins accessible, and avoid consuming extra routing layers
+without benefit. Check DRC and named-port LVS, then extract the candidate and
+compare both transition directions and power with the source simulation. Iterate
+on measured parasitic effects rather than visual compactness alone. These are
+optional techniques, not a mandated algorithm or reference placement.</p>
+<p>Adapted from Xu et al., <em>Standard Cell Library Design and Optimization Methodology
+for ASAP7 PDK</em>, Sections 2–3 (https://arxiv.org/abs/1807.11396). Its FinFET sizing,
+track counts and process-specific dimensions do not apply to this task.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Standard-cell logic: propagation delay 48%; output transition 16%; supply power 16%; area 20%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.2</td>
+</tr>
+<tr>
+<td><code>propagation_delay</code></td>
+<td style="text-align:right">0.480000000000</td>
+</tr>
+<tr>
+<td><code>output_transition</code></td>
+<td style="text-align:right">0.160000000000</td>
+</tr>
+<tr>
+<td><code>supply</code></td>
+<td style="text-align:right">0.160000000000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Use the reviewed FreePDK45 KLayout, Magic and ngspice resources from <code>/protocol/resources.json</code>. For Magic RC extraction, use <code>/resources/support/magic-vtl/freepdk45.tech</code>, which includes the required model and unit adaptations. Runtime <code>/protocol/task.json</code> publishes the same constraints, measurements and scoring. Only declared inputs appear under <code>/task</code>. Write <code>/workspace/output/final.gds</code>, then explicitly submit with <code>python -I /protocol/submit.py</code>. A harness that declares <code>process-feedback</code> uses the same frozen plan and backend identities for process checks; those snapshots do not count as final submissions.</p>
+12:T1bbd,<p>Artifact, DRC, LVS and geometry gates precede candidate GDS extraction. Simulation consumes the candidate's Magic RC netlist unchanged; source simulation supplies the independent scoring baseline. VTG/VTL device classes are checked by independent LVS before the matching extraction profile is used. Extraction includes poly/metal sheet resistance, contacts/vias, geometry-dependent coupling and ground capacitance, and device junction area/perimeter. Wells are lumped connections; BSIM4 supplies device/junction behavior. Interconnect resistance and capacitance use the pinned community FreePDK45 Magic technology's estimated coefficients and native capacitance placement. The extraction adapter binds VTG/VTL models, preserves annotation layers and corrects the technology's dimensional unit conversion. This is a predictive approximation without field-solver signoff accuracy.</p>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>state_0</code></td>
+<td><code>find v(ZN) at=0.110n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_1</code></td>
+<td><code>find v(ZN) at=0.610n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_2</code></td>
+<td><code>find v(ZN) at=1.110n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>−∞ … 0.1</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_3</code></td>
+<td><code>find v(ZN) at=1.610n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_4</code></td>
+<td><code>find v(ZN) at=2.110n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_5</code></td>
+<td><code>find v(ZN) at=2.610n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_6</code></td>
+<td><code>find v(ZN) at=3.110n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>−∞ … 0.1</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_7</code></td>
+<td><code>find v(ZN) at=3.610n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>state_8</code></td>
+<td><code>find v(ZN) at=4.110n</code></td>
+<td>V</td>
+<td>functional check</td>
+<td>0.9 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>supply</code></td>
+<td><code>avg par('-v(vdd)*i(Vdd)') from=0 to=4.400n</code></td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>propagation_delay</code></td>
+<td>Worst paired quality over: delay_a1_fall_2, delay_a2_rise_3, delay_a2_fall_6, delay_a1_rise_7.</td>
+<td>s</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>output_transition</code></td>
+<td>Worst paired quality over: transition_a1_fall_2, transition_a2_rise_3, transition_a2_fall_6, transition_a1_rise_7.</td>
+<td>s</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>1.6789 um2</strong>. Complete functional bounding rectangle of the declared standard-cell reference GDS: 1.03 by 1.63 um = 1.6789 um2. Reference SHA-256: d077499ea242e1c8506c7a992ce713d46ea513c52b80073a2b7ae6d6515f2d3f. This footprint includes the maintained explicit taps and routing.</p>
+<p>The capability coefficient remains <strong>1</strong>; it is independent of
+the reference-relative task score.</p>
+<h3>Standard-cell design guidance</h3>
+<p>Plan the device rows, power rails and signal access before routing. Represent
+pull-up and pull-down connectivity as transistor-edge graphs; explore compatible
+Euler trails and alternative orderings to share diffusion and reduce breaks.
+Choose among legal orderings using routing length, parasitic loading and signal
+access, rather than diffusion sharing alone. Preserve the fixed netlist sizes,
+models and connectivity; size optimization is outside this task.</p>
+<p>Use the task's declared row height, grid and rail geometry. Keep local routes
+compact, leave signal pins accessible, and avoid consuming extra routing layers
+without benefit. Check DRC and named-port LVS, then extract the candidate and
+compare both transition directions and power with the source simulation. Iterate
+on measured parasitic effects rather than visual compactness alone. These are
+optional techniques, not a mandated algorithm or reference placement.</p>
+<p>Adapted from Xu et al., <em>Standard Cell Library Design and Optimization Methodology
+for ASAP7 PDK</em>, Sections 2–3 (https://arxiv.org/abs/1807.11396). Its FinFET sizing,
+track counts and process-specific dimensions do not apply to this task.</p>
+<h3>Score weights</h3>
+<p>Standard-cell logic: propagation delay 48%; output transition 16%; supply power 16%; area 20%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.2</td>
+</tr>
+<tr>
+<td><code>propagation_delay</code></td>
+<td style="text-align:right">0.480000000000</td>
+</tr>
+<tr>
+<td><code>output_transition</code></td>
+<td style="text-align:right">0.160000000000</td>
+</tr>
+<tr>
+<td><code>supply</code></td>
+<td style="text-align:right">0.160000000000</td>
+</tr>
+</tbody>
+</table>
+13:T6d9,<p>Submit a nonempty GDSII of at most 10 MiB. Enable all checks present in the supplied KLayout DRC deck, including grid and antenna checks, with no waivers. Strict LVS checks named ports, models, W/L and actual well/tap connectivity; library-specific implicit or global rail connections are disabled. The upstream deck does not implement its documented different-potential well-spacing rule; it is not a complete foundry signoff deck.</p>
+<p>The hard functional envelope is 100 um by 100 um. Its bounding rectangle includes every drawing layer 1/0 through 29/0: active, wells, implants, threshold markers, poly, contacts, all ten metals and all nine vias. It supplies the scored footprint in um2. Put functional geometry on these layers; pin-purpose and annotation geometry is excluded. Electrical labels use poly or metal drawing layers (9/0 and 11/0, 13/0, ..., 29/0). Non-electrical annotation text is ignored by extraction.</p>
+<p>Translation, equivalent hierarchy and internal instance renaming are allowed. LVS permits source/drain exchange and equivalent parallel devices; any such layout must also pass the same RC-based electrical requirements. Preserve top-level port identities and explicit body connections.</p>
+<p>The standard-cell functional frame has fixed height 1.63 um and width on a 0.01 um grid. Coordinates below are relative to its lower-left functional bound; global translation remains allowed. Supply rails must be continuous on metal1 and bound by LVS to the named supply.</p>
+<ul>
+<li><code>VDD</code>: centre y = 1.515 um, thickness at least 0.07 um, from left + 0.115 um to right − 0.03 um.</li>
+<li><code>VSS</code>: centre y = 0.115 um, thickness at least 0.07 um, from left + 0.115 um to right − 0.03 um.</li>
+</ul>
+6:["$","$8",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L10",null,{"task":{"case_path":"tasks/freepdk45/nangate45-pdk/cases/NAND2_X1/case.toml","coefficient":1,"collection":"nangate45-pdk","configuration_url":"/ICLayout-Bench/assets/c3ac5b9c510046ebbca1312d025e605fd5e29b72f4208e34da04cac1078f5aeb.txt","description_html":"$11","description_path":"tasks/freepdk45/nangate45-pdk/cases/NAND2_X1/problem.md","hours":3,"id":"freepdk45.nangate45-pdk.NAND2_X1","inputs":{"description":{"format":"text","path":"problem.md","sha256":"26feeab7c4edda1754cfed7055c6507b8a04b5383401b55b1761c1dc8f76d454"},"netlist":{"format":"spice","path":"materials/circuit.spice","sha256":"1decfdcffa5a7f962e26c0831e9a219521670f282df72e465fd61ebccdba12b0","subcircuit":"NAND2_X1"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"389d2d09f05913f740d0b776e0fe2d4382057b2bc8a23564f4150adae920e4c9"}},"licenses":[{"name":"LICENSE","path":"tasks/freepdk45/nangate45-pdk/LICENSE","url":"/ICLayout-Bench/assets/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594.txt"},{"name":"NOTICE","path":"tasks/freepdk45/nangate45-pdk/NOTICE","url":"/ICLayout-Bench/assets/4bb19f342bff9203f5e1bc7d827e0a3f06af3909e9639677ba71fd2800fd0ec6.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/26feeab7c4edda1754cfed7055c6507b8a04b5383401b55b1761c1dc8f76d454.txt"},{"name":"materials/circuit.spice","role":"netlist","url":"/ICLayout-Bench/assets/1decfdcffa5a7f962e26c0831e9a219521670f282df72e465fd61ebccdba12b0.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/389d2d09f05913f740d0b776e0fe2d4382057b2bc8a23564f4150adae920e4c9.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"min","category":"performance","direction":"maximize","id":"state_0","lower":0.9,"observations":["nominal:state_0"],"unit":"V"},{"aggregation":"min","category":"performance","direction":"maximize","id":"state_1","lower":0.9,"observations":["nominal:state_1"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"minimize","id":"state_2","observations":["nominal:state_2"],"unit":"V","upper":0.1},{"aggregation":"min","category":"performance","direction":"maximize","id":"state_3","lower":0.9,"observations":["nominal:state_3"],"unit":"V"},{"aggregation":"min","category":"performance","direction":"maximize","id":"state_4","lower":0.9,"observations":["nominal:state_4"],"unit":"V"},{"aggregation":"min","category":"performance","direction":"maximize","id":"state_5","lower":0.9,"observations":["nominal:state_5"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"minimize","id":"state_6","observations":["nominal:state_6"],"unit":"V","upper":0.1},{"aggregation":"min","category":"performance","direction":"maximize","id":"state_7","lower":0.9,"observations":["nominal:state_7"],"unit":"V"},{"aggregation":"min","category":"performance","direction":"maximize","id":"state_8","lower":0.9,"observations":["nominal:state_8"],"unit":"V"},{"aggregation":"max","baseline":["source_nominal:supply"],"category":"performance","dimension":"supply","direction":"minimize","id":"supply","lower":0,"normalization":"ratio","observations":["nominal:supply"],"scale":1e-12,"unit":"W"},{"aggregation":"max","baseline":["source_nominal:delay_a1_fall_2","source_nominal:delay_a2_rise_3","source_nominal:delay_a2_fall_6","source_nominal:delay_a1_rise_7"],"category":"performance","dimension":"response","direction":"minimize","id":"propagation_delay","lower":0,"normalization":"ratio","observations":["nominal:delay_a1_fall_2","nominal:delay_a2_rise_3","nominal:delay_a2_fall_6","nominal:delay_a1_rise_7"],"unit":"s"},{"aggregation":"max","baseline":["source_nominal:transition_a1_fall_2","source_nominal:transition_a2_rise_3","source_nominal:transition_a2_fall_6","source_nominal:transition_a1_rise_7"],"category":"performance","dimension":"response","direction":"minimize","id":"output_transition","lower":0,"normalization":"ratio","observations":["nominal:transition_a1_fall_2","nominal:transition_a2_rise_3","nominal:transition_a2_fall_6","nominal:transition_a1_rise_7"],"unit":"s"}],"pdk":"freepdk45","reader":{"category":"Logic & memory","summary":"Implements two-input NAND logic in a fixed-height standard cell.","title":"Two-Input NAND"},"schematic_url":"/ICLayout-Bench/assets/b01b8aa3a1ff8bbe322d92979d9d59e897d655c9e002c7f50b83916ae96b19da.svg","scoring":{"area_metric":"functional_area","area_target":1.6789,"method":"layout","rationale":"Standard-cell logic: propagation delay 48%; output transition 16%; supply power 16%; area 20%. Each objective's weight is divided equally among its metrics.","weights":{"functional_area":0.2,"output_transition":0.16,"propagation_delay":0.48,"supply":0.16}},"sections":{"Electrical Requirements and Scoring":"$12","Objective":"<p>Implement ZN = NOT (A1 AND A2) using the supplied VTL transistors. Preserve the authoritative netlist's model classes, W/L, interface and connectivity. Submit top cell <code>NAND2_X1</code>.</p>\n","Operating Conditions":"<p>Use the nominal FreePDK45 BSIM4 models at <strong>1.0 V and 27 C</strong>, with ground at 0 V. All transistor lengths are 50 nm; widths and model classes come from the netlist.</p>\n<p>ZN drives 5 fF. Apply 00, 01, 11, 10, 00, 10, 11, 01, 00 to A1/A2 in 500 ps slots, with 10 ps edges. Sample ZN at slot start + 110 ps. This visits the full truth table and both directions of each single-input transition. Average DUT supply power over 0–4.4 ns.</p>\n<p>The deck defines stimuli and observation times exactly. Tests use only external ports. Qualification covers these nominal conditions, not PVT, mismatch, array abutment, substrate noise or manufacturing signoff.</p>\n","Physical Requirements":"$13"},"source_url":"https://foss-eda-tools.googlesource.com/third_party/freepdk45/+/356e90646f5ef26ea09b1ed8ce4796871403a0c7/Back_End/spice/NAND2_X1.spi","status":"qualified","title":"Two-Input NAND"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}]
+c:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+14:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+9:null
+e:[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L14","3",{}]]

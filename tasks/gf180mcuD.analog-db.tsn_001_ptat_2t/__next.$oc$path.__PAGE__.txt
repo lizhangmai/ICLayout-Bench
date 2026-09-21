@@ -1,0 +1,244 @@
+1:"$Sreact.fragment"
+2:"$Sreact.suspense"
+3:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+4:T2044,<h1 id="problem-two-nmos-temperature-response-core-layout-task">Two-NMOS Temperature-Response Core Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>The fixed GF180 binding contains eight parallel 8/0.28 um upper NMOS with gates tied to their sources, and eight parallel 4/1 um diode-connected lower NMOS. Both groups have grounded bodies. This is a two-group temperature-response core; neither its PTAT name nor a successful simulator exit establishes a useful slope or a converged extracted operating point. Target top cell: <code>tsn_001_ptat_2t</code>.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p><code>materials/circuit.cdl</code> is the authoritative physical netlist; <code>materials/circuit.spice</code> is the same compact-device circuit for simulation. <code>materials/temperature.spice</code> supplies the shared external fixture and bidirectional temperature sweep. Both source and extracted candidate use the exact same deck, bias, loads, excitation, initial-state procedure and measurement windows. Ordered ports: vdd (supply), vout (sense voltage), vss (both bodies and return).</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>GF180 nfet_03v3 TT, fixed 1.2 V supply, 1 Tohm probe resistance and 1 pF to ground. No external current bias changes with temperature. Ascending and descending temperature sweeps use 5 C steps. Output and power at -20 through 120 C in 10 C steps are sampled from the same ascending sweep used for slope and curvature. The fixed 50 mV nodeset is a Newton initial guess, not a voltage source or a per-temperature bias adjustment. Sparse 1.3, pivtol=1e-30 S, pivrel=0.001, reltol=1e-7, abstol=1e-18 A, vntol=1e-10 V and gmin=1e-18 S are explicit for both circuits; no rshunt is used.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Use GF180 native KLayout main rule deck and named-interface LVS; Magic RC extraction with its reviewed 10-way grid subdivision. No case-specific waivers. Candidate extraction must preserve every model, multiplicity, size, resistor value, connection and ordered port. The functional outline includes devices, wells, contacts and all routing layers declared in the public task; annotation and pin labels do not add area. Maximum outline: 5000 by 1000 um. Maximum GDS size: 10485760 bytes. Every device and resistor must be physical; no ideal internal macro or auxiliary servo may be added. External sources, probe loads and storage capacitors belong to the testbench.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Unit</th>
+<th>Definition</th>
+<th>Bound</th>
+<th>Quality</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>V</td>
+<td>Independent DC temperature-response output</td>
+<td>0 to 1.2</td>
+<td>bias: target, target, scale=0.1</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>W</td>
+<td>DC supply power at fixed 1.2 V</td>
+<td>0 to unbounded</td>
+<td>supply: ratio, minimize, scale=1e-15</td>
+</tr>
+<tr>
+<td><code>slope_v_c</code></td>
+<td>V/C</td>
+<td>Endpoint temperature slope over -20 to 120 C</td>
+<td>unbounded to unbounded</td>
+<td>response: target, target, scale=0.001</td>
+</tr>
+<tr>
+<td><code>curvature_v</code></td>
+<td>V</td>
+<td>Maximum deviation from endpoint secant over -20 to 120 C</td>
+<td>0 to unbounded</td>
+<td>response: ratio, minimize, scale=1e-06</td>
+</tr>
+</tbody>
+</table>
+<p>The simulator uses an explicit branch-current formulation for constant parasitic resistors: a zero-volt current sensor and a current-controlled voltage source impose V=R*I exactly. Every resistance, terminal and extracted capacitance is retained. This avoids loss of tiny node conductances when added to the much larger metal conductance in conventional nodal stamping. The original extraction and the effective simulation netlist are both retained as evidence. Source and candidate use the same backend setting. This deterministic formulation does not model resistor thermal noise; noise is outside this task's scope. KCL and measurement-validity checks remain mandatory. No self-startup, precision temperature sensing or linear PTAT behavior is assumed.</p>
+<p>Static output bounds are physical rail-domain checks, nonnegative power/error bounds establish measurement domains, and KCL guards reject inconsistent DC solutions. All required conditions must be valid. No advertised upstream performance is a hard gate. The metric table specifies each target scale and normalization floor. Floors prevent zero-error ratios; scales and floors are normalization units, not acceptance tolerances.</p>
+<p>For each metric take the worst same-condition source-paired quality. Target quality is <code>1/(1+abs(candidate-source)/scale)</code>; minimizing ratio quality is <code>(source+scale)/(candidate+scale)</code>.  Missing/nonfinite/invalid source or candidate measurements and tool failures yield an unknown score; completed physical/functional rejection yields zero. Bounds apply to every observation.</p>
+<p>Compact area anchor: 1600 um2 = 8 × 10 × 10 um2 upper-device/contact envelopes + 8 × 6 × 8 um2 lower-device/contact envelopes + 416 um2 routing/body-contact allowance, independent of witness area. Coefficient 3: local analog temperature-dependent bias and transfer. The circuit and these anchors are fixed before participant evaluation.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Temperature-slope cores: temperature slope 42.4%; curvature 31.8%; output endpoints 5.29%; power 10.6%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>slope_v_c</code></td>
+<td style="text-align:right">0.423529411764</td>
+</tr>
+<tr>
+<td><code>curvature_v</code></td>
+<td style="text-align:right">0.317647058824</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.052941176471</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.105882352941</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>6 hours</strong>.</p>
+<p>Use the runtime task/protocol and reviewed resource bundle to discover tools and feedback. Submit <code>/workspace/output/final.gds</code> explicitly through the protocol; merely writing it is not a submission. The reference and maintainer source records are excluded from solver inputs.</p>
+5:T1455,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Unit</th>
+<th>Definition</th>
+<th>Bound</th>
+<th>Quality</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>V</td>
+<td>Independent DC temperature-response output</td>
+<td>0 to 1.2</td>
+<td>bias: target, target, scale=0.1</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>W</td>
+<td>DC supply power at fixed 1.2 V</td>
+<td>0 to unbounded</td>
+<td>supply: ratio, minimize, scale=1e-15</td>
+</tr>
+<tr>
+<td><code>slope_v_c</code></td>
+<td>V/C</td>
+<td>Endpoint temperature slope over -20 to 120 C</td>
+<td>unbounded to unbounded</td>
+<td>response: target, target, scale=0.001</td>
+</tr>
+<tr>
+<td><code>curvature_v</code></td>
+<td>V</td>
+<td>Maximum deviation from endpoint secant over -20 to 120 C</td>
+<td>0 to unbounded</td>
+<td>response: ratio, minimize, scale=1e-06</td>
+</tr>
+</tbody>
+</table>
+<p>The simulator uses an explicit branch-current formulation for constant parasitic resistors: a zero-volt current sensor and a current-controlled voltage source impose V=R*I exactly. Every resistance, terminal and extracted capacitance is retained. This avoids loss of tiny node conductances when added to the much larger metal conductance in conventional nodal stamping. The original extraction and the effective simulation netlist are both retained as evidence. Source and candidate use the same backend setting. This deterministic formulation does not model resistor thermal noise; noise is outside this task's scope. KCL and measurement-validity checks remain mandatory. No self-startup, precision temperature sensing or linear PTAT behavior is assumed.</p>
+<p>Static output bounds are physical rail-domain checks, nonnegative power/error bounds establish measurement domains, and KCL guards reject inconsistent DC solutions. All required conditions must be valid. No advertised upstream performance is a hard gate. The metric table specifies each target scale and normalization floor. Floors prevent zero-error ratios; scales and floors are normalization units, not acceptance tolerances.</p>
+<p>For each metric take the worst same-condition source-paired quality. Target quality is <code>1/(1+abs(candidate-source)/scale)</code>; minimizing ratio quality is <code>(source+scale)/(candidate+scale)</code>.  Missing/nonfinite/invalid source or candidate measurements and tool failures yield an unknown score; completed physical/functional rejection yields zero. Bounds apply to every observation.</p>
+<p>Compact area anchor: 1600 um2 = 8 × 10 × 10 um2 upper-device/contact envelopes + 8 × 6 × 8 um2 lower-device/contact envelopes + 416 um2 routing/body-contact allowance, independent of witness area. Coefficient 3: local analog temperature-dependent bias and transfer. The circuit and these anchors are fixed before participant evaluation.</p>
+<h3>Score weights</h3>
+<p>Temperature-slope cores: temperature slope 42.4%; curvature 31.8%; output endpoints 5.29%; power 10.6%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>slope_v_c</code></td>
+<td style="text-align:right">0.423529411764</td>
+</tr>
+<tr>
+<td><code>curvature_v</code></td>
+<td style="text-align:right">0.317647058824</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.052941176471</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.105882352941</td>
+</tr>
+</tbody>
+</table>
+9:X
+e:X
+e:C
+0:{"buildId":"U2oZdoUjWqT_XfcDHuQ5i","data":[{"rsc":["$","$1","c",{"children":[["$","$2",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L3",null,{"task":{"case_path":"tasks/gf180mcuD/analog-db/cases/tsn_001_ptat_2t/case.toml","coefficient":3,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/ae46695ccced40bea2ff56991b625536b0e5f297958c5f450d761d54b11135c6.txt","description_html":"$4","description_path":"tasks/gf180mcuD/analog-db/cases/tsn_001_ptat_2t/problem.md","hours":6,"id":"gf180mcuD.analog-db.tsn_001_ptat_2t","inputs":{"description":{"format":"text","path":"problem.md","sha256":"9b2ab97119c7c07e140721d1ab21da1af40e521f70bb6b1105e442659124b79e"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"534d2b4bdfe4354bd80c0db81495c5d60a73fe20912ba79f3ccb749fadaf7efc","subcircuit":"tsn_001_ptat_2t"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"659c035dbae30f070c26ddc944ba6d79737771d6b3f806d36fce8fcf21a88859"},"temperature":{"format":"spice","path":"materials/temperature.spice","sha256":"4d79f00df8ece04f2b7c2fca93538c4f1e64561915d78be69d4e86cf841d44ed"}},"licenses":[{"name":"LICENSE","path":"tasks/gf180mcuD/analog-db/LICENSE","url":"/ICLayout-Bench/assets/d6c09a4fa902f192f05e697110788e520f294a97446ababab65986137c16fceb.txt"},{"name":"NOTICE","path":"tasks/gf180mcuD/analog-db/NOTICE","url":"/ICLayout-Bench/assets/75d61165620fd72b89f65e52c2b6c85b73d410bd293062873390bd20ab820a41.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/9b2ab97119c7c07e140721d1ab21da1af40e521f70bb6b1105e442659124b79e.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/534d2b4bdfe4354bd80c0db81495c5d60a73fe20912ba79f3ccb749fadaf7efc.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/659c035dbae30f070c26ddc944ba6d79737771d6b3f806d36fce8fcf21a88859.txt"},{"name":"materials/temperature.spice","role":"temperature","url":"/ICLayout-Bench/assets/4d79f00df8ece04f2b7c2fca93538c4f1e64561915d78be69d4e86cf841d44ed.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"max","baseline":["source_condition_0:output_v_0","source_condition_0:output_v_1","source_condition_0:output_v_2","source_condition_0:output_v_3","source_condition_0:output_v_4","source_condition_0:output_v_5","source_condition_0:output_v_6","source_condition_0:output_v_7","source_condition_0:output_v_8","source_condition_0:output_v_9","source_condition_0:output_v_10","source_condition_0:output_v_11","source_condition_0:output_v_12","source_condition_0:output_v_13","source_condition_0:output_v_14"],"category":"performance","dimension":"bias","direction":"target","id":"output_v","lower":0,"normalization":"target","observations":["condition_0:output_v_0","condition_0:output_v_1","condition_0:output_v_2","condition_0:output_v_3","condition_0:output_v_4","condition_0:output_v_5","condition_0:output_v_6","condition_0:output_v_7","condition_0:output_v_8","condition_0:output_v_9","condition_0:output_v_10","condition_0:output_v_11","condition_0:output_v_12","condition_0:output_v_13","condition_0:output_v_14"],"scale":0.1,"unit":"V","upper":1.2},{"aggregation":"max","baseline":["source_condition_0:power_w_0","source_condition_0:power_w_1","source_condition_0:power_w_2","source_condition_0:power_w_3","source_condition_0:power_w_4","source_condition_0:power_w_5","source_condition_0:power_w_6","source_condition_0:power_w_7","source_condition_0:power_w_8","source_condition_0:power_w_9","source_condition_0:power_w_10","source_condition_0:power_w_11","source_condition_0:power_w_12","source_condition_0:power_w_13","source_condition_0:power_w_14"],"category":"performance","dimension":"supply","direction":"minimize","id":"power_w","lower":0,"normalization":"ratio","observations":["condition_0:power_w_0","condition_0:power_w_1","condition_0:power_w_2","condition_0:power_w_3","condition_0:power_w_4","condition_0:power_w_5","condition_0:power_w_6","condition_0:power_w_7","condition_0:power_w_8","condition_0:power_w_9","condition_0:power_w_10","condition_0:power_w_11","condition_0:power_w_12","condition_0:power_w_13","condition_0:power_w_14"],"scale":1e-15,"unit":"W"},{"aggregation":"max","baseline":["source_condition_0:slope_v_c"],"category":"performance","dimension":"response","direction":"target","id":"slope_v_c","normalization":"target","observations":["condition_0:slope_v_c"],"scale":0.001,"unit":"V/C"},{"aggregation":"max","baseline":["source_condition_0:curvature_v"],"category":"performance","dimension":"response","direction":"minimize","id":"curvature_v","lower":0,"normalization":"ratio","observations":["condition_0:curvature_v"],"scale":0.000001,"unit":"V"}],"pdk":"gf180mcuD","reader":{"category":"Power & references","summary":"Produces a temperature-dependent response whose slope and curvature are measured across the declared range.","title":"Two-NMOS Temperature-Response Core"},"schematic_url":"/ICLayout-Bench/assets/e8b422f5c0b6260f5b19aeba4f038bd1a5dfa4f99028778bcd90effd27dd6e48.svg","scoring":{"area_metric":"functional_area","area_target":1600,"method":"layout","rationale":"Temperature-slope cores: temperature slope 42.4%; curvature 31.8%; output endpoints 5.29%; power 10.6%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"curvature_v":0.317647058824,"functional_area":0.1,"output_v":0.052941176471,"power_w":0.105882352941,"slope_v_c":0.423529411764}},"sections":{"Electrical Requirements and Scoring":"$5","Objective":"<p>The fixed GF180 binding contains eight parallel 8/0.28 um upper NMOS with gates tied to their sources, and eight parallel 4/1 um diode-connected lower NMOS. Both groups have grounded bodies. This is a two-group temperature-response core; neither its PTAT name nor a successful simulator exit establishes a useful slope or a converged extracted operating point. Target top cell: <code>tsn_001_ptat_2t</code>.</p>\n","Operating Conditions":"<p>GF180 nfet_03v3 TT, fixed 1.2 V supply, 1 Tohm probe resistance and 1 pF to ground. No external current bias changes with temperature. Ascending and descending temperature sweeps use 5 C steps. Output and power at -20 through 120 C in 10 C steps are sampled from the same ascending sweep used for slope and curvature. The fixed 50 mV nodeset is a Newton initial guess, not a voltage source or a per-temperature bias adjustment. Sparse 1.3, pivtol=1e-30 S, pivrel=0.001, reltol=1e-7, abstol=1e-18 A, vntol=1e-10 V and gmin=1e-18 S are explicit for both circuits; no rshunt is used.</p>\n","Physical Requirements":"<p>Use GF180 native KLayout main rule deck and named-interface LVS; Magic RC extraction with its reviewed 10-way grid subdivision. No case-specific waivers. Candidate extraction must preserve every model, multiplicity, size, resistor value, connection and ordered port. The functional outline includes devices, wells, contacts and all routing layers declared in the public task; annotation and pin labels do not add area. Maximum outline: 5000 by 1000 um. Maximum GDS size: 10485760 bytes. Every device and resistor must be physical; no ideal internal macro or auxiliary servo may be added. External sources, probe loads and storage capacitors belong to the testbench.</p>\n"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/tsn_001_ptat_2t","status":"qualified","title":"Two-NMOS Temperature-Response Core"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}],["$L6"],"$L7"]}],"isPartial":"$@8","staleTime":"$9","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$9","varyParams":null},{"rsc":"$Lc","isPartial":"$@d","staleTime":"$9","varyParams":"$e"},{"rsc":"$Lf","isPartial":"$@10","staleTime":"$9","varyParams":null}],"isUpgradeableISRFallback":false,"a":"$@11","rootVaryParams":null,"needsRuntimeRequest":"$@12"}
+13:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+15:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+16:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+17:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+18:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+19:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1a:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+1b:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+6:["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true}]
+7:["$","$L13",null,{"children":["$","$2",null,{"name":"Next.MetadataOutlet","children":"$@14"}]}]
+a:["$","$1","h",{"children":[null,["$","$L15",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L16",null,{"children":["$","$2",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L17","3",{}]]}]}]}],null]}]
+c:["$","$1","c",{"children":[null,["$","$L18",null,{"parallelRouterKey":"children","template":["$","$L19",null,{}]}]]}]
+f:["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L1a",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L1b",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L18",null,{"parallelRouterKey":"children","template":["$","$L19",null,{}],"notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L1a",null,{"href":"/","children":"Return to overview"}]]}],[]]}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L1a",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}]
+14:null
+12:true
+9:300
+9:C
+11:0
+b:"$undefined"
+d:"$undefined"
+10:"$undefined"
+8:"$undefined"

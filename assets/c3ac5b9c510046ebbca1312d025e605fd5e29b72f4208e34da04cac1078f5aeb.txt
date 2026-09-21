@@ -1,0 +1,872 @@
+in_core = true
+kind = "layout_case"
+id = "freepdk45.nangate45-pdk.NAND2_X1"
+title = "Two-Input NAND"
+status = "qualified"
+
+[[assets]]
+path = "reference/NAND2_X1.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "d077499ea242e1c8506c7a992ce713d46ea513c52b80073a2b7ae6d6515f2d3f"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "b01b8aa3a1ff8bbe322d92979d9d59e897d655c9e002c7f50b83916ae96b19da"
+
+[task]
+hours = 3
+kind = "netlist_to_gds"
+family = "freepdk45_nand2_x1"
+coefficient = 1
+environment = "freepdk45-nominal-predictive-rc"
+
+[task.inputs.description]
+path = "problem.md"
+sha256 = "26feeab7c4edda1754cfed7055c6507b8a04b5383401b55b1761c1dc8f76d454"
+format = "text"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+sha256 = "1decfdcffa5a7f962e26c0831e9a219521670f282df72e465fd61ebccdba12b0"
+format = "spice"
+subcircuit = "NAND2_X1"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+sha256 = "389d2d09f05913f740d0b776e0fe2d4382057b2bc8a23564f4150adae920e4c9"
+format = "spice"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        2,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        4,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        9,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        15,
+        0,
+    ],
+    [
+        16,
+        0,
+    ],
+    [
+        17,
+        0,
+    ],
+    [
+        18,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        20,
+        0,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        23,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        25,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        27,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+]
+max_width_um = 100
+max_height_um = 100
+
+[[task.constraints.hard]]
+id = "cell_frame"
+type = "cell_frame"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        2,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        4,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        9,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        15,
+        0,
+    ],
+    [
+        16,
+        0,
+    ],
+    [
+        17,
+        0,
+    ],
+    [
+        18,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        20,
+        0,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        23,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        25,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        27,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+]
+height_um = 1.6300000000000001
+width_grid_um = 0.01
+
+[[task.constraints.hard.rails]]
+name = "VDD"
+layer = [
+    11,
+    0,
+]
+connectivity_layer = "metal1"
+y_um = 1.5150000000000001
+thickness_um = 0.07
+left_um = 0.115
+right_um = 0.030000000000000002
+
+[[task.constraints.hard.rails]]
+name = "VSS"
+layer = [
+    11,
+    0,
+]
+connectivity_layer = "metal1"
+y_um = 0.115
+thickness_um = 0.07
+left_um = 0.115
+right_um = 0.030000000000000002
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "NAND2_X1"
+max_bytes = 10485760
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "A1",
+    "A2",
+    "ZN",
+    "VDD",
+    "VSS",
+]
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+state_0 = "V"
+state_1 = "V"
+state_2 = "V"
+state_3 = "V"
+state_4 = "V"
+state_5 = "V"
+state_6 = "V"
+state_7 = "V"
+state_8 = "V"
+supply = "W"
+delay_a1_fall_2 = "s"
+transition_a1_fall_2 = "s"
+delay_a2_rise_3 = "s"
+transition_a2_rise_3 = "s"
+delay_a2_fall_6 = "s"
+transition_a2_fall_6 = "s"
+delay_a1_rise_7 = "s"
+transition_a1_rise_7 = "s"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "state_0"
+category = "performance"
+observations = [
+    "nominal:state_0",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+lower = 0.9
+
+[[task.evaluation.metrics]]
+id = "state_1"
+category = "performance"
+observations = [
+    "nominal:state_1",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+lower = 0.9
+
+[[task.evaluation.metrics]]
+id = "state_2"
+category = "performance"
+observations = [
+    "nominal:state_2",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+upper = 0.1
+
+[[task.evaluation.metrics]]
+id = "state_3"
+category = "performance"
+observations = [
+    "nominal:state_3",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+lower = 0.9
+
+[[task.evaluation.metrics]]
+id = "state_4"
+category = "performance"
+observations = [
+    "nominal:state_4",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+lower = 0.9
+
+[[task.evaluation.metrics]]
+id = "state_5"
+category = "performance"
+observations = [
+    "nominal:state_5",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+lower = 0.9
+
+[[task.evaluation.metrics]]
+id = "state_6"
+category = "performance"
+observations = [
+    "nominal:state_6",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+upper = 0.1
+
+[[task.evaluation.metrics]]
+id = "state_7"
+category = "performance"
+observations = [
+    "nominal:state_7",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+lower = 0.9
+
+[[task.evaluation.metrics]]
+id = "state_8"
+category = "performance"
+observations = [
+    "nominal:state_8",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+lower = 0.9
+
+[[task.evaluation.metrics]]
+id = "supply"
+category = "performance"
+observations = [
+    "nominal:supply",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+dimension = "supply"
+baseline = [
+    "source_nominal:supply",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[[task.evaluation.metrics]]
+id = "propagation_delay"
+category = "performance"
+observations = [
+    "nominal:delay_a1_fall_2",
+    "nominal:delay_a2_rise_3",
+    "nominal:delay_a2_fall_6",
+    "nominal:delay_a1_rise_7",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_nominal:delay_a1_fall_2",
+    "source_nominal:delay_a2_rise_3",
+    "source_nominal:delay_a2_fall_6",
+    "source_nominal:delay_a1_rise_7",
+]
+normalization = "ratio"
+lower = 0
+
+[[task.evaluation.metrics]]
+id = "output_transition"
+category = "performance"
+observations = [
+    "nominal:transition_a1_fall_2",
+    "nominal:transition_a2_rise_3",
+    "nominal:transition_a2_fall_6",
+    "nominal:transition_a1_rise_7",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_nominal:transition_a1_fall_2",
+    "source_nominal:transition_a2_rise_3",
+    "source_nominal:transition_a2_fall_6",
+    "source_nominal:transition_a1_rise_7",
+]
+normalization = "ratio"
+lower = 0
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 1.6789
+rationale = "Standard-cell logic: propagation delay 48%; output transition 16%; supply power 16%; area 20%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.2
+propagation_delay = 0.48
+output_transition = 0.16
+supply = 0.16
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "76a86a4f03264579807d0206b09e5d64b666842b96240cc4a582b1fc7bf5bf5a"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:6562558774d43c085a289bbba696c55959eb8051a0996f96633451fbeb9c652d\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"7fc8a0cde0f7d722e87c34a1115c13986b3db8fecba4b7dadb0a1edf171df62b\", \"timeout_seconds\": 120.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_nominal]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_nominal.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_nominal.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.measurements]
+state_0 = "V"
+state_1 = "V"
+state_2 = "V"
+state_3 = "V"
+state_4 = "V"
+state_5 = "V"
+state_6 = "V"
+state_7 = "V"
+state_8 = "V"
+supply = "W"
+delay_a1_fall_2 = "s"
+transition_a1_fall_2 = "s"
+delay_a2_rise_3 = "s"
+transition_a2_rise_3 = "s"
+delay_a2_fall_6 = "s"
+transition_a2_fall_6 = "s"
+delay_a1_rise_7 = "s"
+transition_a1_rise_7 = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.input_sha256]
+deck = "389d2d09f05913f740d0b776e0fe2d4382057b2bc8a23564f4150adae920e4c9"
+dut = "1decfdcffa5a7f962e26c0831e9a219521670f282df72e465fd61ebccdba12b0"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.delay_a1_fall_2]
+value = 1.430693e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.delay_a1_rise_7]
+value = 9.335134e-12
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.delay_a2_fall_6]
+value = 1.515943e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.delay_a2_rise_3]
+value = 1.022087e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_0]
+value = 0.9999975
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_1]
+value = 0.9999739
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_2]
+value = 0.0001741408
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_3]
+value = 0.9998214
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_4]
+value = 0.999999
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_5]
+value = 0.9999582
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_6]
+value = 0.0001756712
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_7]
+value = 0.9999739
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_8]
+value = 0.9999406
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.supply]
+value = 3.425277e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.transition_a1_fall_2]
+value = 1.658675e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.transition_a1_rise_7]
+value = 9.668356e-12
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.transition_a2_fall_6]
+value = 1.658596e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.transition_a2_rise_3]
+value = 1.080812e-11
+unit = "s"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 120
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+timeout_seconds = 120
+support = "build/support/freepdk45-klayout"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+timeout_seconds = 120
+support = "build/support/freepdk45-klayout"
+profile = "strict-lvs.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 60
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/freepdk45-magic-vtl"
+technology = "freepdk45.tech"
+tech_name = "freepdk45"
+style = "spice3(sim)"
+gds_readonly = false
+case_insensitive_ports = true
+label_layers = [
+    [
+        9,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        15,
+        0,
+    ],
+    [
+        17,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        23,
+        0,
+    ],
+    [
+        25,
+        0,
+    ],
+    [
+        27,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+]
+timeout_seconds = 120
+
+[toolchain.backends.rc.support_profiles]
+support = "magic-vtl"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/freepdk45-models"
+timeout_seconds = 120
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[qualification]
+reference = "reference/NAND2_X1.gds"
+
+[origin]
+url = "https://foss-eda-tools.googlesource.com/third_party/freepdk45/+/356e90646f5ef26ea09b1ed8ce4796871403a0c7/Back_End/spice/NAND2_X1.spi"
+
+[presentation]
+category = "Logic & memory"
+summary = "Implements two-input NAND logic in a fixed-height standard cell."

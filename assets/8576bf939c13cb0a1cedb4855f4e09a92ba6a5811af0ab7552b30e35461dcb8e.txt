@@ -1,0 +1,1138 @@
+in_core = false
+kind = "layout_case"
+id = "gf180mcuD.analog-db.tsn_003_ptat_4t_xcoupled"
+title = "Four-Transistor Positive-Temperature-Slope Core"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "ad455198447a6dcb5a43193df07242a5d8d5a650465935cda1e42e95f0490a32"
+
+[[assets]]
+path = "reference/tsn_003_ptat_4t_xcoupled.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "5dfcc4df599aa38678db51b8ee22c4bda5e04fdb7e9745fa30605d951be5cca4"
+
+[task]
+hours = 3
+kind = "netlist_to_gds"
+family = "gf180_four_transistor_temperature_core"
+coefficient = 3
+environment = "gf180mcuD-typical-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "16fcafe750f6a87bc590c3887b2d8fc05fdbccaf9d46a5d11a7e22d8b00979cb"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "f24cecfbc159437e3d72e808142dda1333ac70ddd16a0a956a9caee218b37c09"
+subcircuit = "tsn_003_ptat_4t_xcoupled"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "9381caafa52300ab51973ade851ac0fbe114480213b26c8bc93dc062ec3a78eb"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "tsn_003_ptat_4t_xcoupled"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
+]
+max_width_um = 120
+max_height_um = 60
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "vout",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 2.7
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "output_v"
+category = "performance"
+observations = [
+    "condition_0:output_v",
+    "condition_1:output_v",
+    "condition_2:output_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:output_v",
+    "source_condition_1:output_v",
+    "source_condition_2:output_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
+
+[[task.evaluation.metrics]]
+id = "power_w"
+category = "performance"
+observations = [
+    "condition_0:power_w",
+    "condition_1:power_w",
+    "condition_2:power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:power_w",
+    "source_condition_1:power_w",
+    "source_condition_2:power_w",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[[task.evaluation.metrics]]
+id = "cold_v"
+category = "performance"
+observations = [
+    "condition_0:cold_v",
+    "condition_1:cold_v",
+    "condition_2:cold_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:cold_v",
+    "source_condition_1:cold_v",
+    "source_condition_2:cold_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
+
+[[task.evaluation.metrics]]
+id = "hot_v"
+category = "performance"
+observations = [
+    "condition_0:hot_v",
+    "condition_1:hot_v",
+    "condition_2:hot_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:hot_v",
+    "source_condition_1:hot_v",
+    "source_condition_2:hot_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
+
+[[task.evaluation.metrics]]
+id = "slope_v_per_c"
+category = "performance"
+observations = [
+    "condition_0:slope_v_per_c",
+    "condition_1:slope_v_per_c",
+    "condition_2:slope_v_per_c",
+]
+unit = "V/C"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:slope_v_per_c",
+    "source_condition_1:slope_v_per_c",
+    "source_condition_2:slope_v_per_c",
+]
+normalization = "target"
+scale = 0.00036
+
+[[task.evaluation.metrics]]
+id = "curvature_v"
+category = "performance"
+observations = [
+    "condition_0:curvature_v",
+    "condition_1:curvature_v",
+    "condition_2:curvature_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:curvature_v",
+    "source_condition_1:curvature_v",
+    "source_condition_2:curvature_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "minimum_slope"
+category = "performance"
+observations = [
+    "condition_0:minimum_slope",
+    "condition_1:minimum_slope",
+    "condition_2:minimum_slope",
+]
+unit = "V/C"
+dimension = "response"
+direction = "target"
+aggregation = "min"
+baseline = [
+    "source_condition_0:minimum_slope",
+    "source_condition_1:minimum_slope",
+    "source_condition_2:minimum_slope",
+]
+normalization = "target"
+scale = 0.00024
+
+[[task.evaluation.metrics]]
+id = "maximum_slope"
+category = "performance"
+observations = [
+    "condition_0:maximum_slope",
+    "condition_1:maximum_slope",
+    "condition_2:maximum_slope",
+]
+unit = "V/C"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:maximum_slope",
+    "source_condition_1:maximum_slope",
+    "source_condition_2:maximum_slope",
+]
+normalization = "target"
+scale = 0.00036
+
+[[task.evaluation.metrics]]
+id = "peak_power_w"
+category = "performance"
+observations = [
+    "condition_0:peak_power_w",
+    "condition_1:peak_power_w",
+    "condition_2:peak_power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:peak_power_w",
+    "source_condition_1:peak_power_w",
+    "source_condition_2:peak_power_w",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 168.38
+rationale = "Temperature-slope cores: temperature slope 42.4%; curvature 31.8%; output endpoints 5.29%; power 10.6%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+maximum_slope = 0.141176470588
+minimum_slope = 0.141176470588
+slope_v_per_c = 0.141176470588
+curvature_v = 0.317647058822
+cold_v = 0.017647058824
+hot_v = 0.017647058824
+output_v = 0.017647058824
+peak_power_w = 0.052941176471
+power_w = 0.052941176471
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "dc2d68ef06cf5b2476776301cac23fafcd44a4e107db2b5f8197723fd32caaa4"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:6562558774d43c085a289bbba696c55959eb8051a0996f96633451fbeb9c652d\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"a340269fb13edfad479628bd59a0b72b878e648c0740e89671cd95b64adc03ef\", \"timeout_seconds\": 240.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_condition_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.values]
+supply_v = 2.7
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.input_sha256]
+deck = "9381caafa52300ab51973ade851ac0fbe114480213b26c8bc93dc062ec3a78eb"
+dut = "f24cecfbc159437e3d72e808142dda1333ac70ddd16a0a956a9caee218b37c09"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.cold_v]
+value = 0.112257
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.curvature_v]
+value = 9.307522e-06
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.hot_v]
+value = 0.1437512
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.maximum_slope]
+value = 0.0002631716
+unit = "V/C"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.minimum_slope]
+value = 0.0002622107
+unit = "V/C"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.output_v]
+value = 0.1245997644977
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.peak_power_w]
+value = 0.0001446342
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.power_w]
+value = 0.0001263739532558
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.slope_v_per_c]
+value = 0.0002624516666667
+unit = "V/C"
+
+[task.evaluation.pre_layout.jobs.source_condition_1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.values]
+supply_v = 3.0
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.input_sha256]
+deck = "9381caafa52300ab51973ade851ac0fbe114480213b26c8bc93dc062ec3a78eb"
+dut = "f24cecfbc159437e3d72e808142dda1333ac70ddd16a0a956a9caee218b37c09"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.cold_v]
+value = 0.1310849
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.curvature_v]
+value = 4.271693e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.hot_v]
+value = 0.1670193
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.maximum_slope]
+value = 0.000301475
+unit = "V/C"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.minimum_slope]
+value = 0.0002985129
+unit = "V/C"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.output_v]
+value = 0.1452018854074
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.peak_power_w]
+value = 0.0002091807
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.power_w]
+value = 0.0001821647842242
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.slope_v_per_c]
+value = 0.0002994533333333
+unit = "V/C"
+
+[task.evaluation.pre_layout.jobs.source_condition_2]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.outputs]
+op = "ngspice-raw"
+temperature = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.values]
+supply_v = 3.3
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.measurements]
+output_v = "V"
+power_w = "W"
+cold_v = "V"
+hot_v = "V"
+slope_v_per_c = "V/C"
+curvature_v = "V"
+minimum_slope = "V/C"
+maximum_slope = "V/C"
+peak_power_w = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.exports]
+op = "op.raw"
+temperature = "temperature.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.input_sha256]
+deck = "9381caafa52300ab51973ade851ac0fbe114480213b26c8bc93dc062ec3a78eb"
+dut = "f24cecfbc159437e3d72e808142dda1333ac70ddd16a0a956a9caee218b37c09"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.cold_v]
+value = 0.1503868
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.curvature_v]
+value = 7.209692e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.hot_v]
+value = 0.1911575
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.maximum_slope]
+value = 0.0003428504
+unit = "V/C"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.minimum_slope]
+value = 0.0003378454
+unit = "V/C"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.output_v]
+value = 0.1664266865277
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.peak_power_w]
+value = 0.0002884296
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.power_w]
+value = 0.0002508520635496
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.slope_v_per_c]
+value = 0.0003397558333333
+unit = "V/C"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 180
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "lvs.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 180
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/gf180-magic"
+technology = "gf180mcuD.tech"
+tech_name = "gf180mcuD"
+style = "ngspice()"
+gds_readonly = false
+grid_subdivision = 10
+case_insensitive_ports = true
+timeout_seconds = 240
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/gf180-models"
+timeout_seconds = 240
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/tsn_003_ptat_4t_xcoupled"
+
+[qualification]
+reference = "reference/tsn_003_ptat_4t_xcoupled.gds"
+
+[presentation]
+category = "Power & references"
+summary = "Produces a temperature-dependent response whose slope and curvature are measured across the declared range."

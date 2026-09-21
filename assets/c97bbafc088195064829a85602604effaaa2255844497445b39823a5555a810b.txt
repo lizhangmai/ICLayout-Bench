@@ -1,0 +1,40 @@
+* Independently authored measurement fixture; SPDX-License-Identifier: MIT
+.include support/models.spice
+.include dut.spice
+.include parameters.spice
+.options klu reltol=1e-6 abstol=1e-13 vntol=1e-9
+.temp 27
+VDD vdd 0 {supply}
+VSS vss 0 0
+RL vout 0 {load}
+CL vout 0 10p
+ISTEP vout 0 PULSE(0 1u 2u 20n 20n 20u 40u)
+XDUT vdd vout vss ldo_006_stub
+.control
+set numdgt=15
+set measdgt=15
+op
+let kcl_residual=abs(i(vdd)+i(vss)+v(vout)/@rl[resistance])
+if kcl_residual > 1e-10
+  echo Error: external DC KCL failed
+  quit 1
+end
+let output_v=v(vout)
+let power_w=-v(vdd)*i(vdd)
+let initial=v(vout)
+print output_v power_w
+show all
+write op.raw all
+tran 2n 10u 0 2n
+meas tran final_v avg v(vout) from=8u to=10u
+meas tran ripple_v pp v(vout) from=8u to=10u
+let step_shift_v=final_v-op1.initial
+print step_shift_v
+write transient.raw all
+alter ISTEP 1u
+op
+show all
+write loaded.raw all
+quit
+.endc
+.end

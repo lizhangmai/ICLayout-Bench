@@ -1,0 +1,258 @@
+1:"$Sreact.fragment"
+2:"$Sreact.suspense"
+3:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+4:T1f0d,<h1 id="problem-cmos-inverter-threshold-core-layout-task">CMOS Inverter Threshold Core Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>The fixed binding is a CMOS inverter: one 1/0.13 um NMOS and one 2.5/0.13 um PMOS, each m=1. Bodies connect to their respective rails through native physical contacts. It provides a threshold decision core; there is no sampling, independent reference, encoding or complete ADC. Target top cell: <code>adc_001_inv1b</code>.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p><code>materials/circuit.cdl</code> is the authoritative physical netlist; <code>materials/circuit.spice</code> is the same compact-device circuit for simulation. <code>materials/testbench.spice</code> supplies the external fixture. Both source and extracted candidate use the exact same deck, bias, loads, excitation, initial-state procedure and measurement windows. Ordered ports: vdd (1.2 V rail), vin (gate input), vout (drain output), vss (return).</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>IHP LV MOS TT, 27 C, VDD=1.2 V. Input driver impedance is 50 ohm; output capacitance is 20 fF. DC input sweeps 0–1.2 V in 1 mV steps. The transient driver starts at 0 V, rises at 10 ns, falls at 20.1 ns, has 100 ps edges and a 20 ns period. The initial DC output is high. The 31 ns run uses a maximum 1 ps step. Power is the net energy from supply and input driver divided by the 10–30 ns window.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Use IHP native KLayout main and maximum rule decks and named-interface LVS; Magic full RC extraction. No case-specific waivers. Candidate extraction must preserve every model, multiplicity, size, resistor value, connection and ordered port. The functional outline includes devices, wells, contacts and all routing layers declared in the public task; annotation and pin labels do not add area. Maximum outline: 5000 by 1000 um. Maximum GDS size: 10485760 bytes. Every device and resistor must be physical; no ideal internal macro or auxiliary servo may be added. External sources, probe loads and storage capacitors belong to the testbench.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Unit</th>
+<th>Definition</th>
+<th>Bound</th>
+<th>Quality</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>threshold_v</code></td>
+<td>V</td>
+<td>Unique DC output=0.6 V crossing</td>
+<td>unbounded to unbounded</td>
+<td>response: target, target, scale=0.6</td>
+</tr>
+<tr>
+<td><code>delay_s</code></td>
+<td>s</td>
+<td>Worst 50% input to opposite 50% output delay</td>
+<td>0 to unbounded</td>
+<td>response: ratio, minimize, scale=1e-12</td>
+</tr>
+<tr>
+<td><code>transition_s</code></td>
+<td>s</td>
+<td>Worst output 10–90% or 90–10% transition</td>
+<td>0 to unbounded</td>
+<td>response: ratio, minimize, scale=1e-12</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>W</td>
+<td>Mean net supply and input-driver power from 10–30 ns</td>
+<td>0 to unbounded</td>
+<td>supply: ratio, minimize, scale=1e-12</td>
+</tr>
+<tr>
+<td><code>swing_v</code></td>
+<td>V</td>
+<td>DC high minus low output; meaningful logic transition</td>
+<td>0.6 to unbounded</td>
+<td>diagnostic / functional only</td>
+</tr>
+</tbody>
+</table>
+<p>The DC threshold is the unique output=0.6 V crossing, not a scan endpoint. Delay is the worse input 50% to opposite output 50% delay. Transition is the worse output 10–90% rise or 90–10% fall. Guards reject missing or multiple DC/transition crossings; independent audits require the intended 10–15 ns and 20–25 ns windows and correct ordering. DC high/low output uses actual endpoint samples, with a minimum 0.6 V swing establishing a meaningful logic transition. This is nominal loaded characterization, not Liberty/PVT or ADC accuracy.</p>
+<p>Static output bounds are physical rail-domain checks, nonnegative power/error bounds establish measurement domains, and KCL guards reject inconsistent DC solutions. All required conditions must be valid. No advertised upstream performance is a hard gate. The metric table specifies each target scale and normalization floor. Floors prevent zero-error ratios; scales and floors are normalization units, not acceptance tolerances.</p>
+<p>For each metric take the worst same-condition source-paired quality. Target quality is <code>1/(1+abs(candidate-source)/scale)</code>; minimizing ratio quality is <code>(source+scale)/(candidate+scale)</code>.  Missing/nonfinite/invalid source or candidate measurements and tool failures yield an unknown score; completed physical/functional rejection yields zero. Bounds apply to every observation.</p>
+<p>Compact area anchor: 120 um2 = 20 um2 NMOS contact envelope + 30 um2 PMOS/well envelope + 20 um2 body-contact/isolation allowance + 50 um2 routing. These envelopes follow the fixed widths and contact/isolation needs, not the witness bounding box. Coefficient 1: a single logic stage with loaded transitions and connectivity. The circuit and these anchors are fixed before participant evaluation.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Inverter threshold element: switching threshold 25.5%; delay 34%; transition 12.8%; power 12.8%; area 15%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.15</td>
+</tr>
+<tr>
+<td><code>threshold_v</code></td>
+<td style="text-align:right">0.255000000000</td>
+</tr>
+<tr>
+<td><code>delay_s</code></td>
+<td style="text-align:right">0.340000000000</td>
+</tr>
+<tr>
+<td><code>transition_s</code></td>
+<td style="text-align:right">0.127500000000</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.127500000000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>6 hours</strong>.</p>
+<p>Use the runtime task/protocol and reviewed resource bundle to discover tools and feedback. Submit <code>/workspace/output/final.gds</code> explicitly through the protocol; merely writing it is not a submission. The reference and maintainer source records are excluded from solver inputs.</p>
+5:T1475,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Unit</th>
+<th>Definition</th>
+<th>Bound</th>
+<th>Quality</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>threshold_v</code></td>
+<td>V</td>
+<td>Unique DC output=0.6 V crossing</td>
+<td>unbounded to unbounded</td>
+<td>response: target, target, scale=0.6</td>
+</tr>
+<tr>
+<td><code>delay_s</code></td>
+<td>s</td>
+<td>Worst 50% input to opposite 50% output delay</td>
+<td>0 to unbounded</td>
+<td>response: ratio, minimize, scale=1e-12</td>
+</tr>
+<tr>
+<td><code>transition_s</code></td>
+<td>s</td>
+<td>Worst output 10–90% or 90–10% transition</td>
+<td>0 to unbounded</td>
+<td>response: ratio, minimize, scale=1e-12</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>W</td>
+<td>Mean net supply and input-driver power from 10–30 ns</td>
+<td>0 to unbounded</td>
+<td>supply: ratio, minimize, scale=1e-12</td>
+</tr>
+<tr>
+<td><code>swing_v</code></td>
+<td>V</td>
+<td>DC high minus low output; meaningful logic transition</td>
+<td>0.6 to unbounded</td>
+<td>diagnostic / functional only</td>
+</tr>
+</tbody>
+</table>
+<p>The DC threshold is the unique output=0.6 V crossing, not a scan endpoint. Delay is the worse input 50% to opposite output 50% delay. Transition is the worse output 10–90% rise or 90–10% fall. Guards reject missing or multiple DC/transition crossings; independent audits require the intended 10–15 ns and 20–25 ns windows and correct ordering. DC high/low output uses actual endpoint samples, with a minimum 0.6 V swing establishing a meaningful logic transition. This is nominal loaded characterization, not Liberty/PVT or ADC accuracy.</p>
+<p>Static output bounds are physical rail-domain checks, nonnegative power/error bounds establish measurement domains, and KCL guards reject inconsistent DC solutions. All required conditions must be valid. No advertised upstream performance is a hard gate. The metric table specifies each target scale and normalization floor. Floors prevent zero-error ratios; scales and floors are normalization units, not acceptance tolerances.</p>
+<p>For each metric take the worst same-condition source-paired quality. Target quality is <code>1/(1+abs(candidate-source)/scale)</code>; minimizing ratio quality is <code>(source+scale)/(candidate+scale)</code>.  Missing/nonfinite/invalid source or candidate measurements and tool failures yield an unknown score; completed physical/functional rejection yields zero. Bounds apply to every observation.</p>
+<p>Compact area anchor: 120 um2 = 20 um2 NMOS contact envelope + 30 um2 PMOS/well envelope + 20 um2 body-contact/isolation allowance + 50 um2 routing. These envelopes follow the fixed widths and contact/isolation needs, not the witness bounding box. Coefficient 1: a single logic stage with loaded transitions and connectivity. The circuit and these anchors are fixed before participant evaluation.</p>
+<h3>Score weights</h3>
+<p>Inverter threshold element: switching threshold 25.5%; delay 34%; transition 12.8%; power 12.8%; area 15%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.15</td>
+</tr>
+<tr>
+<td><code>threshold_v</code></td>
+<td style="text-align:right">0.255000000000</td>
+</tr>
+<tr>
+<td><code>delay_s</code></td>
+<td style="text-align:right">0.340000000000</td>
+</tr>
+<tr>
+<td><code>transition_s</code></td>
+<td style="text-align:right">0.127500000000</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.127500000000</td>
+</tr>
+</tbody>
+</table>
+9:X
+e:X
+e:C
+0:{"buildId":"U2oZdoUjWqT_XfcDHuQ5i","data":[{"rsc":["$","$1","c",{"children":[["$","$2",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L3",null,{"task":{"case_path":"tasks/ihp-sg13g2/analog-db/cases/adc_001_inv1b/case.toml","coefficient":1,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/15a45dfb0015daf6001fe5b5ef6f14c368245cfcfca8bed74fbf773f49575cb4.txt","description_html":"$4","description_path":"tasks/ihp-sg13g2/analog-db/cases/adc_001_inv1b/problem.md","hours":6,"id":"ihp-sg13g2.analog-db.adc_001_inv1b","inputs":{"description":{"format":"text","path":"problem.md","sha256":"f77341695350c9c22f0f938c9deb1c21d4085419f90b9c92448364039ae9d4e8"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"ac17dacdee7c373b47d4038a7318a7b0fedc024031b06f93011f8eaab684caf4","subcircuit":"adc_001_inv1b"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"c7fa64149fb838b9ae6b0fbcd173883a86be2db0869ba9f7a3d13e61def94476"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"5b7039e6399c1336c9ed31405b0176f512f2981b51e1fa8ffae36fa8d51af7aa"}},"licenses":[{"name":"LICENSE","path":"tasks/ihp-sg13g2/analog-db/LICENSE","url":"/ICLayout-Bench/assets/644dd511526bc2da77ee7c74714118315db91255376d0ea93a1975b4dbfbfb3d.txt"},{"name":"NOTICE","path":"tasks/ihp-sg13g2/analog-db/NOTICE","url":"/ICLayout-Bench/assets/69f7110d12f142806dfdd53f516082a82032da57d1ad47d0bc792d3a68329145.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/f77341695350c9c22f0f938c9deb1c21d4085419f90b9c92448364039ae9d4e8.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/ac17dacdee7c373b47d4038a7318a7b0fedc024031b06f93011f8eaab684caf4.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/5b7039e6399c1336c9ed31405b0176f512f2981b51e1fa8ffae36fa8d51af7aa.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/c7fa64149fb838b9ae6b0fbcd173883a86be2db0869ba9f7a3d13e61def94476.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"max","baseline":["source_condition_0:threshold_v"],"category":"performance","dimension":"response","direction":"target","id":"threshold_v","normalization":"target","observations":["condition_0:threshold_v"],"scale":0.6,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:delay_s"],"category":"performance","dimension":"response","direction":"minimize","id":"delay_s","lower":0,"normalization":"ratio","observations":["condition_0:delay_s"],"scale":1e-12,"unit":"s"},{"aggregation":"max","baseline":["source_condition_0:transition_s"],"category":"performance","dimension":"response","direction":"minimize","id":"transition_s","lower":0,"normalization":"ratio","observations":["condition_0:transition_s"],"scale":1e-12,"unit":"s"},{"aggregation":"max","baseline":["source_condition_0:power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"power_w","lower":0,"normalization":"ratio","observations":["condition_0:power_w"],"scale":1e-12,"unit":"W"},{"aggregation":"max","category":"performance","direction":"maximize","id":"swing_v","lower":0.6,"observations":["condition_0:swing_v"],"unit":"V"}],"pdk":"ihp-sg13g2","reader":{"category":"Mixed-signal","summary":"Characterizes an inverter switching threshold, output swing and timing.","title":"CMOS Inverter Threshold Core"},"schematic_url":"/ICLayout-Bench/assets/a8cccb07772179454cce99b4d0e172c6a622160212c25ddda6f451e08f2350d8.svg","scoring":{"area_metric":"functional_area","area_target":120,"method":"layout","rationale":"Inverter threshold element: switching threshold 25.5%; delay 34%; transition 12.8%; power 12.8%; area 15%. Each objective's weight is divided equally among its metrics.","weights":{"delay_s":0.34,"functional_area":0.15,"power_w":0.1275,"threshold_v":0.255,"transition_s":0.1275}},"sections":{"Electrical Requirements and Scoring":"$5","Objective":"<p>The fixed binding is a CMOS inverter: one 1/0.13 um NMOS and one 2.5/0.13 um PMOS, each m=1. Bodies connect to their respective rails through native physical contacts. It provides a threshold decision core; there is no sampling, independent reference, encoding or complete ADC. Target top cell: <code>adc_001_inv1b</code>.</p>\n","Operating Conditions":"<p>IHP LV MOS TT, 27 C, VDD=1.2 V. Input driver impedance is 50 ohm; output capacitance is 20 fF. DC input sweeps 0–1.2 V in 1 mV steps. The transient driver starts at 0 V, rises at 10 ns, falls at 20.1 ns, has 100 ps edges and a 20 ns period. The initial DC output is high. The 31 ns run uses a maximum 1 ps step. Power is the net energy from supply and input driver divided by the 10–30 ns window.</p>\n","Physical Requirements":"<p>Use IHP native KLayout main and maximum rule decks and named-interface LVS; Magic full RC extraction. No case-specific waivers. Candidate extraction must preserve every model, multiplicity, size, resistor value, connection and ordered port. The functional outline includes devices, wells, contacts and all routing layers declared in the public task; annotation and pin labels do not add area. Maximum outline: 5000 by 1000 um. Maximum GDS size: 10485760 bytes. Every device and resistor must be physical; no ideal internal macro or auxiliary servo may be added. External sources, probe loads and storage capacitors belong to the testbench.</p>\n"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/adc_001_inv1b","status":"qualified","title":"CMOS Inverter Threshold Core"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}],["$L6"],"$L7"]}],"isPartial":"$@8","staleTime":"$9","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$9","varyParams":null},{"rsc":"$Lc","isPartial":"$@d","staleTime":"$9","varyParams":"$e"},{"rsc":"$Lf","isPartial":"$@10","staleTime":"$9","varyParams":null}],"isUpgradeableISRFallback":false,"a":"$@11","rootVaryParams":null,"needsRuntimeRequest":"$@12"}
+13:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+15:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+16:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+17:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+18:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+19:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1a:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+1b:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+6:["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true}]
+7:["$","$L13",null,{"children":["$","$2",null,{"name":"Next.MetadataOutlet","children":"$@14"}]}]
+a:["$","$1","h",{"children":[null,["$","$L15",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L16",null,{"children":["$","$2",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L17","3",{}]]}]}]}],null]}]
+c:["$","$1","c",{"children":[null,["$","$L18",null,{"parallelRouterKey":"children","template":["$","$L19",null,{}]}]]}]
+f:["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L1a",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L1b",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L18",null,{"parallelRouterKey":"children","template":["$","$L19",null,{}],"notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L1a",null,{"href":"/","children":"Return to overview"}]]}],[]]}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L1a",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}]
+14:null
+12:true
+9:300
+9:C
+11:0
+b:"$undefined"
+d:"$undefined"
+10:"$undefined"
+8:"$undefined"

@@ -1,0 +1,256 @@
+1:"$Sreact.fragment"
+2:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+3:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+4:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+5:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+7:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+8:"$Sreact.suspense"
+b:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+d:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+f:I[68027,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default",1]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+a:X
+0:{"P":null,"c":["","tasks","gf180mcuD.analog-db.sup_001_vcm_detector",""],"q":"","i":false,"f":[[["",{"children":[["path","tasks/gf180mcuD.analog-db.sup_001_vcm_detector","oc",[]],{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L2",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L3",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L2",null,{"href":"/","children":"Return to overview"}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L2",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}],{"children":[["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":[["$","$1","c",{"children":["$L6",[["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true,"nonce":"$undefined"}]],["$","$L7",null,{"children":["$","$8",null,{"name":"Next.MetadataOutlet","children":"$@9"}]}]]}],{},null,false,null]},null,false,"$a"]},null,false,null],["$","$1","h",{"children":[null,["$","$Lb",null,{"children":"$Lc"}],["$","div",null,{"hidden":true,"children":["$","$Ld",null,{"children":["$","$8",null,{"name":"Next.Metadata","children":"$Le"}]}]}],null]}],false]],"m":"$undefined","G":["$f",[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"U2oZdoUjWqT_XfcDHuQ5i"}
+10:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+a:C
+11:T2121,<h1 id="problem-passive-resistive-common-mode-averager-layout-task">Passive Resistive Common-Mode Averager Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Two matched 1 Mohm resistors join vinp to vcm_out and vcm_out to vinn. This is a passive average detector, without a buffer, amplifier or CMFB controller. The fixed IHP binding contains ideal R cards, not process-specific resistor models; the maintained physical adaptation uses forty native GF180 ppolyf_u_1k segments (twenty per branch), totaling 999951.8 ohm per branch at TT/27 C. The extra vss port grounds their physical substrate; it is not a functional supply. Target top cell: <code>sup_001_vcm_detector</code>.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p><code>materials/circuit.cdl</code> is the authoritative physical netlist; <code>materials/circuit.spice</code> is the same compact-device circuit for simulation. <code>materials/testbench.spice</code> supplies the external fixture. Both source and extracted candidate use the exact same deck, bias, loads, excitation, initial-state procedure and measurement windows. Ordered ports: vcm_out (sense output), vinp (positive input), vinn (negative input), vss (physical substrate).</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>27 C, TT. External ideal drivers are 0.8 V and 0.4 V, each followed by 1 kohm source resistance. The output has 1 pF and either 1 Mohm or 1 Gohm to ground. Each load uses common-mode AC (both drivers +1 V) and differential AC (+1/-1 V), 1 Hz–10 MHz at 40 points/decade. Both drivers increase by 0.1 V at 1 us, with 10 ns edges, and stay high through the 5 us observation. Maximum transient step is 2 ns. The initial state is the same biased DC operating point for source and candidate. A 1 Gohm load is a finite high-impedance observation, not an unloaded claim. The analytic DC limit is Vcm*RL/(RL+500.5 kohm), tending to Vcm only as RL tends to infinity. Both input-source powers are included; no zero-power claim follows from the absence of a supply pin.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Use GF180 native KLayout main rule deck and named-interface LVS; Magic RC extraction with its reviewed 10-way grid subdivision. No case-specific waivers. Candidate extraction must preserve every model, multiplicity, size, resistor value, connection and ordered port. The functional outline includes devices, wells, contacts and all routing layers declared in the public task; annotation and pin labels do not add area. Maximum outline: 5000 by 1000 um. Maximum GDS size: 10485760 bytes. Every device and resistor must be physical; no ideal internal macro or auxiliary servo may be added. External sources, probe loads and storage capacitors belong to the testbench.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Unit</th>
+<th>Definition</th>
+<th>Bound</th>
+<th>Quality</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>V</td>
+<td>Loaded DC sense voltage</td>
+<td>0 to 0.8</td>
+<td>bias: target, target, scale=0.1</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>W</td>
+<td>Net delivered power from both external input sources</td>
+<td>0 to unbounded</td>
+<td>supply: ratio, minimize, scale=1e-12</td>
+</tr>
+<tr>
+<td><code>gain</code></td>
+<td>1</td>
+<td>Output magnitude at 1 Hz for declared common/differential input</td>
+<td>unbounded to unbounded</td>
+<td>response: target, target, scale=1</td>
+</tr>
+<tr>
+<td><code>gain_10khz</code></td>
+<td>1</td>
+<td>Output magnitude at 10 kHz</td>
+<td>unbounded to unbounded</td>
+<td>response: target, target, scale=1</td>
+</tr>
+<tr>
+<td><code>step_error_v</code></td>
+<td>V</td>
+<td>Mean absolute error from settled DC target over 2–4 us</td>
+<td>0 to unbounded</td>
+<td>response: ratio, minimize, scale=1e-06</td>
+</tr>
+</tbody>
+</table>
+<p>The 2–4 us average absolute step error is a finite-window quantity. Common and differential AC magnitudes use a 1 V half-input normalization; the differential residual is not divided by a near-zero source result. Nominal deterministic matching does not establish statistical mismatch or noise.</p>
+<p>Static output bounds are physical rail-domain checks, nonnegative power/error bounds establish measurement domains, and KCL guards reject inconsistent DC solutions. All required conditions must be valid. No advertised upstream performance is a hard gate. The metric table specifies each target scale and normalization floor. Floors prevent zero-error ratios; scales and floors are normalization units, not acceptance tolerances.</p>
+<p>For each metric take the worst same-condition source-paired quality. Target quality is <code>1/(1+abs(candidate-source)/scale)</code>; minimizing ratio quality is <code>(source+scale)/(candidate+scale)</code>.  Missing/nonfinite/invalid source or candidate measurements and tool failures yield an unknown score; completed physical/functional rejection yields zero. Bounds apply to every observation.</p>
+<p>Compact area anchor: 6000 um2 = 40 × 55 × 2 um2 resistor/contact/isolation envelopes + 1600 um2 routing allowance. Each envelope accommodates the approximately 48.44 um resistor, end contacts and lateral spacing; the estimate permits folding. It is independent of the long, sparse witness. Coefficient 4: coupled matching, physical passive network, finite loading and parasitic dynamics. The circuit and these anchors are fixed before participant evaluation.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Common-mode sensing/controllers: recovery and error 40.5%; signed transfer 31.5%; output bias 4.5%; power 13.5%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>step_error_v</code></td>
+<td style="text-align:right">0.405000000000</td>
+</tr>
+<tr>
+<td><code>gain</code></td>
+<td style="text-align:right">0.157500000000</td>
+</tr>
+<tr>
+<td><code>gain_10khz</code></td>
+<td style="text-align:right">0.157500000000</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.135000000000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>6 hours</strong>.</p>
+<p>Use the runtime task/protocol and reviewed resource bundle to discover tools and feedback. Submit <code>/workspace/output/final.gds</code> explicitly through the protocol; merely writing it is not a submission. The reference and maintainer source records are excluded from solver inputs.</p>
+12:T1415,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Unit</th>
+<th>Definition</th>
+<th>Bound</th>
+<th>Quality</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>V</td>
+<td>Loaded DC sense voltage</td>
+<td>0 to 0.8</td>
+<td>bias: target, target, scale=0.1</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>W</td>
+<td>Net delivered power from both external input sources</td>
+<td>0 to unbounded</td>
+<td>supply: ratio, minimize, scale=1e-12</td>
+</tr>
+<tr>
+<td><code>gain</code></td>
+<td>1</td>
+<td>Output magnitude at 1 Hz for declared common/differential input</td>
+<td>unbounded to unbounded</td>
+<td>response: target, target, scale=1</td>
+</tr>
+<tr>
+<td><code>gain_10khz</code></td>
+<td>1</td>
+<td>Output magnitude at 10 kHz</td>
+<td>unbounded to unbounded</td>
+<td>response: target, target, scale=1</td>
+</tr>
+<tr>
+<td><code>step_error_v</code></td>
+<td>V</td>
+<td>Mean absolute error from settled DC target over 2–4 us</td>
+<td>0 to unbounded</td>
+<td>response: ratio, minimize, scale=1e-06</td>
+</tr>
+</tbody>
+</table>
+<p>The 2–4 us average absolute step error is a finite-window quantity. Common and differential AC magnitudes use a 1 V half-input normalization; the differential residual is not divided by a near-zero source result. Nominal deterministic matching does not establish statistical mismatch or noise.</p>
+<p>Static output bounds are physical rail-domain checks, nonnegative power/error bounds establish measurement domains, and KCL guards reject inconsistent DC solutions. All required conditions must be valid. No advertised upstream performance is a hard gate. The metric table specifies each target scale and normalization floor. Floors prevent zero-error ratios; scales and floors are normalization units, not acceptance tolerances.</p>
+<p>For each metric take the worst same-condition source-paired quality. Target quality is <code>1/(1+abs(candidate-source)/scale)</code>; minimizing ratio quality is <code>(source+scale)/(candidate+scale)</code>.  Missing/nonfinite/invalid source or candidate measurements and tool failures yield an unknown score; completed physical/functional rejection yields zero. Bounds apply to every observation.</p>
+<p>Compact area anchor: 6000 um2 = 40 × 55 × 2 um2 resistor/contact/isolation envelopes + 1600 um2 routing allowance. Each envelope accommodates the approximately 48.44 um resistor, end contacts and lateral spacing; the estimate permits folding. It is independent of the long, sparse witness. Coefficient 4: coupled matching, physical passive network, finite loading and parasitic dynamics. The circuit and these anchors are fixed before participant evaluation.</p>
+<h3>Score weights</h3>
+<p>Common-mode sensing/controllers: recovery and error 40.5%; signed transfer 31.5%; output bias 4.5%; power 13.5%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>step_error_v</code></td>
+<td style="text-align:right">0.405000000000</td>
+</tr>
+<tr>
+<td><code>gain</code></td>
+<td style="text-align:right">0.157500000000</td>
+</tr>
+<tr>
+<td><code>gain_10khz</code></td>
+<td style="text-align:right">0.157500000000</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.135000000000</td>
+</tr>
+</tbody>
+</table>
+6:["$","$8",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L10",null,{"task":{"case_path":"tasks/gf180mcuD/analog-db/cases/sup_001_vcm_detector/case.toml","coefficient":4,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/d55e2d90c82eb4a446b13abeca2375c30aa7bea68a78fd683cce8f4af4104670.txt","description_html":"$11","description_path":"tasks/gf180mcuD/analog-db/cases/sup_001_vcm_detector/problem.md","hours":6,"id":"gf180mcuD.analog-db.sup_001_vcm_detector","inputs":{"description":{"format":"text","path":"problem.md","sha256":"d463ec5e3f76ff76e6bfa8568ab48401b265ca538c12ecc34d1567b31c8e96ce"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"c0cdf0e12dbdbfc2e7d1fd9fe3c061a29f745efd8656e1a85e100036489db523","subcircuit":"sup_001_vcm_detector"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"8e7c108e5bd613ec035f19d1774ddbc207f427855379cc1345ce12e920016925"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"944820f6938c6c618a1c6c178d730c23f613e5f83cff5539ace671a1db64356a"}},"licenses":[{"name":"LICENSE","path":"tasks/gf180mcuD/analog-db/LICENSE","url":"/ICLayout-Bench/assets/d6c09a4fa902f192f05e697110788e520f294a97446ababab65986137c16fceb.txt"},{"name":"NOTICE","path":"tasks/gf180mcuD/analog-db/NOTICE","url":"/ICLayout-Bench/assets/75d61165620fd72b89f65e52c2b6c85b73d410bd293062873390bd20ab820a41.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/d463ec5e3f76ff76e6bfa8568ab48401b265ca538c12ecc34d1567b31c8e96ce.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/c0cdf0e12dbdbfc2e7d1fd9fe3c061a29f745efd8656e1a85e100036489db523.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/944820f6938c6c618a1c6c178d730c23f613e5f83cff5539ace671a1db64356a.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/8e7c108e5bd613ec035f19d1774ddbc207f427855379cc1345ce12e920016925.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"max","baseline":["source_condition_0:output_v","source_condition_1:output_v","source_condition_2:output_v","source_condition_3:output_v"],"category":"performance","dimension":"bias","direction":"target","id":"output_v","lower":0,"normalization":"target","observations":["condition_0:output_v","condition_1:output_v","condition_2:output_v","condition_3:output_v"],"scale":0.1,"unit":"V","upper":0.8},{"aggregation":"max","baseline":["source_condition_0:power_w","source_condition_1:power_w","source_condition_2:power_w","source_condition_3:power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"power_w","lower":0,"normalization":"ratio","observations":["condition_0:power_w","condition_1:power_w","condition_2:power_w","condition_3:power_w"],"scale":1e-12,"unit":"W"},{"aggregation":"max","baseline":["source_condition_0:gain","source_condition_1:gain","source_condition_2:gain","source_condition_3:gain"],"category":"performance","dimension":"response","direction":"target","id":"gain","normalization":"target","observations":["condition_0:gain","condition_1:gain","condition_2:gain","condition_3:gain"],"scale":1,"unit":"1"},{"aggregation":"max","baseline":["source_condition_0:gain_10khz","source_condition_1:gain_10khz","source_condition_2:gain_10khz","source_condition_3:gain_10khz"],"category":"performance","dimension":"response","direction":"target","id":"gain_10khz","normalization":"target","observations":["condition_0:gain_10khz","condition_1:gain_10khz","condition_2:gain_10khz","condition_3:gain_10khz"],"scale":1,"unit":"1"},{"aggregation":"max","baseline":["source_condition_0:step_error_v","source_condition_1:step_error_v","source_condition_2:step_error_v","source_condition_3:step_error_v"],"category":"performance","dimension":"response","direction":"minimize","id":"step_error_v","lower":0,"normalization":"ratio","observations":["condition_0:step_error_v","condition_1:step_error_v","condition_2:step_error_v","condition_3:step_error_v"],"scale":0.000001,"unit":"V"}],"pdk":"gf180mcuD","reader":{"category":"Amplifiers & RF","summary":"Averages two input voltages through a passive resistive common-mode network.","title":"Passive Resistive Common-Mode Averager"},"schematic_url":"/ICLayout-Bench/assets/7b3cd6f9763e777a824813b266141d52ecb5103d9e4fd56a29db1fcfa5c94303.svg","scoring":{"area_metric":"functional_area","area_target":6000,"method":"layout","rationale":"Common-mode sensing/controllers: recovery and error 40.5%; signed transfer 31.5%; output bias 4.5%; power 13.5%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"functional_area":0.1,"gain":0.1575,"gain_10khz":0.1575,"output_v":0.045,"power_w":0.135,"step_error_v":0.405}},"sections":{"Electrical Requirements and Scoring":"$12","Objective":"<p>Two matched 1 Mohm resistors join vinp to vcm_out and vcm_out to vinn. This is a passive average detector, without a buffer, amplifier or CMFB controller. The fixed IHP binding contains ideal R cards, not process-specific resistor models; the maintained physical adaptation uses forty native GF180 ppolyf_u_1k segments (twenty per branch), totaling 999951.8 ohm per branch at TT/27 C. The extra vss port grounds their physical substrate; it is not a functional supply. Target top cell: <code>sup_001_vcm_detector</code>.</p>\n","Operating Conditions":"<p>27 C, TT. External ideal drivers are 0.8 V and 0.4 V, each followed by 1 kohm source resistance. The output has 1 pF and either 1 Mohm or 1 Gohm to ground. Each load uses common-mode AC (both drivers +1 V) and differential AC (+1/-1 V), 1 Hz–10 MHz at 40 points/decade. Both drivers increase by 0.1 V at 1 us, with 10 ns edges, and stay high through the 5 us observation. Maximum transient step is 2 ns. The initial state is the same biased DC operating point for source and candidate. A 1 Gohm load is a finite high-impedance observation, not an unloaded claim. The analytic DC limit is Vcm*RL/(RL+500.5 kohm), tending to Vcm only as RL tends to infinity. Both input-source powers are included; no zero-power claim follows from the absence of a supply pin.</p>\n","Physical Requirements":"<p>Use GF180 native KLayout main rule deck and named-interface LVS; Magic RC extraction with its reviewed 10-way grid subdivision. No case-specific waivers. Candidate extraction must preserve every model, multiplicity, size, resistor value, connection and ordered port. The functional outline includes devices, wells, contacts and all routing layers declared in the public task; annotation and pin labels do not add area. Maximum outline: 5000 by 1000 um. Maximum GDS size: 10485760 bytes. Every device and resistor must be physical; no ideal internal macro or auxiliary servo may be added. External sources, probe loads and storage capacitors belong to the testbench.</p>\n"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/sup_001_vcm_detector","status":"qualified","title":"Passive Resistive Common-Mode Averager"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}]
+c:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+13:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+9:null
+e:[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L13","3",{}]]

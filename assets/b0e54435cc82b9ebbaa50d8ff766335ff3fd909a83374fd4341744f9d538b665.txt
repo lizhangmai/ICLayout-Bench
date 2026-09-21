@@ -1,0 +1,40 @@
+* Maintained Layout-Bench testbench. SPDX-License-Identifier: MIT
+.include support/models.spice
+.include dut.spice
+.include parameters.spice
+.temp 27
+VDD vdd 0 {supply_v}
+VREF ref 0 1.65
+* External stable first-order inverting common-mode plant, not a DUT device.
+EPL plant 0 ctl 0 -1
+VOFF drive plant 3.3
+RP drive cm 100k
+CP cm 0 100n
+VD disturb 0 PWL(0 0 10m 0 10.01m 0.1 30m 0.1 30.01m -0.1 50m -0.1 50.01m 0 70m 0)
+EP inp cm disturb 0 1
+VOP op inp {diff_v}
+VON on inp {-diff_v}
+CL ctl 0 10p
+XD op on ctl ref vdd 0 cmfb_003_5t_nmos_input
+.save v(ctl) v(inp) v(ref) v(vdd) i(vdd) v(cm) v(op) v(on) v(disturb)
+.control
+set noaskquit
+set numdgt=12
+op
+let output_v=v(ctl)
+let error_v=abs(v(inp)-v(ref))
+let power_w=-v(vdd)*i(vdd)
+print output_v error_v power_w
+write op.raw all
+tran 10u 70m
+let err=abs(v(inp)-v(ref))
+let power=-v(vdd)*i(vdd)
+meas tran recovery_up_v max err from=25m to=29m
+meas tran recovery_down_v max err from=45m to=49m
+meas tran recovery_zero_v max err from=65m to=69m
+meas tran peak_error_v max err from=10m to=70m
+meas tran mean_power_w avg power from=0 to=70m
+write transient.raw all
+quit
+.endc
+.end

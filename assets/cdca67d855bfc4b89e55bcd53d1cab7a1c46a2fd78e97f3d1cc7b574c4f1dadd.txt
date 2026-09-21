@@ -1,0 +1,20 @@
+* Derived from analog-db cmp_001_hyst_diffpair, GF180 binding at
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Layout-Bench changes: physical high-resistance poly feedback and tail resistors.
+.subckt cmp_001_hyst_diffpair vdd vout vinp vinn vss
+XRHN n1 hn vss ppolyf_u_1k r_width=2u r_length=600u m=1
+XRHP n1 hp vss ppolyf_u_1k r_width=2u r_length=600u m=1
+XRT tail vss vss ppolyf_u_1k r_width=2u r_length=12u m=1
+XMB1N b1 n1 vss vss nfet_03v3 w=2u l=0.28u m=1
+XMB1P b1 n1 vdd vdd pfet_03v3 w=5u l=0.28u m=1
+XMB2N b2 b1 vss vss nfet_03v3 w=2u l=0.28u m=2
+XMB2P b2 b1 vdd vdd pfet_03v3 w=5u l=0.28u m=2
+XMB3N vout b2 vss vss nfet_03v3 w=2u l=0.28u m=4
+XMB3P vout b2 vdd vdd pfet_03v3 w=5u l=0.28u m=4
+XMHN hn vout vss vss nfet_03v3 w=1u l=0.3u m=1
+XMHP hp vout vdd vdd pfet_03v3 w=1u l=0.3u m=1
+XMIN n2 vinn tail vss nfet_03v3 w=10u l=0.3u m=2
+XMIP n1 vinp tail vss nfet_03v3 w=10u l=0.3u m=2
+XMPLD n2 n2 vdd vdd pfet_03v3 w=10u l=0.3u m=4
+XMPLM n1 n2 vdd vdd pfet_03v3 w=10u l=0.3u m=4
+.ends cmp_001_hyst_diffpair

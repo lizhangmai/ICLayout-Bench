@@ -1,0 +1,884 @@
+in_core = false
+kind = "layout_case"
+id = "ihp-sg13g2.analog-db.cmfb_004_output_switched_cap"
+title = "MIM Switched-Capacitor Common-Mode Sampler"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "4fbb63f12b4a4b6defd80eddfa5a063c9e109f5b8a3befdcdcb332252295d026"
+
+[[assets]]
+path = "reference/cmfb_004_output_switched_cap.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "6b2a539f70bd2cf14f9d38776608673c32ff1a680333f0d58bc0ac82187f9775"
+
+[task]
+hours = 3
+coefficient = 5
+kind = "netlist_to_gds"
+family = "ihp-sg13g2_cmfb_004_output_switched_cap"
+environment = "ihp-sg13g2-cmfb_004_output_switched_cap-nominal-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "4abd5e63d169023ccabf5d07b70e0f70a740c8fa79fb2310cdcfee5275e48692"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+sha256 = "3a3ca59eef1a93dd54f0e78087fccb7e250f354833ec52950e1b0f425daef481"
+subcircuit = "cmfb_004_output_switched_cap"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "4ace49062f138ac7e20bf2ef81b1fd227089a8a059c9e6899dc3f1677fd7ce28"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "30effeca3d0300192851a604f3302b78a994c351bade58c076d73ad0d211c1ea"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 320
+max_height_um = 70
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "cmfb_004_output_switched_cap"
+max_bytes = 10485760
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 5263.8
+rationale = "Common-mode sampler: sample accuracy 45%; hold drift 27%; output bias 4.5%; clock power 13.5%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+sample_error_v = 0.45
+hold_drift_v = 0.27
+output_v = 0.045
+clock_power_w = 0.135
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vinp",
+    "vinn",
+    "vcmfb",
+    "vcm",
+    "vbias",
+    "clk_phi",
+    "clk_phi_not",
+    "vdd",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.65
+diff_v = 0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.65
+diff_v = 0.1
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.75
+diff_v = 0.1
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.85
+diff_v = 0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_4"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+common_v = 0.85
+diff_v = 0.1
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "output_v"
+category = "performance"
+observations = [
+    "condition_0:output_v",
+    "condition_1:output_v",
+    "condition_2:output_v",
+    "condition_3:output_v",
+    "condition_4:output_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:output_v",
+    "source_condition_1:output_v",
+    "source_condition_2:output_v",
+    "source_condition_3:output_v",
+    "source_condition_4:output_v",
+]
+normalization = "target"
+scale = 1.5
+lower = 0
+upper = 1.5
+
+[[task.evaluation.metrics]]
+id = "sample_error_v"
+category = "performance"
+observations = [
+    "condition_0:sample_error_v",
+    "condition_1:sample_error_v",
+    "condition_2:sample_error_v",
+    "condition_3:sample_error_v",
+    "condition_4:sample_error_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:sample_error_v",
+    "source_condition_1:sample_error_v",
+    "source_condition_2:sample_error_v",
+    "source_condition_3:sample_error_v",
+    "source_condition_4:sample_error_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "hold_drift_v"
+category = "performance"
+observations = [
+    "condition_0:hold_drift_v",
+    "condition_1:hold_drift_v",
+    "condition_2:hold_drift_v",
+    "condition_3:hold_drift_v",
+    "condition_4:hold_drift_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:hold_drift_v",
+    "source_condition_1:hold_drift_v",
+    "source_condition_2:hold_drift_v",
+    "source_condition_3:hold_drift_v",
+    "source_condition_4:hold_drift_v",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "clock_power_w"
+category = "performance"
+observations = [
+    "condition_0:clock_power_w",
+    "condition_1:clock_power_w",
+    "condition_2:clock_power_w",
+    "condition_3:clock_power_w",
+    "condition_4:clock_power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:clock_power_w",
+    "source_condition_1:clock_power_w",
+    "source_condition_2:clock_power_w",
+    "source_condition_3:clock_power_w",
+    "source_condition_4:clock_power_w",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "e9fb19ad7fdaf9d3e67fea617f7ac9bb5ef9d0f30b8ff05aaa70b025b2fe0b68"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:6562558774d43c085a289bbba696c55959eb8051a0996f96633451fbeb9c652d\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"30ea2fc7a7da5d8deed2cf4fcdde1e7420ffe3e6913aece29d19b692ea2506ab\", \"timeout_seconds\": 600.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_condition_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.values]
+common_v = 0.65
+diff_v = 0
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.input_sha256]
+deck = "4ace49062f138ac7e20bf2ef81b1fd227089a8a059c9e6899dc3f1677fd7ce28"
+dut = "30effeca3d0300192851a604f3302b78a994c351bade58c076d73ad0d211c1ea"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.clock_power_w]
+value = 3.760124e-10
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.hold_drift_v]
+value = 0.0001883919
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.output_v]
+value = 0.5001887
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.sample_error_v]
+value = 0.0001886535
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.values]
+common_v = 0.65
+diff_v = 0.1
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.input_sha256]
+deck = "4ace49062f138ac7e20bf2ef81b1fd227089a8a059c9e6899dc3f1677fd7ce28"
+dut = "30effeca3d0300192851a604f3302b78a994c351bade58c076d73ad0d211c1ea"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.clock_power_w]
+value = 3.768236e-10
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.hold_drift_v]
+value = 0.0001823666
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.output_v]
+value = 0.5001916
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.sample_error_v]
+value = 0.0001916212
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.values]
+common_v = 0.75
+diff_v = 0.1
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.input_sha256]
+deck = "4ace49062f138ac7e20bf2ef81b1fd227089a8a059c9e6899dc3f1677fd7ce28"
+dut = "30effeca3d0300192851a604f3302b78a994c351bade58c076d73ad0d211c1ea"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.clock_power_w]
+value = 3.712377e-10
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.hold_drift_v]
+value = 0.00013768
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.output_v]
+value = 0.6000015
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.sample_error_v]
+value = 2.520536e-06
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.values]
+common_v = 0.85
+diff_v = 0
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.input_sha256]
+deck = "4ace49062f138ac7e20bf2ef81b1fd227089a8a059c9e6899dc3f1677fd7ce28"
+dut = "30effeca3d0300192851a604f3302b78a994c351bade58c076d73ad0d211c1ea"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.clock_power_w]
+value = 3.654853e-10
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.hold_drift_v]
+value = 9.400405e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.output_v]
+value = 0.6998088
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.sample_error_v]
+value = 0.0001912413
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.parameters.values]
+common_v = 0.85
+diff_v = 0.1
+
+[task.evaluation.pre_layout.jobs.source_condition_4.parameters.measurements]
+output_v = "V"
+sample_error_v = "V"
+clock_power_w = "W"
+hold_drift_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.input_sha256]
+deck = "4ace49062f138ac7e20bf2ef81b1fd227089a8a059c9e6899dc3f1677fd7ce28"
+dut = "30effeca3d0300192851a604f3302b78a994c351bade58c076d73ad0d211c1ea"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.clock_power_w]
+value = 3.657879e-10
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.hold_drift_v]
+value = 9.652413e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.output_v]
+value = 0.6998075
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.sample_error_v]
+value = 0.0001925041
+unit = "V"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 600
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+support = "build/support/input-pair-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+support = "build/support/input-pair-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/input-pair-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+capacitance_threshold_ff = 0
+timeout_seconds = 600
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 120
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-models"
+
+[toolchain.backends.simulation.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/input-pair-models"
+timeout_seconds = 600
+
+[qualification]
+reference = "reference/cmfb_004_output_switched_cap.gds"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/cmfb_004_output_switched_cap"
+
+[presentation]
+category = "Mixed-signal"
+summary = "Samples common-mode voltage using clocked switches and physical MIM capacitors."

@@ -1,0 +1,34 @@
+* Output-stage common-source transfer test at the pinned typical model corner.
+* The deck is used unchanged for source and extracted-netlist simulations.
+* DUT port order: vdd iout vout vss dn4.
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include dut.spice
+.include parameters.spice
+.temp 27
+* Numerical conditioning for extracted floating nodes only.
+.option rshunt=1e12
+VDD vdd 0 DC 1.2
+IBIAS iout 0 DC {ibias}
+VGN dn4 0 DC {gate_dc} AC 1
+RLOAD vout 0 {rload}
+CLOAD vout 0 {cload}
+XDUT vdd iout vout 0 dn4 output_stage
+.control
+set noaskquit
+set numdgt=12
+op
+let output_bias = v(vout)
+let supply_power = -v(vdd)*i(VDD)
+print output_bias supply_power
+write output-op.raw all
+ac dec 40 1 1g
+let output_gain_signed = -v(vout)/v(dn4)
+let gain_magnitude = abs(output_gain_signed)
+meas ac output_gain find gain_magnitude at=1meg
+meas ac output_gain_high find gain_magnitude at=100meg
+write output-ac.raw all
+quit
+.endc
+.end

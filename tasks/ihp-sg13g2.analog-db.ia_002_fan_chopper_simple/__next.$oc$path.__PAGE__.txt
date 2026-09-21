@@ -1,0 +1,545 @@
+1:"$Sreact.fragment"
+2:"$Sreact.suspense"
+3:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+4:T3345,<h1 id="problem-fan-clocked-capacitive-instrumentation-amplifier-layout-task">Fan Clocked Capacitive Instrumentation Amplifier Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Implement the supplied 39 MOS, 2 R, 6 C circuit. Preserve the running input, feedback and output choppers. There is no CMFB. Do not add a servo, remove or disable signal/feedback branches, or change the fixed transistor sizing and bias contract.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<ul>
+<li><code>problem.md</code>: description input.</li>
+<li><code>materials/circuit.cdl</code>: netlist input.</li>
+<li><code>materials/circuit.spice</code>: simulation input.</li>
+<li><code>materials/testbench.spice</code>: performance input.</li>
+</ul>
+<p>Ordered ports: <code>vinp vinn voutp voutn vref clk_chin clk_chin_not clk_chfb clk_chfb_not clk_chout clk_chout_not vdd vss vb1 vb2 vb3 vb4 inch_p inch_n fbch_p fbch_n g2_p g2_n vsum_p vsum_n</code>. Preserve these named connections.</p>
+<p>The CDL and simulator netlist are equivalent physical representations. Use their exact ordered interface. Bias sources and clocks are external. Additional inch, fbch, g2 and summing-node ports are high-impedance monitors, with no external drives or loads. Every ideal upstream passive is implemented with physical MIM or high-poly primitives; no case requires another case's circuit or development source.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>TT, 27 C, VDD=1.2 V, input common mode and vref=0.6 V; vb1/vb2/vb3/vb4=0.5/0.75/0.45/0.55 V. Each complementary clock pair runs synchronously at 5 kHz with 50 ns rise/fall, 99.95 us pulse width and 200 us period. All positive phases align. Differential sinusoidal input is 10 mV peak at 100 and 200 Hz; load is 50 fF per output. Maximum timestep is 200 ns with adaptive edge resolution. The test runs 40 ms; 0–20 ms is discarded. The 20–40 ms observation spans 100 chop cycles and two/four signal cycles. Adjacent 20–30/30–40 ms windows report transfer variation. This is a finite-window observation of the full clocked circuit, not a claim of asymptotic periodic stability.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Submit a nonempty GDSII of at most 10485760 bytes.
+Native IHP DRC and named-interface LVS must pass without waivers. The functional bounding rectangle includes device, well, contact and complete routing layers, excluding annotations, and must fit 5000 by 1000 um. Native physical taps and all passive units are part of the contract.</p>
+<p>Magic extracts candidate interconnect resistance/capacitance and device
+junction geometry. Wells/substrate are connected to physical tap rails; source
+simulation retains finite tap models. Distributed substrate, statistical
+mismatch and manufacturing signoff are outside this nominal contract.</p>
+<p>The scored functional layer/datatype pairs are <code>[[1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0], [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0], [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0], [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0], [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0], [133, 0], [134, 0], [139, 0], [152, 0]]</code>.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Use the supplied transient testbench on the extracted candidate. Time-weighted sine/cosine integrals give complex differential transfer and input admittance. Full-precision cumulative integrals at the 20/30/40 ms clock breakpoints avoid cancellation of rounded measurement averages. The summed endpoint error must not exceed 1 ps; this is measurement validity, not a circuit performance gate. Input impedance is the magnitude of differential voltage divided by differential source current, where input current is -(i(VP)-i(VN))/2. Residual RMS removes the measured DC and fundamental; full output peak-to-peak also includes signal and all ripple. It must not be represented as switching ripple alone. Input and feedback modulation errors compare clock-demodulated branch voltages to the associated external signals. Raw monitor waveforms support independent checking of the switching paths. Ordinary DC/AC does not replace these measurements.</p>
+<p>Every measurement must be finite. Magnitudes, RMS values and total consumed supply/clock power have nonnegative physical domains. No paper gain, input-impedance boost or ripple specification is a hard gate. Slow common-mode excursions and finite-window variation are reported and scored, not suppressed with a CMFB. The source uses the identical physical devices, clocks, loads and observation windows in an independent simulation. No PAC/PNoise, PSS, noise, mismatch, PVT or supply-startup capability is claimed.</p>
+<p>Area quality is Q=71369.42 um2/functional area. The compact estimate sums MOS (W+2.4)(L+2.4), a 3.2² local tap envelope per MOS and one global tap, each MIM (side+2.4)², and forty (.5+2.4)(84.45+2.4) resistor envelopes per bias arm, then adds 50% routing allowance. It is independent of the witness. Gain and input-impedance magnitudes use source ratios; phase is diagnostic to avoid angular-wrap scoring; residual and window variation use inverse ratios with 1 uV floor; output bias uses 1.2 V target scale; power uses inverse ratios with 1 pW floor. Other observations are diagnostics. Coefficient 8 reflects clock modulation coupled to a compensated capacitive signal-feedback loop; no common-mode regulation is assumed.</p>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observation</th>
+<th>Unit</th>
+<th>Quality / dimension</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td>Functional bounding-rectangle area</td>
+<td>um2</td>
+<td>area quality Q</td>
+<td>positive area</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>gain_vv</code></td>
+<td><code>2*sqrt(dsmean^2+dcmean^2)/amplitude</code></td>
+<td>V/V</td>
+<td>maximize / ratio / response</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>phase_deg</code></td>
+<td><code>180*ph(dsmean+j(dcmean))/pi</code></td>
+<td>deg</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>zin_ohm</code></td>
+<td><code>amplitude/(2*sqrt(ismean^2+icmean^2))</code></td>
+<td>ohm</td>
+<td>maximize / ratio / response</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>admittance_real_s</code></td>
+<td><code>-2*ismean/amplitude</code></td>
+<td>S</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>admittance_imag_s</code></td>
+<td><code>-2*icmean/amplitude</code></td>
+<td>S</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>dm_mean_v</code></td>
+<td><code>avg dm from=20m to=40m</code></td>
+<td>V</td>
+<td>target / target / bias</td>
+<td>−∞ … +∞</td>
+<td>1.2</td>
+</tr>
+<tr>
+<td><code>residual_rms_v</code></td>
+<td><code>rms residual from=20m to=40m</code></td>
+<td>V</td>
+<td>minimize / ratio / response</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>ripple_pp_v</code></td>
+<td><code>pp dm from=20m to=40m</code></td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>cm_mean_v</code></td>
+<td><code>avg cm from=20m to=40m</code></td>
+<td>V</td>
+<td>target / target / bias</td>
+<td>−∞ … +∞</td>
+<td>1.2</td>
+</tr>
+<tr>
+<td><code>cm_min_v</code></td>
+<td><code>min cm from=20m to=40m</code></td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>cm_max_v</code></td>
+<td><code>max cm from=20m to=40m</code></td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>window_change_v</code></td>
+<td><code>2*sqrt((dsfirst-dslast)^2+(dcfirst-dclast)^2)</code></td>
+<td>V</td>
+<td>minimize / ratio / response</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>modulation_error_rms_v</code></td>
+<td><code>rms modulation_error from=20m to=40m</code></td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>feedback_error_rms_v</code></td>
+<td><code>rms feedback_error from=20m to=40m</code></td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td><code>avg supplied from=20m to=40m</code></td>
+<td>W</td>
+<td>minimize / ratio / supply</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>clock_power_w</code></td>
+<td><code>avg clocks from=20m to=40m</code></td>
+<td>W</td>
+<td>minimize / ratio / supply</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>boundary_error_s</code></td>
+<td><code>abs(time[i20]-20m)+abs(time[i30]-30m)+abs(time[i40]-40m)</code></td>
+<td>s</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Apply each row to every declared load/tone condition. Pair each candidate
+observation with its <code>source_</code> job under the identical condition. The supplied
+deck defines intermediate vectors used in the expressions above.
+The 1 ps endpoint alignment check aborts simulation with a nonzero exit
+before invalid integrals are reported. Its residual is diagnostic; a failed
+validity check produces an evaluator error and unknown score, not electrical failure.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Clocked instrumentation amplifiers: signal fidelity 31.3%; drift and ripple 19.6%; input impedance 15.7%; common-mode behavior 15.7%; supply and clock power 7.83%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>gain_vv</code></td>
+<td style="text-align:right">0.156521739130</td>
+</tr>
+<tr>
+<td><code>residual_rms_v</code></td>
+<td style="text-align:right">0.156521739130</td>
+</tr>
+<tr>
+<td><code>window_change_v</code></td>
+<td style="text-align:right">0.195652173914</td>
+</tr>
+<tr>
+<td><code>zin_ohm</code></td>
+<td style="text-align:right">0.156521739130</td>
+</tr>
+<tr>
+<td><code>cm_mean_v</code></td>
+<td style="text-align:right">0.078260869565</td>
+</tr>
+<tr>
+<td><code>dm_mean_v</code></td>
+<td style="text-align:right">0.078260869565</td>
+</tr>
+<tr>
+<td><code>clock_power_w</code></td>
+<td style="text-align:right">0.039130434783</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.039130434783</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>10 hours</strong>.</p>
+<p>Submit GDS top cell ia_002_fan_chopper_simple. Evaluation runs native DRC/LVS, geometry, Magic candidate-derived RC extraction and ngspice transient measurement using reviewed resources. Reference materials and source checkouts are not solver inputs.</p>
+<p>Discover the frozen task, resources and submission interface through
+<code>/protocol/task.json</code>, <code>/protocol/resources.json</code> and <code>/protocol/harness.json</code>.
+Declared inputs are under <code>/task</code>. Write <code>/workspace/output/final.gds</code>
+and explicitly submit with <code>python -I /protocol/submit.py</code>. Creating the file
+alone does not submit it. Only feedback supported by the active harness is available.</p>
+5:T2281,<p>Use the supplied transient testbench on the extracted candidate. Time-weighted sine/cosine integrals give complex differential transfer and input admittance. Full-precision cumulative integrals at the 20/30/40 ms clock breakpoints avoid cancellation of rounded measurement averages. The summed endpoint error must not exceed 1 ps; this is measurement validity, not a circuit performance gate. Input impedance is the magnitude of differential voltage divided by differential source current, where input current is -(i(VP)-i(VN))/2. Residual RMS removes the measured DC and fundamental; full output peak-to-peak also includes signal and all ripple. It must not be represented as switching ripple alone. Input and feedback modulation errors compare clock-demodulated branch voltages to the associated external signals. Raw monitor waveforms support independent checking of the switching paths. Ordinary DC/AC does not replace these measurements.</p>
+<p>Every measurement must be finite. Magnitudes, RMS values and total consumed supply/clock power have nonnegative physical domains. No paper gain, input-impedance boost or ripple specification is a hard gate. Slow common-mode excursions and finite-window variation are reported and scored, not suppressed with a CMFB. The source uses the identical physical devices, clocks, loads and observation windows in an independent simulation. No PAC/PNoise, PSS, noise, mismatch, PVT or supply-startup capability is claimed.</p>
+<p>Area quality is Q=71369.42 um2/functional area. The compact estimate sums MOS (W+2.4)(L+2.4), a 3.2² local tap envelope per MOS and one global tap, each MIM (side+2.4)², and forty (.5+2.4)(84.45+2.4) resistor envelopes per bias arm, then adds 50% routing allowance. It is independent of the witness. Gain and input-impedance magnitudes use source ratios; phase is diagnostic to avoid angular-wrap scoring; residual and window variation use inverse ratios with 1 uV floor; output bias uses 1.2 V target scale; power uses inverse ratios with 1 pW floor. Other observations are diagnostics. Coefficient 8 reflects clock modulation coupled to a compensated capacitive signal-feedback loop; no common-mode regulation is assumed.</p>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observation</th>
+<th>Unit</th>
+<th>Quality / dimension</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td>Functional bounding-rectangle area</td>
+<td>um2</td>
+<td>area quality Q</td>
+<td>positive area</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>gain_vv</code></td>
+<td><code>2*sqrt(dsmean^2+dcmean^2)/amplitude</code></td>
+<td>V/V</td>
+<td>maximize / ratio / response</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>phase_deg</code></td>
+<td><code>180*ph(dsmean+j(dcmean))/pi</code></td>
+<td>deg</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>zin_ohm</code></td>
+<td><code>amplitude/(2*sqrt(ismean^2+icmean^2))</code></td>
+<td>ohm</td>
+<td>maximize / ratio / response</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>admittance_real_s</code></td>
+<td><code>-2*ismean/amplitude</code></td>
+<td>S</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>admittance_imag_s</code></td>
+<td><code>-2*icmean/amplitude</code></td>
+<td>S</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>dm_mean_v</code></td>
+<td><code>avg dm from=20m to=40m</code></td>
+<td>V</td>
+<td>target / target / bias</td>
+<td>−∞ … +∞</td>
+<td>1.2</td>
+</tr>
+<tr>
+<td><code>residual_rms_v</code></td>
+<td><code>rms residual from=20m to=40m</code></td>
+<td>V</td>
+<td>minimize / ratio / response</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>ripple_pp_v</code></td>
+<td><code>pp dm from=20m to=40m</code></td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>cm_mean_v</code></td>
+<td><code>avg cm from=20m to=40m</code></td>
+<td>V</td>
+<td>target / target / bias</td>
+<td>−∞ … +∞</td>
+<td>1.2</td>
+</tr>
+<tr>
+<td><code>cm_min_v</code></td>
+<td><code>min cm from=20m to=40m</code></td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>cm_max_v</code></td>
+<td><code>max cm from=20m to=40m</code></td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>window_change_v</code></td>
+<td><code>2*sqrt((dsfirst-dslast)^2+(dcfirst-dclast)^2)</code></td>
+<td>V</td>
+<td>minimize / ratio / response</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+</tr>
+<tr>
+<td><code>modulation_error_rms_v</code></td>
+<td><code>rms modulation_error from=20m to=40m</code></td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>feedback_error_rms_v</code></td>
+<td><code>rms feedback_error from=20m to=40m</code></td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td><code>avg supplied from=20m to=40m</code></td>
+<td>W</td>
+<td>minimize / ratio / supply</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>clock_power_w</code></td>
+<td><code>avg clocks from=20m to=40m</code></td>
+<td>W</td>
+<td>minimize / ratio / supply</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>boundary_error_s</code></td>
+<td><code>abs(time[i20]-20m)+abs(time[i30]-30m)+abs(time[i40]-40m)</code></td>
+<td>s</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Apply each row to every declared load/tone condition. Pair each candidate
+observation with its <code>source_</code> job under the identical condition. The supplied
+deck defines intermediate vectors used in the expressions above.
+The 1 ps endpoint alignment check aborts simulation with a nonzero exit
+before invalid integrals are reported. Its residual is diagnostic; a failed
+validity check produces an evaluator error and unknown score, not electrical failure.</p>
+<h3>Score weights</h3>
+<p>Clocked instrumentation amplifiers: signal fidelity 31.3%; drift and ripple 19.6%; input impedance 15.7%; common-mode behavior 15.7%; supply and clock power 7.83%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>gain_vv</code></td>
+<td style="text-align:right">0.156521739130</td>
+</tr>
+<tr>
+<td><code>residual_rms_v</code></td>
+<td style="text-align:right">0.156521739130</td>
+</tr>
+<tr>
+<td><code>window_change_v</code></td>
+<td style="text-align:right">0.195652173914</td>
+</tr>
+<tr>
+<td><code>zin_ohm</code></td>
+<td style="text-align:right">0.156521739130</td>
+</tr>
+<tr>
+<td><code>cm_mean_v</code></td>
+<td style="text-align:right">0.078260869565</td>
+</tr>
+<tr>
+<td><code>dm_mean_v</code></td>
+<td style="text-align:right">0.078260869565</td>
+</tr>
+<tr>
+<td><code>clock_power_w</code></td>
+<td style="text-align:right">0.039130434783</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.039130434783</td>
+</tr>
+</tbody>
+</table>
+6:T456,<p>Submit a nonempty GDSII of at most 10485760 bytes.
+Native IHP DRC and named-interface LVS must pass without waivers. The functional bounding rectangle includes device, well, contact and complete routing layers, excluding annotations, and must fit 5000 by 1000 um. Native physical taps and all passive units are part of the contract.</p>
+<p>Magic extracts candidate interconnect resistance/capacitance and device
+junction geometry. Wells/substrate are connected to physical tap rails; source
+simulation retains finite tap models. Distributed substrate, statistical
+mismatch and manufacturing signoff are outside this nominal contract.</p>
+<p>The scored functional layer/datatype pairs are <code>[[1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0], [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0], [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0], [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0], [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0], [133, 0], [134, 0], [139, 0], [152, 0]]</code>.</p>
+a:X
+f:X
+f:C
+0:{"buildId":"U2oZdoUjWqT_XfcDHuQ5i","data":[{"rsc":["$","$1","c",{"children":[["$","$2",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L3",null,{"task":{"case_path":"tasks/ihp-sg13g2/analog-db/cases/ia_002_fan_chopper_simple/case.toml","coefficient":8,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/345627f61d37dc99db2d9b5010c2f0e22aa14f64075a0f9ccf78c9e870b5e688.txt","description_html":"$4","description_path":"tasks/ihp-sg13g2/analog-db/cases/ia_002_fan_chopper_simple/problem.md","hours":10,"id":"ihp-sg13g2.analog-db.ia_002_fan_chopper_simple","inputs":{"description":{"format":"text","path":"problem.md","sha256":"85655dfeda58d48b8532f6215a87d539ec0a0175ac38b97a2c50fec4c071ee77"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"97f83b5e7f5fb018b9212759ab77f039f748e14d2ef15280b1e4fc7730ba8afb","subcircuit":"ia_002_fan_chopper_simple"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"6262f1015a05e02f390eaa04dbac647cdc1450d5beddbfbd7e26a0c9a798b0e9"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"3a607e575115a85d667d2ed160e683938954ff4c8f4b6a3012dbdd0082a8f888"}},"licenses":[{"name":"LICENSE","path":"tasks/ihp-sg13g2/analog-db/LICENSE","url":"/ICLayout-Bench/assets/644dd511526bc2da77ee7c74714118315db91255376d0ea93a1975b4dbfbfb3d.txt"},{"name":"NOTICE","path":"tasks/ihp-sg13g2/analog-db/NOTICE","url":"/ICLayout-Bench/assets/69f7110d12f142806dfdd53f516082a82032da57d1ad47d0bc792d3a68329145.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/85655dfeda58d48b8532f6215a87d539ec0a0175ac38b97a2c50fec4c071ee77.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/97f83b5e7f5fb018b9212759ab77f039f748e14d2ef15280b1e4fc7730ba8afb.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/3a607e575115a85d667d2ed160e683938954ff4c8f4b6a3012dbdd0082a8f888.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/6262f1015a05e02f390eaa04dbac647cdc1450d5beddbfbd7e26a0c9a798b0e9.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"min","baseline":["source_condition_0:gain_vv","source_condition_1:gain_vv"],"category":"performance","dimension":"response","direction":"maximize","id":"gain_vv","lower":0,"normalization":"ratio","observations":["condition_0:gain_vv","condition_1:gain_vv"],"scale":1e-12,"unit":"V/V"},{"aggregation":"max","category":"performance","direction":"minimize","id":"phase_deg","observations":["condition_0:phase_deg","condition_1:phase_deg"],"unit":"deg"},{"aggregation":"min","baseline":["source_condition_0:zin_ohm","source_condition_1:zin_ohm"],"category":"performance","dimension":"response","direction":"maximize","id":"zin_ohm","lower":0,"normalization":"ratio","observations":["condition_0:zin_ohm","condition_1:zin_ohm"],"scale":1e-12,"unit":"ohm"},{"aggregation":"max","category":"performance","direction":"minimize","id":"admittance_real_s","observations":["condition_0:admittance_real_s","condition_1:admittance_real_s"],"unit":"S"},{"aggregation":"max","category":"performance","direction":"minimize","id":"admittance_imag_s","observations":["condition_0:admittance_imag_s","condition_1:admittance_imag_s"],"unit":"S"},{"aggregation":"max","baseline":["source_condition_0:dm_mean_v","source_condition_1:dm_mean_v"],"category":"performance","dimension":"bias","direction":"target","id":"dm_mean_v","normalization":"target","observations":["condition_0:dm_mean_v","condition_1:dm_mean_v"],"scale":1.2,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:residual_rms_v","source_condition_1:residual_rms_v"],"category":"performance","dimension":"response","direction":"minimize","id":"residual_rms_v","lower":0,"normalization":"ratio","observations":["condition_0:residual_rms_v","condition_1:residual_rms_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","category":"performance","direction":"minimize","id":"ripple_pp_v","observations":["condition_0:ripple_pp_v","condition_1:ripple_pp_v"],"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:cm_mean_v","source_condition_1:cm_mean_v"],"category":"performance","dimension":"bias","direction":"target","id":"cm_mean_v","normalization":"target","observations":["condition_0:cm_mean_v","condition_1:cm_mean_v"],"scale":1.2,"unit":"V"},{"aggregation":"max","category":"performance","direction":"minimize","id":"cm_min_v","observations":["condition_0:cm_min_v","condition_1:cm_min_v"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"minimize","id":"cm_max_v","observations":["condition_0:cm_max_v","condition_1:cm_max_v"],"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:window_change_v","source_condition_1:window_change_v"],"category":"performance","dimension":"response","direction":"minimize","id":"window_change_v","lower":0,"normalization":"ratio","observations":["condition_0:window_change_v","condition_1:window_change_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","category":"performance","direction":"minimize","id":"modulation_error_rms_v","observations":["condition_0:modulation_error_rms_v","condition_1:modulation_error_rms_v"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"minimize","id":"feedback_error_rms_v","observations":["condition_0:feedback_error_rms_v","condition_1:feedback_error_rms_v"],"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:power_w","source_condition_1:power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"power_w","lower":0,"normalization":"ratio","observations":["condition_0:power_w","condition_1:power_w"],"scale":1e-12,"unit":"W"},{"aggregation":"max","baseline":["source_condition_0:clock_power_w","source_condition_1:clock_power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"clock_power_w","lower":0,"normalization":"ratio","observations":["condition_0:clock_power_w","condition_1:clock_power_w"],"scale":1e-12,"unit":"W"},{"aggregation":"max","category":"performance","direction":"minimize","id":"boundary_error_s","observations":["condition_0:boundary_error_s","condition_1:boundary_error_s"],"unit":"s"}],"pdk":"ihp-sg13g2","reader":{"category":"Amplifiers & RF","summary":"Processes differential signals with a clocked, capacitively coupled instrumentation amplifier.","title":"Fan Clocked Capacitive Instrumentation Amplifier"},"schematic_url":"/ICLayout-Bench/assets/e19dc21fdc2350086a35fa403efc852191c17ebe855b2f57d213dcfa4a21b3b2.svg","scoring":{"area_metric":"functional_area","area_target":71369.42,"method":"layout","rationale":"Clocked instrumentation amplifiers: signal fidelity 31.3%; drift and ripple 19.6%; input impedance 15.7%; common-mode behavior 15.7%; supply and clock power 7.83%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"clock_power_w":0.039130434783,"cm_mean_v":0.078260869565,"dm_mean_v":0.078260869565,"functional_area":0.1,"gain_vv":0.15652173913,"power_w":0.039130434783,"residual_rms_v":0.15652173913,"window_change_v":0.195652173914,"zin_ohm":0.15652173913}},"sections":{"Electrical Requirements and Scoring":"$5","Objective":"<p>Implement the supplied 39 MOS, 2 R, 6 C circuit. Preserve the running input, feedback and output choppers. There is no CMFB. Do not add a servo, remove or disable signal/feedback branches, or change the fixed transistor sizing and bias contract.</p>\n","Operating Conditions":"<p>TT, 27 C, VDD=1.2 V, input common mode and vref=0.6 V; vb1/vb2/vb3/vb4=0.5/0.75/0.45/0.55 V. Each complementary clock pair runs synchronously at 5 kHz with 50 ns rise/fall, 99.95 us pulse width and 200 us period. All positive phases align. Differential sinusoidal input is 10 mV peak at 100 and 200 Hz; load is 50 fF per output. Maximum timestep is 200 ns with adaptive edge resolution. The test runs 40 ms; 0–20 ms is discarded. The 20–40 ms observation spans 100 chop cycles and two/four signal cycles. Adjacent 20–30/30–40 ms windows report transfer variation. This is a finite-window observation of the full clocked circuit, not a claim of asymptotic periodic stability.</p>\n","Physical Requirements":"$6"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/ia_002_fan_chopper_simple","status":"qualified","title":"Fan Clocked Capacitive Instrumentation Amplifier"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}],["$L7"],"$L8"]}],"isPartial":"$@9","staleTime":"$a","varyParams":null},{"rsc":"$Lb","isPartial":"$@c","staleTime":"$a","varyParams":null},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$a","varyParams":"$f"},{"rsc":"$L10","isPartial":"$@11","staleTime":"$a","varyParams":null}],"isUpgradeableISRFallback":false,"a":"$@12","rootVaryParams":null,"needsRuntimeRequest":"$@13"}
+14:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+16:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+17:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+18:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+19:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1a:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1b:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+1c:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+7:["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true}]
+8:["$","$L14",null,{"children":["$","$2",null,{"name":"Next.MetadataOutlet","children":"$@15"}]}]
+b:["$","$1","h",{"children":[null,["$","$L16",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L17",null,{"children":["$","$2",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L18","3",{}]]}]}]}],null]}]
+d:["$","$1","c",{"children":[null,["$","$L19",null,{"parallelRouterKey":"children","template":["$","$L1a",null,{}]}]]}]
+10:["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L1b",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L1c",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L19",null,{"parallelRouterKey":"children","template":["$","$L1a",null,{}],"notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L1b",null,{"href":"/","children":"Return to overview"}]]}],[]]}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L1b",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}]
+15:null
+13:true
+a:300
+a:C
+12:0
+c:"$undefined"
+e:"$undefined"
+11:"$undefined"
+9:"$undefined"

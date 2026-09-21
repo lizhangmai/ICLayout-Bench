@@ -1,0 +1,371 @@
+1:"$Sreact.fragment"
+2:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+3:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+4:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+5:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+7:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+8:"$Sreact.suspense"
+b:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+d:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+f:I[68027,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default",1]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+a:X
+0:{"P":null,"c":["","tasks","gf180mcuD.analog-db.amp_033_ti_ldo_ref_selfbias",""],"q":"","i":false,"f":[[["",{"children":[["path","tasks/gf180mcuD.analog-db.amp_033_ti_ldo_ref_selfbias","oc",[]],{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L2",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L3",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L2",null,{"href":"/","children":"Return to overview"}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L2",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}],{"children":[["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":[["$","$1","c",{"children":["$L6",[["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true,"nonce":"$undefined"}]],["$","$L7",null,{"children":["$","$8",null,{"name":"Next.MetadataOutlet","children":"$@9"}]}]]}],{},null,false,null]},null,false,"$a"]},null,false,null],["$","$1","h",{"children":[null,["$","$Lb",null,{"children":"$Lc"}],["$","div",null,{"hidden":true,"children":["$","$Ld",null,{"children":["$","$8",null,{"name":"Next.Metadata","children":"$Le"}]}]}],null]}],false]],"m":"$undefined","G":["$f",[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"U2oZdoUjWqT_XfcDHuQ5i"}
+10:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+a:C
+11:T2356,<h1 id="problem-self-biased-ldo-reference-amplifier-layout-task">Self-Biased LDO Reference Amplifier Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Implement <code>amp_033_ti_ldo_ref_selfbias</code> as a GF180MCU D layout. Nine MOS devices form the fixed upstream two-stage Miller amplifier, with a matched PMOS mirror and diode-connected self-bias. External unity feedback tests the reference-buffer function; no ideal internal amplifier or bias servo is inserted.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p><code>materials/circuit.cdl</code> is the physical authority. <code>materials/circuit.spice</code>
+contains the corresponding native simulator wrappers; <code>materials/testbench.spice</code>
+defines all measurements. Ordered ports: <code>vdd vout vinp vinn vss</code>.
+<code>vdd/vss</code> are supply/return, <code>vinp/vinn</code> are differential inputs, and <code>vout</code> is the output.
+No external bias current is required. Preserve connectivity and total device dimensions;
+parallel equivalent fingers are permitted. Do not substitute a different amplifier.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>Typical native GF180 6 V MOS models, 3.3 V supply, 27 C, statistics disabled.
+Input common mode is 0.8 V. Both 1 pF and 10 pF output loads are evaluated.
+DC uses unity feedback. AC uses a 1 TH feedback inductor and 1 F input shunt
+from 1 Hz to 1 GHz, 100 points/decade. Transient replaces these fixture elements
+with 1 pH and 1 aF: the input rises 10 mV at 1 us and falls at 3 us, each in
+10 ns. The simulation ends at 5 us, with a 1 ns requested step.
+These ideal fixture elements are external test apparatus, outside the DUT.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>GDS database unit 0.001 um; maximum 10 MiB; top cell <code>amp_033_ti_ldo_ref_selfbias</code>.
+Native standalone DRC includes geometry, connectivity, manufacturing grid,
+dummy fill and antenna rules; chip density and seal-ring closure are excluded.
+Native LVS must match devices, parameters and every named port. All device,
+well, implant, contact, passive-marker and routing layers listed in the runtime
+outline form the functional bounding rectangle; text annotations are excluded.
+Maximum outline is 5000 by 1000 um. Labels belong on native Metal1 text.</p>
+<p>The 6 V minimum channel lengths are 0.70 um NMOS and 0.55 um PMOS.
+Upstream dimensions are rounded to 5 nm, with only subminimum lengths raised.
+Physical passives use 1 kohm/square poly and MIM-B, 2 fF/um2, between M4/M5.
+Long resistors are series segmented; capacitors are parallel tiled. Nominal
+values are implemented by geometry; source and candidate use the same native
+process models. MOS diffusion areas/perimeters and interconnect parasitics are
+candidate-derived. Magic extracts nominal coupling capacitance and distributed
+resistance using zero omission thresholds. Ideal well/substrate connections
+exclude distributed substrate noise; no inductance, RF/EM or statistical claim
+is made. Finite source and candidate observations must be available. Every declared
+operating point must satisfy its functional checks; incomplete evaluation cannot
+establish success.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition</th>
+<th>Unit</th>
+<th>Dimension</th>
+<th>Normalization</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>DC output voltage</td>
+<td>V</td>
+<td>bias</td>
+<td>target</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>DC supply power: -VDD*I(VDD)</td>
+<td>W</td>
+<td>supply</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>gain_db</code></td>
+<td>Open-loop magnitude at 10 Hz in dB</td>
+<td>dB</td>
+<td>response</td>
+<td>db20</td>
+</tr>
+<tr>
+<td><code>unity_hz</code></td>
+<td>First falling unity-gain crossing</td>
+<td>Hz</td>
+<td>response</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>phase_margin</code></td>
+<td>180 degrees plus unwrapped phase at unity crossing</td>
+<td>deg</td>
+<td>response</td>
+<td>target</td>
+</tr>
+<tr>
+<td><code>tracking_error_v</code></td>
+<td>Mean absolute unity-buffer tracking error over 1–5 us</td>
+<td>V</td>
+<td>response</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>step_response_v</code></td>
+<td>Mean output at 2–3 us minus mean output at 4–5 us; nonnegative sign-domain check (zero is allowed)</td>
+<td>V</td>
+<td>functional</td>
+<td>unscored</td>
+</tr>
+</tbody>
+</table>
+<p>DC output must remain between the rails, power and absolute tracking error must
+be nonnegative, and the signed output-step observation must be nonnegative (zero is allowed). These
+bounds express physical domains and buffer function. Every required measurement
+must be finite; failed or missing measurements are evaluation errors, not poor
+performance. No upstream data-sheet target is an acceptance gate. Phase margin
+is measured and continuously compared, without importing an upstream threshold.</p>
+<p>Each quality observation is paired with an independent source simulation using
+the identical deck, load, supply, temperature and models. <code>target</code> uses scale
+3.3 V for output and 180 degrees for phase; ratio floors are 1 pW for power
+and 1 mV for tracking error. These are normalization units, not tolerances.</p>
+<p>Area target: <strong>6223.21 um2</strong>. Device/contact envelopes sum to 3808.978200 um2,
+using <code>(W+2)*(L+2)</code> per expanded MOS, resistor segment and capacitor tile
+in micrometers. The estimate adds 50% routing plus a 2 um outer margin:
+<code>ceil(100*(1.5*envelope_sum+8*sqrt(envelope_sum)+16))/100</code>.
+This engineering anchor is independent of the witness footprint and is not a
+foundry minimum. Coefficient <strong>6</strong> reflects a complete compensated two-stage
+loop with self-bias and load-dependent transient response.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Self-biased Miller buffers: tracking 36%; phase margin 22.5%; gain and bandwidth 18%; bias 4.5%; power 9%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>tracking_error_v</code></td>
+<td style="text-align:right">0.360000000000</td>
+</tr>
+<tr>
+<td><code>phase_margin</code></td>
+<td style="text-align:right">0.225000000000</td>
+</tr>
+<tr>
+<td><code>gain_db</code></td>
+<td style="text-align:right">0.090000000000</td>
+</tr>
+<tr>
+<td><code>unity_hz</code></td>
+<td style="text-align:right">0.090000000000</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.090000000000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Use <code>/protocol/task.json</code>, <code>/protocol/resources.json</code> and
+<code>/protocol/harness.json</code> for the frozen task, reviewed PDK and harness.
+KLayout checks physical validity, Magic extracts the submitted layout and
+ngspice performs measurements. Use <code>process-feedback</code> if exposed.
+Write <code>/workspace/output/final.gds</code>, then explicitly submit with
+<code>python -I /protocol/submit.py</code>.</p>
+12:T1415,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition</th>
+<th>Unit</th>
+<th>Dimension</th>
+<th>Normalization</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>DC output voltage</td>
+<td>V</td>
+<td>bias</td>
+<td>target</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>DC supply power: -VDD*I(VDD)</td>
+<td>W</td>
+<td>supply</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>gain_db</code></td>
+<td>Open-loop magnitude at 10 Hz in dB</td>
+<td>dB</td>
+<td>response</td>
+<td>db20</td>
+</tr>
+<tr>
+<td><code>unity_hz</code></td>
+<td>First falling unity-gain crossing</td>
+<td>Hz</td>
+<td>response</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>phase_margin</code></td>
+<td>180 degrees plus unwrapped phase at unity crossing</td>
+<td>deg</td>
+<td>response</td>
+<td>target</td>
+</tr>
+<tr>
+<td><code>tracking_error_v</code></td>
+<td>Mean absolute unity-buffer tracking error over 1–5 us</td>
+<td>V</td>
+<td>response</td>
+<td>ratio</td>
+</tr>
+<tr>
+<td><code>step_response_v</code></td>
+<td>Mean output at 2–3 us minus mean output at 4–5 us; nonnegative sign-domain check (zero is allowed)</td>
+<td>V</td>
+<td>functional</td>
+<td>unscored</td>
+</tr>
+</tbody>
+</table>
+<p>DC output must remain between the rails, power and absolute tracking error must
+be nonnegative, and the signed output-step observation must be nonnegative (zero is allowed). These
+bounds express physical domains and buffer function. Every required measurement
+must be finite; failed or missing measurements are evaluation errors, not poor
+performance. No upstream data-sheet target is an acceptance gate. Phase margin
+is measured and continuously compared, without importing an upstream threshold.</p>
+<p>Each quality observation is paired with an independent source simulation using
+the identical deck, load, supply, temperature and models. <code>target</code> uses scale
+3.3 V for output and 180 degrees for phase; ratio floors are 1 pW for power
+and 1 mV for tracking error. These are normalization units, not tolerances.</p>
+<p>Area target: <strong>6223.21 um2</strong>. Device/contact envelopes sum to 3808.978200 um2,
+using <code>(W+2)*(L+2)</code> per expanded MOS, resistor segment and capacitor tile
+in micrometers. The estimate adds 50% routing plus a 2 um outer margin:
+<code>ceil(100*(1.5*envelope_sum+8*sqrt(envelope_sum)+16))/100</code>.
+This engineering anchor is independent of the witness footprint and is not a
+foundry minimum. Coefficient <strong>6</strong> reflects a complete compensated two-stage
+loop with self-bias and load-dependent transient response.</p>
+<h3>Score weights</h3>
+<p>Self-biased Miller buffers: tracking 36%; phase margin 22.5%; gain and bandwidth 18%; bias 4.5%; power 9%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>tracking_error_v</code></td>
+<td style="text-align:right">0.360000000000</td>
+</tr>
+<tr>
+<td><code>phase_margin</code></td>
+<td style="text-align:right">0.225000000000</td>
+</tr>
+<tr>
+<td><code>gain_db</code></td>
+<td style="text-align:right">0.090000000000</td>
+</tr>
+<tr>
+<td><code>unity_hz</code></td>
+<td style="text-align:right">0.090000000000</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.045000000000</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.090000000000</td>
+</tr>
+</tbody>
+</table>
+13:T5a3,<p>GDS database unit 0.001 um; maximum 10 MiB; top cell <code>amp_033_ti_ldo_ref_selfbias</code>.
+Native standalone DRC includes geometry, connectivity, manufacturing grid,
+dummy fill and antenna rules; chip density and seal-ring closure are excluded.
+Native LVS must match devices, parameters and every named port. All device,
+well, implant, contact, passive-marker and routing layers listed in the runtime
+outline form the functional bounding rectangle; text annotations are excluded.
+Maximum outline is 5000 by 1000 um. Labels belong on native Metal1 text.</p>
+<p>The 6 V minimum channel lengths are 0.70 um NMOS and 0.55 um PMOS.
+Upstream dimensions are rounded to 5 nm, with only subminimum lengths raised.
+Physical passives use 1 kohm/square poly and MIM-B, 2 fF/um2, between M4/M5.
+Long resistors are series segmented; capacitors are parallel tiled. Nominal
+values are implemented by geometry; source and candidate use the same native
+process models. MOS diffusion areas/perimeters and interconnect parasitics are
+candidate-derived. Magic extracts nominal coupling capacitance and distributed
+resistance using zero omission thresholds. Ideal well/substrate connections
+exclude distributed substrate noise; no inductance, RF/EM or statistical claim
+is made. Finite source and candidate observations must be available. Every declared
+operating point must satisfy its functional checks; incomplete evaluation cannot
+establish success.</p>
+6:["$","$8",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L10",null,{"task":{"case_path":"tasks/gf180mcuD/analog-db/cases/amp_033_ti_ldo_ref_selfbias/case.toml","coefficient":6,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/b94fe14867a4a6bf3d550499f65139d32a5ef878d957ed09c0b6f2a7cef169cf.txt","description_html":"$11","description_path":"tasks/gf180mcuD/analog-db/cases/amp_033_ti_ldo_ref_selfbias/problem.md","hours":3,"id":"gf180mcuD.analog-db.amp_033_ti_ldo_ref_selfbias","inputs":{"description":{"format":"text","path":"problem.md","sha256":"201b4c4d1efa6597ea89c6463044ad3e97d8dbad0f768c0ba5d8b158d9e20376"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"9b965341e7687a517833fa3ffa030c708a3bcb2622a922f5edb74e959bbff646","subcircuit":"amp_033_ti_ldo_ref_selfbias"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"b6dcd8366c7e6b5a99ec2ffad81f0a9376194f2af47d8b6a9aa7b5df3adf7556"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"e1481981e0bc58b0b42d7555131b589b018621c5d807bd56ca70c866e384419f"}},"licenses":[{"name":"LICENSE","path":"tasks/gf180mcuD/analog-db/LICENSE","url":"/ICLayout-Bench/assets/d6c09a4fa902f192f05e697110788e520f294a97446ababab65986137c16fceb.txt"},{"name":"NOTICE","path":"tasks/gf180mcuD/analog-db/NOTICE","url":"/ICLayout-Bench/assets/75d61165620fd72b89f65e52c2b6c85b73d410bd293062873390bd20ab820a41.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/201b4c4d1efa6597ea89c6463044ad3e97d8dbad0f768c0ba5d8b158d9e20376.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/9b965341e7687a517833fa3ffa030c708a3bcb2622a922f5edb74e959bbff646.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/e1481981e0bc58b0b42d7555131b589b018621c5d807bd56ca70c866e384419f.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/b6dcd8366c7e6b5a99ec2ffad81f0a9376194f2af47d8b6a9aa7b5df3adf7556.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"max","baseline":["source_condition_0:output_v","source_condition_1:output_v"],"category":"performance","dimension":"bias","direction":"target","id":"output_v","lower":0,"normalization":"target","observations":["condition_0:output_v","condition_1:output_v"],"scale":3.3,"unit":"V","upper":3.3},{"aggregation":"max","baseline":["source_condition_0:power_w","source_condition_1:power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"power_w","lower":0,"normalization":"ratio","observations":["condition_0:power_w","condition_1:power_w"],"scale":1e-12,"unit":"W"},{"aggregation":"max","baseline":["source_condition_0:gain_db","source_condition_1:gain_db"],"category":"performance","dimension":"response","direction":"maximize","id":"gain_db","normalization":"db20","observations":["condition_0:gain_db","condition_1:gain_db"],"unit":"dB"},{"aggregation":"max","baseline":["source_condition_0:unity_hz","source_condition_1:unity_hz"],"category":"performance","dimension":"response","direction":"maximize","id":"unity_hz","lower":0,"normalization":"ratio","observations":["condition_0:unity_hz","condition_1:unity_hz"],"unit":"Hz"},{"aggregation":"max","baseline":["source_condition_0:phase_margin","source_condition_1:phase_margin"],"category":"performance","dimension":"response","direction":"target","id":"phase_margin","normalization":"target","observations":["condition_0:phase_margin","condition_1:phase_margin"],"scale":180,"unit":"deg"},{"aggregation":"max","baseline":["source_condition_0:tracking_error_v","source_condition_1:tracking_error_v"],"category":"performance","dimension":"response","direction":"minimize","id":"tracking_error_v","lower":0,"normalization":"ratio","observations":["condition_0:tracking_error_v","condition_1:tracking_error_v"],"scale":0.001,"unit":"V"},{"aggregation":"min","category":"performance","direction":"maximize","id":"step_response_v","lower":0,"observations":["condition_0:step_response_v","condition_1:step_response_v"],"unit":"V"}],"pdk":"gf180mcuD","reader":{"category":"Amplifiers & RF","summary":"Buffers a reference through a self-biased two-stage Miller amplifier under external unity feedback.","title":"Self-Biased LDO Reference Amplifier"},"schematic_url":"/ICLayout-Bench/assets/2d8612b3be9c8b68fbdec4d227211ef68abb60f76a21c90937782b6bf3017d17.svg","scoring":{"area_metric":"functional_area","area_target":6223.21,"method":"layout","rationale":"Self-biased Miller buffers: tracking 36%; phase margin 22.5%; gain and bandwidth 18%; bias 4.5%; power 9%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"functional_area":0.1,"gain_db":0.09,"output_v":0.045,"phase_margin":0.225,"power_w":0.09,"tracking_error_v":0.36,"unity_hz":0.09}},"sections":{"Electrical Requirements and Scoring":"$12","Objective":"<p>Implement <code>amp_033_ti_ldo_ref_selfbias</code> as a GF180MCU D layout. Nine MOS devices form the fixed upstream two-stage Miller amplifier, with a matched PMOS mirror and diode-connected self-bias. External unity feedback tests the reference-buffer function; no ideal internal amplifier or bias servo is inserted.</p>\n","Operating Conditions":"<p>Typical native GF180 6 V MOS models, 3.3 V supply, 27 C, statistics disabled.\nInput common mode is 0.8 V. Both 1 pF and 10 pF output loads are evaluated.\nDC uses unity feedback. AC uses a 1 TH feedback inductor and 1 F input shunt\nfrom 1 Hz to 1 GHz, 100 points/decade. Transient replaces these fixture elements\nwith 1 pH and 1 aF: the input rises 10 mV at 1 us and falls at 3 us, each in\n10 ns. The simulation ends at 5 us, with a 1 ns requested step.\nThese ideal fixture elements are external test apparatus, outside the DUT.</p>\n","Physical Requirements":"$13"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/amp_033_ti_ldo_ref_selfbias","status":"qualified","title":"Self-Biased LDO Reference Amplifier"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}]
+c:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+14:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+9:null
+e:[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L14","3",{}]]

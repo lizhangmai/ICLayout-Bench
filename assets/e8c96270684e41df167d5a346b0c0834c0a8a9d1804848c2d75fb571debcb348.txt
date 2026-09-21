@@ -1,0 +1,594 @@
+in_core = false
+kind = "layout_case"
+id = "module_1_bandgap_reference.part_3_layout.OTA_layout.full_OTA"
+title = "IHP AnalogAcademy full_OTA"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "d02c9549e1d7ef313f774236268cc2f80b6efb6d7c764002fe118bd0a651f70f"
+
+[[assets]]
+path = "reference/two_stage_OTA_layout.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "50fa39a6984b6f9d1bc0dda38b379861b981c10b85842cc64d9c0e020f7f15bc"
+
+[task]
+hours = 3
+coefficient = 6
+kind = "netlist_to_gds"
+family = "ihp_sg13g2_two_stage_ota"
+environment = "ihp-sg13g2-full-ota-rc-tt"
+
+[task.inputs.description]
+path = "problem.md"
+sha256 = "ab78fb43d86ffe211d3ae76848a0459a591d1631e1c8d287659b8518a530f1a8"
+format = "text"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+sha256 = "b26120b95af66cc4075ac9d12a25444b6badbe7e2c96b50d7a1bd7a15b0cf409"
+format = "spice"
+subcircuit = "two_stage_OTA_layout"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+sha256 = "2c82bb396be0377ae24ee933e5402f87edf9e5da5f2c509774e6ff5c50705a20"
+format = "spice"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+sha256 = "62851f9d9bf6754a4d9b70ca2d9d63a0fd6241ae5e65b289fc5e2e8882469bea"
+format = "spice"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 80
+max_height_um = 50
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "two_stage_OTA_layout"
+max_bytes = 10485760
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 2936.48
+rationale = "Small-signal OTAs: gain 27%; bandwidth 22.5%; phase margin 22.5%; operating points 4.5%; power 13.5%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+low_frequency_gain = 0.27
+unity_gain_bandwidth = 0.225
+phase_margin = 0.225
+output_bias = 0.045
+supply_power = 0.135
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+top_cell = "two_stage_OTA_layout"
+ports = [
+    "v-",
+    "v+",
+    "vss",
+    "vdd",
+    "iout",
+    "vout",
+]
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+ac = "ngspice-raw"
+op = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.exports]
+ac = "ota-ac.raw"
+op = "ota-op.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+low_frequency_gain = "dB"
+unity_gain_bandwidth = "Hz"
+phase_margin = "deg"
+supply_power = "W"
+output_bias = "V"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "low_frequency_gain"
+category = "performance"
+observations = [
+    "nominal:low_frequency_gain",
+]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_nominal:low_frequency_gain",
+]
+normalization = "db20"
+
+[[task.evaluation.metrics]]
+id = "unity_gain_bandwidth"
+category = "performance"
+observations = [
+    "nominal:unity_gain_bandwidth",
+]
+unit = "Hz"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_nominal:unity_gain_bandwidth",
+]
+normalization = "ratio"
+lower = 0
+
+[[task.evaluation.metrics]]
+id = "phase_margin"
+category = "performance"
+observations = [
+    "nominal:phase_margin",
+]
+unit = "deg"
+direction = "target"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_nominal:phase_margin",
+]
+normalization = "target"
+scale = 180
+lower = 0
+upper = 180
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = [
+    "nominal:supply_power",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+dimension = "supply"
+baseline = [
+    "source_nominal:supply_power",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[[task.evaluation.metrics]]
+id = "output_bias"
+category = "performance"
+observations = [
+    "nominal:output_bias",
+]
+unit = "V"
+direction = "target"
+aggregation = "min"
+dimension = "bias"
+baseline = [
+    "source_nominal:output_bias",
+]
+normalization = "target"
+scale = 1.2
+lower = 0
+upper = 1.2
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "3f51127da701e18e468482e3f12272f1923ec7764474fe59fa890f3ef0ed8e69"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:6562558774d43c085a289bbba696c55959eb8051a0996f96633451fbeb9c652d\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"46a60326db6f55e6517e1b351825550ad9e1a19b30e7ba8579189923428f2c9c\", \"timeout_seconds\": 600.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_nominal]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_nominal.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_nominal.outputs]
+ac = "ngspice-raw"
+op = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.exports]
+ac = "ota-ac.raw"
+op = "ota-op.raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.measurements]
+low_frequency_gain = "dB"
+unity_gain_bandwidth = "Hz"
+phase_margin = "deg"
+supply_power = "W"
+output_bias = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.input_sha256]
+deck = "62851f9d9bf6754a4d9b70ca2d9d63a0fd6241ae5e65b289fc5e2e8882469bea"
+dut = "2c82bb396be0377ae24ee933e5402f87edf9e5da5f2c509774e6ff5c50705a20"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.low_frequency_gain]
+value = 70.11943
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.output_bias]
+value = 0.5996295207507
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.phase_margin]
+value = 61.2768
+unit = "deg"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.supply_power]
+value = 0.000197040688801
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.unity_gain_bandwidth]
+value = 4148602.0
+unit = "Hz"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+support = "build/support/full-ota-klayout-spice"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+support = "build/support/full-ota-klayout-spice"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/full-ota-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+capacitance_threshold_ff = 0
+timeout_seconds = 600
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 120
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-models"
+
+[toolchain.backends.simulation.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/full-ota-models"
+timeout_seconds = 600
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[qualification]
+reference = "reference/two_stage_OTA_layout.gds"
+
+[origin]
+url = "https://github.com/IHP-GmbH/IHP-AnalogAcademy/blob/133ecf657572e021b5921b5a1b7693abfb209623/modules/module_1_bandgap_reference/part_3_layout/OTA_layout/full_OTA/schematic_mod/two_stage_OTA_layout.sch"
+
+[presentation]
+category = "Amplifiers & RF"
+summary = "Amplifies differential signals with a two-stage CMOS OTA."

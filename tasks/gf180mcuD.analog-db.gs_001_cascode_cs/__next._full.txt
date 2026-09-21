@@ -1,0 +1,323 @@
+1:"$Sreact.fragment"
+2:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+3:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+4:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+5:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+7:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+8:"$Sreact.suspense"
+b:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+d:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+f:I[68027,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default",1]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+a:X
+0:{"P":null,"c":["","tasks","gf180mcuD.analog-db.gs_001_cascode_cs",""],"q":"","i":false,"f":[[["",{"children":[["path","tasks/gf180mcuD.analog-db.gs_001_cascode_cs","oc",[]],{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L2",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L3",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L2",null,{"href":"/","children":"Return to overview"}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L2",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}],{"children":[["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":[["$","$1","c",{"children":["$L6",[["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true,"nonce":"$undefined"}]],["$","$L7",null,{"children":["$","$8",null,{"name":"Next.MetadataOutlet","children":"$@9"}]}]]}],{},null,false,null]},null,false,"$a"]},null,false,null],["$","$1","h",{"children":[null,["$","$Lb",null,{"children":"$Lc"}],["$","div",null,{"hidden":true,"children":["$","$Ld",null,{"children":["$","$8",null,{"name":"Next.Metadata","children":"$Le"}]}]}],null]}],false]],"m":"$undefined","G":["$f",[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"U2oZdoUjWqT_XfcDHuQ5i"}
+10:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+a:C
+11:T2331,<h1 id="problem-self-biased-cascode-common-source-gain-stage-layout-task">Self-Biased Cascode Common-Source Gain Stage Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Implement the fixed <code>gs_001_cascode_cs</code> circuit in GF180MCU D and submit self-contained GDS.
+Nine MOS devices form a cascode common-source stage with PMOS and NMOS bias ladders. An external 20 uA sink biases the PMOS ladder. Total widths, lengths and multiplicities follow the fixed GF180 binding. Physical body contacts and an independently constructed reference complete the circuit.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p><code>materials/circuit.spice</code> is authoritative for LVS and source calibration;
+<code>materials/testbench.spice</code> defines every electrical measurement. This problem
+is the description input. Ordered ports: <code>vdd vout vin ibias vss</code>.
+In order, these are: Supply, output, signal input, PMOS reference-current sink, and return.</p>
+<p>Preserve the netlist's device connectivity, dimensions, multiplicities and body
+connections. Provide physical well/substrate contacts to the declared rails.
+Placement, routing, splitting and source/drain interchange are permitted only
+where accepted by the declared LVS equivalence rules. No common-centroid or
+statistical matching requirement is scored. Ideal external stimulus, bias and
+load devices remain testbench apparatus and must not be placed inside the DUT.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>Use the typical GF180 3.3 V MOS models and physical poly models where present,
+with statistical variation disabled. Unless swept explicitly, temperature is 27 C.
+VSS = 0 V; VDD = 2.7, 3.0 and 3.3 V; external 20 uA sink from ibias to VSS; external 1 pF output load. A 1 TH external inductor connects output to input for the DC trip-point solve. A 1 F external coupling capacitor injects a unit AC input through acin while isolating the DC fixture. This measures open-loop small-signal gain at each self-biased trip point; it does not prescribe a fixed DC input voltage.</p>
+<p>AC uses 100 points per decade from 1 Hz to 1 GHz. Gain-stage transfer is
+V(vout) for unit AC injection; differential-pair transfer is V(voutn)-V(voutp)
+for unit differential excitation; the OTA transfer is defined above.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Submit top cell <code>gs_001_cascode_cs</code> with every named electrical port, resolved hierarchy
+and a file size at most 10 MiB. Artifact, GF180 variant-D DRC including antenna,
+strict named-port LVS and geometry must pass, without DRC waivers. Chip-level
+density and seal-ring closure are outside this standalone-block scope.</p>
+<p>The functional bounding box must fit within 220 by 120 um. Area includes all
+process device and routing drawing layers listed in runtime constraints:
+wells, implants, active, poly, contacts, metals/vias and passive/device markers.
+Annotation and pin-purpose shapes are excluded; all functional routing must use
+drawing layers. The complete layer list is frozen in <code>/protocol/task.json</code>.</p>
+<p>The judge independently extracts distributed wiring resistance and capacitance
+from the submitted GDS, retaining candidate-derived MOS/passive geometry and
+external body connections. Every scored simulation consumes that extracted DUT.
+This model boundary does not include a distributed silicon substrate network.
+Transient settling, fixed-input bias robustness, noise, mismatch, PVT and EM are outside scope. Manufacturing signoff is not claimed.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>All three operating conditions must complete and every observation must be finite
+and meet its inclusive band. Aggregation cannot hide a failing condition;
+missing crossings or incomplete extraction/simulation cannot establish success.
+Saved waveforms provide the inputs for independently reconstructing observations.</p>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>DC output voltage</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 3.3</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td><code>bias_v</code></td>
+<td>DC V(ibias)</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 3.3</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>DC power delivered by VDD, -V(vdd)*I(VDD)</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>gain_db</code></td>
+<td>20 log10(abs(transfer)) at 10 Hz</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>bandwidth_hz</code></td>
+<td>First frequency where transfer gain falls 3 dB below its 10 Hz value</td>
+<td>Hz</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>394.4 um2</strong>. 9 expanded device instances; sum of device/contact envelopes 220.6500 um2, per-side envelope allowance 1 um, 50% routing allowance and total outer width/height allowance 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>4</strong>; it is independent of
+the reference-relative task score.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Local gain stages: signal transfer 50%; bandwidth 15%; operating points 5%; power 15%; area 15%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.15</td>
+</tr>
+<tr>
+<td><code>gain_db</code></td>
+<td style="text-align:right">0.500000000000</td>
+</tr>
+<tr>
+<td><code>bandwidth_hz</code></td>
+<td style="text-align:right">0.150000000000</td>
+</tr>
+<tr>
+<td><code>bias_v</code></td>
+<td style="text-align:right">0.025000000000</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.025000000000</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.150000000000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Use the reviewed GF180 resources listed in <code>/protocol/resources.json</code>.
+KLayout checks the layout, Magic extracts RC and ngspice simulates the circuit.
+<code>/protocol/task.json</code> provides frozen constraints and evaluation requirements;
+<code>/protocol/harness.json</code> describes the harness. If <code>process-feedback</code> is
+exposed, use its published helper for interim checks. Write
+<code>/workspace/output/final.gds</code>, then explicitly submit with
+<code>python -I /protocol/submit.py</code>.</p>
+<p>Use a GDS database unit of 0.001 um, as required by the GF180MCU DRC deck.</p>
+12:T11d2,<p>All three operating conditions must complete and every observation must be finite
+and meet its inclusive band. Aggregation cannot hide a failing condition;
+missing crossings or incomplete extraction/simulation cannot establish success.
+Saved waveforms provide the inputs for independently reconstructing observations.</p>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_v</code></td>
+<td>DC output voltage</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 3.3</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td><code>bias_v</code></td>
+<td>DC V(ibias)</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 3.3</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td>DC power delivered by VDD, -V(vdd)*I(VDD)</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td><code>gain_db</code></td>
+<td>20 log10(abs(transfer)) at 10 Hz</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>bandwidth_hz</code></td>
+<td>First frequency where transfer gain falls 3 dB below its 10 Hz value</td>
+<td>Hz</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>394.4 um2</strong>. 9 expanded device instances; sum of device/contact envelopes 220.6500 um2, per-side envelope allowance 1 um, 50% routing allowance and total outer width/height allowance 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>4</strong>; it is independent of
+the reference-relative task score.</p>
+<h3>Score weights</h3>
+<p>Local gain stages: signal transfer 50%; bandwidth 15%; operating points 5%; power 15%; area 15%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.15</td>
+</tr>
+<tr>
+<td><code>gain_db</code></td>
+<td style="text-align:right">0.500000000000</td>
+</tr>
+<tr>
+<td><code>bandwidth_hz</code></td>
+<td style="text-align:right">0.150000000000</td>
+</tr>
+<tr>
+<td><code>bias_v</code></td>
+<td style="text-align:right">0.025000000000</td>
+</tr>
+<tr>
+<td><code>output_v</code></td>
+<td style="text-align:right">0.025000000000</td>
+</tr>
+<tr>
+<td><code>power_w</code></td>
+<td style="text-align:right">0.150000000000</td>
+</tr>
+</tbody>
+</table>
+13:T4ad,<p>Submit top cell <code>gs_001_cascode_cs</code> with every named electrical port, resolved hierarchy
+and a file size at most 10 MiB. Artifact, GF180 variant-D DRC including antenna,
+strict named-port LVS and geometry must pass, without DRC waivers. Chip-level
+density and seal-ring closure are outside this standalone-block scope.</p>
+<p>The functional bounding box must fit within 220 by 120 um. Area includes all
+process device and routing drawing layers listed in runtime constraints:
+wells, implants, active, poly, contacts, metals/vias and passive/device markers.
+Annotation and pin-purpose shapes are excluded; all functional routing must use
+drawing layers. The complete layer list is frozen in <code>/protocol/task.json</code>.</p>
+<p>The judge independently extracts distributed wiring resistance and capacitance
+from the submitted GDS, retaining candidate-derived MOS/passive geometry and
+external body connections. Every scored simulation consumes that extracted DUT.
+This model boundary does not include a distributed silicon substrate network.
+Transient settling, fixed-input bias robustness, noise, mismatch, PVT and EM are outside scope. Manufacturing signoff is not claimed.</p>
+6:["$","$8",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L10",null,{"task":{"case_path":"tasks/gf180mcuD/analog-db/cases/gs_001_cascode_cs/case.toml","coefficient":4,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/bab2233575478f0fcbebc4d4993224829c772207aa1cbba15eb1dcdb6d6d31d6.txt","description_html":"$11","description_path":"tasks/gf180mcuD/analog-db/cases/gs_001_cascode_cs/problem.md","hours":3,"id":"gf180mcuD.analog-db.gs_001_cascode_cs","inputs":{"description":{"format":"text","path":"problem.md","sha256":"659170c9549c470b2abf932562ad6fafd27cb09b68e6dc0bbcf6ebd8eb1e34da"},"netlist":{"format":"spice","path":"materials/circuit.spice","sha256":"59d815c21e17878429aab496b999cfcde2168c09f125d99e8b91644f5fd70299","subcircuit":"gs_001_cascode_cs"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"01aa8d8a27335b57290c82c187786883b41ff683eb72db92babb37073605d276"}},"licenses":[{"name":"LICENSE","path":"tasks/gf180mcuD/analog-db/LICENSE","url":"/ICLayout-Bench/assets/d6c09a4fa902f192f05e697110788e520f294a97446ababab65986137c16fceb.txt"},{"name":"NOTICE","path":"tasks/gf180mcuD/analog-db/NOTICE","url":"/ICLayout-Bench/assets/75d61165620fd72b89f65e52c2b6c85b73d410bd293062873390bd20ab820a41.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/659170c9549c470b2abf932562ad6fafd27cb09b68e6dc0bbcf6ebd8eb1e34da.txt"},{"name":"materials/circuit.spice","role":"netlist","url":"/ICLayout-Bench/assets/59d815c21e17878429aab496b999cfcde2168c09f125d99e8b91644f5fd70299.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/01aa8d8a27335b57290c82c187786883b41ff683eb72db92babb37073605d276.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"max","baseline":["source_condition_0:output_v","source_condition_1:output_v","source_condition_2:output_v"],"category":"performance","dimension":"bias","direction":"target","id":"output_v","lower":0,"normalization":"target","observations":["condition_0:output_v","condition_1:output_v","condition_2:output_v"],"scale":3.3,"unit":"V","upper":3.3},{"aggregation":"max","baseline":["source_condition_0:bias_v","source_condition_1:bias_v","source_condition_2:bias_v"],"category":"performance","dimension":"bias","direction":"target","id":"bias_v","lower":0,"normalization":"target","observations":["condition_0:bias_v","condition_1:bias_v","condition_2:bias_v"],"scale":3.3,"unit":"V","upper":3.3},{"aggregation":"max","baseline":["source_condition_0:power_w","source_condition_1:power_w","source_condition_2:power_w"],"category":"performance","dimension":"supply","direction":"minimize","id":"power_w","lower":0,"normalization":"ratio","observations":["condition_0:power_w","condition_1:power_w","condition_2:power_w"],"scale":1e-12,"unit":"W"},{"aggregation":"min","baseline":["source_condition_0:gain_db","source_condition_1:gain_db","source_condition_2:gain_db"],"category":"performance","dimension":"response","direction":"maximize","id":"gain_db","normalization":"db20","observations":["condition_0:gain_db","condition_1:gain_db","condition_2:gain_db"],"unit":"dB"},{"aggregation":"min","baseline":["source_condition_0:bandwidth_hz","source_condition_1:bandwidth_hz","source_condition_2:bandwidth_hz"],"category":"performance","dimension":"response","direction":"maximize","id":"bandwidth_hz","lower":0,"normalization":"ratio","observations":["condition_0:bandwidth_hz","condition_1:bandwidth_hz","condition_2:bandwidth_hz"],"unit":"Hz"}],"pdk":"gf180mcuD","reader":{"category":"Amplifiers & RF","summary":"Provides voltage gain through a self-biased cascode common-source stage.","title":"Self-Biased Cascode Common-Source Gain Stage"},"schematic_url":"/ICLayout-Bench/assets/fe2d9389f78b5d491eba5610f0d991bee6c5d8fedc53df054788f8a07bf68682.svg","scoring":{"area_metric":"functional_area","area_target":394.4,"method":"layout","rationale":"Local gain stages: signal transfer 50%; bandwidth 15%; operating points 5%; power 15%; area 15%. Each objective's weight is divided equally among its metrics.","weights":{"bandwidth_hz":0.15,"bias_v":0.025,"functional_area":0.15,"gain_db":0.5,"output_v":0.025,"power_w":0.15}},"sections":{"Electrical Requirements and Scoring":"$12","Objective":"<p>Implement the fixed <code>gs_001_cascode_cs</code> circuit in GF180MCU D and submit self-contained GDS.\nNine MOS devices form a cascode common-source stage with PMOS and NMOS bias ladders. An external 20 uA sink biases the PMOS ladder. Total widths, lengths and multiplicities follow the fixed GF180 binding. Physical body contacts and an independently constructed reference complete the circuit.</p>\n","Operating Conditions":"<p>Use the typical GF180 3.3 V MOS models and physical poly models where present,\nwith statistical variation disabled. Unless swept explicitly, temperature is 27 C.\nVSS = 0 V; VDD = 2.7, 3.0 and 3.3 V; external 20 uA sink from ibias to VSS; external 1 pF output load. A 1 TH external inductor connects output to input for the DC trip-point solve. A 1 F external coupling capacitor injects a unit AC input through acin while isolating the DC fixture. This measures open-loop small-signal gain at each self-biased trip point; it does not prescribe a fixed DC input voltage.</p>\n<p>AC uses 100 points per decade from 1 Hz to 1 GHz. Gain-stage transfer is\nV(vout) for unit AC injection; differential-pair transfer is V(voutn)-V(voutp)\nfor unit differential excitation; the OTA transfer is defined above.</p>\n","Physical Requirements":"$13"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/gs_001_cascode_cs","status":"qualified","title":"Self-Biased Cascode Common-Source Gain Stage"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}]
+c:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+14:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+9:null
+e:[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L14","3",{}]]

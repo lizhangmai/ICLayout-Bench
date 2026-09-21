@@ -1,0 +1,201 @@
+# Two-Stage Fully Differential OTA with RC Common-Mode Feedback Layout Task
+
+## Objective
+
+Implement `amp_023_fer_fd2s`: an NMOS-input folded first stage, two NMOS
+common-source output stages, dual series R/C compensation and transistor
+common-mode feedback sensing both outputs through physical R/C arms. Preserve
+all device groups and validate both differential and common-mode behavior in
+the specified unity differential feedback connection.
+
+## Inputs and Interface
+
+- `materials/circuit.cdl`: authoritative physical circuit for native LVS.
+- `materials/circuit.spice`: equivalent process-model simulator representation.
+- `materials/testbench.spice`: declared stimuli, differential feedback and measurements.
+
+Ordered ports are `vinp vinn voutp voutn vdd vss ibias vcmr`.
+VINP/VINN are differential inputs; VOUTP/VOUTN are differential outputs;
+VDD/VSS are supply/return; IBIAS receives 20 uA from VDD; VCMR receives the
+common-mode reference relative to VSS. The bias mirrors and common-mode
+controller stay in the DUT. Do not replace the internal controller with an
+ideal servo or omit physical passive devices.
+
+Retain all 28 MOS groups' fixed W/L/m (50 individual transistors), models and
+connectivity. Equivalent parallel fingering/native merging is allowed if all
+checks pass. NMOS and resistor bodies connect through the explicit substrate
+tap to VSS; PMOS bodies connect through the well tap to VDD. Keep supplies,
+body connections and ordered ports faithful to the circuit.
+
+Each output compensation path has a W=1 um, L=0.96 um `rhigh` (nominally
+1.52 kohm at 27 C) between `o1a`/`o1b` and `za`/`zb`, followed by two parallel
+25.85 × 25.85 um `cap_cmim` units to the corresponding output (2.01294 pF).
+Each output-to-`vsen` sensing arm contains eight series W=1 um, L=18 um
+`rhigh` segments (nominally 205.28 kohm total), in parallel with a
+9.95 × 9.95 um MIM (150.096 fF). Resistors use m=1, b=0. These internal
+devices are separate from external output loads; they must be physically
+implemented with the same terminal mapping. Internal nodes are not bias ports.
+
+## Operating Conditions
+
+Use typical MOS, capacitor and resistor models, 27 C, 1.2 V supply, 20 uA
+from VDD to IBIAS, and input common mode 0.5 V. Each output has an external
+1, 5 or 10 pF load. For each load, evaluate paired positive and negative
+stimuli: `step_v` is +0.1 or −0.1 V and `kick_a` is respectively +100 or
+−100 uA. All six conditions must pass.
+
+Define `d=VOUTP−VOUTN` and `c=(VOUTP+VOUTN)/2`. The external differential
+feedback apparatus drives `VINP=0.5+(VSIG−d)/2` and
+`VINN=0.5−(VSIG−d)/2`, through zero-volt series probes. It holds input
+common mode and closes differential unity feedback. It does not force output
+common mode: the actual DUT controller, its two R/C sense arms and actual
+output stages close that loop.
+
+At DC, VSIG=0 and VCMR=0.75 V. Differential AC uses opposite +0.5/−0.5 V
+series probe excitations and sweeps 1 Hz–1 GHz at 150 points/decade. Measure
+`A=d/(VINP−VINN)`; its sign is retained. Low-frequency gain is dB magnitude
+at 1 Hz; unity frequency is the first falling 0 dB crossing; phase margin is
+180 degrees plus continuous phase there, without subtracting an arbitrary
+phase offset. A missing crossing is an error. This voltage-injection return
+ratio is scoped to the high-impedance input and declared unity feedback.
+
+Common-mode AC sets both series probe AC magnitudes to zero and VCMR AC=1 V,
+keeping differential feedback closed. Sweep 1 Hz–1 GHz at 100 points/decade.
+Measure `abs(c/VCMR)` at 1 Hz and its maximum over the complete sweep.
+This is closed-loop common-mode tracking/peaking, not an internal common-mode
+loop phase-margin measurement.
+
+The transient sequence runs 0–8 us using Gear order 2 with maximum step 1 ns.
+Use `rshunt=1e12`, `reltol=1e-5`, `abstol=1e-13`, `vntol=1e-8`.
+VSIG rises from zero to `step_v` during 1–1.005 us, holds for 4 us, and
+returns during 5.005–5.010 us. VCMR rises 0.75→0.8 V during 3–3.005 us,
+holds for 1 us, and returns during 4.005–4.010 us. Thus reference tracking
+is tested while a nonzero differential output is present. Equal current
+sources inject `kick_a` into both outputs during a 6–6.060 us pulse:
+5 ns rise, 50 ns hold and 5 ns fall. Negative `kick_a` withdraws current.
+The pulse periods are 20 us; only this finite 8 us sequence is measured.
+No startup initialization is imposed; transient starts from the solved DC point.
+
+## Physical Requirements
+
+Submit GDSII top cell `amp_023_fer_fd2s`, at most 10 MiB. Pass native IHP
+main/maximal DRC without waivers (standalone scope, density/antenna disabled),
+strict named-port LVS with physical taps, and a 1200 × 400 um functional
+outline. Include all device, contact and routing drawing layers enumerated by
+the runtime outline constraint. Pin-purpose and annotation layers do not
+contribute to bounding-box area and cannot conceal functional geometry.
+
+Post-layout measurements must consume the candidate-derived Magic RC netlist,
+including physical passives, transistor junction geometry and interconnect.
+The extraction configuration subdivides Magic's initial grid by two before
+GDS import and imports its isolated copy with `gds_readonly=false`; the submitted
+GDS remains immutable. No extraction error is waived. Device parameters,
+geometry and port connectivity must survive extraction. Magic idealizes
+well/substrate taps; source simulation retains their finite process models.
+Distributed substrate resistance/noise and fabrication signoff are outside scope.
+
+## Electrical Requirements and Scoring
+
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
+
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+Scoring uses `layout`. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.
+
+Measurement definitions below use the supplied SPICE node/source names.
+`v(n)` is node voltage and `i(V)` is current into a voltage source; delivered
+power therefore uses a minus sign. `db(z)=20*log10(abs(z))`, `mag/abs`
+denote magnitude, and `cph` is continuous phase in radians. `find`, `when`,
+`from/to`, and `rise/fall` retain the deck's interpolation, window and
+crossing conventions; SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/
+milli/mega/giga. Nested `avg`, `min`, `max`, `vecmin/vecmax` and `deriv`
+mean the stated window average, extrema and sampled derivative. All
+declared conditions are measured separately and paired with the same
+source condition; a group uses its worst paired quality.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale | Dimension |
+| --- | --- | --- | --- | --- | --- | --- |
+| `output_cm_v` | DC operating point: `(v(outp)+v(outn))/2`. | V | target / target | 0 … 1.2 | 1.2 | bias |
+| `output_dm_v` | DC operating point: `v(outp)-v(outn)`. | V | target / target | −∞ … +∞ | 1.2 | bias |
+| `bias_v` | DC operating point: `v(ibias)`. | V | target / target | 0 … 1.2 | 1.2 | bias |
+| `power_w` | DC operating point: `-v(vdd)*i(VDD)`. | W | minimize / ratio | 0 … +∞ | 1e-12 | supply |
+| `dm_gain_db` | AC: Value of `(db(((v(outp)-v(outn))/(v(inp)-v(inn))))) at=1`. | dB | maximize / db20 | −∞ … +∞ | — | response |
+| `unity_hz` | AC: Crossing coordinate where `(db(((v(outp)-v(outn))/(v(inp)-v(inn)))))=0 fall=1`. | Hz | maximize / ratio | 0 … +∞ | — | response |
+| `phase_margin_deg` | AC: `180+(find (180*cph(((v(outp)-v(outn))/(v(inp)-v(inn))))/pi) when (db(((v(outp)-v(outn))/(v(inp)-v(inn)))))=0 fall=1)`. | deg | target / target | 0 … 180 | 180 | response |
+| `cm_gain_vv` | AC: Value of `(mag(((v(outp)+v(outn))/2))) at=1`. | V/V | target / target | −∞ … +∞ | 1.0 | response |
+| `cm_peak_vv` | AC: Maximum of `(mag(((v(outp)+v(outn))/2)))`. | V/V | target / target | −∞ … +∞ | 1.0 | response |
+| `dm_up_error_v` | TRAN: Maximum of `(abs((v(outp)-v(outn))-v(sig))) from=1.5u to=1.95u`. | V | minimize / ratio | 0 … +∞ | 1e-06 | response |
+| `dm_down_error_v` | TRAN: Maximum of `(abs((v(outp)-v(outn))-v(sig))) from=5.5u to=5.95u`. | V | minimize / ratio | 0 … +∞ | 1e-06 | response |
+| `cm_up_error_v` | TRAN: Maximum of `(abs(((v(outp)+v(outn))/2)-v(ref))) from=3.5u to=3.95u`. | V | minimize / ratio | 0 … +∞ | 1e-06 | response |
+| `cm_down_error_v` | TRAN: Maximum of `(abs(((v(outp)+v(outn))/2)-v(ref))) from=4.5u to=5.9u`. | V | minimize / ratio | 0 … +∞ | 1e-06 | response |
+| `cm_kick_error_v` | TRAN: Maximum of `(abs(((v(outp)+v(outn))/2)-v(ref))) from=6.5u to=7.9u`. | V | minimize / ratio | 0 … +∞ | 1e-06 | response |
+| `cm_kick_peak_v` | TRAN: Maximum of `(abs(((v(outp)+v(outn))/2)-v(ref))) from=6u to=6.5u`. | V | target / target | 0 … 1.2 | 1.2 | response |
+| `dm_peak_v` | TRAN: Maximum of `(abs((v(outp)-v(outn)))) from=1u to=5u`. | V | target / target | 0 … 1.2 | 1.2 | response |
+| `mean_power_w` | TRAN: Mean of `(-v(vdd)*i(VDD)) from=0 to=8u`. | W | minimize / ratio | 0 … +∞ | 1e-12 | supply |
+| `dm_cm_error_v` | TRAN: Maximum of `(abs((v(outp)-v(outn))-v(sig))) from=3.5u to=3.95u`. | V | minimize / ratio | 0 … +∞ | 1e-06 | response |
+| `cm_dm_error_v` | TRAN: Maximum of `(abs(((v(outp)+v(outn))/2)-v(ref))) from=1.5u to=1.95u`. | V | minimize / ratio | 0 … +∞ | 1e-06 | response |
+| `dm_high_v` | TRAN: Mean of `(v(outp)-v(outn)) from=1.8u to=1.95u`. | V | diagnostic | −∞ … +∞ | — | unscored diagnostic |
+| `cm_high_v` | TRAN: Mean of `((v(outp)+v(outn))/2) from=3.8u to=3.95u`. | V | diagnostic | −∞ … +∞ | — | unscored diagnostic |
+
+Area reference: **8435.0 um2**. 76 expanded device instances; sum of device/contact envelopes 5503.6687 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **9**; it is independent of
+the reference-relative task score.
+
+
+### Score weights
+
+Differential amplifier with CMFB: differential recovery 22.5%; common-mode recovery 22.5%; cross-coupling 9%; loop margin 13.5%; AC transfer 9%; bias 4.5%; power 9%; area 10%. Each objective's weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `dm_down_error_v` | 0.075000000000 |
+| `dm_peak_v` | 0.075000000000 |
+| `dm_up_error_v` | 0.075000000000 |
+| `cm_down_error_v` | 0.056250000000 |
+| `cm_kick_error_v` | 0.056250000000 |
+| `cm_kick_peak_v` | 0.056250000000 |
+| `cm_up_error_v` | 0.056250000000 |
+| `cm_dm_error_v` | 0.045000000000 |
+| `dm_cm_error_v` | 0.045000000000 |
+| `phase_margin_deg` | 0.135000000000 |
+| `cm_gain_vv` | 0.022500000000 |
+| `cm_peak_vv` | 0.022500000000 |
+| `dm_gain_db` | 0.022500000000 |
+| `unity_hz` | 0.022500000000 |
+| `bias_v` | 0.015000000000 |
+| `output_cm_v` | 0.015000000000 |
+| `output_dm_v` | 0.015000000000 |
+| `mean_power_w` | 0.045000000000 |
+| `power_w` | 0.045000000000 |
+
+## Tools and Submission
+
+Solve budget: **3 hours**.
+
+Discover task inputs, frozen requirements, reviewed resources and harness
+feedback through `/protocol/task.json`, `/protocol/resources.json` and
+`/protocol/harness.json`. Use the supplied IHP primitives and KLayout, Magic
+and ngspice. Write `/workspace/output/final.gds` and explicitly submit using
+the harness protocol. Reference GDS, source records and host configuration
+remain outside standard solver inputs.

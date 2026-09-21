@@ -1,0 +1,615 @@
+1:"$Sreact.fragment"
+2:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+3:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+4:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+5:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+7:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+8:"$Sreact.suspense"
+b:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+d:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+f:I[68027,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default",1]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+a:X
+0:{"P":null,"c":["","tasks","ihp-sg13g2.analog-db.smp_001_nmos_th",""],"q":"","i":false,"f":[[["",{"children":[["path","tasks/ihp-sg13g2.analog-db.smp_001_nmos_th","oc",[]],{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L2",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L3",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L2",null,{"href":"/","children":"Return to overview"}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L2",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}],{"children":[["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":[["$","$1","c",{"children":["$L6",[["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true,"nonce":"$undefined"}]],["$","$L7",null,{"children":["$","$8",null,{"name":"Next.MetadataOutlet","children":"$@9"}]}]]}],{},null,false,null]},null,false,"$a"]},null,false,null],["$","$1","h",{"children":[null,["$","$Lb",null,{"children":"$Lc"}],["$","div",null,{"hidden":true,"children":["$","$Ld",null,{"children":["$","$8",null,{"name":"Next.Metadata","children":"$Le"}]}]}],null]}],false]],"m":"$undefined","G":["$f",[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"U2oZdoUjWqT_XfcDHuQ5i"}
+10:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+a:C
+11:T336c,<h1 id="problem-physical-nmos-sample-and-hold-layout-task">Physical NMOS Sample-and-Hold Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Implement <code>smp_001_nmos_th</code>: a single-NMOS sampling switch with an internal
+physical storage capacitor. Preserve the switch and stored-charge node, and
+meet acquisition, turn-off pedestal, isolated-input feedthrough, hold drift
+and reacquisition requirements at the specified input and temperature points.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<ul>
+<li><code>materials/circuit.cdl</code>: authoritative native physical circuit.</li>
+<li><code>materials/circuit.spice</code>: equivalent simulator representation.</li>
+<li><code>materials/testbench.spice</code>: independent stimuli and measurements.</li>
+</ul>
+<p>The ordered interface is <code>vin clk vout vss</code>. VIN is driven through an external
+1 kohm source resistance; CLK receives the external clock; VOUT is the storage
+node. The source's unused VDD port is removed. There is no DUT supply-current
+metric or added artificial supply connection. Tie VSS to ground.</p>
+<p>Retain the <code>sg13_lv_nmos</code> with W=2 um, L=0.13 um, m=1 and drain/gate/source
+connected to VIN/CLK/VOUT. Its body connects through the explicit VSS substrate
+tap. One <code>cap_cmim</code> with W=L=18.2 um connects its top plate to VOUT and bottom
+plate to VSS, nominally 499.772 fF at TT, 27 C. Preserve plate orientation.
+The capacitor is internal physical storage, not a testbench load or an ideal
+replacement. The native and simulator circuits include the same explicit tap.</p>
+<p>Preserve models, sizes and connectivity. Equivalent parallel fingering is
+permitted only when all physical and electrical checks pass. Do not add a
+buffer, complementary switch, dummy cancellation device, hold-node servo,
+external storage capacitor or other topology change.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>Use typical MOS and capacitor models at 27 and 85 C. CLK is externally driven
+between 0 and 1.2 V, with 2 ns linear transitions. The ideal signal source SRC
+drives VIN through 1 kohm. Qualify four sampled levels, <code>sample_v</code> = 0.1, 0.4,
+0.6 and 0.7 V, at both temperatures. At each point the off-state input is
+separately driven to <code>hold_v</code> = 0 or 1.2 V: sixteen conditions. These are
+specified sample points, not rail-to-rail or continuous-range qualification.</p>
+<p>The finite sequence starts from a solved DC operating point with SRC=0 and
+CLK=1.2 V. SRC moves to <code>sample_v</code> during 20–22 ns. CLK falls during
+200–202 ns, isolating the storage node. SRC moves to <code>hold_v</code> during
+400–402 ns while CLK remains zero. SRC returns to <code>sample_v</code> during
+11.2–11.202 us; CLK rises during 11.4–11.402 us. Stop at 11.7 us.
+No output load, DC bias source or discharge resistor is attached to VOUT.</p>
+<p>Use Gear order 2, KLU, maximum time step 2 ns, <code>gmin=1e-15</code>,
+<code>rshunt=1e15</code>, <code>reltol=1e-6</code>, <code>abstol=1e-15</code> and <code>vntol=1e-9</code>.
+The numerical shunt is not a specified physical retention load. Save SRC,
+VIN, CLK, VOUT and both ideal voltage-source currents.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Submit GDSII top cell <code>smp_001_nmos_th</code>, at most 10 MiB, within an 80 × 80 um
+functional outline. Pass native IHP main/maximal DRC without waivers
+(standalone scope with density/antenna disabled), strict named-port LVS,
+functional geometry and candidate-derived Magic RC extraction. Functional
+area includes the complete device/contact/routing layers enumerated by the
+runtime outline; annotation and pin layers do not count.</p>
+<p>Post-layout simulation must consume the submitted layout's extracted NMOS,
+physical MIM, junction geometry and interconnect RC. The isolated Magic import
+uses half-grid subdivision and <code>gds_readonly=false</code>; the submitted GDS remains
+immutable. No diagnostic is waived. Source simulation retains the finite tap
+model; Magic idealizes the tap connection. Distributed substrate noise and
+fabrication signoff are outside this contract.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<p>Measurement definitions below use the supplied SPICE node/source names.
+<code>v(n)</code> is node voltage and <code>i(V)</code> is current into a voltage source; delivered
+power therefore uses a minus sign. <code>db(z)=20*log10(abs(z))</code>, <code>mag/abs</code>
+denote magnitude, and <code>cph</code> is continuous phase in radians. <code>find</code>, <code>when</code>,
+<code>from/to</code>, and <code>rise/fall</code> retain the deck's interpolation, window and
+crossing conventions; SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/
+milli/mega/giga. Nested <code>avg</code>, <code>min</code>, <code>max</code>, <code>vecmin/vecmax</code> and <code>deriv</code>
+mean the stated window average, extrema and sampled derivative. All
+declared conditions are measured separately and paired with the same
+source condition; a group uses its worst paired quality.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+<th>Dimension</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>track_error_v</code></td>
+<td>Maximum absolute VOUT minus target over 80–190 ns; target is VSRC sampled at 180 ns.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>pedestal_abs_v</code></td>
+<td>Absolute difference between VOUT at 220 ns and 180 ns (held minus tracked sample).</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>feedthrough_peak_v</code></td>
+<td>Maximum absolute VOUT minus its 390 ns sample over 400–450 ns, during the input transition in hold.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>hold_drift_v</code></td>
+<td>Absolute difference between VOUT at 11 us and 1 us.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>hold_error_v</code></td>
+<td>Maximum absolute VOUT minus target over 220 ns–11 us; target is VSRC at 180 ns.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>reacquire_error_v</code></td>
+<td>Maximum absolute VOUT minus target over 11.48–11.69 us; target is VSRC at 180 ns.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>clock_energy_j</code></td>
+<td>Integral of max(-V(CLK)*I(VCLK), 0) over 0–11.7 us; returned clock energy is excluded.</td>
+<td>J</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-21</td>
+<td>supply</td>
+</tr>
+<tr>
+<td><code>target</code></td>
+<td>TRAN: Value of <code>v(src) at=180n</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>track_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=180n</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>held_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=220n</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>before_input_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=390n</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>after_input_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=450n</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>hold_start_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=1u</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>hold_end_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=11u</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>reacquired_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=11.65u</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>pedestal_v</code></td>
+<td>Signed VOUT(220 ns) − VOUT(180 ns).</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>feedthrough_v</code></td>
+<td>Signed VOUT(450 ns) − VOUT(390 ns).</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>drift_v</code></td>
+<td>Signed VOUT(11 us) − VOUT(1 us).</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>661.39 um2</strong>. 3 expanded device instances; sum of device/contact envelopes 407.6560 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>5</strong>; it is independent of
+the reference-relative task score.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>Track/hold switches: acquisition 35%; hold fidelity 45%; clock energy 10%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>reacquire_error_v</code></td>
+<td style="text-align:right">0.175000000000</td>
+</tr>
+<tr>
+<td><code>track_error_v</code></td>
+<td style="text-align:right">0.175000000000</td>
+</tr>
+<tr>
+<td><code>feedthrough_peak_v</code></td>
+<td style="text-align:right">0.112500000000</td>
+</tr>
+<tr>
+<td><code>hold_drift_v</code></td>
+<td style="text-align:right">0.112500000000</td>
+</tr>
+<tr>
+<td><code>hold_error_v</code></td>
+<td style="text-align:right">0.112500000000</td>
+</tr>
+<tr>
+<td><code>pedestal_abs_v</code></td>
+<td style="text-align:right">0.112500000000</td>
+</tr>
+<tr>
+<td><code>clock_energy_j</code></td>
+<td style="text-align:right">0.100000000000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Use <code>/protocol/task.json</code>, <code>/protocol/resources.json</code> and <code>/protocol/harness.json</code>
+for the frozen inputs, requirements, reviewed IHP primitives and harness
+feedback. Work with the supplied KLayout, Magic and ngspice resources.
+Write <code>/workspace/output/final.gds</code> and explicitly submit through the harness.
+Reference GDS, source records and host configuration are not standard inputs.</p>
+12:T206a,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<p>Measurement definitions below use the supplied SPICE node/source names.
+<code>v(n)</code> is node voltage and <code>i(V)</code> is current into a voltage source; delivered
+power therefore uses a minus sign. <code>db(z)=20*log10(abs(z))</code>, <code>mag/abs</code>
+denote magnitude, and <code>cph</code> is continuous phase in radians. <code>find</code>, <code>when</code>,
+<code>from/to</code>, and <code>rise/fall</code> retain the deck's interpolation, window and
+crossing conventions; SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/
+milli/mega/giga. Nested <code>avg</code>, <code>min</code>, <code>max</code>, <code>vecmin/vecmax</code> and <code>deriv</code>
+mean the stated window average, extrema and sampled derivative. All
+declared conditions are measured separately and paired with the same
+source condition; a group uses its worst paired quality.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+<th>Dimension</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>track_error_v</code></td>
+<td>Maximum absolute VOUT minus target over 80–190 ns; target is VSRC sampled at 180 ns.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>pedestal_abs_v</code></td>
+<td>Absolute difference between VOUT at 220 ns and 180 ns (held minus tracked sample).</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>feedthrough_peak_v</code></td>
+<td>Maximum absolute VOUT minus its 390 ns sample over 400–450 ns, during the input transition in hold.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>hold_drift_v</code></td>
+<td>Absolute difference between VOUT at 11 us and 1 us.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>hold_error_v</code></td>
+<td>Maximum absolute VOUT minus target over 220 ns–11 us; target is VSRC at 180 ns.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>reacquire_error_v</code></td>
+<td>Maximum absolute VOUT minus target over 11.48–11.69 us; target is VSRC at 180 ns.</td>
+<td>V</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>clock_energy_j</code></td>
+<td>Integral of max(-V(CLK)*I(VCLK), 0) over 0–11.7 us; returned clock energy is excluded.</td>
+<td>J</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-21</td>
+<td>supply</td>
+</tr>
+<tr>
+<td><code>target</code></td>
+<td>TRAN: Value of <code>v(src) at=180n</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>track_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=180n</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>held_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=220n</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>before_input_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=390n</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>after_input_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=450n</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>hold_start_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=1u</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>hold_end_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=11u</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>reacquired_v</code></td>
+<td>TRAN: Value of <code>v(vout) at=11.65u</code>.</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>pedestal_v</code></td>
+<td>Signed VOUT(220 ns) − VOUT(180 ns).</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>feedthrough_v</code></td>
+<td>Signed VOUT(450 ns) − VOUT(390 ns).</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+<tr>
+<td><code>drift_v</code></td>
+<td>Signed VOUT(11 us) − VOUT(1 us).</td>
+<td>V</td>
+<td>diagnostic</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>unscored diagnostic</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>661.39 um2</strong>. 3 expanded device instances; sum of device/contact envelopes 407.6560 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>5</strong>; it is independent of
+the reference-relative task score.</p>
+<h3>Score weights</h3>
+<p>Track/hold switches: acquisition 35%; hold fidelity 45%; clock energy 10%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>reacquire_error_v</code></td>
+<td style="text-align:right">0.175000000000</td>
+</tr>
+<tr>
+<td><code>track_error_v</code></td>
+<td style="text-align:right">0.175000000000</td>
+</tr>
+<tr>
+<td><code>feedthrough_peak_v</code></td>
+<td style="text-align:right">0.112500000000</td>
+</tr>
+<tr>
+<td><code>hold_drift_v</code></td>
+<td style="text-align:right">0.112500000000</td>
+</tr>
+<tr>
+<td><code>hold_error_v</code></td>
+<td style="text-align:right">0.112500000000</td>
+</tr>
+<tr>
+<td><code>pedestal_abs_v</code></td>
+<td style="text-align:right">0.112500000000</td>
+</tr>
+<tr>
+<td><code>clock_energy_j</code></td>
+<td style="text-align:right">0.100000000000</td>
+</tr>
+</tbody>
+</table>
+13:T4fc,<p>Use typical MOS and capacitor models at 27 and 85 C. CLK is externally driven
+between 0 and 1.2 V, with 2 ns linear transitions. The ideal signal source SRC
+drives VIN through 1 kohm. Qualify four sampled levels, <code>sample_v</code> = 0.1, 0.4,
+0.6 and 0.7 V, at both temperatures. At each point the off-state input is
+separately driven to <code>hold_v</code> = 0 or 1.2 V: sixteen conditions. These are
+specified sample points, not rail-to-rail or continuous-range qualification.</p>
+<p>The finite sequence starts from a solved DC operating point with SRC=0 and
+CLK=1.2 V. SRC moves to <code>sample_v</code> during 20–22 ns. CLK falls during
+200–202 ns, isolating the storage node. SRC moves to <code>hold_v</code> during
+400–402 ns while CLK remains zero. SRC returns to <code>sample_v</code> during
+11.2–11.202 us; CLK rises during 11.4–11.402 us. Stop at 11.7 us.
+No output load, DC bias source or discharge resistor is attached to VOUT.</p>
+<p>Use Gear order 2, KLU, maximum time step 2 ns, <code>gmin=1e-15</code>,
+<code>rshunt=1e15</code>, <code>reltol=1e-6</code>, <code>abstol=1e-15</code> and <code>vntol=1e-9</code>.
+The numerical shunt is not a specified physical retention load. Save SRC,
+VIN, CLK, VOUT and both ideal voltage-source currents.</p>
+6:["$","$8",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L10",null,{"task":{"case_path":"tasks/ihp-sg13g2/analog-db/cases/smp_001_nmos_th/case.toml","coefficient":5,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/1be1c1ee7e3f211added229b308a5fcb1b07d2610bf187ef2d0c2606b7285fae.txt","description_html":"$11","description_path":"tasks/ihp-sg13g2/analog-db/cases/smp_001_nmos_th/problem.md","hours":3,"id":"ihp-sg13g2.analog-db.smp_001_nmos_th","inputs":{"description":{"format":"text","path":"problem.md","sha256":"af3b5158f27517245b48e1d8cabfbd1d3b3ce32ce5c45997fdc6a167c325a10d"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"846cb6797fae4bca4b793d23239e778299f46ec0b3342e44d2a014ca5d6b3802","subcircuit":"smp_001_nmos_th"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"253df689e8283642887f50f1aed1a112d925c74db89f0d39cef500a626a076f0"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"b88ed0b1d826360f9471c1f7d3e55d4b0d758905af675e5148e7f30b9f13e648"}},"licenses":[{"name":"LICENSE","path":"tasks/ihp-sg13g2/analog-db/LICENSE","url":"/ICLayout-Bench/assets/644dd511526bc2da77ee7c74714118315db91255376d0ea93a1975b4dbfbfb3d.txt"},{"name":"NOTICE","path":"tasks/ihp-sg13g2/analog-db/NOTICE","url":"/ICLayout-Bench/assets/69f7110d12f142806dfdd53f516082a82032da57d1ad47d0bc792d3a68329145.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/af3b5158f27517245b48e1d8cabfbd1d3b3ce32ce5c45997fdc6a167c325a10d.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/846cb6797fae4bca4b793d23239e778299f46ec0b3342e44d2a014ca5d6b3802.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/253df689e8283642887f50f1aed1a112d925c74db89f0d39cef500a626a076f0.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/b88ed0b1d826360f9471c1f7d3e55d4b0d758905af675e5148e7f30b9f13e648.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"max","baseline":["source_condition_0:track_error_v","source_condition_1:track_error_v","source_condition_2:track_error_v","source_condition_3:track_error_v","source_condition_4:track_error_v","source_condition_5:track_error_v","source_condition_6:track_error_v","source_condition_7:track_error_v","source_condition_8:track_error_v","source_condition_9:track_error_v","source_condition_10:track_error_v","source_condition_11:track_error_v","source_condition_12:track_error_v","source_condition_13:track_error_v","source_condition_14:track_error_v","source_condition_15:track_error_v"],"category":"performance","dimension":"response","direction":"minimize","id":"track_error_v","lower":0,"normalization":"ratio","observations":["condition_0:track_error_v","condition_1:track_error_v","condition_2:track_error_v","condition_3:track_error_v","condition_4:track_error_v","condition_5:track_error_v","condition_6:track_error_v","condition_7:track_error_v","condition_8:track_error_v","condition_9:track_error_v","condition_10:track_error_v","condition_11:track_error_v","condition_12:track_error_v","condition_13:track_error_v","condition_14:track_error_v","condition_15:track_error_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:pedestal_abs_v","source_condition_1:pedestal_abs_v","source_condition_2:pedestal_abs_v","source_condition_3:pedestal_abs_v","source_condition_4:pedestal_abs_v","source_condition_5:pedestal_abs_v","source_condition_6:pedestal_abs_v","source_condition_7:pedestal_abs_v","source_condition_8:pedestal_abs_v","source_condition_9:pedestal_abs_v","source_condition_10:pedestal_abs_v","source_condition_11:pedestal_abs_v","source_condition_12:pedestal_abs_v","source_condition_13:pedestal_abs_v","source_condition_14:pedestal_abs_v","source_condition_15:pedestal_abs_v"],"category":"performance","dimension":"response","direction":"minimize","id":"pedestal_abs_v","lower":0,"normalization":"ratio","observations":["condition_0:pedestal_abs_v","condition_1:pedestal_abs_v","condition_2:pedestal_abs_v","condition_3:pedestal_abs_v","condition_4:pedestal_abs_v","condition_5:pedestal_abs_v","condition_6:pedestal_abs_v","condition_7:pedestal_abs_v","condition_8:pedestal_abs_v","condition_9:pedestal_abs_v","condition_10:pedestal_abs_v","condition_11:pedestal_abs_v","condition_12:pedestal_abs_v","condition_13:pedestal_abs_v","condition_14:pedestal_abs_v","condition_15:pedestal_abs_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:feedthrough_peak_v","source_condition_1:feedthrough_peak_v","source_condition_2:feedthrough_peak_v","source_condition_3:feedthrough_peak_v","source_condition_4:feedthrough_peak_v","source_condition_5:feedthrough_peak_v","source_condition_6:feedthrough_peak_v","source_condition_7:feedthrough_peak_v","source_condition_8:feedthrough_peak_v","source_condition_9:feedthrough_peak_v","source_condition_10:feedthrough_peak_v","source_condition_11:feedthrough_peak_v","source_condition_12:feedthrough_peak_v","source_condition_13:feedthrough_peak_v","source_condition_14:feedthrough_peak_v","source_condition_15:feedthrough_peak_v"],"category":"performance","dimension":"response","direction":"minimize","id":"feedthrough_peak_v","lower":0,"normalization":"ratio","observations":["condition_0:feedthrough_peak_v","condition_1:feedthrough_peak_v","condition_2:feedthrough_peak_v","condition_3:feedthrough_peak_v","condition_4:feedthrough_peak_v","condition_5:feedthrough_peak_v","condition_6:feedthrough_peak_v","condition_7:feedthrough_peak_v","condition_8:feedthrough_peak_v","condition_9:feedthrough_peak_v","condition_10:feedthrough_peak_v","condition_11:feedthrough_peak_v","condition_12:feedthrough_peak_v","condition_13:feedthrough_peak_v","condition_14:feedthrough_peak_v","condition_15:feedthrough_peak_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:hold_drift_v","source_condition_1:hold_drift_v","source_condition_2:hold_drift_v","source_condition_3:hold_drift_v","source_condition_4:hold_drift_v","source_condition_5:hold_drift_v","source_condition_6:hold_drift_v","source_condition_7:hold_drift_v","source_condition_8:hold_drift_v","source_condition_9:hold_drift_v","source_condition_10:hold_drift_v","source_condition_11:hold_drift_v","source_condition_12:hold_drift_v","source_condition_13:hold_drift_v","source_condition_14:hold_drift_v","source_condition_15:hold_drift_v"],"category":"performance","dimension":"response","direction":"minimize","id":"hold_drift_v","lower":0,"normalization":"ratio","observations":["condition_0:hold_drift_v","condition_1:hold_drift_v","condition_2:hold_drift_v","condition_3:hold_drift_v","condition_4:hold_drift_v","condition_5:hold_drift_v","condition_6:hold_drift_v","condition_7:hold_drift_v","condition_8:hold_drift_v","condition_9:hold_drift_v","condition_10:hold_drift_v","condition_11:hold_drift_v","condition_12:hold_drift_v","condition_13:hold_drift_v","condition_14:hold_drift_v","condition_15:hold_drift_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:hold_error_v","source_condition_1:hold_error_v","source_condition_2:hold_error_v","source_condition_3:hold_error_v","source_condition_4:hold_error_v","source_condition_5:hold_error_v","source_condition_6:hold_error_v","source_condition_7:hold_error_v","source_condition_8:hold_error_v","source_condition_9:hold_error_v","source_condition_10:hold_error_v","source_condition_11:hold_error_v","source_condition_12:hold_error_v","source_condition_13:hold_error_v","source_condition_14:hold_error_v","source_condition_15:hold_error_v"],"category":"performance","dimension":"response","direction":"minimize","id":"hold_error_v","lower":0,"normalization":"ratio","observations":["condition_0:hold_error_v","condition_1:hold_error_v","condition_2:hold_error_v","condition_3:hold_error_v","condition_4:hold_error_v","condition_5:hold_error_v","condition_6:hold_error_v","condition_7:hold_error_v","condition_8:hold_error_v","condition_9:hold_error_v","condition_10:hold_error_v","condition_11:hold_error_v","condition_12:hold_error_v","condition_13:hold_error_v","condition_14:hold_error_v","condition_15:hold_error_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:reacquire_error_v","source_condition_1:reacquire_error_v","source_condition_2:reacquire_error_v","source_condition_3:reacquire_error_v","source_condition_4:reacquire_error_v","source_condition_5:reacquire_error_v","source_condition_6:reacquire_error_v","source_condition_7:reacquire_error_v","source_condition_8:reacquire_error_v","source_condition_9:reacquire_error_v","source_condition_10:reacquire_error_v","source_condition_11:reacquire_error_v","source_condition_12:reacquire_error_v","source_condition_13:reacquire_error_v","source_condition_14:reacquire_error_v","source_condition_15:reacquire_error_v"],"category":"performance","dimension":"response","direction":"minimize","id":"reacquire_error_v","lower":0,"normalization":"ratio","observations":["condition_0:reacquire_error_v","condition_1:reacquire_error_v","condition_2:reacquire_error_v","condition_3:reacquire_error_v","condition_4:reacquire_error_v","condition_5:reacquire_error_v","condition_6:reacquire_error_v","condition_7:reacquire_error_v","condition_8:reacquire_error_v","condition_9:reacquire_error_v","condition_10:reacquire_error_v","condition_11:reacquire_error_v","condition_12:reacquire_error_v","condition_13:reacquire_error_v","condition_14:reacquire_error_v","condition_15:reacquire_error_v"],"scale":0.000001,"unit":"V"},{"aggregation":"max","baseline":["source_condition_0:clock_energy_j","source_condition_1:clock_energy_j","source_condition_2:clock_energy_j","source_condition_3:clock_energy_j","source_condition_4:clock_energy_j","source_condition_5:clock_energy_j","source_condition_6:clock_energy_j","source_condition_7:clock_energy_j","source_condition_8:clock_energy_j","source_condition_9:clock_energy_j","source_condition_10:clock_energy_j","source_condition_11:clock_energy_j","source_condition_12:clock_energy_j","source_condition_13:clock_energy_j","source_condition_14:clock_energy_j","source_condition_15:clock_energy_j"],"category":"performance","dimension":"supply","direction":"minimize","id":"clock_energy_j","lower":0,"normalization":"ratio","observations":["condition_0:clock_energy_j","condition_1:clock_energy_j","condition_2:clock_energy_j","condition_3:clock_energy_j","condition_4:clock_energy_j","condition_5:clock_energy_j","condition_6:clock_energy_j","condition_7:clock_energy_j","condition_8:clock_energy_j","condition_9:clock_energy_j","condition_10:clock_energy_j","condition_11:clock_energy_j","condition_12:clock_energy_j","condition_13:clock_energy_j","condition_14:clock_energy_j","condition_15:clock_energy_j"],"scale":1e-21,"unit":"J"},{"aggregation":"max","category":"performance","direction":"maximize","id":"target","observations":["condition_0:target","condition_1:target","condition_2:target","condition_3:target","condition_4:target","condition_5:target","condition_6:target","condition_7:target","condition_8:target","condition_9:target","condition_10:target","condition_11:target","condition_12:target","condition_13:target","condition_14:target","condition_15:target"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"maximize","id":"track_v","observations":["condition_0:track_v","condition_1:track_v","condition_2:track_v","condition_3:track_v","condition_4:track_v","condition_5:track_v","condition_6:track_v","condition_7:track_v","condition_8:track_v","condition_9:track_v","condition_10:track_v","condition_11:track_v","condition_12:track_v","condition_13:track_v","condition_14:track_v","condition_15:track_v"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"maximize","id":"held_v","observations":["condition_0:held_v","condition_1:held_v","condition_2:held_v","condition_3:held_v","condition_4:held_v","condition_5:held_v","condition_6:held_v","condition_7:held_v","condition_8:held_v","condition_9:held_v","condition_10:held_v","condition_11:held_v","condition_12:held_v","condition_13:held_v","condition_14:held_v","condition_15:held_v"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"maximize","id":"before_input_v","observations":["condition_0:before_input_v","condition_1:before_input_v","condition_2:before_input_v","condition_3:before_input_v","condition_4:before_input_v","condition_5:before_input_v","condition_6:before_input_v","condition_7:before_input_v","condition_8:before_input_v","condition_9:before_input_v","condition_10:before_input_v","condition_11:before_input_v","condition_12:before_input_v","condition_13:before_input_v","condition_14:before_input_v","condition_15:before_input_v"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"maximize","id":"after_input_v","observations":["condition_0:after_input_v","condition_1:after_input_v","condition_2:after_input_v","condition_3:after_input_v","condition_4:after_input_v","condition_5:after_input_v","condition_6:after_input_v","condition_7:after_input_v","condition_8:after_input_v","condition_9:after_input_v","condition_10:after_input_v","condition_11:after_input_v","condition_12:after_input_v","condition_13:after_input_v","condition_14:after_input_v","condition_15:after_input_v"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"maximize","id":"hold_start_v","observations":["condition_0:hold_start_v","condition_1:hold_start_v","condition_2:hold_start_v","condition_3:hold_start_v","condition_4:hold_start_v","condition_5:hold_start_v","condition_6:hold_start_v","condition_7:hold_start_v","condition_8:hold_start_v","condition_9:hold_start_v","condition_10:hold_start_v","condition_11:hold_start_v","condition_12:hold_start_v","condition_13:hold_start_v","condition_14:hold_start_v","condition_15:hold_start_v"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"maximize","id":"hold_end_v","observations":["condition_0:hold_end_v","condition_1:hold_end_v","condition_2:hold_end_v","condition_3:hold_end_v","condition_4:hold_end_v","condition_5:hold_end_v","condition_6:hold_end_v","condition_7:hold_end_v","condition_8:hold_end_v","condition_9:hold_end_v","condition_10:hold_end_v","condition_11:hold_end_v","condition_12:hold_end_v","condition_13:hold_end_v","condition_14:hold_end_v","condition_15:hold_end_v"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"maximize","id":"reacquired_v","observations":["condition_0:reacquired_v","condition_1:reacquired_v","condition_2:reacquired_v","condition_3:reacquired_v","condition_4:reacquired_v","condition_5:reacquired_v","condition_6:reacquired_v","condition_7:reacquired_v","condition_8:reacquired_v","condition_9:reacquired_v","condition_10:reacquired_v","condition_11:reacquired_v","condition_12:reacquired_v","condition_13:reacquired_v","condition_14:reacquired_v","condition_15:reacquired_v"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"maximize","id":"pedestal_v","observations":["condition_0:pedestal_v","condition_1:pedestal_v","condition_2:pedestal_v","condition_3:pedestal_v","condition_4:pedestal_v","condition_5:pedestal_v","condition_6:pedestal_v","condition_7:pedestal_v","condition_8:pedestal_v","condition_9:pedestal_v","condition_10:pedestal_v","condition_11:pedestal_v","condition_12:pedestal_v","condition_13:pedestal_v","condition_14:pedestal_v","condition_15:pedestal_v"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"maximize","id":"feedthrough_v","observations":["condition_0:feedthrough_v","condition_1:feedthrough_v","condition_2:feedthrough_v","condition_3:feedthrough_v","condition_4:feedthrough_v","condition_5:feedthrough_v","condition_6:feedthrough_v","condition_7:feedthrough_v","condition_8:feedthrough_v","condition_9:feedthrough_v","condition_10:feedthrough_v","condition_11:feedthrough_v","condition_12:feedthrough_v","condition_13:feedthrough_v","condition_14:feedthrough_v","condition_15:feedthrough_v"],"unit":"V"},{"aggregation":"max","category":"performance","direction":"maximize","id":"drift_v","observations":["condition_0:drift_v","condition_1:drift_v","condition_2:drift_v","condition_3:drift_v","condition_4:drift_v","condition_5:drift_v","condition_6:drift_v","condition_7:drift_v","condition_8:drift_v","condition_9:drift_v","condition_10:drift_v","condition_11:drift_v","condition_12:drift_v","condition_13:drift_v","condition_14:drift_v","condition_15:drift_v"],"unit":"V"}],"pdk":"ihp-sg13g2","reader":{"category":"Mixed-signal","summary":"Samples and holds a voltage with an NMOS switch and an internal storage capacitor.","title":"Physical NMOS Sample-and-Hold: Headroom and Retention"},"schematic_url":"/ICLayout-Bench/assets/7d6d4cab7ba14de2cd099f1826834875923b21d430b673deff221a27a2667ed1.svg","scoring":{"area_metric":"functional_area","area_target":661.39,"method":"layout","rationale":"Track/hold switches: acquisition 35%; hold fidelity 45%; clock energy 10%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"clock_energy_j":0.1,"feedthrough_peak_v":0.1125,"functional_area":0.1,"hold_drift_v":0.1125,"hold_error_v":0.1125,"pedestal_abs_v":0.1125,"reacquire_error_v":0.175,"track_error_v":0.175}},"sections":{"Electrical Requirements and Scoring":"$12","Objective":"<p>Implement <code>smp_001_nmos_th</code>: a single-NMOS sampling switch with an internal\nphysical storage capacitor. Preserve the switch and stored-charge node, and\nmeet acquisition, turn-off pedestal, isolated-input feedthrough, hold drift\nand reacquisition requirements at the specified input and temperature points.</p>\n","Operating Conditions":"$13","Physical Requirements":"<p>Submit GDSII top cell <code>smp_001_nmos_th</code>, at most 10 MiB, within an 80 × 80 um\nfunctional outline. Pass native IHP main/maximal DRC without waivers\n(standalone scope with density/antenna disabled), strict named-port LVS,\nfunctional geometry and candidate-derived Magic RC extraction. Functional\narea includes the complete device/contact/routing layers enumerated by the\nruntime outline; annotation and pin layers do not count.</p>\n<p>Post-layout simulation must consume the submitted layout's extracted NMOS,\nphysical MIM, junction geometry and interconnect RC. The isolated Magic import\nuses half-grid subdivision and <code>gds_readonly=false</code>; the submitted GDS remains\nimmutable. No diagnostic is waived. Source simulation retains the finite tap\nmodel; Magic idealizes the tap connection. Distributed substrate noise and\nfabrication signoff are outside this contract.</p>\n"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/smp_001_nmos_th","status":"qualified","title":"Physical NMOS Sample-and-Hold: Headroom and Retention"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}]
+c:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+14:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+9:null
+e:[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L14","3",{}]]

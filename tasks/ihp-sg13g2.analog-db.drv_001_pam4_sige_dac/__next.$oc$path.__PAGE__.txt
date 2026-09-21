@@ -1,0 +1,453 @@
+1:"$Sreact.fragment"
+2:"$Sreact.suspense"
+3:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+4:T2864,<h1 id="problem-broadband-sige-pam4-driver-layout-task">Broadband SiGe PAM4 Driver Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Lay out the upstream inductorless, three-cell current-steering PAM4 driver as
+<code>pam4drv_pam4_lay</code>. One LSB cell and two parallel MSB cells contain twelve
+three-finger <code>npn13G2</code> HBTs, twelve physical <code>rsil</code> resistors and three physical
+MIM degeneration capacitors. Preserve the supplied topology and dimensions.
+The task coefficient is 4.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p><code>materials/circuit.cdl</code> is the native LVS authority;
+<code>materials/circuit.spice</code> is its simulator representation;
+<code>materials/testbench.spice</code> defines the electrical measurements.</p>
+<p>Ordered ports: <code>lsbp lsbn msbp msbn outp outn vcc vcasc vcmb tmsb0 tlsb0 tmsb1 sub</code>.
+The first four ports are differential LSB/MSB inputs, <code>outp/outn</code> are differential
+outputs, <code>vcc</code> is the supply, <code>vcasc</code> biases the cascode bases, <code>vcmb</code> is the input
+termination reference, the three tail ports connect to external current sinks,
+and <code>sub</code> is the ideal substrate reference. The three testbench VCCS tails are
+external bias apparatus, not missing physical transistors.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<p>Use the upstream <strong>layout signoff point</strong>, not its separate static sizing point:
+4 V supply, 3.35 V cascode bias, 1.9 V input common mode and 15 mA per cell.
+The nominal corners are <code>hbt_typ</code>, <code>res_typ</code> and <code>cap_typ</code> at 27 °C. HBTs have
+<code>Nx=3</code>. Physical dimensions are fixed by the netlists; the nominal targets are
+50 Ω collector loads, 48 Ω input terminations, 3.2 Ω degeneration and 16 fF
+bridging capacitance. PDK geometry models determine their actual values.</p>
+<p>Both RF ports use 50 Ω per side (100 Ω differential). AC gain is differential
+power-wave S21 = <code>2*Vout/Vsrc</code>, measured at 1 GHz; bandwidth is checked by the
+50 GHz gain relative to 1 GHz. S11 is evaluated at <strong>32 GHz</strong>, and S22 at
+<strong>50 GHz</strong>, using the testbench's 20 points/decade sweep and interpolation.
+Do not substitute the preceding sweep samples for these endpoints.</p>
+<p>The large-signal test drives LSB and MSB in phase at 1 GHz through the same
+source impedances, with ±0.8 V per source around 1.9 V. Supplies and bias ramp
+from zero over 8 ns; sine excitation starts at 9 ns. The 16–21 ns measurement
+window contains five periods. Swing is twice the fundamental phasor amplitude
+using the exported transient samples, rather than raw peak-to-peak excursion.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>Submit GDS with the exact top-cell name, all thirteen labeled ports, and at most
+10 MiB. Native SG13G2 DRC checks main and extra maximal rules without density or
+antenna; no marker waivers apply. Native LVS compares devices, dimensions,
+connectivity and named ports. Functional width/height must not exceed 160/120 µm.
+The published <code>outline</code> layer list covers HBT, resistor, MIM, substrate-contact,
+seven-metal and via geometry; pin/text and presentation layers are excluded.</p>
+<p>Post-layout simulation uses KPEX 0.3.12 nominal 2.5D <strong>coupling capacitance</strong> from
+the submitted GDS. Native extracted devices are checked against the candidate's
+independent LVS database. MIM devices retain extracted endpoints and <code>w/l/m</code>;
+no MIM layers are stripped and no source devices are reinserted. The process
+reference plane is tied to <code>sub</code>. Distributed wire resistance, inductance,
+pads/package, statistical yield and process-corner robustness are not claimed
+by this upstream CC characterization contract. Finite substrate/tail-generator
+circuits are outside the physical core. A PAM4 eye/RLM result is not established
+by these tone and small-signal checks.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<p>All measurements and their paired source observations must be finite and usable.
+Performance is scored continuously against the same-condition source circuit;
+upstream data-sheet targets are not acceptance thresholds. Supply consumption
+and output swing must be nonnegative; zero or otherwise unusable ratio baselines
+cannot establish a score. Physical checks remain mandatory.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lsb_gain_db</code></td>
+<td>LSB S21 at 1 GHz</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>msb_gain_db</code></td>
+<td>MSB S21 at 1 GHz</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>dac_weight_db</code></td>
+<td>MSB minus LSB gain</td>
+<td>dB</td>
+<td>source target</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>lsb_rel50_db</code></td>
+<td>LSB S21(50 GHz) minus S21(1 GHz)</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>msb_rel50_db</code></td>
+<td>MSB S21(50 GHz) minus S21(1 GHz)</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>s11_32g_db</code></td>
+<td>MSB input reflection coefficient, 20 log10(abs(S11)), at 32 GHz</td>
+<td>dB</td>
+<td>minimize / db20</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>s22_50g_db</code></td>
+<td>Output reflection coefficient, 20 log10(abs(S22)), at 50 GHz</td>
+<td>dB</td>
+<td>minimize / db20</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>power_mw</code></td>
+<td>Power drawn from the 4 V rail at OP</td>
+<td>mW</td>
+<td>minimize / ratio</td>
+<td>≥ 0</td>
+</tr>
+<tr>
+<td><code>swing_vpp</code></td>
+<td>Differential output fundamental swing</td>
+<td>V</td>
+<td>maximize / ratio</td>
+<td>≥ 0</td>
+</tr>
+</tbody>
+</table>
+<p>Independent source simulation uses the same deck, conditions and models.
+Response quality uses <code>db20</code> for gain,
+relative bandwidth and reflection-coefficient dB, and a maximizing ratio for swing. Binary
+weight uses target normalization to its source value with a <code>20*log10(2)</code> dB scale, the ideal binary amplitude-weight interval. Supply quality uses a minimizing
+power ratio. Area quality is <code>Q = 10000 µm² / functional_area</code>. The frozen compact
+allowance is 4500 µm² for device rows + 2000 µm² for terminations/loads +
+3500 µm² for routing, vias and substrate contacts. Reflection-coefficient dB
+is the negative of positive return loss, so smaller values improve quality. Physical or electrical rejection scores zero; incomplete evaluation
+cannot establish success. The area target is a compact sizing allowance,
+not the area of a qualified reference.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>PAM4 SiGe driver: binary weighting 22.5%; high-frequency transfer 22.5%; port matching 18%; gain and swing 18%; power 9%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>dac_weight_db</code></td>
+<td style="text-align:right">0.225000000000</td>
+</tr>
+<tr>
+<td><code>lsb_rel50_db</code></td>
+<td style="text-align:right">0.112500000000</td>
+</tr>
+<tr>
+<td><code>msb_rel50_db</code></td>
+<td style="text-align:right">0.112500000000</td>
+</tr>
+<tr>
+<td><code>s11_32g_db</code></td>
+<td style="text-align:right">0.090000000000</td>
+</tr>
+<tr>
+<td><code>s22_50g_db</code></td>
+<td style="text-align:right">0.090000000000</td>
+</tr>
+<tr>
+<td><code>lsb_gain_db</code></td>
+<td style="text-align:right">0.060000000000</td>
+</tr>
+<tr>
+<td><code>msb_gain_db</code></td>
+<td style="text-align:right">0.060000000000</td>
+</tr>
+<tr>
+<td><code>swing_vpp</code></td>
+<td style="text-align:right">0.060000000000</td>
+</tr>
+<tr>
+<td><code>power_mw</code></td>
+<td style="text-align:right">0.090000000000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>4 hours</strong>.</p>
+<p>Use the reviewed SG13G2 resources and the runtime task/protocol metadata.
+Ngspice must be ≥45 with <code>ngbehavior=hsa</code>, compiled R3_CMC support and the
+specified HBT/capacitor models. The toolchain provides native KLayout checks,
+candidate-derived KPEX capacitance and ngspice feedback. Write
+<code>/workspace/output/final.gds</code> and explicitly submit it through the runtime
+submission interface. Reference and maintainer material is not a solver input.</p>
+5:T15e1,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<p>All measurements and their paired source observations must be finite and usable.
+Performance is scored continuously against the same-condition source circuit;
+upstream data-sheet targets are not acceptance thresholds. Supply consumption
+and output swing must be nonnegative; zero or otherwise unusable ratio baselines
+cannot establish a score. Physical checks remain mandatory.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lsb_gain_db</code></td>
+<td>LSB S21 at 1 GHz</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>msb_gain_db</code></td>
+<td>MSB S21 at 1 GHz</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>dac_weight_db</code></td>
+<td>MSB minus LSB gain</td>
+<td>dB</td>
+<td>source target</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>lsb_rel50_db</code></td>
+<td>LSB S21(50 GHz) minus S21(1 GHz)</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>msb_rel50_db</code></td>
+<td>MSB S21(50 GHz) minus S21(1 GHz)</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>s11_32g_db</code></td>
+<td>MSB input reflection coefficient, 20 log10(abs(S11)), at 32 GHz</td>
+<td>dB</td>
+<td>minimize / db20</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>s22_50g_db</code></td>
+<td>Output reflection coefficient, 20 log10(abs(S22)), at 50 GHz</td>
+<td>dB</td>
+<td>minimize / db20</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>power_mw</code></td>
+<td>Power drawn from the 4 V rail at OP</td>
+<td>mW</td>
+<td>minimize / ratio</td>
+<td>≥ 0</td>
+</tr>
+<tr>
+<td><code>swing_vpp</code></td>
+<td>Differential output fundamental swing</td>
+<td>V</td>
+<td>maximize / ratio</td>
+<td>≥ 0</td>
+</tr>
+</tbody>
+</table>
+<p>Independent source simulation uses the same deck, conditions and models.
+Response quality uses <code>db20</code> for gain,
+relative bandwidth and reflection-coefficient dB, and a maximizing ratio for swing. Binary
+weight uses target normalization to its source value with a <code>20*log10(2)</code> dB scale, the ideal binary amplitude-weight interval. Supply quality uses a minimizing
+power ratio. Area quality is <code>Q = 10000 µm² / functional_area</code>. The frozen compact
+allowance is 4500 µm² for device rows + 2000 µm² for terminations/loads +
+3500 µm² for routing, vias and substrate contacts. Reflection-coefficient dB
+is the negative of positive return loss, so smaller values improve quality. Physical or electrical rejection scores zero; incomplete evaluation
+cannot establish success. The area target is a compact sizing allowance,
+not the area of a qualified reference.</p>
+<h3>Score weights</h3>
+<p>PAM4 SiGe driver: binary weighting 22.5%; high-frequency transfer 22.5%; port matching 18%; gain and swing 18%; power 9%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>dac_weight_db</code></td>
+<td style="text-align:right">0.225000000000</td>
+</tr>
+<tr>
+<td><code>lsb_rel50_db</code></td>
+<td style="text-align:right">0.112500000000</td>
+</tr>
+<tr>
+<td><code>msb_rel50_db</code></td>
+<td style="text-align:right">0.112500000000</td>
+</tr>
+<tr>
+<td><code>s11_32g_db</code></td>
+<td style="text-align:right">0.090000000000</td>
+</tr>
+<tr>
+<td><code>s22_50g_db</code></td>
+<td style="text-align:right">0.090000000000</td>
+</tr>
+<tr>
+<td><code>lsb_gain_db</code></td>
+<td style="text-align:right">0.060000000000</td>
+</tr>
+<tr>
+<td><code>msb_gain_db</code></td>
+<td style="text-align:right">0.060000000000</td>
+</tr>
+<tr>
+<td><code>swing_vpp</code></td>
+<td style="text-align:right">0.060000000000</td>
+</tr>
+<tr>
+<td><code>power_mw</code></td>
+<td style="text-align:right">0.090000000000</td>
+</tr>
+</tbody>
+</table>
+6:T548,<p>Use the upstream <strong>layout signoff point</strong>, not its separate static sizing point:
+4 V supply, 3.35 V cascode bias, 1.9 V input common mode and 15 mA per cell.
+The nominal corners are <code>hbt_typ</code>, <code>res_typ</code> and <code>cap_typ</code> at 27 °C. HBTs have
+<code>Nx=3</code>. Physical dimensions are fixed by the netlists; the nominal targets are
+50 Ω collector loads, 48 Ω input terminations, 3.2 Ω degeneration and 16 fF
+bridging capacitance. PDK geometry models determine their actual values.</p>
+<p>Both RF ports use 50 Ω per side (100 Ω differential). AC gain is differential
+power-wave S21 = <code>2*Vout/Vsrc</code>, measured at 1 GHz; bandwidth is checked by the
+50 GHz gain relative to 1 GHz. S11 is evaluated at <strong>32 GHz</strong>, and S22 at
+<strong>50 GHz</strong>, using the testbench's 20 points/decade sweep and interpolation.
+Do not substitute the preceding sweep samples for these endpoints.</p>
+<p>The large-signal test drives LSB and MSB in phase at 1 GHz through the same
+source impedances, with ±0.8 V per source around 1.9 V. Supplies and bias ramp
+from zero over 8 ns; sine excitation starts at 9 ns. The 16–21 ns measurement
+window contains five periods. Swing is twice the fundamental phasor amplitude
+using the exported transient samples, rather than raw peak-to-peak excursion.</p>
+7:T4b8,<p>Submit GDS with the exact top-cell name, all thirteen labeled ports, and at most
+10 MiB. Native SG13G2 DRC checks main and extra maximal rules without density or
+antenna; no marker waivers apply. Native LVS compares devices, dimensions,
+connectivity and named ports. Functional width/height must not exceed 160/120 µm.
+The published <code>outline</code> layer list covers HBT, resistor, MIM, substrate-contact,
+seven-metal and via geometry; pin/text and presentation layers are excluded.</p>
+<p>Post-layout simulation uses KPEX 0.3.12 nominal 2.5D <strong>coupling capacitance</strong> from
+the submitted GDS. Native extracted devices are checked against the candidate's
+independent LVS database. MIM devices retain extracted endpoints and <code>w/l/m</code>;
+no MIM layers are stripped and no source devices are reinserted. The process
+reference plane is tied to <code>sub</code>. Distributed wire resistance, inductance,
+pads/package, statistical yield and process-corner robustness are not claimed
+by this upstream CC characterization contract. Finite substrate/tail-generator
+circuits are outside the physical core. A PAM4 eye/RLM result is not established
+by these tone and small-signal checks.</p>
+b:X
+10:X
+10:C
+0:{"buildId":"U2oZdoUjWqT_XfcDHuQ5i","data":[{"rsc":["$","$1","c",{"children":[["$","$2",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L3",null,{"task":{"case_path":"tasks/ihp-sg13g2/analog-db/cases/drv_001_pam4_sige_dac/case.toml","coefficient":4,"collection":"analog-db","configuration_url":"/ICLayout-Bench/assets/f09f7966d5b3a9e727670b252db9e476e15ad0b10cf64b326897054b23acfdbe.txt","description_html":"$4","description_path":"tasks/ihp-sg13g2/analog-db/cases/drv_001_pam4_sige_dac/problem.md","hours":4,"id":"ihp-sg13g2.analog-db.drv_001_pam4_sige_dac","inputs":{"description":{"format":"text","path":"problem.md","sha256":"f293d5119508f41a3d4b5cf940eb934d822097ed4ab4299b82a538f04f9cf10d"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"310d1f67d5d237cfc88525f26568c5bcf45680bb2e8141982600669ee81a2ead","subcircuit":"pam4drv_pam4_lay"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"3b4e7c1c84b2dfb82e22cbc59b4abad5948608e463b789d97e057de9094197ca"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"54e5da9d47efea6a63e92298f62b20b24f4c6654b21f48fcadf88bf1dfdeda3a"}},"licenses":[{"name":"LICENSE","path":"tasks/ihp-sg13g2/analog-db/LICENSE","url":"/ICLayout-Bench/assets/644dd511526bc2da77ee7c74714118315db91255376d0ea93a1975b4dbfbfb3d.txt"},{"name":"NOTICE","path":"tasks/ihp-sg13g2/analog-db/NOTICE","url":"/ICLayout-Bench/assets/69f7110d12f142806dfdd53f516082a82032da57d1ad47d0bc792d3a68329145.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/f293d5119508f41a3d4b5cf940eb934d822097ed4ab4299b82a538f04f9cf10d.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/310d1f67d5d237cfc88525f26568c5bcf45680bb2e8141982600669ee81a2ead.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/54e5da9d47efea6a63e92298f62b20b24f4c6654b21f48fcadf88bf1dfdeda3a.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/3b4e7c1c84b2dfb82e22cbc59b4abad5948608e463b789d97e057de9094197ca.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"min","baseline":["source_nominal:lsb_gain_db"],"category":"performance","dimension":"response","direction":"maximize","id":"lsb_gain_db","normalization":"db20","observations":["nominal:lsb_gain_db"],"unit":"dB"},{"aggregation":"min","baseline":["source_nominal:msb_gain_db"],"category":"performance","dimension":"response","direction":"maximize","id":"msb_gain_db","normalization":"db20","observations":["nominal:msb_gain_db"],"unit":"dB"},{"aggregation":"min","baseline":["source_nominal:dac_weight_db"],"category":"performance","dimension":"bias","direction":"target","id":"dac_weight_db","normalization":"target","observations":["nominal:dac_weight_db"],"scale":6.020599913279624,"unit":"dB"},{"aggregation":"min","baseline":["source_nominal:lsb_rel50_db"],"category":"performance","dimension":"response","direction":"maximize","id":"lsb_rel50_db","normalization":"db20","observations":["nominal:lsb_rel50_db"],"unit":"dB"},{"aggregation":"min","baseline":["source_nominal:msb_rel50_db"],"category":"performance","dimension":"response","direction":"maximize","id":"msb_rel50_db","normalization":"db20","observations":["nominal:msb_rel50_db"],"unit":"dB"},{"aggregation":"max","baseline":["source_nominal:s11_32g_db"],"category":"performance","dimension":"response","direction":"minimize","id":"s11_32g_db","normalization":"db20","observations":["nominal:s11_32g_db"],"unit":"dB"},{"aggregation":"max","baseline":["source_nominal:s22_50g_db"],"category":"performance","dimension":"response","direction":"minimize","id":"s22_50g_db","normalization":"db20","observations":["nominal:s22_50g_db"],"unit":"dB"},{"aggregation":"max","baseline":["source_nominal:power_mw"],"category":"performance","dimension":"supply","direction":"minimize","id":"power_mw","lower":0,"normalization":"ratio","observations":["nominal:power_mw"],"unit":"mW"},{"aggregation":"min","baseline":["source_nominal:swing_vpp"],"category":"performance","dimension":"response","direction":"maximize","id":"swing_vpp","lower":0,"normalization":"ratio","observations":["nominal:swing_vpp"],"unit":"V"}],"pdk":"ihp-sg13g2","reader":{"category":"Amplifiers & RF","summary":"Combines weighted current-steering cells into a SiGe PAM4 driver.","title":"Upstream broadband SiGe PAM4 current-steering driver"},"schematic_url":"/ICLayout-Bench/assets/b3bd687b00e596c675870da71a94dc2ecbffc1500c95fe3a9ff457546760cfa6.svg","scoring":{"area_metric":"functional_area","area_target":10000,"method":"layout","rationale":"PAM4 SiGe driver: binary weighting 22.5%; high-frequency transfer 22.5%; port matching 18%; gain and swing 18%; power 9%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"dac_weight_db":0.225,"functional_area":0.1,"lsb_gain_db":0.06,"lsb_rel50_db":0.1125,"msb_gain_db":0.06,"msb_rel50_db":0.1125,"power_mw":0.09,"s11_32g_db":0.09,"s22_50g_db":0.09,"swing_vpp":0.06}},"sections":{"Electrical Requirements and Scoring":"$5","Objective":"<p>Lay out the upstream inductorless, three-cell current-steering PAM4 driver as\n<code>pam4drv_pam4_lay</code>. One LSB cell and two parallel MSB cells contain twelve\nthree-finger <code>npn13G2</code> HBTs, twelve physical <code>rsil</code> resistors and three physical\nMIM degeneration capacitors. Preserve the supplied topology and dimensions.\nThe task coefficient is 4.</p>\n","Operating Conditions":"$6","Physical Requirements":"$7"},"source_url":"https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/drv_001_pam4_sige_dac","status":"qualified","title":"Upstream broadband SiGe PAM4 current-steering driver"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}],["$L8"],"$L9"]}],"isPartial":"$@a","staleTime":"$b","varyParams":null},{"rsc":"$Lc","isPartial":"$@d","staleTime":"$b","varyParams":null},{"rsc":"$Le","isPartial":"$@f","staleTime":"$b","varyParams":"$10"},{"rsc":"$L11","isPartial":"$@12","staleTime":"$b","varyParams":null}],"isUpgradeableISRFallback":false,"a":"$@13","rootVaryParams":null,"needsRuntimeRequest":"$@14"}
+15:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+17:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+18:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+19:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+1a:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1b:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1c:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+1d:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+8:["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true}]
+9:["$","$L15",null,{"children":["$","$2",null,{"name":"Next.MetadataOutlet","children":"$@16"}]}]
+c:["$","$1","h",{"children":[null,["$","$L17",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L18",null,{"children":["$","$2",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L19","3",{}]]}]}]}],null]}]
+e:["$","$1","c",{"children":[null,["$","$L1a",null,{"parallelRouterKey":"children","template":["$","$L1b",null,{}]}]]}]
+11:["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L1c",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L1d",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L1a",null,{"parallelRouterKey":"children","template":["$","$L1b",null,{}],"notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L1c",null,{"href":"/","children":"Return to overview"}]]}],[]]}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L1c",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}]
+16:null
+14:true
+b:300
+b:C
+13:0
+d:"$undefined"
+f:"$undefined"
+12:"$undefined"
+a:"$undefined"

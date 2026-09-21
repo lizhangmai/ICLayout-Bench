@@ -1,0 +1,464 @@
+1:"$Sreact.fragment"
+2:"$Sreact.suspense"
+3:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+4:T2f86,<h1 id="problem-four-stage-sige-hbt-voltage-amplifier-layout-task">Four-Stage SiGe HBT Voltage Amplifier Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Create a clean SG13G2 layout for the maintained four-stage direct-coupled
+common-emitter voltage amplifier in <code>LNA160_FOUR_STAGE</code>. Preserve the circuit
+connectivity, HBT multiplicities, passive dimensions and five external ports.
+The submitted top cell must be <code>LNA160_FOUR_STAGE</code> and must pass the physical
+checks and nominal post-layout measurements below.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p>In addition to this problem, the runtime task supplies the following declared
+inputs:</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="/ICLayout-Bench/assets/26b815aa103d0d81b54e21c661b28860304a5d23be900d17192cbb92100be3c6.txt">materials/circuit.cdl</a></td>
+<td>Authoritative LVS netlist and drawn device geometry</td>
+</tr>
+<tr>
+<td><a href="/ICLayout-Bench/assets/ab1256da874a66cd7e70117d2e9758747cd99ba37c5fd0209180bcb558b1c379.txt">materials/circuit.spice</a></td>
+<td>Authoritative simulator export</td>
+</tr>
+<tr>
+<td><a href="/ICLayout-Bench/assets/73cd2486a28743b5e6f7b28533c3f4f8a30dc2794e732b30791612ecebed9dc8.txt">materials/testbench.spice</a></td>
+<td>Nominal operating-point and AC testbench</td>
+</tr>
+</tbody>
+</table>
+<p>The circuit is a four-stage direct-coupled common-emitter amplifier. Four
+<code>npn13G2</code> devices (<code>Nx=1</code>) form the gain chain. Each collector has an <code>rppd</code>
+load to <code>VDD</code>, each emitter has an <code>rsil</code> resistor to <code>VSS</code>, and the three
+interstage collector nodes have <code>rppd</code> clamps to <code>VBIAS</code>. The emitter
+resistors are 4 µm wide with lengths 20.00, 20.01, 20.02 and 20.03 µm in
+stage order. An explicit <code>ptap1</code> connects the substrate body to <code>VSS</code>.</p>
+<p>The ordered top-level interface is:</p>
+<table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>IN</code></td>
+<td>Voltage input to the first HBT base</td>
+</tr>
+<tr>
+<td><code>OUT</code></td>
+<td>Voltage output from the fourth collector and 50 fF load node</td>
+</tr>
+<tr>
+<td><code>VDD</code></td>
+<td>Common collector-load supply, 1.2 V</td>
+</tr>
+<tr>
+<td><code>VSS</code></td>
+<td>Common return and substrate-tap reference</td>
+</tr>
+<tr>
+<td><code>VBIAS</code></td>
+<td>Interstage clamp-bias supply, 0.76 V</td>
+</tr>
+</tbody>
+</table>
+<p>LVS and simulation use this order exactly. The netlists specify
+four 0.07 × 0.9 µm drawn <code>npn13G2</code> devices, four 2 × 20 µm <code>rppd</code> collector
+loads, four stage-specific <code>rsil</code> emitter resistors, three 1 × 4 µm <code>rppd</code>
+interstage clamps, and a substrate tap with <code>A=4 µm²</code>, <code>P=8 µm</code> and finite
+simulator equivalent <code>R=81.6666667 Ω</code>.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Models and temperature</td>
+<td><code>hbt_typ</code>, <code>res_typ</code>; 27 °C</td>
+</tr>
+<tr>
+<td>Supplies and DC bias</td>
+<td><code>VDD=1.2 V</code>, <code>VSS=0 V</code>, <code>VIN=0.8 V</code>, <code>VBIAS=0.76 V</code></td>
+</tr>
+<tr>
+<td>AC stimulus</td>
+<td>1 V at <code>VIN</code> for small-signal gain normalization</td>
+</tr>
+<tr>
+<td>Output load</td>
+<td>50 fF from <code>OUT</code> to <code>VSS</code></td>
+</tr>
+<tr>
+<td>AC sweep</td>
+<td>1 MHz–1 GHz, 40 points per decade; gain measured at 100 MHz</td>
+</tr>
+<tr>
+<td>Solver options</td>
+<td><code>rshunt=1e12</code> Ω, <code>reltol=1e-6</code>, <code>vntol=1e-8</code> V, <code>abstol=1e-12</code> A</td>
+</tr>
+</tbody>
+</table>
+<p>The AC stimulus is a small-signal normalization, not a large-signal input.
+The deck reports the input bias, output bias, <code>VDD</code> current, <code>VBIAS</code> current
+and voltage gain; only the metrics in the table below are acceptance
+criteria.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>The candidate GDS must be readable, non-empty and no larger than 10 MiB. It
+must pass the pinned SG13G2 main and additional maximal DRC scopes in deep
+mode without waivers; density and antenna checks are outside this declared scope. It must
+also pass strict named-port LVS against <code>materials/circuit.cdl</code>, including
+the five ports, HBT multiplicities, passive geometry and explicit substrate
+tap. Artifact, DRC, LVS and geometry gates all precede candidate extraction.</p>
+<p>The GDS must include the complete target hierarchy. Port names are matched
+case-insensitively; each declared port must remain on its own conductor with
+the declared connectivity.</p>
+<p>The functional outline is the recursive bounding box of polygons on these
+SG13G2 datatype-0 layers, including child cells and the complete routing stack:</p>
+<p><code>1, 3, 5, 6, 7, 8, 10, 11, 13, 14, 19, 24, 26, 28, 29, 30, 31, 32, 33, 35, 36, 40, 44, 46, 49, 50, 51, 52, 53, 55, 58, 66, 67, 90, 101, 111, 125, 126, 128, 129, 133, 134, 139, 152</code>.</p>
+<p>The maximum width is 160 µm and the maximum height is
+90 µm, measured along the submitted X and Y axes.
+Functional area is width multiplied by height. Text, annotation and filler
+layers are excluded. The area score below uses this same functional footprint.</p>
+<p>Candidate post-layout extraction combines candidate-derived HBT geometry and
+<code>Nx</code> with distributed interconnect resistance and capacitance. Strict LVS
+retains the finite <code>ptap1</code> card and the drawn HBT geometry. In the simulator
+export, the ordinary <code>npn13G2</code> model supplies its effective device dimensions
+while <code>Nx=1</code> and all terminal connections are preserved; the drawn LVS
+dimensions are not silently used as behavioral dimensions. The candidate path
+reconciles the approved SG13G2 substrate body boundary to <code>VSS</code> with tap
+extraction disabled. The finite source tap remains in calibration. Only the internal HBT body domain, identified through its physical tap
+return, may be reconciled to VSS. Collector, base, emitter, resistor terminals
+and geometry, and top-level ports remain candidate-derived. No other
+internal-node aliases or simulator global-ground substitutions are permitted.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<p>Measurement definitions below use the supplied SPICE node/source names.
+<code>v(n)</code> is node voltage and <code>i(V)</code> is current into a voltage source; delivered
+power therefore uses a minus sign. <code>db(z)=20*log10(abs(z))</code>, <code>mag/abs</code>
+denote magnitude, and <code>cph</code> is continuous phase in radians. <code>find</code>, <code>when</code>,
+<code>from/to</code>, and <code>rise/fall</code> retain the deck's interpolation, window and
+crossing conventions; SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/
+milli/mega/giga. Nested <code>avg</code>, <code>min</code>, <code>max</code>, <code>vecmin/vecmax</code> and <code>deriv</code>
+mean the stated window average, extrema and sampled derivative. All
+declared conditions are measured separately and paired with the same
+source condition; a group uses its worst paired quality.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+<th>Dimension</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gain_db</code></td>
+<td>AC: Value of <code>(db(v(out)/v(in))) at=100meg</code>.</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td>DC operating point: <code>v(out)</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.2</td>
+<td>1.2</td>
+<td>bias</td>
+</tr>
+<tr>
+<td><code>supply_current</code></td>
+<td>DC operating point: <code>-i(vdd)</code>.</td>
+<td>A</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>supply</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>1326.32 um2</strong>. 16 expanded device instances; sum of device/contact envelopes 836.9640 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>5</strong>; it is independent of
+the reference-relative task score.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>SiGe low-frequency transfer tasks: signal transfer 68.8%; bias 5.29%; supply cost 15.9%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>gain_db</code></td>
+<td style="text-align:right">0.688235294117</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td style="text-align:right">0.052941176471</td>
+</tr>
+<tr>
+<td><code>supply_current</code></td>
+<td style="text-align:right">0.158823529412</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Discover the supplied task, resources, harness and constraints from
+<code>/protocol/task.json</code>, <code>/protocol/resources.json</code> and
+<code>/protocol/harness.json</code>. Use the tool and PDK resources selected by the
+runtime environment. If the harness declares <code>process-feedback</code>, request
+an optional frozen process check with <code>python -I /protocol/process_check.py</code>;
+the final evaluation remains independent.</p>
+<p>Write the answer to <code>/workspace/output/final.gds</code> as a GDS file with top cell
+<code>LNA160_FOUR_STAGE</code> and wait for the submission receipt:</p>
+<pre><code class="language-bash">python -I /protocol/submit.py
+</code></pre>
+<p>The evaluator uses the submitted snapshot for all physical checks, extraction
+and simulations.</p>
+5:T1283,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<p>Measurement definitions below use the supplied SPICE node/source names.
+<code>v(n)</code> is node voltage and <code>i(V)</code> is current into a voltage source; delivered
+power therefore uses a minus sign. <code>db(z)=20*log10(abs(z))</code>, <code>mag/abs</code>
+denote magnitude, and <code>cph</code> is continuous phase in radians. <code>find</code>, <code>when</code>,
+<code>from/to</code>, and <code>rise/fall</code> retain the deck's interpolation, window and
+crossing conventions; SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/
+milli/mega/giga. Nested <code>avg</code>, <code>min</code>, <code>max</code>, <code>vecmin/vecmax</code> and <code>deriv</code>
+mean the stated window average, extrema and sampled derivative. All
+declared conditions are measured separately and paired with the same
+source condition; a group uses its worst paired quality.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+<th>Dimension</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gain_db</code></td>
+<td>AC: Value of <code>(db(v(out)/v(in))) at=100meg</code>.</td>
+<td>dB</td>
+<td>maximize / db20</td>
+<td>−∞ … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td>DC operating point: <code>v(out)</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 1.2</td>
+<td>1.2</td>
+<td>bias</td>
+</tr>
+<tr>
+<td><code>supply_current</code></td>
+<td>DC operating point: <code>-i(vdd)</code>.</td>
+<td>A</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>supply</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>1326.32 um2</strong>. 16 expanded device instances; sum of device/contact envelopes 836.9640 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>5</strong>; it is independent of
+the reference-relative task score.</p>
+<h3>Score weights</h3>
+<p>SiGe low-frequency transfer tasks: signal transfer 68.8%; bias 5.29%; supply cost 15.9%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>gain_db</code></td>
+<td style="text-align:right">0.688235294117</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td style="text-align:right">0.052941176471</td>
+</tr>
+<tr>
+<td><code>supply_current</code></td>
+<td style="text-align:right">0.158823529412</td>
+</tr>
+</tbody>
+</table>
+6:T41b,<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Models and temperature</td>
+<td><code>hbt_typ</code>, <code>res_typ</code>; 27 °C</td>
+</tr>
+<tr>
+<td>Supplies and DC bias</td>
+<td><code>VDD=1.2 V</code>, <code>VSS=0 V</code>, <code>VIN=0.8 V</code>, <code>VBIAS=0.76 V</code></td>
+</tr>
+<tr>
+<td>AC stimulus</td>
+<td>1 V at <code>VIN</code> for small-signal gain normalization</td>
+</tr>
+<tr>
+<td>Output load</td>
+<td>50 fF from <code>OUT</code> to <code>VSS</code></td>
+</tr>
+<tr>
+<td>AC sweep</td>
+<td>1 MHz–1 GHz, 40 points per decade; gain measured at 100 MHz</td>
+</tr>
+<tr>
+<td>Solver options</td>
+<td><code>rshunt=1e12</code> Ω, <code>reltol=1e-6</code>, <code>vntol=1e-8</code> V, <code>abstol=1e-12</code> A</td>
+</tr>
+</tbody>
+</table>
+<p>The AC stimulus is a small-signal normalization, not a large-signal input.
+The deck reports the input bias, output bias, <code>VDD</code> current, <code>VBIAS</code> current
+and voltage gain; only the metrics in the table below are acceptance
+criteria.</p>
+7:T8cf,<p>The candidate GDS must be readable, non-empty and no larger than 10 MiB. It
+must pass the pinned SG13G2 main and additional maximal DRC scopes in deep
+mode without waivers; density and antenna checks are outside this declared scope. It must
+also pass strict named-port LVS against <code>materials/circuit.cdl</code>, including
+the five ports, HBT multiplicities, passive geometry and explicit substrate
+tap. Artifact, DRC, LVS and geometry gates all precede candidate extraction.</p>
+<p>The GDS must include the complete target hierarchy. Port names are matched
+case-insensitively; each declared port must remain on its own conductor with
+the declared connectivity.</p>
+<p>The functional outline is the recursive bounding box of polygons on these
+SG13G2 datatype-0 layers, including child cells and the complete routing stack:</p>
+<p><code>1, 3, 5, 6, 7, 8, 10, 11, 13, 14, 19, 24, 26, 28, 29, 30, 31, 32, 33, 35, 36, 40, 44, 46, 49, 50, 51, 52, 53, 55, 58, 66, 67, 90, 101, 111, 125, 126, 128, 129, 133, 134, 139, 152</code>.</p>
+<p>The maximum width is 160 µm and the maximum height is
+90 µm, measured along the submitted X and Y axes.
+Functional area is width multiplied by height. Text, annotation and filler
+layers are excluded. The area score below uses this same functional footprint.</p>
+<p>Candidate post-layout extraction combines candidate-derived HBT geometry and
+<code>Nx</code> with distributed interconnect resistance and capacitance. Strict LVS
+retains the finite <code>ptap1</code> card and the drawn HBT geometry. In the simulator
+export, the ordinary <code>npn13G2</code> model supplies its effective device dimensions
+while <code>Nx=1</code> and all terminal connections are preserved; the drawn LVS
+dimensions are not silently used as behavioral dimensions. The candidate path
+reconciles the approved SG13G2 substrate body boundary to <code>VSS</code> with tap
+extraction disabled. The finite source tap remains in calibration. Only the internal HBT body domain, identified through its physical tap
+return, may be reconciled to VSS. Collector, base, emitter, resistor terminals
+and geometry, and top-level ports remain candidate-derived. No other
+internal-node aliases or simulator global-ground substitutions are permitted.</p>
+b:X
+10:X
+10:C
+0:{"buildId":"U2oZdoUjWqT_XfcDHuQ5i","data":[{"rsc":["$","$1","c",{"children":[["$","$2",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L3",null,{"task":{"case_path":"tasks/ihp-sg13g2/TO_Apr2025/cases/160GHz_LNA/case.toml","coefficient":5,"collection":"TO_Apr2025","configuration_url":"/ICLayout-Bench/assets/a4f6da41ad22694e6f4a6a3d59aa2a1c186e5c52448168ba8a4800c20c981d65.txt","description_html":"$4","description_path":"tasks/ihp-sg13g2/TO_Apr2025/cases/160GHz_LNA/problem.md","hours":3,"id":"TO_Apr2025.160GHz_LNA","inputs":{"description":{"format":"text","path":"problem.md","sha256":"5e5a0af0922c789a4839a8864678558907f3d5061195d75c24a648250014a300"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"26b815aa103d0d81b54e21c661b28860304a5d23be900d17192cbb92100be3c6","subcircuit":"LNA160_FOUR_STAGE"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"73cd2486a28743b5e6f7b28533c3f4f8a30dc2794e732b30791612ecebed9dc8"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"ab1256da874a66cd7e70117d2e9758747cd99ba37c5fd0209180bcb558b1c379"}},"licenses":[{"name":"LICENSE","path":"tasks/ihp-sg13g2/TO_Apr2025/LICENSE","url":"/ICLayout-Bench/assets/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/5e5a0af0922c789a4839a8864678558907f3d5061195d75c24a648250014a300.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/26b815aa103d0d81b54e21c661b28860304a5d23be900d17192cbb92100be3c6.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/ab1256da874a66cd7e70117d2e9758747cd99ba37c5fd0209180bcb558b1c379.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/73cd2486a28743b5e6f7b28533c3f4f8a30dc2794e732b30791612ecebed9dc8.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"min","baseline":["source_nominal:gain_db"],"category":"performance","dimension":"response","direction":"maximize","id":"gain_db","normalization":"db20","observations":["nominal:gain_db"],"unit":"dB"},{"aggregation":"min","baseline":["source_nominal:out_bias"],"category":"performance","dimension":"bias","direction":"target","id":"output_bias","lower":0,"normalization":"target","observations":["nominal:out_bias"],"scale":1.2,"unit":"V","upper":1.2},{"aggregation":"min","baseline":["source_nominal:i_vdd"],"category":"performance","dimension":"supply","direction":"minimize","id":"supply_current","lower":0,"normalization":"ratio","observations":["nominal:i_vdd"],"scale":1e-12,"unit":"A"}],"pdk":"ihp-sg13g2","reader":{"category":"Amplifiers & RF","summary":"Amplifies voltage through four direct-coupled SiGe HBT stages with emitter degeneration and interstage bias clamps.","title":"TO_Apr2025 160-derived four-stage LNA at 100 MHz"},"schematic_url":"/ICLayout-Bench/assets/e8fd0801394151ea393920be920c74307331b14c1f69fce20b9ec4b98132eb34.svg","scoring":{"area_metric":"functional_area","area_target":1326.32,"method":"layout","rationale":"SiGe low-frequency transfer tasks: signal transfer 68.8%; bias 5.29%; supply cost 15.9%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"functional_area":0.1,"gain_db":0.688235294117,"output_bias":0.052941176471,"supply_current":0.158823529412}},"sections":{"Electrical Requirements and Scoring":"$5","Objective":"<p>Create a clean SG13G2 layout for the maintained four-stage direct-coupled\ncommon-emitter voltage amplifier in <code>LNA160_FOUR_STAGE</code>. Preserve the circuit\nconnectivity, HBT multiplicities, passive dimensions and five external ports.\nThe submitted top cell must be <code>LNA160_FOUR_STAGE</code> and must pass the physical\nchecks and nominal post-layout measurements below.</p>\n","Operating Conditions":"$6","Physical Requirements":"$7"},"source_url":"https://github.com/IHP-GmbH/TO_Apr2025/blob/63e203a0eccfb6028a1a0a8364553e4e979b55b3/160GHz_LNA/design_data/qucs-s/160GHz_LNA(MAIN).sch","status":"qualified","title":"TO_Apr2025 160-derived four-stage LNA at 100 MHz"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}],["$L8"],"$L9"]}],"isPartial":"$@a","staleTime":"$b","varyParams":null},{"rsc":"$Lc","isPartial":"$@d","staleTime":"$b","varyParams":null},{"rsc":"$Le","isPartial":"$@f","staleTime":"$b","varyParams":"$10"},{"rsc":"$L11","isPartial":"$@12","staleTime":"$b","varyParams":null}],"isUpgradeableISRFallback":false,"a":"$@13","rootVaryParams":null,"needsRuntimeRequest":"$@14"}
+15:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+17:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+18:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+19:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+1a:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1b:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+1c:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+1d:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+8:["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true}]
+9:["$","$L15",null,{"children":["$","$2",null,{"name":"Next.MetadataOutlet","children":"$@16"}]}]
+c:["$","$1","h",{"children":[null,["$","$L17",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L18",null,{"children":["$","$2",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L19","3",{}]]}]}]}],null]}]
+e:["$","$1","c",{"children":[null,["$","$L1a",null,{"parallelRouterKey":"children","template":["$","$L1b",null,{}]}]]}]
+11:["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L1c",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L1d",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L1a",null,{"parallelRouterKey":"children","template":["$","$L1b",null,{}],"notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L1c",null,{"href":"/","children":"Return to overview"}]]}],[]]}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L1c",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}]
+16:null
+14:true
+b:300
+b:C
+13:0
+d:"$undefined"
+f:"$undefined"
+12:"$undefined"
+a:"$undefined"

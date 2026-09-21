@@ -1,0 +1,44 @@
+* Required Notice: Copyright 2026 Danial Noori Zadeh
+* Native physical adaptation; see collection LICENSE and NOTICE.
+.subckt sup_001_vcm_detector vcm_out vinp vinn vss
+RMN_0 vinn RMN_seg1 vss ppolyf_u_1k w=1u l=48.44u
+RMN_1 RMN_seg1 RMN_seg2 vss ppolyf_u_1k w=1u l=48.44u
+RMN_2 RMN_seg2 RMN_seg3 vss ppolyf_u_1k w=1u l=48.44u
+RMN_3 RMN_seg3 RMN_seg4 vss ppolyf_u_1k w=1u l=48.44u
+RMN_4 RMN_seg4 RMN_seg5 vss ppolyf_u_1k w=1u l=48.44u
+RMN_5 RMN_seg5 RMN_seg6 vss ppolyf_u_1k w=1u l=48.44u
+RMN_6 RMN_seg6 RMN_seg7 vss ppolyf_u_1k w=1u l=48.44u
+RMN_7 RMN_seg7 RMN_seg8 vss ppolyf_u_1k w=1u l=48.44u
+RMN_8 RMN_seg8 RMN_seg9 vss ppolyf_u_1k w=1u l=48.44u
+RMN_9 RMN_seg9 RMN_seg10 vss ppolyf_u_1k w=1u l=48.44u
+RMN_10 RMN_seg10 RMN_seg11 vss ppolyf_u_1k w=1u l=48.44u
+RMN_11 RMN_seg11 RMN_seg12 vss ppolyf_u_1k w=1u l=48.44u
+RMN_12 RMN_seg12 RMN_seg13 vss ppolyf_u_1k w=1u l=48.44u
+RMN_13 RMN_seg13 RMN_seg14 vss ppolyf_u_1k w=1u l=48.44u
+RMN_14 RMN_seg14 RMN_seg15 vss ppolyf_u_1k w=1u l=48.44u
+RMN_15 RMN_seg15 RMN_seg16 vss ppolyf_u_1k w=1u l=48.44u
+RMN_16 RMN_seg16 RMN_seg17 vss ppolyf_u_1k w=1u l=48.44u
+RMN_17 RMN_seg17 RMN_seg18 vss ppolyf_u_1k w=1u l=48.44u
+RMN_18 RMN_seg18 RMN_seg19 vss ppolyf_u_1k w=1u l=48.44u
+RMN_19 RMN_seg19 vcm_out vss ppolyf_u_1k w=1u l=48.44u
+RMP_0 vcm_out RMP_seg1 vss ppolyf_u_1k w=1u l=48.44u
+RMP_1 RMP_seg1 RMP_seg2 vss ppolyf_u_1k w=1u l=48.44u
+RMP_2 RMP_seg2 RMP_seg3 vss ppolyf_u_1k w=1u l=48.44u
+RMP_3 RMP_seg3 RMP_seg4 vss ppolyf_u_1k w=1u l=48.44u
+RMP_4 RMP_seg4 RMP_seg5 vss ppolyf_u_1k w=1u l=48.44u
+RMP_5 RMP_seg5 RMP_seg6 vss ppolyf_u_1k w=1u l=48.44u
+RMP_6 RMP_seg6 RMP_seg7 vss ppolyf_u_1k w=1u l=48.44u
+RMP_7 RMP_seg7 RMP_seg8 vss ppolyf_u_1k w=1u l=48.44u
+RMP_8 RMP_seg8 RMP_seg9 vss ppolyf_u_1k w=1u l=48.44u
+RMP_9 RMP_seg9 RMP_seg10 vss ppolyf_u_1k w=1u l=48.44u
+RMP_10 RMP_seg10 RMP_seg11 vss ppolyf_u_1k w=1u l=48.44u
+RMP_11 RMP_seg11 RMP_seg12 vss ppolyf_u_1k w=1u l=48.44u
+RMP_12 RMP_seg12 RMP_seg13 vss ppolyf_u_1k w=1u l=48.44u
+RMP_13 RMP_seg13 RMP_seg14 vss ppolyf_u_1k w=1u l=48.44u
+RMP_14 RMP_seg14 RMP_seg15 vss ppolyf_u_1k w=1u l=48.44u
+RMP_15 RMP_seg15 RMP_seg16 vss ppolyf_u_1k w=1u l=48.44u
+RMP_16 RMP_seg16 RMP_seg17 vss ppolyf_u_1k w=1u l=48.44u
+RMP_17 RMP_seg17 RMP_seg18 vss ppolyf_u_1k w=1u l=48.44u
+RMP_18 RMP_seg18 RMP_seg19 vss ppolyf_u_1k w=1u l=48.44u
+RMP_19 RMP_seg19 vinp vss ppolyf_u_1k w=1u l=48.44u
+.ends sup_001_vcm_detector

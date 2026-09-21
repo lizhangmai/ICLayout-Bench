@@ -1,0 +1,556 @@
+1:"$Sreact.fragment"
+2:I[22016,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],""]
+3:I[73478,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+4:I[39756,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+5:I[37457,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default"]
+7:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"OutletBoundary"]
+8:"$Sreact.suspense"
+b:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"ViewportBoundary"]
+d:I[97367,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"MetadataBoundary"]
+f:I[68027,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"default",1]
+:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+a:X
+0:{"P":null,"c":["","tasks","TO_Apr2025.97_GHZ_LINEAR_TIA",""],"q":"","i":false,"f":[[["",{"children":[["path","tasks/TO_Apr2025.97_GHZ_LINEAR_TIA","oc",[]],{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","a",null,{"className":"skip-link","href":"#main-content","children":"Skip to content"}],["$","header",null,{"children":[["$","$L2",null,{"className":"brand","href":"/","children":[["$","img",null,{"className":"brandmark","src":"/ICLayout-Bench/brand/iclayout-bench.svg","width":40,"height":40,"alt":"","aria-hidden":"true"}]," ","ICLayout",["$","span",null,{"children":"Bench"}]]}],["$","$L3",null,{"participantAccess":false}]]}],["$","main",null,{"id":"main-content","children":["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","section",null,{"children":[["$","h1",null,{"children":"Page unavailable"}],["$","p",null,{"children":"This page is not part of the current public release."}],["$","$L2",null,{"href":"/","children":"Return to overview"}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"children":[["$","span",null,{"children":"ICLayout-Bench · Integrated circuit layout intelligence"}],["$","span",null,{"children":["Evidence first. Conditions explicit."," ",["$","$L2",null,{"href":"/methodology","children":"Methodology"}],false]}]]}]]}]}]]}],{"children":[["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":[["$","$1","c",{"children":["$L6",[["$","script","script-0",{"src":"/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js","async":true,"nonce":"$undefined"}]],["$","$L7",null,{"children":["$","$8",null,{"name":"Next.MetadataOutlet","children":"$@9"}]}]]}],{},null,false,null]},null,false,"$a"]},null,false,null],["$","$1","h",{"children":[null,["$","$Lb",null,{"children":"$Lc"}],["$","div",null,{"hidden":true,"children":["$","$Ld",null,{"children":["$","$8",null,{"name":"Next.Metadata","children":"$Le"}]}]}],null]}],false]],"m":"$undefined","G":["$f",[["$","link","0",{"rel":"stylesheet","href":"/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"U2oZdoUjWqT_XfcDHuQ5i"}
+10:I[1186,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js","/ICLayout-Bench/_next/static/chunks/3_2wwayut9q0b.js"],"default"]
+a:C
+11:T34f9,<h1 id="problem-linear-sige-hbt-transimpedance-amplifier-layout-task">Linear SiGe HBT Transimpedance Amplifier Layout Task</h1>
+<h2 id="problem-objective">Objective</h2>
+<p>Create a clean SG13G2 layout for the maintained multi-stage linear
+transimpedance amplifier in <code>FMD_QNC_01_LIN_TIA</code>. Preserve the circuit
+connectivity, HBT multiplicities, passive dimensions and six external ports.
+The submitted top cell must be <code>FMD_QNC_01_LIN_TIA</code> and must pass the physical
+checks and nominal post-layout measurements below.</p>
+<h2 id="problem-inputs-and-interface">Inputs and Interface</h2>
+<p>In addition to this problem, the runtime task supplies the following declared
+inputs:</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="/ICLayout-Bench/assets/150ab19522eecccf2889ed62c07b14e15e29e97a75ce12563fcd95d846be9112.txt">materials/circuit.cdl</a></td>
+<td>Authoritative LVS netlist and device geometry</td>
+</tr>
+<tr>
+<td><a href="/ICLayout-Bench/assets/fc6c9d1a6ea884f20e7cbddee9c30b4feff18e4a70fbf729789101955a87c334.txt">materials/circuit.spice</a></td>
+<td>Authoritative simulator export</td>
+</tr>
+<tr>
+<td><a href="/ICLayout-Bench/assets/759a7548f5ea81399322a73a10b58207d3ff28b2a5ed0ef7d55850b1a6b3959e.txt">materials/testbench.spice</a></td>
+<td>Nominal operating-point, AC and DC-linearity testbench</td>
+</tr>
+</tbody>
+</table>
+<p>The circuit is a three-stage SiGe HBT transimpedance core with active
+feedback. Q1 is the input common-emitter device (<code>Nx=5</code>), Q2 is the
+intermediate emitter follower (<code>Nx=10</code>), Q3 is the output common-emitter
+device (<code>Nx=10</code>), and Q4 is an active emitter-follower feedback device
+(<code>Nx=5</code>) sensing <code>RFOUT</code>. <code>RFB</code> returns the Q4 feedback signal to the
+Q2/Q3 interstage node. The remaining resistors provide collector loading,
+emitter degeneration and input feedback; three <code>cap_cmim</code> devices decouple
+the independent supply rails. An explicit <code>ptap1</code> connects the substrate
+body to <code>VSS</code>.</p>
+<p>The ordered top-level interface is:</p>
+<table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RFIN</code></td>
+<td>Current input and transimpedance sensing node</td>
+</tr>
+<tr>
+<td><code>RFOUT</code></td>
+<td>Voltage output and 50 fF load node</td>
+</tr>
+<tr>
+<td><code>VCC1</code></td>
+<td>First collector-load supply, 1.7 V</td>
+</tr>
+<tr>
+<td><code>VCC2</code></td>
+<td>Q2/Q4 collector supply, 2.1 V</td>
+</tr>
+<tr>
+<td><code>VCC3</code></td>
+<td>Q3 collector-load supply, 2.1 V</td>
+</tr>
+<tr>
+<td><code>VSS</code></td>
+<td>Common return and substrate-tap reference</td>
+</tr>
+</tbody>
+</table>
+<p>LVS and simulation use this order exactly. The netlists specify
+the HBT multiplicities, resistor dimensions, 30 × 60 µm <code>cap_cmim</code> devices
+with <code>m=2</code>, and a substrate tap with <code>A=4 µm²</code>, <code>P=8 µm</code> and finite
+simulator equivalent <code>R=81.6666667 Ω</code>.</p>
+<h2 id="problem-operating-conditions">Operating Conditions</h2>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Models and temperature</td>
+<td><code>hbt_typ</code>, <code>res_typ</code>, <code>cap_typ</code>; 26.85 °C</td>
+</tr>
+<tr>
+<td>Supplies</td>
+<td><code>VCC1=1.7 V</code>, <code>VCC2=2.1 V</code>, <code>VCC3=2.1 V</code></td>
+</tr>
+<tr>
+<td>Input DC current</td>
+<td>−5 µA, 0 A and +5 µA from <code>VSS</code> into <code>RFIN</code></td>
+</tr>
+<tr>
+<td>AC stimulus</td>
+<td>1 A at the zero-volt <code>VSENSE</code> source for normalization</td>
+</tr>
+<tr>
+<td>Output load</td>
+<td>50 fF from <code>RFOUT</code> to <code>VSS</code></td>
+</tr>
+<tr>
+<td>AC sweep</td>
+<td>1 MHz–100 MHz, 40 points per decade</td>
+</tr>
+<tr>
+<td>Linearity sweep</td>
+<td>21 DC points from −5 µA to +5 µA in 0.5 µA steps</td>
+</tr>
+<tr>
+<td>Solver options</td>
+<td><code>rshunt=1e12</code> Ω, <code>reltol=1e-6</code>, <code>vntol=1e-8</code> V, <code>abstol=1e-12</code> A</td>
+</tr>
+</tbody>
+</table>
+<p>The AC stimulus is a small-signal normalization, not a large-signal 1 A
+input. Transfer is normalized by the current measured at <code>VSENSE</code>, and
+supply power is calculated from the three independent supply sources.</p>
+<h2 id="problem-physical-requirements">Physical Requirements</h2>
+<p>The candidate GDS must be readable, non-empty and no larger than 32 MiB. It
+must pass the pinned SG13G2 main and additional maximal DRC scopes in deep
+mode without waivers; density and antenna checks are outside this declared scope. It must
+also pass strict named-port LVS against <code>materials/circuit.cdl</code>, including
+the six ports, device multiplicities, passive geometry and explicit substrate
+tap. Artifact, DRC, strict LVS and geometry gates all precede candidate
+extraction.</p>
+<p>The GDS must include the complete target hierarchy. Port names are matched
+case-insensitively; each declared port must remain on its own conductor with
+the declared connectivity.</p>
+<p>The functional outline is the recursive bounding box of polygons on these
+SG13G2 datatype-0 layers, including child cells and the complete routing stack:</p>
+<p><code>1, 3, 5, 6, 7, 8, 10, 11, 13, 14, 19, 24, 26, 28, 29, 30, 31, 32, 33, 35, 36, 40, 44, 46, 49, 50, 51, 52, 53, 55, 58, 66, 67, 90, 101, 111, 125, 126, 128, 129, 133, 134, 139, 152</code>.</p>
+<p>The maximum width is 720 µm and the maximum height is
+620 µm, measured along the submitted X and Y axes.
+Functional area is width multiplied by height. Text, annotation and filler
+layers are excluded. The area score below uses this same functional footprint.</p>
+<p>Candidate post-layout extraction combines candidate-derived HBT geometry and
+<code>Nx</code> with distributed interconnect resistance and capacitance. Drawn emitter
+geometry is checked against the candidate; effective ordinary <code>npn13G2</code>
+dimensions use the simulator model defaults, with the extracted <code>Nx</code> retained. The standard
+path disables tap extraction at the approved SG13G2 substrate boundary so
+the compact-device body can be reconciled to <code>VSS</code>; strict LVS still checks
+the finite <code>ptap1</code> card. Device terminals, multiplicities, resistor geometry,
+MIM geometry and top-level connectivity remain candidate-derived. The
+finite source tap is retained in pre-layout calibration, and the accepted
+model boundary is limited to the nominal transfer, bias, power and linearity
+measurements in this task. No other internal-node aliases are permitted; a simulator global ground
+alias must not replace the explicit source substrate connection.</p>
+<h2 id="problem-electrical-requirements-and-scoring">Electrical Requirements and Scoring</h2>
+<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<p>Measurement definitions below use the supplied SPICE node/source names.
+<code>v(n)</code> is node voltage and <code>i(V)</code> is current into a voltage source; delivered
+power therefore uses a minus sign. <code>db(z)=20*log10(abs(z))</code>, <code>mag/abs</code>
+denote magnitude, and <code>cph</code> is continuous phase in radians. <code>find</code>, <code>when</code>,
+<code>from/to</code>, and <code>rise/fall</code> retain the deck's interpolation, window and
+crossing conventions; SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/
+milli/mega/giga. Nested <code>avg</code>, <code>min</code>, <code>max</code>, <code>vecmin/vecmax</code> and <code>deriv</code>
+mean the stated window average, extrema and sampled derivative. All
+declared conditions are measured separately and paired with the same
+source condition; a group uses its worst paired quality.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+<th>Dimension</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>transimpedance_low</code></td>
+<td>AC: Value of <code>(real(v(RFOUT)/i(VSENSE))) at=1meg</code>.</td>
+<td>ohm</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>transimpedance_high</code></td>
+<td>AC: Value of <code>(mag(v(RFOUT)/i(VSENSE))) at=100meg</code>.</td>
+<td>ohm</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>linearity_error_pct</code></td>
+<td>Maximum absolute deviation of DC RFOUT from the line through the endpoint samples, divided by absolute output span, times 100; IIN sweeps -5 to +5 uA in 0.5 uA steps.</td>
+<td>percent</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>input_bias</code></td>
+<td>DC operating point: <code>v(RFIN)</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 2.1</td>
+<td>2.1</td>
+<td>bias</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td>DC operating point: <code>v(RFOUT)</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 2.1</td>
+<td>2.1</td>
+<td>bias</td>
+</tr>
+<tr>
+<td><code>supply_power</code></td>
+<td>DC operating point: <code>-v(VCC1)*i(VCC1)-v(VCC2)*i(VCC2)-v(VCC3)*i(VCC3)</code>.</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>supply</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>18718.54 um2</strong>. 17 expanded device instances; sum of device/contact envelopes 12300.6100 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>6</strong>; it is independent of
+the reference-relative task score.</p>
+<h3 id="problem-score-weights">Score weights</h3>
+<p>SiGe low-frequency transfer tasks: signal transfer 53.2%; linearity 20.5%; bias 4.09%; supply cost 12.3%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>transimpedance_high</code></td>
+<td style="text-align:right">0.265909090909</td>
+</tr>
+<tr>
+<td><code>transimpedance_low</code></td>
+<td style="text-align:right">0.265909090909</td>
+</tr>
+<tr>
+<td><code>linearity_error_pct</code></td>
+<td style="text-align:right">0.204545454545</td>
+</tr>
+<tr>
+<td><code>input_bias</code></td>
+<td style="text-align:right">0.020454545455</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td style="text-align:right">0.020454545455</td>
+</tr>
+<tr>
+<td><code>supply_power</code></td>
+<td style="text-align:right">0.122727272727</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-tools-and-submission">Tools and Submission</h2>
+<p>Solve budget: <strong>3 hours</strong>.</p>
+<p>Discover the supplied task, resources, harness and constraints from
+<code>/protocol/task.json</code>, <code>/protocol/resources.json</code> and
+<code>/protocol/harness.json</code>. Use the tool and PDK resources selected by the
+runtime environment. If the harness declares <code>process-feedback</code>, request
+an optional frozen process check with <code>python -I /protocol/process_check.py</code>;
+the final evaluation remains independent.</p>
+<p>Write the answer to <code>/workspace/output/final.gds</code> as a GDS file with top cell
+<code>FMD_QNC_01_LIN_TIA</code> and wait for the submission receipt:</p>
+<pre><code class="language-bash">python -I /protocol/submit.py
+</code></pre>
+<p>The evaluator uses the submitted snapshot for all physical checks, extraction
+and simulations.</p>
+12:T16cd,<p>Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each <code>source_*</code> job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.</p>
+<p>For a post-layout observation x and its source observation b:</p>
+<ul>
+<li>Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+s is a normalization floor, not an allowed degradation or pass threshold.</li>
+<li>Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.</li>
+<li>Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+zero-valued operating points are never divided directly.</li>
+</ul>
+<p>Scoring uses <code>layout</code>. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.</p>
+<p>Measurement definitions below use the supplied SPICE node/source names.
+<code>v(n)</code> is node voltage and <code>i(V)</code> is current into a voltage source; delivered
+power therefore uses a minus sign. <code>db(z)=20*log10(abs(z))</code>, <code>mag/abs</code>
+denote magnitude, and <code>cph</code> is continuous phase in radians. <code>find</code>, <code>when</code>,
+<code>from/to</code>, and <code>rise/fall</code> retain the deck's interpolation, window and
+crossing conventions; SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/
+milli/mega/giga. Nested <code>avg</code>, <code>min</code>, <code>max</code>, <code>vecmin/vecmax</code> and <code>deriv</code>
+mean the stated window average, extrema and sampled derivative. All
+declared conditions are measured separately and paired with the same
+source condition; a group uses its worst paired quality.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition / observations</th>
+<th>Unit</th>
+<th>Quality rule</th>
+<th>Functional bounds</th>
+<th>Scale</th>
+<th>Dimension</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>transimpedance_low</code></td>
+<td>AC: Value of <code>(real(v(RFOUT)/i(VSENSE))) at=1meg</code>.</td>
+<td>ohm</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>transimpedance_high</code></td>
+<td>AC: Value of <code>(mag(v(RFOUT)/i(VSENSE))) at=100meg</code>.</td>
+<td>ohm</td>
+<td>maximize / ratio</td>
+<td>0 … +∞</td>
+<td>—</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>linearity_error_pct</code></td>
+<td>Maximum absolute deviation of DC RFOUT from the line through the endpoint samples, divided by absolute output span, times 100; IIN sweeps -5 to +5 uA in 0.5 uA steps.</td>
+<td>percent</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-06</td>
+<td>response</td>
+</tr>
+<tr>
+<td><code>input_bias</code></td>
+<td>DC operating point: <code>v(RFIN)</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 2.1</td>
+<td>2.1</td>
+<td>bias</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td>DC operating point: <code>v(RFOUT)</code>.</td>
+<td>V</td>
+<td>target / target</td>
+<td>0 … 2.1</td>
+<td>2.1</td>
+<td>bias</td>
+</tr>
+<tr>
+<td><code>supply_power</code></td>
+<td>DC operating point: <code>-v(VCC1)*i(VCC1)-v(VCC2)*i(VCC2)-v(VCC3)*i(VCC3)</code>.</td>
+<td>W</td>
+<td>minimize / ratio</td>
+<td>0 … +∞</td>
+<td>1e-12</td>
+<td>supply</td>
+</tr>
+</tbody>
+</table>
+<p>Area reference: <strong>18718.54 um2</strong>. 17 expanded device instances; sum of device/contact envelopes 12300.6100 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.</p>
+<p>The capability coefficient remains <strong>6</strong>; it is independent of
+the reference-relative task score.</p>
+<h3>Score weights</h3>
+<p>SiGe low-frequency transfer tasks: signal transfer 53.2%; linearity 20.5%; bias 4.09%; supply cost 12.3%; area 10%. Each objective's weight is divided equally among its metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align:right">Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>functional_area</code></td>
+<td style="text-align:right">0.1</td>
+</tr>
+<tr>
+<td><code>transimpedance_high</code></td>
+<td style="text-align:right">0.265909090909</td>
+</tr>
+<tr>
+<td><code>transimpedance_low</code></td>
+<td style="text-align:right">0.265909090909</td>
+</tr>
+<tr>
+<td><code>linearity_error_pct</code></td>
+<td style="text-align:right">0.204545454545</td>
+</tr>
+<tr>
+<td><code>input_bias</code></td>
+<td style="text-align:right">0.020454545455</td>
+</tr>
+<tr>
+<td><code>output_bias</code></td>
+<td style="text-align:right">0.020454545455</td>
+</tr>
+<tr>
+<td><code>supply_power</code></td>
+<td style="text-align:right">0.122727272727</td>
+</tr>
+</tbody>
+</table>
+13:T4bc,<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Models and temperature</td>
+<td><code>hbt_typ</code>, <code>res_typ</code>, <code>cap_typ</code>; 26.85 °C</td>
+</tr>
+<tr>
+<td>Supplies</td>
+<td><code>VCC1=1.7 V</code>, <code>VCC2=2.1 V</code>, <code>VCC3=2.1 V</code></td>
+</tr>
+<tr>
+<td>Input DC current</td>
+<td>−5 µA, 0 A and +5 µA from <code>VSS</code> into <code>RFIN</code></td>
+</tr>
+<tr>
+<td>AC stimulus</td>
+<td>1 A at the zero-volt <code>VSENSE</code> source for normalization</td>
+</tr>
+<tr>
+<td>Output load</td>
+<td>50 fF from <code>RFOUT</code> to <code>VSS</code></td>
+</tr>
+<tr>
+<td>AC sweep</td>
+<td>1 MHz–100 MHz, 40 points per decade</td>
+</tr>
+<tr>
+<td>Linearity sweep</td>
+<td>21 DC points from −5 µA to +5 µA in 0.5 µA steps</td>
+</tr>
+<tr>
+<td>Solver options</td>
+<td><code>rshunt=1e12</code> Ω, <code>reltol=1e-6</code>, <code>vntol=1e-8</code> V, <code>abstol=1e-12</code> A</td>
+</tr>
+</tbody>
+</table>
+<p>The AC stimulus is a small-signal normalization, not a large-signal 1 A
+input. Transfer is normalized by the current measured at <code>VSENSE</code>, and
+supply power is calculated from the three independent supply sources.</p>
+14:T900,<p>The candidate GDS must be readable, non-empty and no larger than 32 MiB. It
+must pass the pinned SG13G2 main and additional maximal DRC scopes in deep
+mode without waivers; density and antenna checks are outside this declared scope. It must
+also pass strict named-port LVS against <code>materials/circuit.cdl</code>, including
+the six ports, device multiplicities, passive geometry and explicit substrate
+tap. Artifact, DRC, strict LVS and geometry gates all precede candidate
+extraction.</p>
+<p>The GDS must include the complete target hierarchy. Port names are matched
+case-insensitively; each declared port must remain on its own conductor with
+the declared connectivity.</p>
+<p>The functional outline is the recursive bounding box of polygons on these
+SG13G2 datatype-0 layers, including child cells and the complete routing stack:</p>
+<p><code>1, 3, 5, 6, 7, 8, 10, 11, 13, 14, 19, 24, 26, 28, 29, 30, 31, 32, 33, 35, 36, 40, 44, 46, 49, 50, 51, 52, 53, 55, 58, 66, 67, 90, 101, 111, 125, 126, 128, 129, 133, 134, 139, 152</code>.</p>
+<p>The maximum width is 720 µm and the maximum height is
+620 µm, measured along the submitted X and Y axes.
+Functional area is width multiplied by height. Text, annotation and filler
+layers are excluded. The area score below uses this same functional footprint.</p>
+<p>Candidate post-layout extraction combines candidate-derived HBT geometry and
+<code>Nx</code> with distributed interconnect resistance and capacitance. Drawn emitter
+geometry is checked against the candidate; effective ordinary <code>npn13G2</code>
+dimensions use the simulator model defaults, with the extracted <code>Nx</code> retained. The standard
+path disables tap extraction at the approved SG13G2 substrate boundary so
+the compact-device body can be reconciled to <code>VSS</code>; strict LVS still checks
+the finite <code>ptap1</code> card. Device terminals, multiplicities, resistor geometry,
+MIM geometry and top-level connectivity remain candidate-derived. The
+finite source tap is retained in pre-layout calibration, and the accepted
+model boundary is limited to the nominal transfer, bias, power and linearity
+measurements in this task. No other internal-node aliases are permitted; a simulator global ground
+alias must not replace the explicit source substrate connection.</p>
+6:["$","$8",null,{"fallback":["$","p",null,{"children":"Loading published evidence…"}],"children":["$","$L10",null,{"task":{"case_path":"tasks/ihp-sg13g2/TO_Apr2025/cases/97_GHZ_LINEAR_TIA/case.toml","coefficient":6,"collection":"TO_Apr2025","configuration_url":"/ICLayout-Bench/assets/7f46e608f85c1375b19a29ba2ed65c64623fe1338f7a36885ebd559581d49ce4.txt","description_html":"$11","description_path":"tasks/ihp-sg13g2/TO_Apr2025/cases/97_GHZ_LINEAR_TIA/problem.md","hours":3,"id":"TO_Apr2025.97_GHZ_LINEAR_TIA","inputs":{"description":{"format":"text","path":"problem.md","sha256":"10e5739f8f4672e013a37dc5477cc22e853b9b09844cb0d3dee7857d359c46ac"},"netlist":{"format":"spice","path":"materials/circuit.cdl","sha256":"150ab19522eecccf2889ed62c07b14e15e29e97a75ce12563fcd95d846be9112","subcircuit":"FMD_QNC_01_LIN_TIA"},"performance":{"format":"spice","path":"materials/testbench.spice","sha256":"759a7548f5ea81399322a73a10b58207d3ff28b2a5ed0ef7d55850b1a6b3959e"},"simulation":{"format":"spice","path":"materials/circuit.spice","sha256":"fc6c9d1a6ea884f20e7cbddee9c30b4feff18e4a70fbf729789101955a87c334"}},"licenses":[{"name":"LICENSE","path":"tasks/ihp-sg13g2/TO_Apr2025/LICENSE","url":"/ICLayout-Bench/assets/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt"}],"materials":[{"name":"problem.md","role":"description","url":"/ICLayout-Bench/assets/10e5739f8f4672e013a37dc5477cc22e853b9b09844cb0d3dee7857d359c46ac.txt"},{"name":"materials/circuit.cdl","role":"netlist","url":"/ICLayout-Bench/assets/150ab19522eecccf2889ed62c07b14e15e29e97a75ce12563fcd95d846be9112.txt"},{"name":"materials/circuit.spice","role":"simulation","url":"/ICLayout-Bench/assets/fc6c9d1a6ea884f20e7cbddee9c30b4feff18e4a70fbf729789101955a87c334.txt"},{"name":"materials/testbench.spice","role":"performance","url":"/ICLayout-Bench/assets/759a7548f5ea81399322a73a10b58207d3ff28b2a5ed0ef7d55850b1a6b3959e.txt"}],"metrics":[{"aggregation":"max","category":"physical","direction":"minimize","id":"functional_area","observations":["geometry:area"],"unit":"um2"},{"aggregation":"min","baseline":["source_negative:transimpedance_low","source_zero:transimpedance_low","source_positive:transimpedance_low"],"category":"performance","dimension":"response","direction":"maximize","id":"transimpedance_low","lower":0,"normalization":"ratio","observations":["negative:transimpedance_low","zero:transimpedance_low","positive:transimpedance_low"],"unit":"ohm"},{"aggregation":"min","baseline":["source_negative:transimpedance_high","source_zero:transimpedance_high","source_positive:transimpedance_high"],"category":"performance","dimension":"response","direction":"maximize","id":"transimpedance_high","lower":0,"normalization":"ratio","observations":["negative:transimpedance_high","zero:transimpedance_high","positive:transimpedance_high"],"unit":"ohm"},{"aggregation":"max","baseline":["source_negative:linearity_error_pct","source_zero:linearity_error_pct","source_positive:linearity_error_pct"],"category":"performance","dimension":"response","direction":"minimize","id":"linearity_error_pct","lower":0,"normalization":"ratio","observations":["negative:linearity_error_pct","zero:linearity_error_pct","positive:linearity_error_pct"],"scale":0.000001,"unit":"percent"},{"aggregation":"min","baseline":["source_negative:input_bias","source_zero:input_bias","source_positive:input_bias"],"category":"performance","dimension":"bias","direction":"target","id":"input_bias","lower":0,"normalization":"target","observations":["negative:input_bias","zero:input_bias","positive:input_bias"],"scale":2.1,"unit":"V","upper":2.1},{"aggregation":"min","baseline":["source_negative:output_bias","source_zero:output_bias","source_positive:output_bias"],"category":"performance","dimension":"bias","direction":"target","id":"output_bias","lower":0,"normalization":"target","observations":["negative:output_bias","zero:output_bias","positive:output_bias"],"scale":2.1,"unit":"V","upper":2.1},{"aggregation":"max","baseline":["source_negative:supply_power","source_zero:supply_power","source_positive:supply_power"],"category":"performance","dimension":"supply","direction":"minimize","id":"supply_power","lower":0,"normalization":"ratio","observations":["negative:supply_power","zero:supply_power","positive:supply_power"],"scale":1e-12,"unit":"W"}],"pdk":"ihp-sg13g2","reader":{"category":"Amplifiers & RF","summary":"Converts input current to voltage using three SiGe HBT stages and active emitter-follower feedback.","title":"TO_Apr2025 97-derived multi-stage linear TIA"},"schematic_url":"/ICLayout-Bench/assets/05dbe3a98796a51d2a409b6bf458430e55db4798d2582ae3b1f5229eb8704ba0.svg","scoring":{"area_metric":"functional_area","area_target":18718.54,"method":"layout","rationale":"SiGe low-frequency transfer tasks: signal transfer 53.2%; linearity 20.5%; bias 4.09%; supply cost 12.3%; area 10%. Each objective's weight is divided equally among its metrics.","weights":{"functional_area":0.1,"input_bias":0.020454545455,"linearity_error_pct":0.204545454545,"output_bias":0.020454545455,"supply_power":0.122727272727,"transimpedance_high":0.265909090909,"transimpedance_low":0.265909090909}},"sections":{"Electrical Requirements and Scoring":"$12","Objective":"<p>Create a clean SG13G2 layout for the maintained multi-stage linear\ntransimpedance amplifier in <code>FMD_QNC_01_LIN_TIA</code>. Preserve the circuit\nconnectivity, HBT multiplicities, passive dimensions and six external ports.\nThe submitted top cell must be <code>FMD_QNC_01_LIN_TIA</code> and must pass the physical\nchecks and nominal post-layout measurements below.</p>\n","Operating Conditions":"$13","Physical Requirements":"$14"},"source_url":"https://github.com/IHP-GmbH/TO_Apr2025/blob/63e203a0eccfb6028a1a0a8364553e4e979b55b3/97_GHZ_LINEAR_TIA/design_data/qucs-s/97_GHZ_LINEAR_TIA.sch","status":"qualified","title":"TO_Apr2025 97-derived multi-stage linear TIA"},"catalog":{"boards":[],"contexts":[],"experiments":[],"runs":[],"tasks":[]},"evidenceError":false}]}]
+c:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+15:I[27201,["/ICLayout-Bench/_next/static/chunks/3gll1ekbrh320.js"],"IconMark"]
+9:null
+e:[["$","title","0",{"children":"ICLayout-Bench | Circuit layout intelligence"}],["$","meta","1",{"name":"description","content":"Measured progress in AI-driven integrated circuit layout. Explore circuits, model conditions and reviewed experimental evidence."}],["$","link","2",{"rel":"icon","href":"/ICLayout-Bench/brand/iclayout-bench.svg","type":"image/svg+xml","sizes":"any"}],["$","$L15","3",{}]]

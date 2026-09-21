@@ -1,0 +1,15 @@
+* Derived from analog-db trm_001_vcr, fixed snapshot
+* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
+* See collection LICENSE and NOTICE. Modified: ideal pullup replaced by eight physical poly segments; explicit substrate tap added.
+.subckt trm_001_vcr vdd vcode vout vss
+XM0 vout vcode vss sub sg13_lv_nmos w=2u l=0.5u m=1
+XRptap vss sub ptap1 A=41e-12 P=45e-6
+XR0_0 vdd r01 sub rhigh w=1u l=17.465u m=1 b=0
+XR0_1 r01 r02 sub rhigh w=1u l=17.465u m=1 b=0
+XR0_2 r02 r03 sub rhigh w=1u l=17.465u m=1 b=0
+XR0_3 r03 r04 sub rhigh w=1u l=17.465u m=1 b=0
+XR0_4 r04 r05 sub rhigh w=1u l=17.465u m=1 b=0
+XR0_5 r05 r06 sub rhigh w=1u l=17.465u m=1 b=0
+XR0_6 r06 r07 sub rhigh w=1u l=17.465u m=1 b=0
+XR0_7 r07 vout sub rhigh w=1u l=17.465u m=1 b=0
+.ends trm_001_vcr
