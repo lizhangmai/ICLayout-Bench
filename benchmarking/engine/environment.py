@@ -1,85 +1,33 @@
 """Prepare the reviewed PDK view, optionally packaged as generic Agent resources."""
 
 import argparse
-import hashlib
-import json
-import tempfile
 import tomllib
 from pathlib import Path
 
-from benchmarking.bundles import publish_bundle
-from benchmarking.files import Asset
+from benchmarking.bundles import load_bundle
 
 from .pdk_installation import prepare_installation
-
-VIEW_MANIFEST = Path(__file__).with_name("sg13g2_view.json")
+from .resource_cache import bind_resources, cached_resources
 
 
 def prepare_pdk(pdk_manifest: Path, destination: Path) -> str:
-    """Copy only reviewed, hash-matching files; publish the view after validation."""
+    """Bind the complete SG13G2 installation for standalone device checks."""
     config = tomllib.loads(pdk_manifest.read_text())
     source = prepare_installation(config["source"])
-    destination = destination.absolute()
-    if destination.exists() or destination.is_symlink():
-        raise FileExistsError(f"Destination already exists: {destination}")
-    manifest_bytes = VIEW_MANIFEST.read_bytes()
-    manifest = json.loads(manifest_bytes)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=destination.parent) as temporary:
-        stage = Path(temporary) / "view"
-        stage.mkdir()
-        for relative, expected in manifest["files"].items():
-            if relative in config.get("notices", {}):
-                content = config["notices"][relative]["content"].encode()
-            else:
-                path = source / relative
-                if path.resolve(strict=True) != path or not path.is_file():
-                    raise ValueError(f"PDK input must be a regular, non-symlink file: {relative}")
-                content = path.read_bytes()
-            if hashlib.sha256(content).hexdigest() != expected:
-                raise ValueError(f"PDK content differs from the reviewed file: {relative}")
-            target = stage / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(content)
-            target.chmod(0o444)
-        (stage / "manifest.json").write_bytes(manifest_bytes)
-        (stage / "manifest.json").chmod(0o444)
-        stage.rename(destination)
-    return hashlib.sha256(manifest_bytes).hexdigest()
+    pdk_root = source / "ihp-sg13g2"
+    recipe = {"kind": "reviewed-pdk-view", "source": config["source"], "root": str(pdk_root)}
 
+    def build(stage):
+        return {"ihp-sg13g2": str(pdk_root)}
 
-def verify_pdk(view: Path) -> str:
-    """Reject modified, missing or additional files before starting a check."""
-    expected_bytes = VIEW_MANIFEST.read_bytes()
-    if (view / "manifest.json").read_bytes() != expected_bytes:
-        raise ValueError("PDK view does not use the reviewed manifest")
-    manifest = json.loads(expected_bytes)
-    actual_files = set()
-    for path in view.rglob("*"):
-        if path.is_symlink():
-            raise ValueError(f"Symlink in PDK view: {path}")
-        if path.is_file():
-            relative = path.relative_to(view).as_posix()
-            actual_files.add(relative)
-            if relative == "manifest.json":
-                continue
-            expected = manifest["files"].get(relative)
-            if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
-                raise ValueError(f"Unreviewed PDK view content: {relative}")
-    if actual_files != set(manifest["files"]) | {"manifest.json"}:
-        raise ValueError("PDK view file list is incomplete")
-    return hashlib.sha256(expected_bytes).hexdigest()
+    shared = cached_resources("views", recipe, build)
+    bind_resources(shared, destination)
+    return load_bundle(destination).manifest.sha256
 
 
 def prepare_pdk_bundle(pdk_manifest: Path, destination: Path):
-    """Keep process-specific preparation here; session execution consumes a generic bundle."""
-    with tempfile.TemporaryDirectory(prefix="lb-pdk-resources-") as temporary:
-        view = Path(temporary)/"view"
-        digest = prepare_pdk(pdk_manifest, view)
-        files = {p.relative_to(view).as_posix(): Asset(p.read_bytes(), "binary")
-                 for p in view.rglob("*") if p.is_file()}
-        files["view-manifest.json"] = files.pop("manifest.json")
-        return publish_bundle(files, {"kind": "reviewed-pdk-view", "view_sha256": digest}, destination)
+    prepare_pdk(pdk_manifest, destination)
+    return load_bundle(destination)
 
 
 if __name__ == "__main__":

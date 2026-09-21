@@ -1,6 +1,5 @@
-schema_version = 1
-
 [backends.extraction]
+support_profiles = { support = "magic" }
 type = "magic-capacitance-docker"
 [backends.extraction.settings]
 image = "iclayout-bench-tools:local"

@@ -34,12 +34,10 @@ def load_run_config(path: Path) -> RunConfig:
     path = path.absolute()
     source = Asset(read_file(path.parent, path.name), "toml")
     data = tomllib.loads(source.content.decode())
-    keys(data, {"schema_version", "id", "image", "wall_seconds", "memory_mb",
+    keys(data, {"id", "image", "wall_seconds", "memory_mb",
                 "cpus", "pids", "workspace_mb"},
          {"files", "environment", "command", "harness"},
          "run configuration")
-    if type(data["schema_version"]) is not int or data["schema_version"] != 1:
-        raise ValueError("Unsupported run configuration version")
     for name in ("id", "image"):
         text(data[name], name)
     harness = prepare_harness(data)

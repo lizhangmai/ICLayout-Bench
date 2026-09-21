@@ -13,11 +13,11 @@ from typing import Any
 from .evaluation import identifier
 from .files import keys, text
 
-SESSION_PROTOCOL = "layout-session.v1"
+SESSION_PROTOCOL = "layout-session"
 DEFAULT_HARNESS_ID = "external-cli"
 DEFAULT_HARNESS_VERSION = "1"
 HARNESS_MODES = frozenset({"opaque", "managed", "native"})
-PROCESS_FEEDBACK_CAPABILITY = "process-feedback.v1"
+PROCESS_FEEDBACK_CAPABILITY = "process-feedback"
 
 
 @dataclass(frozen=True)

@@ -1,4 +1,4 @@
-"""Version-one result archive schema; identities are portable across SQL backends."""
+"""Result archive schema; identities are portable across SQL backends."""
 
 from sqlalchemy import (
     JSON,

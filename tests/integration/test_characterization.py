@@ -11,6 +11,7 @@ import tomli_w
 from helpers.spice_raw import read_raw
 from helpers.stimuli import command, number
 
+from benchmarking.dataset import load_dataset
 from benchmarking.engine.evaluate import run_evaluation
 from benchmarking.engine.ngspice import NgspiceDocker
 from benchmarking.engine.toolchains import load_toolchain
@@ -113,8 +114,8 @@ def test_simulator_exit_success_without_measurement_is_an_error(tmp_path, backen
 def test_lock_in_window_validity_is_a_tool_error(tmp_path, case, limit_multiple, expected):
     # Exercise the published validity guard with controlled endpoint errors;
     # the existing divider supplies finite measurements without an expensive PEX run.
-    root = FIXTURES.parents[2]
-    case_path = root / "tasks/ihp-sg13g2/analog-db/cases" / case
+    case_path = load_dataset(os.environ.get('ICLAYOUT_BENCH_DATASET')).case(
+        f'ihp-sg13g2.analog-db.{case}').parent
     problem = (case_path / "problem.md").read_text()
     limit_ps = re.search(r"summed endpoint error must not exceed ([\d.]+) ps", problem)
     assert limit_ps, "The solver contract must publish the measurement-validity limit"
@@ -145,7 +146,7 @@ def test_branch_resistors_preserve_picoampere_kcl(tmp_path):
     backend = NgspiceDocker(
         image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local"),
         resistor_formulation="branch")
-    plan = parse_evaluation(b'''schema_version = 1
+    plan = parse_evaluation(b'''
 mode = "characterization"
 [[jobs]]
 id = "op"

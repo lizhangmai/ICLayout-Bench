@@ -58,7 +58,7 @@ class Simulator:
         self.thread.join()
 
     def handle(self, method, path, body):
-        if path == "/v1/sessions":
+        if path == "/sessions":
             self.condition = body["condition"]
             return 201, {
                 "session_id": "s",
@@ -70,7 +70,7 @@ class Simulator:
                 "limits": {},
                 "tool_identity": {},
             }
-        route = path.removeprefix("/v1/sessions/s").strip("/")
+        route = path.removeprefix("/sessions/s").strip("/")
         if route == "":
             return 200, {
                 "state": "complete" if self.closed else "active",

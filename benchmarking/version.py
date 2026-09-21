@@ -1,7 +1,7 @@
 """Public release identity, shared by source runs and built distributions."""
 import json
 import subprocess
-import tomllib
+from importlib.metadata import version
 from pathlib import Path
 
 
@@ -11,8 +11,7 @@ def package_version():
     if stamp.exists():
         return json.loads(stamp.read_text())
     project = root.parent
-    version = tomllib.loads((project / 'pyproject.toml').read_text())['project']['version']
     commit = None
     if (project / '.git').exists():
         commit = subprocess.check_output(['git', '-C', str(project), 'rev-parse', 'HEAD'], text=True).strip()
-    return {'version': version, 'commit': commit}
+    return {'version': version('iclayout-bench'), 'commit': commit}

@@ -14,7 +14,7 @@ def _config(tmp_path, harness="", *, environment=None):
     (tmp_path / "cli.py").write_bytes(script.content)
     path = tmp_path / "agent.toml"
     path.write_text(
-        f'''schema_version = 1
+        f'''
 id = "test-agent"
 image = "synthetic:tag"
 command = ["python", "/agent/cli.py"]
@@ -106,7 +106,7 @@ def test_custom_harness_metadata_does_not_change_command_contract(tmp_path):
             '''[harness]
 id = "custom-runner"
 version = "2026.1"
-protocol = "layout-session.v1"
+protocol = "layout-session"
 mode = "managed"
 capabilities = ["tools"]
 ''',

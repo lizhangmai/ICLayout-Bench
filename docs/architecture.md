@@ -29,37 +29,61 @@ benchmarking/
   run.py      # experiment runner entry point
 ```
 
-ICLayout-Designs independently owns design development, reconstruction recipes,
-editable schematic projects and static delivery generation. Bench consumes reviewed
-static netlists, decks, layouts and SVGs; its installation, tests and runtime do not
-require Designs. Designs may stage proposed task configurations, but Bench owns
-the authoritative task contract, validation, evaluation and qualification. Changes
-to development recipes do not update published tasks automatically.
+The engine owns the task format, validation, scoring semantics and execution.
+An independently selected Dataset owns concrete contracts, coefficients, static
+inputs, witnesses, licenses and compact acceptance summaries. Full development
+and participant-path reports are retained by the author. Dataset loading and normal
+evaluation require neither a design source checkout nor an operator platform.
 
-Private owns `iclayout_bench_private`: controlled reruns, hidden-task admission,
-internal batch verification, the operator website and reviewed releases. It reuses
-Public's evaluation engine and evaluation-session HTTP adapter. Its separate
-website API owns administrator authentication, import jobs, publication and asset
-access; it is not another evaluator or a participant session endpoint. Hidden
-tasks, deployment credentials and restricted evidence remain operator-owned.
-Source dependency is **Private → Public**. Public installs and tests without Private.
+Design authors deliver validated static materials. Participants install this
+package and keep experiment configurations and terminal results in their own
+workspace. Operators implement deployment, admission, accounts, publication and
+restricted-data policy through the public interfaces. Those applications are
+consumers, not dependencies or implementation directories of this repository.
 
-UserTrial installs the Public wheel to run local self-tests and remote experiments.
-It maintains concrete TOML configurations, dependency requirements and usage
-instructions, and calls `benchmarking.run` directly. Framework regression tests
-belong to Public. UserTrial has no test suite, runner/adapter implementation,
-source clone or copied evaluator.
-The public catalog checkout is an explicit data/build input for local preparation;
-a prepared case can be served using only the installed wheel and Docker. The
-`--public-root` preview option locates that catalog independently of Python imports.
+The checkout's `examples/` directory maintains participant configurations and
+instructions for running an installed wheel with Python isolated mode. Machine settings, environments and
+retained results are ignored by Git; they are not package assets. Examples accept
+explicit Dataset and endpoint inputs and do not import the enclosing source tree.
+
+The Dataset is an explicit resource input, resolved with `huggingface_hub` for HF
+repo IDs or from a supplied local Dataset working copy. `tasks/` and the official
+case-level `in_core` flags belong only to that independent data repository. HF owns download
+caches. The evaluator reads snapshot files directly and binds tools/resources in
+memory; there is no prepared case export or rewritten task configuration. Dataset
+commits and content digests are recorded separately from engine implementation.
 
 PDK preparation belongs to the shared engine. Process manifests select pinned
 upstreams or ciel prebuilt releases and evaluator profiles. The tool image
-contains EDA programs; installed PDKs remain separately hashed resources. Evaluator
-support and the filtered Agent mount derive from the same declared installation,
-with explicit profile adaptations. The configurable download cache is disposable; fixed release pins and full
-installation checksums remain authoritative during offline reuse. See the
+contains EDA programs; ciel owns its installed PDK releases. Evaluator
+support and the Agent mount use the same declared installation. Agents receive
+the complete selected PDK root as a read-only bind mount. Runtime bindings stay in memory; no per-case resource directories are generated. Evaluator files
+are mounted from the installation or shared derived cache, with explicit profile
+adaptations. Archives retain the recipe and compiler identity rather than copying
+PDK contents. Task inputs and submissions remain byte snapshots. Bench does not
+maintain a second PDK checksum inventory. See the
 [preparation contract](tools.md#external-sources).
+
+### Static website hosting
+
+The public repository can host an operator-reviewed static website on its
+`gh-pages` branch. That branch contains generated HTML, browser assets and
+explicitly published data only. Website authoring, source data, accounts, review
+and export tooling remain external operator responsibilities. Neither package
+installation nor package CI depends on this branch or on a website backend.
+
+The optional `Publish reviewed website` workflow is manually dispatched from the
+main branch after a reviewed `gh-pages` commit has been pushed. Configure the
+repository's Pages source as **GitHub Actions** and restrict the `github-pages`
+environment to the main branch. The workflow verifies the release file manifest,
+uploads that branch's static artifact and deploys it; it does not build or import
+an operator application. Alternatively, GitHub's built-in branch publishing can
+serve `gh-pages` directly when no custom workflow is enabled. Choose one method.
+
+Static publication is a public snapshot, including Git history. Withdrawal
+requires a new export and deployment; it cannot revoke already downloaded or
+historically committed bytes. A custom domain can later point to an operator
+service while preserving public route and record identifiers.
 
 ### Execution entry points
 
@@ -88,55 +112,72 @@ identical evaluator context and limits; scheme identities remain distinct.
 Historical unsplit tool identities stay intact and are not promoted into new
 attestations. Local identities never imply operator verification.
 
+The local HTTP service advertises `process-feedback`. The participant MCP `check`
+tool and `benchmarking.client check` invoke the service-owned
+`/protocol/process_check.py` through the normal execution channel. Each call freezes
+the current declared output, runs the complete final evaluation plan with the same
+trusted backends, and returns bounded job diagnostics and the evaluator identity.
+It consumes the existing solve deadline and diagnostic allowance, creates no
+submission, and never replaces the independent final evaluation. Solver-authored
+EDA commands remain exploratory; they are not the authoritative acceptance path.
+
+`benchmarking.engine.qualification` verifies a witness through direct evaluation,
+HTTP/MCP checking and final HTTP submission. The three paths must agree on every
+job/metric acceptance status and task outcome. All measurements and scores are
+retained; score and per-condition numerical spreads must also satisfy the
+[repeatability limits](../CONTRIBUTING.md#task-qualification). Retained evidence binds the
+contract, witness, PDK declaration, evaluator and participant-check implementation.
+The core publication gate receives an explicit external case-to-evidence map and
+rejects missing or stale evidence; qualification does
+not rely on the catalog status alone. See [qualification](../CONTRIBUTING.md#task-qualification).
+
 `benchmarking.engine.execution.run_session` requires the caller's session. It
 records inputs, runs that session and evaluates its accepted snapshot. The HTTP
-service supplies its attached workspace session; Private swarm supplies a frozen
-Docker session. Private's HTTP rerun uses the same service and Public's process
-supervisor while retaining operator freeze, evidence and verification policy.
-Those operator workflows retain their different replacement and admission
-semantics; ordinary users use the Public experiment entry point.
+service supplies its attached workspace session; external orchestrators may
+supply another compatible frozen session. Orchestrator-specific admission,
+replacement and release policies remain with that consumer.
 
 ### Result handoff and storage ownership
 
 | Boundary | Owner | Responsibility |
 | --- | --- | --- |
-| Evaluation and terminal export | Public implementation, invoked by UserTrial or another participant | Run the declared experiment, observe the evaluator and write the shared result format without changing its verification level. |
-| Participant experiment workspace | UserTrial | Choose configurations, invoke the installed Public runner and retain original exports; it has no website database credentials or publication authority. |
+| Evaluation and terminal export | Installed package, invoked by a participant | Run the declared experiment, observe the evaluator and write the shared result format without changing its verification level. |
+| Participant experiment workspace | Participant | Choose configurations, invoke the installed Public runner and retain original exports; it has no website database credentials or publication authority. |
 | Optional participant archive | Public `benchmarking.results`, installed in the participant environment | Index exports for local inspection; this is separate from the operator website's database. |
-| Website ingestion and retained archive | Private | Accept operator-selected exports, validate and deduplicate using Public code, store metadata and artifacts, and track import diagnostics. |
-| Public disclosure | Private | Review and publish results and assets separately, calculate website rankings and enforce withdrawal. |
+| Website ingestion and retained archive | Operator | Accept operator-selected exports, validate and deduplicate using Public code, store metadata and artifacts, and track import diagnostics. |
+| Public disclosure | Operator | Review and publish results and assets separately, calculate website rankings and enforce withdrawal. |
 
 Submitting a candidate to an evaluation session, transferring terminal exports,
 importing records and publishing them are separate operations. Public's
 `benchmarking.transfer` owns the portable package contract and generic upload/status
-client. When enabled by the operator, Private accepts authenticated HTTP uploads,
+client. When enabled by the operator, its application accepts authenticated HTTP uploads,
 assigns account ownership and source labels, validates packages, and queues ingestion.
 The participant's
 `results_data` outbox only indexes its selected local archive; it is not a website
 delivery queue. Evaluation `--endpoint` and upload `--website` are distinct services.
 
-UserTrial exercises the installed Public client as an ordinary participant; it has
-no website database credentials or publication authority. Private still supports
+A participant uses the installed Public client and has
+no website database credentials or publication authority. Operators may support
 administrator-triggered imports from a configured read-only filesystem root.
-A same-machine mount is a data handoff, not a UserTrial source dependency. Neither
+A same-machine mount is a data handoff, not a source dependency. Neither
 upload nor import promotes an evaluation's recorded verification level. Configuring
 the generic archive with PostgreSQL does not authorize direct production writes.
 
 The archive accepts an `object_store` with `put(bytes) -> (sha256, size)` and
-`path(sha256) -> Path`. Public supplies `FileObjects`; Private supplies S3 objects
+`path(sha256) -> Path`. Public supplies `FileObjects`; operator applications may supply S3 objects
 with a disposable local cache. `ResultStore.artifact` checks SQL membership and
 content digests regardless of storage. Public's SQLAlchemy `results.schema` and
-`ensure_record` support transactional joins and insert-once records; Private owns
-its publication/ownership tables and queries. This avoids per-table forwarding
+`ensure_record` support transactional joins and insert-once records; operators own
+their publication/ownership tables and queries. This avoids per-table forwarding
 APIs and private-method overrides. Schema changes require coordinated consumers
-and migrations; no database schema or recorded identity is changed by choosing
+and table initialization; no database schema or recorded identity is changed by choosing
 an object adapter.
 
 See [website result delivery](running.md#website-result-delivery) for the package,
-client commands and failure/retry contract. Private owns provider configuration,
+client commands and failure/retry contract. Operators own provider configuration,
 email delivery, accounts, authorization, storage, review and publication.
 
-Local self-testing and operator-service participation use `layout-http.v1`,
+Local self-testing and operator-service participation use `layout-http`,
 the same task checks and scoring arithmetic.
 Local results are always `local_development`; a harness name does
 not certify a participant-controlled run. Only a frozen evaluator-operated rerun
@@ -155,13 +196,13 @@ containers receive neither credentials nor reference layouts.
 
 <a id="http-session"></a>
 
-## HTTP session contract: `layout-http.v1`
+## HTTP session contract: `layout-http`
 
 This section owns the wire contract. JSON uses UTF-8, finite numbers, UTC RFC 3339
 timestamps and lowercase SHA-256 hex digests. Paths below are relative to the
-service URL. Version 1 uses `/v1`; incompatible changes require another version.
-Responses include `protocol: "layout-http.v1"`. Clients ignore unknown response
-fields but reject incompatible versions. Unknown request fields, malformed JSON
+service URL. Session routes start with `/sessions`.
+Responses include `protocol: "layout-http"`. Clients ignore unknown response
+fields but reject unknown protocol identifiers. Unknown request fields, malformed JSON
 and wrong types return `400`. The protocol field is response metadata, not a
 required request member.
 
@@ -172,7 +213,7 @@ Credentials never enter EDA containers. Cross-session and nonexistent identifier
 both return `404` after authentication.
 
 Errors have the shape
-`{"protocol":"layout-http.v1","error":{"code":"invalid_request","message":"...","retryable":false}}`.
+`{"protocol":"layout-http","error":{"code":"invalid_request","message":"...","retryable":false}}`.
 Terminal results may include `failure_category` to distinguish service
 interruption, evaluator tool errors and unknown failures; task verdicts remain
 independent of participant process exits. Messages exclude host paths, exception traces, hidden materials and secrets.
@@ -233,20 +274,20 @@ also includes the common `protocol` field.
 
 | Method and path | Request | Success fields |
 |---|---|---|
-| `POST /v1/sessions` | `task_id`, `condition` | `session_id`, `session_token`, status fields, `task`, `capabilities`, `limits`, `tool_identity`, `retained_until` |
-| `GET /v1/sessions/{sid}` | None | `session_id`, `state`, `created_at`, `deadline`, `remaining_seconds`, `active_execution_id` (nullable), `last_submission` (nullable receipt), `diagnostics_remaining`, `opinions_remaining` |
-| `GET /v1/sessions/{sid}/file?path=...` | URL-encoded relative path | `path`, `content_base64`, `sha256`, `size_bytes` |
-| `POST /v1/sessions/{sid}/files` | `path`, `content_base64` | `path`, `sha256`, `size_bytes` |
-| `POST /v1/sessions/{sid}/executions` | `command` (shell string), `timeout_seconds` | `execution_id`, `state` |
-| `GET /v1/sessions/{sid}/executions/{eid}?offset=0` | Nonnegative byte offset, default 0 | `execution_id`, `state`, `exit_code` (nullable), `log_base64`, `next_offset`, `truncated` |
-| `POST /v1/sessions/{sid}/executions/{eid}/cancel` | `{}` | `execution_id`, `state` |
-| `POST /v1/sessions/{sid}/submissions` | `path` | Receipt fields below |
-| `GET /v1/sessions/{sid}/submissions/{submission_id}` | None | Receipt fields below |
-| `POST /v1/sessions/{sid}/diagnostics` | `submission_id` | `diagnostic_id`, `submission_id`, `candidate_sha256`, `state` |
-| `GET /v1/sessions/{sid}/diagnostics/{diagnostic_id}` | None | `diagnostic_id`, `state`, `summary` (nullable), `candidate_sha256` |
-| `POST /v1/sessions/{sid}/opinions` | `text`, optional `submission_id` | `opinion_id`, `received_at` |
-| `POST /v1/sessions/{sid}/close` | `{}` | `session_id`, `state`, `last_submission` |
-| `GET /v1/sessions/{sid}/result` | None | Result fields below |
+| `POST /sessions` | `task_id`, `condition` | `session_id`, `session_token`, status fields, `task`, `capabilities`, `limits`, `tool_identity`, `retained_until` |
+| `GET /sessions/{sid}` | None | `session_id`, `state`, `created_at`, `deadline`, `remaining_seconds`, `active_execution_id` (nullable), `last_submission` (nullable receipt), `diagnostics_remaining`, `opinions_remaining` |
+| `GET /sessions/{sid}/file?path=...` | URL-encoded relative path | `path`, `content_base64`, `sha256`, `size_bytes` |
+| `POST /sessions/{sid}/files` | `path`, `content_base64` | `path`, `sha256`, `size_bytes` |
+| `POST /sessions/{sid}/executions` | `command` (shell string), `timeout_seconds` | `execution_id`, `state` |
+| `GET /sessions/{sid}/executions/{eid}?offset=0` | Nonnegative byte offset, default 0 | `execution_id`, `state`, `exit_code` (nullable), `log_base64`, `next_offset`, `truncated` |
+| `POST /sessions/{sid}/executions/{eid}/cancel` | `{}` | `execution_id`, `state` |
+| `POST /sessions/{sid}/submissions` | `path` | Receipt fields below |
+| `GET /sessions/{sid}/submissions/{submission_id}` | None | Receipt fields below |
+| `POST /sessions/{sid}/diagnostics` | `submission_id` | `diagnostic_id`, `submission_id`, `candidate_sha256`, `state` |
+| `GET /sessions/{sid}/diagnostics/{diagnostic_id}` | None | `diagnostic_id`, `state`, `summary` (nullable), `candidate_sha256` |
+| `POST /sessions/{sid}/opinions` | `text`, optional `submission_id` | `opinion_id`, `received_at` |
+| `POST /sessions/{sid}/close` | `{}` | `session_id`, `state`, `last_submission` |
+| `GET /sessions/{sid}/result` | None | Result fields below |
 
 `capabilities` lists optional implemented operations (`diagnostics`, `opinions`).
 Absent optional operations return `404` and their budgets are zero. All other
@@ -279,9 +320,7 @@ are unreviewed observations, independent of submissions and scores.
 
 `condition` identifies the participant Agent: `harness_kind` (`agent`),
 `harness_id`, `harness_version`, `model`, `prompt_sha256`, `configuration_sha256`.
-The last two may be null when unknown. Historical `official` and `custom` kind
-labels remain readable for protocol compatibility; neither is an evaluation mode
-or trust claim. New participants use `agent`. Metadata does not certify model
+The last two may be null when unknown. Metadata does not certify model
 identity or absence of human assistance. Different Agent configurations remain
 separate comparison groups.
 
@@ -322,7 +361,7 @@ HTTP tools, server-enforced budgets, observation and independent scoring. It doe
 not choose the participant's next action. `benchmarking.official` and its
 structured-action solver loop have been removed.
 
-`GET /v1/sessions/{id}/observations?offset=0` is a read-only, session-token-scoped
+`GET /sessions/{id}/observations?offset=0` is a read-only, session-token-scoped
 view of successful API interactions. It returns `session_id`, `provenance`
 (`server_observed`), `available`, ordered `events`, `next_offset` and `has_more`.
 The offset is a zero-based event count; each event has `sequence`, `timestamp`,
@@ -352,7 +391,7 @@ service usage or change a result's trust label. Files are local, never uploaded.
 
 Public scoring arithmetic and task/evaluation schemas remain auditable. The shared evaluator
 freezes inputs and executes the declared checks against immutable candidates.
-Public can evaluate prepared public tasks locally without an operator account. Protocol
+Public can evaluate public Dataset tasks locally without an operator account. Protocol
 simulators return explicit errors and cannot be analyzed as model measurements.
 
 Only independently verified evaluator-controlled conditions can receive
@@ -370,15 +409,19 @@ aggregate disclosure remain evaluator-side operations.
 ## Result archive and platform presentation
 
 `benchmarking.results` owns database import, immutable run/evaluation identities,
-artifact copies, comparison grouping, task presentations and schema migrations.
+artifact copies, comparison grouping, task presentations and table initialization.
 Its `ResultStore` interface is shared by the CLI, participant outbox and operator platform.
-SQLAlchemy supports local SQLite and PostgreSQL; Alembic owns schema versions.
+SQLAlchemy initializes the current tables in local SQLite and PostgreSQL. Existing
+tables are updated explicitly with a backup and retained-data verification; startup
+does not transform existing columns. Repository Git tags identify code releases.
+Maintained formats use one current shape without numeric schema fields or version
+dispatch. Published leaderboard revisions are independent business records.
 Original exports remain evidence, while normalized columns serve paginated queries.
 Evaluation revisions are append-only. Content-addressed artifacts are persisted
 before their SQL references are committed; an interrupted transaction can leave
 unreferenced objects but never a committed reference to an unwritten object.
 
-Private owns the unified Web service, browser frontend, HTTP routes and publication
+Operators own the unified Web service, browser frontend, HTTP routes and publication
 permissions. Public ships shared result storage, queries and presentation processing
 through the optional `results` extra, with no standalone Web server or frontend.
 The evaluation HTTP service remains a separate execution interface.
@@ -394,8 +437,8 @@ come from a separately selected Git revision only after case identity, source
 netlist digest, asset digest and embedded provenance checks. The archive records
 both revisions; the platform renders images without embedding an editor.
 
-UserTrial only installs this Public implementation and chooses storage/configuration.
-Private remains responsible for formal deployments and disclosure. A public
+Participants install this package and choose storage and configuration.
+The operator remains responsible for formal deployments and disclosure. A public
 platform must consume reviewed exports rather than unrestricted hidden-task stores.
 See [result archive operation](running.md#result-archive) for formats, comparison
 semantics, presentation limitations and backups.
@@ -404,7 +447,7 @@ semantics, presentation limitations and backups.
 
 The public [protocol](#http-session) owns trust labels and result
 fields. Admission, raw evidence verification and release construction execute in
-Private. A participant harness identity does not raise its trust level.
+operator applications. A participant harness identity does not raise its trust level.
 
 ### Frozen evaluator-operated reruns
 
@@ -430,19 +473,11 @@ provider's internal implementation. Unknown cost/usage is never zero-filled.
 
 ### Hidden data
 
-The operator HTTP rerun exporter accepts only `public_development`. Hidden designs
-use Private's admission-controlled workflow: unpublished sources and authorization,
-qualification evidence, resource/endpoint review, an immutable task/repetition
-plan and a single-use exposure reservation are required before execution.
-Synthetic hidden fixtures test these boundaries; they are not real hidden tasks.
-Software cannot prove unpublished origin, licensing rights or provider retention
-arrangements. Those remain explicit operator records.
-
-A hidden release is reconstructed from an approved field allowlist and fixed
-aggregate groups. It suppresses small task/family/trial groups and exposes neither
-per-task identifiers/metrics nor raw logs, paths, candidates or qualifications.
-Changing the release policy after a run cannot relax its original restrictions.
-Public-task rerun releases and hidden aggregate releases are different artifacts.
+Restricted tasks and evidence are external operator inputs. The public package
+does not define an operator's authorization workflow, exposure reservations or
+aggregate disclosure policy. A deployment must enforce those policies before
+calling execution or publishing results. Generic trust labels do not establish
+asset rights or authorize disclosure.
 
 ### Publication boundary
 
@@ -451,3 +486,12 @@ upload it or make a leaderboard. Keep credentials and growing raw evidence out
 of Git. Actual hidden-task qualification, deployment identities and authority to
 publish restricted materials must exist before a real hidden release. The
 framework's tests and a successful public rerun do not supply that authority.
+
+## Pre-layout calibration and post-layout evaluation
+
+the design authoring workspace owns source-circuit characterization, target selection and retained
+calibration evidence. Public receives frozen `pre_layout` measurements alongside
+the static case. Candidate evaluation executes candidate-dependent post-layout
+jobs and compares their observations with those fixed baselines. It never runs
+source characterization to set targets during candidate evaluation. See
+[tasks](tasks.md#electrical-quality) for the contract and invalidation rules.

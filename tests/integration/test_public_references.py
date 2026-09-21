@@ -4,16 +4,15 @@ import os
 import tomllib
 
 import pytest
-from helpers.catalog import CATALOGS, ROOT, read_catalog
+from helpers.catalog import CASES as PUBLISHED_CASES
+from helpers.catalog import ROOT, read_case
 
 from benchmarking.engine.evaluate import run_evaluation
-from benchmarking.engine.preparation import prepare_case as prepare_public_case
-from benchmarking.engine.toolchains import load_toolchain
-from benchmarking.files import Asset, read_file
-from benchmarking.tasks import load_task
+from benchmarking.engine.runtime import load_case
+from benchmarking.files import Asset
 
 pytestmark = [pytest.mark.integration, pytest.mark.acceptance_eda]
-CASES = [path for catalog in CATALOGS for path, data in read_catalog(catalog)[1]
+CASES = [path for path in PUBLISHED_CASES for data in [read_case(path)]
          if data.get('status') in {'candidate', 'qualified'}
          and data.get('task') and data.get('qualification', {}).get('reference')]
 
@@ -26,12 +25,8 @@ def prepare_case(tmp_path_factory):
     def prepare(case):
         if case in environments:
             return environments[case]
-        prepared = prepare_public_case(case, tmp_path_factory.mktemp('public-reference') / 'prepared',
-                                       root=ROOT, image=image)
-        data = tomllib.loads(prepared.read_text())
-        witness_path = data['qualification']['reference']
-        witness = Asset(read_file(prepared.parent, witness_path), 'gds')
-        environments[case] = load_task(prepared), load_toolchain(prepared), witness
+        runtime = load_case(case, image=image, include_agent=False)
+        environments[case] = runtime.task, runtime.backends, runtime.witness()
         return environments[case]
 
     return prepare

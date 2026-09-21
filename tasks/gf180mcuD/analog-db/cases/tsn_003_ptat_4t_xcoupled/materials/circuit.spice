@@ -1,9 +1,0 @@
-* Derived from analog-db tsn_003_ptat_4t_xcoupled, GF180 binding at
-* 263d0322f8900dc331536fbbe6c0e804514fc454. Copyright 2026 Danial Noori Zadeh.
-* See collection LICENSE and NOTICE. Layout-Bench changes: fixed GF180 dimensions and body rails.
-.subckt tsn_003_ptat_4t_xcoupled vdd vout vss
-XM0 vout na vss vss nfet_03v3 w=4u l=3u m=1
-XM1 na na vss vss nfet_03v3 w=1u l=3u m=1
-XM3 vout vout vdd vdd pfet_03v3 w=2u l=3u m=1
-XM4 na vout vdd vdd pfet_03v3 w=2u l=3u m=1
-.ends tsn_003_ptat_4t_xcoupled

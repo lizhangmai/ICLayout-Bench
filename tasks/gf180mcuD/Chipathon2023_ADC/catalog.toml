@@ -1,4 +1,0 @@
-schema_version = 3
-cases = [
-    { id = "gf180mcuD.Chipathon2023_ADC.comparator", config_path = "cases/comparator/case.toml" },
-]

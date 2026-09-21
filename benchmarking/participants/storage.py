@@ -12,8 +12,7 @@ def case_identity(condition, task):
     row = condition["plan"][0]
     if task not in row["tasks"]:
         raise ValueError("Task is absent from the recorded condition")
-    identity = {k: v for k, v in condition.items() if k not in {"plan", "inputs", "layout"}}
-    identity["layout"] = "case-v2"
+    identity = {k: v for k, v in condition.items() if k not in {"plan", "inputs"}}
     identity["plan"] = [{**{k: v for k, v in row.items() if k not in {"tasks", "concurrency"}},
                          "tasks": [task]}]
     if "inputs" in condition:

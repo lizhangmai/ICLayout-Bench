@@ -45,7 +45,7 @@ def export_observation(client, session_id, destination, *, participant_files=())
         raw = source.read_bytes()
         atomic_write(output / 'participant' / source.name, raw)
         traces[source.name] = Asset(raw, 'binary').identity()
-    manifest = {'schema_version': 1, 'session_id': session_id,
+    manifest = {'session_id': session_id,
                 'service': {'provenance': 'server_observed', 'available': page['available'],
                             'next_offset': offset, 'state': result['state'],
                             'verification_level': result['verification_level'],

@@ -22,9 +22,9 @@ from benchmarking.engine.execution import run_session
 from benchmarking.engine.identity import evaluation_identity
 from benchmarking.engine.model_config import RunConfig
 from benchmarking.engine.recorder import BatchLease, atomic_write
-from benchmarking.engine.session import DockerSession
+from benchmarking.engine.session import MAX_PROCESS_FEEDBACK, DockerSession
 from benchmarking.files import Asset, relative
-from benchmarking.harnesses import HarnessSpec
+from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
 from benchmarking.protocol import (
     PROTOCOL,
     SESSION_STARTUP_TIMEOUT_SECONDS,
@@ -62,7 +62,7 @@ def session_limits(task, seconds=None):
     return {'wall_seconds': seconds, 'cpus': 4, 'memory_mb': 8192, 'pids': 512, 'workspace_mb': 2048,
                            'max_file_bytes': 4*1024*1024, 'max_response_bytes': 8*1024*1024,
                            'max_candidate_bytes': task.output.max_bytes, 'max_command_seconds': seconds,
-                           'max_log_bytes': 4*1024*1024, 'diagnostic_requests': 0, 'opinion_requests': 0}
+                           'max_log_bytes': 4*1024*1024, 'diagnostic_requests': MAX_PROCESS_FEEDBACK, 'opinion_requests': 0}
 
 
 class AttachedSession(DockerSession):
@@ -120,7 +120,7 @@ class LocalService:
     def _accept_event(self, data, event):
         receipt = event['data']['receipt']
         key = receipt.get('idempotency_key')
-        # Container-side unkeyed helpers are compatibility submissions, not HTTP requests.
+        # Container-side helpers submit directly; HTTP requests require idempotency keys.
         sub = str(receipt['sequence'])
         data['submissions'][sub] = {'submission_id': sub, 'sequence': receipt['sequence'],
             'candidate_sha256': receipt['sha256'], 'size_bytes': receipt['bytes'], 'accepted_at': event['time']}
@@ -139,12 +139,22 @@ class LocalService:
         else:
             state = 'active'
         subs = data['submissions']
+        checks = 0
+        journal = self.root/data['session_id']/'run/events.jsonl'
+        if journal.exists():
+            for line in journal.read_bytes().splitlines():
+                try:
+                    checks += json.loads(line).get('kind') == 'process_feedback.request'
+                except ValueError:  # A journal append may still be in flight.
+                    break
         return {'session_id': data['session_id'], 'state': state, 'created_at': data['created_at'],
                     'deadline': data['deadline'], 'remaining_seconds': max(0, data['deadline_epoch']-time.time())
                     if state == 'active' else 0,
                     'active_execution_id': next((k for k, v in data['executions'].items() if v['state']=='running'), None),
                     'last_submission': max(subs.values(), key=lambda s:s['sequence']) if subs else None,
-                    'diagnostics_remaining': 0, 'opinions_remaining': 0}
+                    'capabilities': [PROCESS_FEEDBACK_CAPABILITY] if data['limits'].get('diagnostic_requests', 0) else [],
+                    'diagnostics_remaining': max(0, data['limits'].get('diagnostic_requests', 0) - checks),
+                    'opinions_remaining': 0}
 
     def _result(self, data):
         status = self._status(data)
@@ -179,14 +189,14 @@ class LocalService:
     def handle(self, method, path, query, token, body, key):
         with self.lock:
             parts = path.strip('/').split('/')
-            if parts[:2] != ['v1', 'sessions']:
+            if parts[:1] != ['sessions']:
                 raise APIError(404, 'not_found', 'Route not found')
             if not token:
                 raise APIError(401, 'unauthorized', 'Bearer token required')
             if method == 'POST':
                 identifier(key)
                 json_bytes(body)
-            if parts == ['v1', 'sessions']:
+            if parts == ['sessions']:
                 if not secrets.compare_digest(token, self.token):
                     raise APIError(401, 'unauthorized', 'Invalid access token')
                 if method != 'POST' or query:
@@ -203,12 +213,12 @@ class LocalService:
                 self._observe(self.runs[response['session_id']], 'session.created',
                               {'task_id': body['task_id'], 'limits': response['limits']})
                 return status, response
-            if len(parts) < 3:
+            if len(parts) < 2:
                 raise APIError(404, 'not_found', 'Route not found')
-            data = self.runs.get(parts[2])
+            data = self.runs.get(parts[1])
             if data is None or not secrets.compare_digest(token, data['token']):
                 raise APIError(404, 'not_found', 'Session not found')
-            route = '/'.join(parts[3:])
+            route = '/'.join(parts[2:])
             if time.time() > data['retained_epoch']:
                 raise APIError(410, 'session_closed', 'Retention period ended')
             if method == 'POST':
@@ -276,7 +286,8 @@ class LocalService:
         config = RunConfig(cond['harness_id'], self.image, ('/bin/sleep','infinity'), self.limits['wall_seconds'],
                            self.limits['memory_mb'], self.limits['cpus'], self.limits['pids'],
                            self.limits['workspace_mb'], {}, {}, Asset(json_bytes(cond), 'json'),
-                           HarnessSpec(id=cond['harness_id'], version=cond['harness_version']))
+                           HarnessSpec(id=cond['harness_id'], version=cond['harness_version'],
+                                       capabilities=(PROCESS_FEEDBACK_CAPABILITY,)))
         def attach(workspace, recorder):
             with startup_lock:
                 if abandoned.is_set():
@@ -336,7 +347,8 @@ class LocalService:
         response = self._status(data) | {'protocol': PROTOCOL, 'session_token': data['token'],
             'task': {'id': self.task.id, 'sha256': self.task.digest, 'description': self.task.description(),
                       'input_paths': [f'/task/{i.path}' for i in self.task.inputs], 'workspace_root': '/workspace'},
-            'limits': data['limits'], 'capabilities': [], 'tool_identity': data['tool_identity'], 'retained_until': data['retained_until']}
+            'limits': data['limits'], 'capabilities': [PROCESS_FEEDBACK_CAPABILITY],
+            'tool_identity': data['tool_identity'], 'retained_until': data['retained_until']}
         data['creation_response'] = response
         self._save(data)
         return 201, response

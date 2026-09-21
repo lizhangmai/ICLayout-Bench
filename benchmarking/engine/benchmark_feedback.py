@@ -8,22 +8,20 @@ import json
 import socket
 from pathlib import Path
 
-CAPABILITY = "benchmark-feedback.v1"
+CAPABILITY = "benchmark-feedback"
 MAX_BYTES = 16384
 MAX_REPORTS = 16
 CATEGORIES = ("task", "inputs", "resources", "tools", "evaluation", "protocol", "other")
 
 
 def validate_feedback(value):
-    required = {"schema_version", "category", "summary", "observed"}
+    required = {"category", "summary", "observed"}
     optional = {"expected", "suggestion", "evidence"}
     if not isinstance(value, dict) or not required <= value.keys() or value.keys() - required - optional:
-        raise ValueError("Feedback requires schema_version, category, summary and observed")
-    if type(value["schema_version"]) is not int or value["schema_version"] != 1:
-        raise ValueError("Unsupported feedback schema")
+        raise ValueError("Feedback requires category, summary and observed")
     if value["category"] not in CATEGORIES:
         raise ValueError("Unknown feedback category")
-    for name in (required | optional) - {"schema_version", "category"}:
+    for name in (required | optional) - {"category"}:
         if name in value and (not isinstance(value[name], str) or not value[name].strip()
                               or "\x00" in value[name]):
             raise ValueError(f"Feedback {name} must be nonempty text")

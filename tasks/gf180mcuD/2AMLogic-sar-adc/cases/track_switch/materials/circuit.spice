@@ -1,7 +1,0 @@
-* Layout-Bench source-library derivative: Xschem wrapper enabled, terminal .end and local path comments removed.
-.subckt adc_tgate_dum vin vout clk clkb vdd vss
-XN  vin  clk  vout vss   nfet_03v3 w=40u l=0.28u
-XP  vin  clkb vout vdd pfet_03v3 w=80u l=0.28u
-XDN vout clkb vout vss   nfet_03v3 w=17.5u l=0.28u
-XDP vout clk  vout vdd pfet_03v3 w=35u l=0.28u
-.ends adc_tgate_dum

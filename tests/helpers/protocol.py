@@ -7,7 +7,7 @@ def write_protocol_task(root):
     root.mkdir(parents=True, exist_ok=True)
     netlist = b"* Protocol-only input; never simulated or compared by LVS.\n.subckt TEST A B\n.ends\n"
     (root / "input.spice").write_bytes(netlist)
-    config = '''schema_version = 1
+    config = '''
 id = "protocol-test"
 title = "Synthetic protocol input"
 kind = "netlist_to_gds"
@@ -27,13 +27,13 @@ format = "gds"
 top_cell = "TEST"
 max_bytes = 1048576
 [evaluation]
-schema_version = 1
 mode = "post_layout"
 [evaluation.scoring]
-method = "layout-v1"
+method = "layout"
 area_metric = "functional_area"
 area_target = 1
-area_zero = 2
+rationale = "Protocol fixture weights."
+weights = {response = 0.8, functional_area = 0.2}
 '''.replace("NETLIST_HASH", Asset(netlist, "spice").sha256)
     for gate in ("artifact", "drc", "lvs", "constraint"):
         config += f'''[[evaluation.jobs]]
@@ -71,8 +71,19 @@ direction = "minimize"
 aggregation = "max"
 upper = 1
 dimension = "response"
-zero_upper = 2
+baseline = ["source:response"]
+normalization = "ratio"
 '''
+    import tomli_w
+
+    config += tomli_w.dumps({"evaluation": {"pre_layout": {
+        "source_report_sha256": "0" * 64,
+        "backends": {"simulate": "synthetic protocol fixture"},
+        "jobs": {"source": {"operation": "simulate", "inputs": {"dut": "input:netlist"},
+                            "input_sha256": {"dut": Asset(netlist, "spice").sha256},
+                            "outputs": {}, "parameters": {},
+                            "measurements": {"response": {"value": 1, "unit": "s"}}}},
+    }}}).replace("[evaluation]\n", "")
     path = root / "task.toml"
     path.write_text(config)
     return path

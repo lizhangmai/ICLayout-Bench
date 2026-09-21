@@ -118,11 +118,9 @@ def load_inference_config(path):
     path = path.absolute()
     source = Asset(read_file(path.parent, path.name), "toml")
     data = tomllib.loads(source.content.decode())
-    keys(data, {"schema_version", "base_url", "model", "api_key_env", "max_requests",
+    keys(data, {"base_url", "model", "api_key_env", "max_requests",
                 "request_timeout_seconds", "wire_api"},
          {"max_input_tokens", "max_output_tokens", "max_wall_seconds", "proxy_url"}, "inference profile")
-    if type(data["schema_version"]) is not int or data["schema_version"] != 1:
-        raise ValueError("Unsupported inference profile")
     url = urlsplit(text(data["base_url"], "inference endpoint"))
     if (url.scheme not in {"http", "https"} or not url.hostname or url.username or url.password or url.query
             or url.fragment or ".." in url.path or "%" in url.path):
@@ -675,9 +673,3 @@ class InferenceGateway:
                 "infrastructure_error": self.shutdown_incomplete or any(e["outcome"] not in {"completed", "budget_truncated",
                                                                   "content_filtered", "cancelled"}
                                             for e in self.events)}
-
-
-# Compatibility name for callers that used the original implementation name.
-# It does not select a different implementation; profiles still choose the
-# registered wire family through ``wire_api``.
-ResponsesGateway = InferenceGateway

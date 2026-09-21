@@ -13,7 +13,7 @@ from benchmarking.files import Asset
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_ROOT = ROOT
+from helpers.catalog import ROOT as PUBLIC_ROOT
 
 
 @pytest.mark.parametrize("case_name", ["full_OTA", "comparator"])
@@ -33,6 +33,8 @@ def test_maintained_netlists_agree_on_devices_and_tap_geometry(tmp_path, case_na
 
     prepare_support(None, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#klayout", tmp_path / "support")
     bundle = load_bundle(tmp_path / "support")
+    prepare_support(None, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#model-calls", tmp_path / "model-calls")
+    model_calls = load_bundle(tmp_path / "model-calls")
     # Cross-check model interfaces with the PDK reader without simplification:
     # this catches missing devices, altered terminals and geometry parameters.
     script = """require 'json'
@@ -59,7 +61,7 @@ File.write('comparison.json', JSON.pretty_generate(result))
     result = DockerTool(image, ["klayout", "-v"], 120).run(
         ["klayout", "-b", "-r", "compare.rb"],
         {"compare.rb": Asset(script.replace("TWO_STAGE_OTA_LAYOUT", top.upper()).encode(), "ruby"), "circuit.cdl": cdl,
-         "circuit.spice": spice, **bundle.mounted_files()}, {"comparison.json": "json"},
+         "circuit.spice": spice, **bundle.mounted_files(), **model_calls.mounted_files()}, {"comparison.json": "json"},
     )
     assert result.returncode == 0 and not result.reason, result.evidence["console"].content.decode()
     comparison = json.loads(result.files["comparison.json"].content)

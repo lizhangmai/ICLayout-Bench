@@ -26,7 +26,8 @@ from benchmarking.tasks import load_task
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_ROOT = ROOT
+from helpers.catalog import ROOT as PUBLIC_ROOT
+
 CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/input_pair"
 IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
 

@@ -23,7 +23,7 @@ def package(tmp_path):
     provenance = tmp_path / "provenance.json"
     provenance.write_text('{"note": "maintainer only"}\n')
     (tmp_path / "unlisted.txt").write_text("must not reach the solver")
-    config = '''schema_version = 1
+    config = '''
 id = "synthetic"
 title = "Synthetic input preparation test"
 kind = "netlist_to_gds"
@@ -86,7 +86,6 @@ def inline_package(package):
     end = content.index("[provenance]", start)
     package.write_text(content[:start] + content[end:] + '''
 [constraints]
-schema_version = 1
 [[constraints.hard]]
 id = "outline"
 type = "bbox_max"
@@ -170,15 +169,18 @@ def test_candidate_circuit_case_without_task_is_not_an_executable_task(circuit_c
         load_task(circuit_case)
 
 
-def test_case_attribution_does_not_supply_solver_inputs(executable_case, tmp_path):
+def test_case_metadata_does_not_supply_solver_inputs(executable_case, tmp_path):
     task = load_task(executable_case)
     # Attribution may point to a source that differs from the maintained circuit.
     replace(executable_case, "https://example.invalid/synthetic-circuit",
             "https://example.invalid/another-source")
+    executable_case.write_text(executable_case.read_text()
+                               + '\n[presentation]\ncategory="Fixture"\nsummary="Browsing only"\n')
     updated = load_task(executable_case)
     assert updated.digest != task.digest
     assert updated.inputs == task.inputs
     assert "origin" not in updated.description()
+    assert "presentation" not in updated.description()
     destination = tmp_path / "delivered"
     updated.materialize(destination)
     assert {p.relative_to(destination).as_posix(): p.read_bytes()
@@ -189,7 +191,7 @@ def test_case_attribution_does_not_supply_solver_inputs(executable_case, tmp_pat
 
 def test_qualification_reference_cannot_escape_the_case(circuit_case):
     circuit_case.write_text(circuit_case.read_text()
-                            + '\n[qualification]\nevidence = "README.md"\nreference = "../witness.gds"\n')
+                            + '\n[qualification]\nreference = "../witness.gds"\n')
     with pytest.raises(ValueError, match="relative POSIX"):
         load_task(circuit_case)
 
@@ -198,7 +200,7 @@ def test_witness_flag_follows_the_qualification_reference(executable_case, tmp_p
     assert load_task(case).witnessed is False
     description = load_task(case).description()
     assert description["witnessed"] is False
-    case.write_text(case.read_text() + '\n[qualification]\nevidence = "README.md"\n')
+    case.write_text(case.read_text() + '\n[qualification]\n')
     assert load_task(case).witnessed is False
     case.write_text(case.read_text() + 'reference = "reference.gds"\n')
     assert load_task(case).witnessed is True
@@ -225,7 +227,7 @@ def test_symlinked_input_is_rejected(package, tmp_path):
 
 def add_evaluation(package, *, reference="input:netlist", inline=False):
     root = package.parent
-    plan = f'''schema_version = 1
+    plan = f'''
 mode = "characterization"
 [[jobs]]
 id = "dc"

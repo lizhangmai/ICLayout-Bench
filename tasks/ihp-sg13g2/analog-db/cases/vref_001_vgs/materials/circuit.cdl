@@ -1,8 +1,0 @@
-* Derived from analog-db, commit 263d0322f8900dc331536fbbe6c0e804514fc454.
-* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
-* Maintained physical taps; original LV/HV signal devices and sizes retained.
-.subckt vref_001_vgs vdd vref vss
-M0 vdd vref vref vss sg13_lv_nmos w=2.5u l=2u
-M1 vref vref vss vss sg13_hv_nmos w=1u l=2u
-RTAP vss vss ptap1 a=80p p=84u
-.ends

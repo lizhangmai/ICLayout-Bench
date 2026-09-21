@@ -16,12 +16,13 @@ from .magic import MagicCapacitanceDocker, MagicRCDocker
 from .ngspice import NgspiceDocker
 
 
-def load_toolchain(config: Path, *, factories: dict[str, Callable[..., Backend]] | None = None) -> dict[str, Backend]:
+def load_toolchain(config: Path, *, profiles=None, image=None, factories: dict[str, Callable[..., Backend]] | None = None) -> dict[str, Backend]:
     """Bind operations using trusted factories; never import code named by a task.
 
     Python callers can supply additional factories without changing evaluation.
-    Read either a schema-1 toolchain or the [toolchain] table of a schema-2
-    layout_case. Backend settings retain their existing path semantics.  The
+    Read either a standalone toolchain or the [toolchain] table of a
+    layout_case. Runtime profiles override support paths in memory;
+    the source configuration is never rewritten. The
     optional backend-level ``support_profiles`` table is host metadata: it is
     validated here and deliberately omitted from backend constructor kwargs.
     Toolchain configuration is never a solver input.
@@ -29,14 +30,12 @@ def load_toolchain(config: Path, *, factories: dict[str, Callable[..., Backend]]
     config = config.absolute()
     data = tomllib.loads(read_file(config.parent, config.name).decode("utf-8"))
     if "kind" in data:
-        if data["kind"] != "layout_case" or type(data.get("schema_version")) is not int or data["schema_version"] != 2:
-            raise ValueError("Embedded toolchains require a schema-2 layout_case; supply --toolchain")
+        if (data["kind"] != "layout_case"):
+            raise ValueError("Embedded toolchains require a layout_case; supply --toolchain")
         if "toolchain" not in data:
             raise ValueError("Case does not declare a toolchain; supply --toolchain")
         data = data["toolchain"]
-    keys(data, {"schema_version", "backends", "bindings"}, set(), "toolchain")
-    if type(data["schema_version"]) is not int or data["schema_version"] != 1:
-        raise ValueError("Unsupported toolchain schema_version")
+    keys(data, {"backends", "bindings"}, set(), "toolchain")
     if not isinstance(data["backends"], dict) or not isinstance(data["bindings"], dict):
         raise TypeError("Toolchain backends and bindings must be tables")
     factories = {"ngspice-docker": NgspiceDocker,
@@ -53,6 +52,16 @@ def load_toolchain(config: Path, *, factories: dict[str, Callable[..., Backend]]
         _validate_support_profiles(name, config_data)
     if not all(isinstance(value, str) and value in data["backends"] for value in data["bindings"].values()):
         raise ValueError("Toolchain binding references an unknown backend")
+    for name, entry in data["backends"].items():
+        if profiles is not None:
+            from .preparation import support_bindings
+
+            for setting, profile in support_bindings(name, entry):
+                if profile not in profiles:
+                    raise ValueError(f"Missing runtime profile: {profile}")
+                entry["settings"][setting] = str(profiles[profile])
+        if image is not None and "image" in entry["settings"]:
+            entry["settings"]["image"] = image
     instances = {name: factories[entry["type"]](**entry["settings"])
                  for name, entry in data["backends"].items() if name in data["bindings"].values()}
     return {operation: instances[name] for operation, name in data["bindings"].items()}

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from benchmarking.evaluation import number
-from benchmarking.files import Asset, read_file, relative
+from benchmarking.files import Asset, ReadOnlyMount, read_file, relative
 
 
 @dataclass
@@ -50,9 +50,9 @@ class DockerTool:
                 "timeout_seconds": self.timeout_seconds, "limits": self.limits,
                 "execution_sha256": Asset(Path(__file__).read_bytes(), "python").sha256}
 
-    def run(self, command: list[str], files: dict[str, Asset], exports: dict[str, str], *,
+    def run(self, command: list[str], files: dict[str, Asset | ReadOnlyMount], exports: dict[str, str], *,
             environment: dict[str, str] | None = None) -> ToolResult:
-        """Copy trusted inputs before execution; no host mounts or credentials.
+        """Copy case inputs and bind installed resources read-only.
 
         exports maps paths to formats. Collect declared files even on failure;
         never interpret tool output as a successful circuit check here.
@@ -65,17 +65,27 @@ class DockerTool:
             root = Path(temporary)
             source = root / "source"
             source.mkdir()
+            mounts = []
             for name, asset in files.items():
+                if isinstance(asset, ReadOnlyMount):
+                    target = source / name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    mounts.extend(asset.docker_args(f"/workspace/{name}"))
+                    continue
                 path = source / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(asset.content)
                 path.chmod(0o444)
+            # runc creates bind targets as root; tool-generated scripts need writable parents.
+            for directory in source.rglob("*"):
+                if directory.is_dir():
+                    directory.chmod(0o777)
             env_args = [arg for k, v in (environment or {}).items() for arg in ("--env", f"{k}={v}")]
             cid = subprocess.check_output([
                 "docker", "create", "--network", "none", "--cap-drop", "ALL",
                 "--security-opt", "no-new-privileges", *self._limit_args(),
                 "--user", "1000:1000", "--workdir", "/workspace",
-                *env_args, self.image_id, *command,
+                *env_args, *mounts, self.image_id, *command,
             ], text=True).strip()
             try:
                 subprocess.run(["docker", "cp", f"{source}/.", f"{cid}:/workspace"],

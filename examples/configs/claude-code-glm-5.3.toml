@@ -1,0 +1,12 @@
+harness = "claude-code"
+model = "glm-5.3[1m]"
+efforts = ["xhigh"]
+tasks = ["freepdk45.OpenRAM.cell_6t"]
+concurrency = 1
+repetitions = 1
+
+[dataset]
+source = "MAI716/ICLayout-Bench"
+revision = "aa575833700f469473892c117ad57e397e6cd1f5"
+name = "core"
+split = "test"

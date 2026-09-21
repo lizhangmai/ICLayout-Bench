@@ -22,6 +22,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v7
         with:
           version: '0.11.2'
@@ -30,6 +31,7 @@ jobs:
       - run: uv sync --locked --extra results --group analysis
       - run: uv run --locked ruff check .
       - run: uv run --locked python scripts/check_docs.py
+      - run: uv run --locked python scripts/check_repository.py
       - run: uv run --locked --group analysis pytest -m unit
       - run: git diff --exit-code
 
@@ -42,6 +44,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v7
         with:
           version: '0.11.2'
@@ -69,9 +72,16 @@ jobs:
               assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
           assert importlib.util.find_spec("iclayout_bench_private") is None
           assert files("benchmarking").joinpath("model_configs.yaml").is_file()
+          from importlib.metadata import version
+          from benchmarking.version import package_version
+          identity = package_version()
+          assert identity["version"] == version("iclayout-bench")
+          assert identity["commit"] == subprocess.check_output(
+              ["git", "rev-parse", "HEAD"], text=True).strip()
           assert importlib.util.find_spec("layout_eval") is None
           assert importlib.util.find_spec("layout_service") is None
-          assert files("benchmarking.engine").joinpath("sg13g2_view.json").is_file()
+          from benchmarking.dataset import Dataset, process_manifest
+          from benchmarking.engine.qualification import acceptance_summary
           assert importlib.util.find_spec("benchmarking.web") is None
           from benchmarking.engine.source import implementation_identity
           assert implementation_identity().startswith("sha256:")

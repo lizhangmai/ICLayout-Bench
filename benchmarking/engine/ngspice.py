@@ -3,6 +3,7 @@
 import math
 import re
 from pathlib import Path
+from typing import ClassVar
 
 from benchmarking.bundles import load_bundle
 from benchmarking.evaluation import Job, identifier, number
@@ -53,6 +54,10 @@ class NgspiceDocker:
     startup settings. It is supplied by tool configuration, independent of tasks.
     """
 
+    max_parallel_jobs = 4
+    # Parallelize independent corners, not tiny device-model loops within a corner.
+    thread_environment: ClassVar[dict[str, str]] = {"OMP_NUM_THREADS": "1", "OMP_THREAD_LIMIT": "1"}
+
     def __init__(self, *, image: str, timeout_seconds: float = 60, support: str | None = None,
                  compatibility: str | None = None, resistor_formulation: str = "conductance"):
         if compatibility not in {None, "hsa"}:
@@ -70,6 +75,8 @@ class NgspiceDocker:
                 "adapter_sha256": Asset(Path(__file__).read_bytes(), "python").sha256,
                 "compatibility": self.compatibility,
                 "resistor_formulation": self.resistor_formulation,
+                "max_parallel_jobs": self.max_parallel_jobs,
+                "thread_environment": dict(self.thread_environment),
                 **self.tool.identity,
                 "support_sha256": self.support.manifest.sha256 if self.support else None}
 
@@ -112,7 +119,7 @@ class NgspiceDocker:
                 if effective != asset:
                     files[f"{name}.spice"] = effective
                     evidence[f"effective_{name}"] = effective
-        environment = {}
+        environment = dict(self.thread_environment)
         if self.support:
             files.update(self.support.mounted_files())
             evidence.update(self.support.evidence())

@@ -6,7 +6,6 @@ import os
 import subprocess
 from pathlib import Path
 
-from benchmarking.benchmark import load_benchmark
 from benchmarking.engine.evaluate import run_evaluation
 from benchmarking.engine.inference import (
     load_inference_config,
@@ -37,8 +36,6 @@ def _inference_preflight(profile, config, credential_present):
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     subcommands = parser.add_subparsers(dest="command", required=True)
-    benchmark_parser = subcommands.add_parser("benchmark", help="Validate a versioned benchmark and list its cases")
-    benchmark_parser.add_argument("config", type=Path)
     task_parser = subcommands.add_parser("task", help="Validate a task and show its I/O")
     task_parser.add_argument("config", type=Path, help="Path to a task or unified case TOML")
     task_parser.add_argument("--materialize", type=Path, help="New directory for verified inputs")
@@ -61,10 +58,6 @@ def main() -> None:
     inference_parser.add_argument("--agent", type=Path, help="Optional harness configuration to check wire compatibility")
     args = parser.parse_args()
     try:
-        if args.command == "benchmark":
-            benchmark = load_benchmark(args.config)
-            print(json.dumps({**benchmark.description(), "contracts": benchmark.contracts}, indent=2))
-            return
         if args.command == "recover":
             print(json.dumps(recover_submissions(args.directory), indent=2, allow_nan=False))
             return

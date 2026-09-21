@@ -2,7 +2,7 @@
 
 Applies to test code, fixtures and generators. Use the
 [verification guide](../CONTRIBUTING.md#verification) for commands and the
-[qualification guide](../docs/tasks.md#qualification) for evidence requirements.
+[qualification guide](../CONTRIBUTING.md#task-qualification) for evidence requirements.
 
 ## Before Adding a Regression
 
@@ -41,8 +41,8 @@ in the common evaluator tests.
 Construct case environments through their declared toolchain and resource
 profiles. Keep process options, model names and layer mappings in their owning
 configuration; tests must not assemble a parallel process configuration.
-Case-specific witness assets and results belong with the case under the
-[case development standard](../tasks/AGENTS.md#2-ownership-and-directory-layout).
+Published witness assets belong to the Dataset; full case-specific validation
+results remain with the author. Acceptance summaries are explicit author-owned inputs, outside the Dataset.
 
 ## Analytical Controls
 

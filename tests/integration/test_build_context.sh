@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(cd "${script_dir}/../../../ICLayout-Bench" && pwd)"
+repo_root="$(cd "${script_dir}/../.." && pwd)"
 test_tmp="$(mktemp -d "${TMPDIR:-/tmp}/iclayout-bench-context.XXXXXX")"
 trap 'rm -rf "${test_tmp}"' EXIT
 context="${test_tmp}/context"

@@ -8,7 +8,6 @@ import pytest
 from benchmarking.engine.inference import (
     InferenceConfig,
     InferenceGateway,
-    ResponsesGateway,
     load_inference_config,
     validate_request,
 )
@@ -38,7 +37,7 @@ def test_request_bound_usage_and_no_error_body_exposure():
     def transport(path, body, timeout):
         assert json.loads(body)["store"] is False
         return 200, "application/json", b'{"status":"completed","usage":{"input_tokens":10,"output_tokens":3}}'
-    gateway = ResponsesGateway(config, transport=transport)
+    gateway = InferenceGateway(config, transport=transport)
     gateway.deadline = time.monotonic()+10
     assert gateway.request("/responses", b'{"model":"test-model","store":true}')[0] == 200
     assert gateway.request("/responses", b'{"model":"test-model"}')[0] == 429
@@ -49,7 +48,7 @@ def test_request_bound_usage_and_no_error_body_exposure():
 
     def broken(*args):
         raise OSError("secret-key-in-exception")
-    gateway = ResponsesGateway(config, transport=broken)
+    gateway = InferenceGateway(config, transport=broken)
     gateway.deadline = time.monotonic()+10
     status, _, body = gateway.request("/responses", b'{"model":"test-model"}')
     assert status == 502 and b"secret" not in body
@@ -112,7 +111,7 @@ def test_known_usage_enforces_token_budget_despite_missing_responses(field):
 
 def test_no_forwarded_requests_are_not_classified_as_model_usage():
     config = gateway_config(max_requests=1)
-    gateway = ResponsesGateway(config, transport=lambda *args: pytest.fail("Denied request was forwarded"))
+    gateway = InferenceGateway(config, transport=lambda *args: pytest.fail("Denied request was forwarded"))
     gateway.deadline = time.monotonic()+10
     assert gateway.request("/responses", b'{"model":"test-model","input":[{"file_id":"remote"}]}')[0] == 400
     assert gateway.summary()["requests"] == []
@@ -125,7 +124,7 @@ def test_no_forwarded_requests_are_not_classified_as_model_usage():
 
 def test_credential_stays_out_of_public_identity_and_profile_records_http_or_https(tmp_path, monkeypatch):
     source = Path(tmp_path / "profile.toml")
-    source.write_text('''schema_version = 1
+    source.write_text('''
 wire_api = "responses"
 base_url = "https://example.invalid/v1"
 model = "test-model"
@@ -138,7 +137,7 @@ max_wall_seconds = 120
 ''')
     config = load_inference_config(source)
     monkeypatch.setenv(config.api_key_env, "unique-secret-value")
-    gateway = ResponsesGateway(config)
+    gateway = InferenceGateway(config)
     assert "unique-secret-value" not in json.dumps(gateway.public)
     assert gateway.public["socket"] == "/protocol/inference.sock"
     assert gateway.public["max_input_tokens"] == 100
@@ -152,14 +151,14 @@ max_wall_seconds = 120
             load_inference_config(source)
     proxy_url = 'http://localhost:8123'
     source.write_text(original + f'\nproxy_url = "{proxy_url}"\n')
-    assert ResponsesGateway(load_inference_config(source)).public['proxy_url'] == proxy_url
+    assert InferenceGateway(load_inference_config(source)).public['proxy_url'] == proxy_url
     for invalid in ('socks5://localhost:8123', 'http://user:secret@localhost:8123',
                     'http://localhost:8123/path', 'http://localhost:0'):
         source.write_text(original + f'\nproxy_url = "{invalid}"\n')
         with pytest.raises(ValueError, match='proxy'):
             load_inference_config(source)
     source.write_text(original.replace("https://", "http://"))
-    assert ResponsesGateway(load_inference_config(source)).public['transport'] == 'http'
+    assert InferenceGateway(load_inference_config(source)).public['transport'] == 'http'
     source.write_text(source.read_text().replace("http://", "ftp://"))
     with pytest.raises(ValueError, match=r"HTTP\(S\)"):
         load_inference_config(source)
@@ -180,7 +179,7 @@ def test_response_semantics_and_usage(stream, state, details, outcome, infra):
         body = b'data: ' + json.dumps({"type": f"response.{state}", "response": response}).encode() + b'\n\n'
         content_type = "text/event-stream; charset=utf-8"
     config = gateway_config(max_requests=1)
-    gateway = ResponsesGateway(config, transport=lambda *args: (200, content_type, body))
+    gateway = InferenceGateway(config, transport=lambda *args: (200, content_type, body))
     gateway.deadline = time.monotonic() + 10
     gateway.request("/responses", b'{"model":"test-model"}')
     gateway.stop()
@@ -197,7 +196,7 @@ def test_response_semantics_and_usage(stream, state, details, outcome, infra):
 ])
 def test_non_success_sse_cannot_be_scored_as_a_model_failure(body):
     config = gateway_config(max_requests=1)
-    gateway = ResponsesGateway(config, transport=lambda *args: (200, "text/event-stream", body))
+    gateway = InferenceGateway(config, transport=lambda *args: (200, "text/event-stream", body))
     gateway.deadline = time.monotonic() + 10
     gateway.request("/responses", b'{"model":"test-model"}')
     assert gateway.summary()["infrastructure_error"]
@@ -219,7 +218,7 @@ def test_multiline_sse_and_standalone_compaction():
 
 def test_malformed_http_200_response_keeps_upstream_status_and_hides_body():
     config = gateway_config(max_requests=1)
-    gateway = ResponsesGateway(config, transport=lambda *args: (
+    gateway = InferenceGateway(config, transport=lambda *args: (
         200, "application/json", b'{"status":"in_progress","secret":"must-not-forward"}'))
     gateway.deadline = time.monotonic() + 10
     status, content_type, body = gateway.request("/responses", b'{"model":"test-model"}')
@@ -243,7 +242,7 @@ def test_request_and_response_persist_before_forwarding(tmp_path, monkeypatch):
         assert (recorder.root / request["data"]["request"]["path"]).read_bytes() == body
         return 200, "application/json", b'{"status":"completed","output":[]}'
     config = gateway_config(max_requests=2)
-    gateway = ResponsesGateway(config, transport=transport)
+    gateway = InferenceGateway(config, transport=transport)
     gateway.recorder = recorder
     gateway.deadline = time.monotonic() + 10
     result = gateway.request("/responses", b'{"model":"test-model"}')
@@ -318,7 +317,7 @@ def test_messages_stop_reason_is_independent_of_http_success(reason, outcome):
 def test_gateway_socket_transmits_a_complete_response(tmp_path):
     """Check the public framing directly, without a second maintained client."""
     expected = b'{"status":"completed","usage":{"input_tokens":3}}'
-    gateway = ResponsesGateway(gateway_config(), transport=lambda *a: (200, "application/json", expected))
+    gateway = InferenceGateway(gateway_config(), transport=lambda *a: (200, "application/json", expected))
     path = tmp_path / "inference.sock"
     gateway.start(path, time.monotonic() + 10)
     try:

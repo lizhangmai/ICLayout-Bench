@@ -1,32 +1,35 @@
-"""Frozen tool support files, prepared from an explicit reviewed source list."""
+"""Portable file bundles and local bindings to installed tool resources."""
 
 import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from .files import Asset, keys, read_file, relative
+from .files import Asset, ReadOnlyMount, keys, read_file, relative
 
 
 @dataclass(frozen=True)
 class Bundle:
-    files: tuple[tuple[str, Asset], ...]
+    files: tuple[tuple[str, Asset | ReadOnlyMount], ...]
     manifest: Asset
+    paths: tuple[tuple[str, Path], ...] = ()
 
-    def mounted_files(self) -> dict[str, Asset]:
+    def mounted_files(self) -> dict[str, Asset | ReadOnlyMount]:
         return {f"support/{name}": asset for name, asset in self.files}
 
     def evidence(self) -> dict[str, Asset]:
+        if any(isinstance(asset, ReadOnlyMount) for _, asset in self.files):
+            return {"support_manifest": self.manifest}
         return {"support_manifest": self.manifest,
                 **{f"support:{name}": asset for name, asset in self.files}}
 
 
 def load_bundle(root: Path) -> Bundle:
     root = root.absolute()
+    if (root / "resource.json").is_file():
+        return load_resources(root)
     manifest = Asset(read_file(root, "manifest.json"), "json")
     data = json.loads(manifest.content)
-    keys(data, {"schema_version", "files", "provenance"}, set(), "support bundle")
-    if type(data["schema_version"]) is not int or data["schema_version"] != 1:
-        raise ValueError("Unsupported support bundle schema_version")
+    keys(data, {"files", "provenance"}, set(), "support bundle")
     if not isinstance(data["files"], dict) or not data["files"]:
         raise ValueError("Support bundle needs a nonempty file list")
     files = []
@@ -47,7 +50,7 @@ def load_bundle(root: Path) -> Bundle:
             actual.add(path.relative_to(root).as_posix())
     if actual != set(data["files"]) | {"manifest.json"}:
         raise ValueError("Support bundle contains undeclared files")
-    return Bundle(tuple(files), manifest)
+    return Bundle(tuple(files), manifest, tuple((name, root / name) for name, _ in files))
 
 
 def publish_bundle(files: dict[str, Asset], provenance: dict, destination: Path) -> Bundle:
@@ -59,7 +62,7 @@ def publish_bundle(files: dict[str, Asset], provenance: dict, destination: Path)
         relative(name, "support path")
         if name == "manifest.json":
             raise ValueError("manifest.json is reserved")
-    manifest = {"schema_version": 1, "files": {k: a.identity() for k, a in sorted(files.items())},
+    manifest = {"files": {k: a.identity() for k, a in sorted(files.items())},
                 "provenance": provenance}
     raw = json.dumps(manifest, sort_keys=True, indent=2, allow_nan=False).encode() + b"\n"
     destination.mkdir(parents=True)
@@ -69,3 +72,18 @@ def publish_bundle(files: dict[str, Asset], provenance: dict, destination: Path)
         path.write_bytes(asset.content)
         path.chmod(0o444)
     return load_bundle(destination)
+
+
+def load_resources(root: Path) -> Bundle:
+    """Load mount bindings without traversing or copying installed PDKs."""
+    root = root.resolve()
+    data = json.loads((root / "resource.json").read_text())
+    if "root" in data:
+        return load_resources(Path(data["root"]))
+    manifest = Asset((json.dumps({"provenance": data["provenance"]}, sort_keys=True) + "\n").encode(), "json")
+    paths = {name: Path(path) for name, path in data["mounts"].items()}
+    paths.update({p.relative_to(root).as_posix(): p for p in root.rglob("*")
+                  if p.is_file() and p.name != "resource.json"})
+    files = tuple((relative(name, "resource target"), ReadOnlyMount(path, manifest))
+                  for name, path in sorted(paths.items()))
+    return Bundle(files, manifest, tuple(sorted(paths.items())))

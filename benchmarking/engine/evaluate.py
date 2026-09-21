@@ -6,6 +6,8 @@ The caller owns authorization and task/toolchain qualification.
 """
 
 import json
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
@@ -39,6 +41,7 @@ class Backend(Protocol):
     failed only for a completed check rejecting the artifact; tool failures and
     unsupported settings are errors. Evidence is returned as bytes for archival.
     A backend may use a container, subprocess, remote worker or native library.
+    Reentrant backends may advertise max_parallel_jobs; other backends run serially.
     """
 
     @property
@@ -76,6 +79,52 @@ def _validate_result(job: Job, result: JobResult) -> None:
             raise ValueError("Backend artifacts must be typed byte snapshots")
 
 
+def _execute_jobs(jobs, assets, backends, results, timings):
+    """Batch ready jobs only for a backend explicitly supporting concurrent calls.
+
+    Yield in plan order so archival and dependencies remain single-threaded.
+    Never reuse a result across candidates, checks or final evaluations.
+    """
+    capacities = {op: getattr(backend, 'max_parallel_jobs', 1) for op, backend in backends.items()}
+    if any(type(value) is not int or value < 1 for value in capacities.values()):
+        raise ValueError('Backend concurrency must be a positive integer')
+
+    def execute(job):
+        started = time.monotonic()
+        try:
+            result = backends[job.operation].run(job, {k: assets[v] for k, v in job.inputs})
+            _validate_result(job, result)
+            return result
+        except Exception as error:  # noqa: BLE001 -- retain independent diagnostics
+            return JobResult('error', f'{type(error).__name__}: {error}')
+        finally:
+            timings[job.id] = time.monotonic() - started
+
+    with ThreadPoolExecutor(max_workers=max(capacities.values(), default=1)) as pool:
+        index = 0
+        while index < len(jobs):
+            job = jobs[index]
+            blocked = [dep for dep in job.requires if results[dep].status != 'passed']
+            if blocked:
+                timings[job.id] = 0.0
+                yield job, JobResult('blocked', f"Prerequisites did not pass: {', '.join(blocked)}")
+                index += 1
+                continue
+            batch = [job]
+            for other in jobs[index + 1:index + capacities[job.operation]]:
+                if (backends[other.operation] is not backends[job.operation]
+                        or any(dep not in results or results[dep].status != 'passed' for dep in other.requires)):
+                    break
+                batch.append(other)
+            if len(batch) == 1:
+                yield job, execute(job)
+            else:
+                # Resolve all inputs before yielding any results to the archiver.
+                completed = list(pool.map(execute, batch))
+                yield from zip(batch, completed)
+            index += len(batch)
+
+
 def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
                    backends: dict[str, Backend], destination: Path, *,
                    task_sha256: str | None = None, task_witnessed: bool | None = None) -> dict:
@@ -85,9 +134,14 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
     operation, selected by the trusted caller, never imported from task TOML.
     This command produces local evidence, not a signed official benchmark score.
     """
+    started = time.monotonic()
     missing = plan.external_inputs() - inputs.keys()
     if missing:
         raise ValueError(f"Missing evaluation inputs: {sorted(missing)}")
+    for source in plan.pre_layout.values():
+        for role, reference in source["inputs"].items():
+            if inputs[reference].sha256 != source["input_sha256"][role]:
+                raise ValueError(f"Frozen pre-layout input changed: {reference}")
     operations = {job.operation for job in plan.jobs}
     if not operations <= backends.keys():
         raise ValueError(f"Missing backend bindings: {sorted(operations - backends.keys())}")
@@ -112,7 +166,7 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
         return {**asset.identity(), "path": f"artifacts/{asset.sha256}"}
 
     report = {
-        "schema_version": 1, "mode": plan.mode, "task_sha256": task_sha256,
+        "mode": plan.mode, "task_sha256": task_sha256,
         "task_witnessed": task_witnessed,
         "engine_sha256": {name: Asset(source_path(name).read_bytes(), "python").sha256
                           for name in ("evaluate.py", "evaluation.py", "files.py", "scoring.py")},
@@ -121,21 +175,12 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
         "jobs": {}, "metrics": {},
     }
     results: dict[str, JobResult] = {}
-    for job in plan.jobs:
-        blocked = [dep for dep in job.requires if results[dep].status != "passed"]
-        if blocked:
-            result = JobResult("blocked", f"Prerequisites did not pass: {', '.join(blocked)}")
-        else:
-            try:
-                result = backends[job.operation].run(job, {k: assets[v] for k, v in job.inputs})
-                _validate_result(job, result)
-            except Exception as error:  # noqa: BLE001 -- preserve evidence when an adapter itself is broken
-                # Persist the distinction between a failing circuit and a broken
-                # adapter. Unrelated jobs still produce useful diagnostics.
-                result = JobResult("error", f"{type(error).__name__}: {error}")
+    timings = {}
+    for job, result in _execute_jobs(plan.jobs, assets, backends, results, timings):
         results[job.id] = result
         entry = {
             "status": result.status, "reason": result.reason,
+            "elapsed_seconds": timings[job.id],
             "operation": job.operation, "stage": job.stage, "gate": job.gate,
             "requires": list(job.requires), "parameters": job.parameters,
             "inputs": {name: assets[ref].identity() for name, ref in job.inputs if ref in assets},
@@ -176,8 +221,7 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
         report["metrics"][metric.id] = {
             "category": metric.category, "unit": metric.unit, "direction": metric.direction,
             "lower": metric.lower, "upper": metric.upper, "aggregation": metric.aggregation,
-            "dimension": metric.dimension, "zero_lower": metric.zero_lower,
-            "zero_upper": metric.zero_upper,
+            "dimension": metric.dimension,
             "baseline": list(metric.baseline), "normalization": metric.normalization, "scale": metric.scale,
             "value": value, "status": status, "observations": observations,
         }
@@ -207,7 +251,7 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
                   quality_eligible=task_success is True)
     if plan.scoring is not None and plan.mode == "post_layout":
         report["score"] = score_layout(plan, report["jobs"], report["metrics"], physical_valid)
-        if plan.scoring.method == "layout-v2" and report["score"]["value"] is None:
+        if plan.scoring.method == "layout" and report["score"]["value"] is None:
             report.update(outcome="error", task_success=None, quality_eligible=False)
             report["scoring_error"] = "Cannot establish finite candidate/source normalization"
 
@@ -217,6 +261,7 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
         # remain diagnostics and do not carry a task score field.
         report["score"] = None
     report_path = destination / "report.json"
+    report['elapsed_seconds'] = time.monotonic() - started
     report_path.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
     report_path.chmod(0o600)
     return report

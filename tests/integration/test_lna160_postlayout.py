@@ -28,7 +28,8 @@ from benchmarking.tasks import load_task
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_ROOT = ROOT
+from helpers.catalog import ROOT as PUBLIC_ROOT
+
 CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/TO_Apr2025/cases/160GHz_LNA"
 TOP = "LNA160_FOUR_STAGE"
 PORTS = ["IN", "OUT", "VDD", "VSS", "VBIAS"]

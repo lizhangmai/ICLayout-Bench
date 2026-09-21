@@ -11,7 +11,7 @@ def evaluation_identity(task, backends):
     def digest(value):
         return hashlib.sha256(json_bytes(value)).hexdigest()
 
-    return {"format": "evaluator-v1", "task_sha256": task.digest,
+    return {"format": "evaluator", "task_sha256": task.digest,
             "plan_sha256": hashlib.sha256(task.evaluation.raw).hexdigest(),
             "inputs": {k: v.sha256 for k, v in task.evaluation_inputs().items()},
             "backends": {k: digest(v.identity) for k, v in backends.items()},

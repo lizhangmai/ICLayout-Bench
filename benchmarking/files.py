@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import re
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -29,11 +30,35 @@ def relative(value: object, name: str) -> str:
     return value
 
 
+def is_hub_file(path: Path) -> bool:
+    """Accept HF snapshot links through repository blobs, including shared Xet storage."""
+    if not path.is_symlink() or not path.is_file():
+        return False
+    for snapshot in path.parents:
+        if snapshot.parent.name == "snapshots" and snapshot.parent.parent.name.startswith("datasets--"):
+            blobs = snapshot.parent.parent / "blobs"
+            if path.parent.resolve() != path.parent:
+                return False
+            blob = Path(os.path.abspath(path.parent / os.readlink(path)))
+            if blob.parent != blobs or blobs.resolve() != blobs:
+                return False
+            if not blob.is_symlink():
+                return blob.is_file()
+            # HF Xet deduplicates repository blobs into cache-wide regular files.
+            shared = Path(os.path.abspath(blob.parent / os.readlink(blob)))
+            return (shared.resolve() == shared and shared.is_file()
+                    and shared.parent.parent == snapshot.parent.parent.parent / "blobs"
+                    and re.fullmatch(r"[0-9a-f]{64}", shared.name) is not None
+                    and shared.parent.name == shared.name[:2])
+    return False
+
+
 def read_file(root: Path, name: str) -> bytes:
     # The operator-selected root may be ../my-agent; lexical normalization is
     # distinct from following symlinks. Declared asset names remain confined.
     path = Path(os.path.abspath(root)) / relative(name, "file path")
-    if path.resolve(strict=True) != path or not path.is_file():
+    resolved = path.resolve(strict=True)
+    if not path.is_file() or (resolved != path and not is_hub_file(path)):
         raise ValueError(f"Input must be a regular, non-symlink file: {name}")
     return path.read_bytes()
 
@@ -56,6 +81,25 @@ class Asset:
 
     def identity(self) -> dict:
         return {"sha256": self.sha256, "format": self.format, "bytes": len(self.content)}
+
+
+@dataclass(frozen=True)
+class ReadOnlyMount:
+    """An installed resource, identified by its preparation recipe, not a copy."""
+
+    path: Path
+    provenance: Asset
+
+    @property
+    def content(self) -> bytes:
+        return self.path.read_bytes()
+
+    @property
+    def sha256(self) -> str:
+        return self.provenance.sha256
+
+    def docker_args(self, target: str) -> list[str]:
+        return ["--mount", f"type=bind,src={self.path},dst={target},readonly"]
 
 
 def sync_directory(path):

@@ -1,23 +1,25 @@
 [build-system]
-requires = ["setuptools>=77", "wheel"]
+requires = ["setuptools>=80", "setuptools-scm>=8,<11", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "iclayout-bench"
-version = "0.3.0a4"
+dynamic = ["version"]
 description = "A benchmark for evaluating LLM agents on integrated circuit layout tasks."
 readme = "README.md"
 license = "MIT"
-license-files = ["LICENSE", "LICENSING.md"]
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
     "tomli-w>=1.2.0",
     "PyYAML>=6,<7",
     "ciel>=2.6.1,<3",
+    "huggingface-hub>=1.0,<2",
+    "datasets>=5,<6",
 ]
 
 [project.optional-dependencies]
-results = ["SQLAlchemy>=2.0,<3", "alembic>=1.14,<2"]
+results = ["SQLAlchemy>=2.0,<3"]
 postgres = ["psycopg[binary]>=3.2,<4"]
 
 [dependency-groups]
@@ -32,14 +34,18 @@ analysis = [
 ]
 
 [tool.setuptools]
-packages = ["benchmarking", "benchmarking.engine", "benchmarking.service", "benchmarking.participants", "benchmarking.results", "benchmarking.results.migrations", "benchmarking.results.migrations.versions"]
+packages = ["benchmarking", "benchmarking.engine", "benchmarking.service", "benchmarking.participants", "benchmarking.results"]
 
 [tool.setuptools.package-data]
 benchmarking = ["model_configs.yaml", "_build.json"]
-"benchmarking.engine" = ["sg13g2_view.json"]
 
 [tool.ruff]
 extend-exclude = ["third_party"]
 
 [tool.ruff.lint]
 extend-select = ["I"]
+
+[tool.setuptools_scm]
+
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { file = "setup.py" }, { git = { commit = true, tags = true } }]

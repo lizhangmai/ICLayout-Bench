@@ -2,42 +2,75 @@
 
 ## Local self-testing
 
-Run the [README quick start](../README.md#quick-start) to prepare a public case,
-check its reference and start the local HTTP service. Use your participant Agent harness against that endpoint. It uses the same evaluation engine as
-operator runs, but always reports `local_development`. You control the local task,
-image and resources; a local pass does not certify a formal or hidden-task result.
-
-To reuse an existing compatible image and prepare a fresh case without a reference
-run, execute from the Public checkout:
+Use the [README workflow](../README.md#install-and-run) with an HF Dataset repo ID
+or an explicitly supplied local Dataset working copy. The installed engine loads
+the selected snapshot and binds resources automatically; it creates no prepared
+case directory. Local results are `local_development`.
 
 ```bash
-uv run --locked python -m benchmarking.engine.preview prepare \
-  --case cell_6t --image iclayout-bench-tools:dev --output build/prepared-cell6t
-export ICLAYOUT_BENCH_TOKEN="$(openssl rand -hex 32)"
-uv run --locked python -m benchmarking.service \
-  --prepared build/prepared-cell6t --data build/local-service \
-  --image iclayout-bench-tools:dev --token-env ICLAYOUT_BENCH_TOKEN
+python -m benchmarking.service --dataset /path/to/ICLayout-Bench-Dataset \
+  --case freepdk45.nangate45-pdk.NAND2_X1 --data build/local-service \
+  --image iclayout-bench-tools:local --token-env ICLAYOUT_BENCH_TOKEN
 ```
 
-Preparation requires the public catalog and pinned upstream sources. An installed
-wheel accepts `python -m benchmarking.engine.preview --public-root /path/to/ICLayout-Bench
-prepare ...`; that checkout supplies resources, not imported Python modules.
-Use new output directories. The local server binds to loopback and accepts one
-active session. The service reads `[task].hours` from the prepared `case.toml`; `--seconds` is not
-accepted. Use `--port` to select a listener port.
-Receipt retention is seven days; remove expired local storage when no longer needed.
+Set the named token environment variable securely before starting the service.
+The server binds to loopback and serves one active session, using the case's
+`[task].hours` budget. `--revision` pins an HF revision and `--offline` selects
+cached data. HF owns task storage; Bench owns PDK installations and derived
+resource caches. See [tools](tools.md).
 
-To inspect an existing candidate without running an Agent, use its prepared case:
+For an independent reference check without model calls:
 
 ```bash
-uv run --locked python -m benchmarking.engine.cli evaluate \
-  build/prepared-cell6t/case/case.toml my-candidate.gds --output build/candidate-check
+python -m benchmarking.engine.preview --dataset /path/to/ICLayout-Bench-Dataset \
+  run --case NAND2_X1 --image iclayout-bench-tools:local --output build/candidate-check
 ```
 
-Inspect the printed failure summary and `build/candidate-check/report.json`, plus
+Inspect the printed failure summary and `build/candidate-check/reference/report.json`, plus
 the per-job evidence in that newly generated directory, to locate physical,
 connectivity, geometry or post-layout failures. Evaluation uses the case's frozen
 toolchain. It does not convert a reference or manually supplied GDS into model output.
+
+## Standalone evaluation
+
+To evaluate a GDS independently of a participant run, install Public and prepare
+the [tool environment](tools.md), then run with explicit input paths:
+
+```bash
+python -m benchmarking.engine.cli evaluate <case.toml> <candidate.gds> --output <new-output-directory>
+```
+
+This creates the evaluation report and artifacts in a new output directory.
+`evaluate` and `run` use the case's embedded `[toolchain]` unless `--toolchain`
+is supplied. Cases without embedded bindings require that option.
+`load_toolchain` also accepts a case TOML; relative backend `support` paths resolve
+from the launch directory. See [result analysis](#analysis) for statistics
+and treatment of incomplete runs.
+
+## Dataset publication files
+
+Generate a read-only JSON allowlist from the final Dataset:
+
+```bash
+python -m benchmarking.dataset_index --dataset /path/to/dataset --publication-files
+```
+
+The list includes the Dataset card, root licensing, selection, generated tables,
+PDK declarations and scope notes, collection licenses/notices, and declared case
+inputs/assets. Maintenance instructions, authoring evidence, caches and undeclared
+files are excluded. An operator uses these exact relative paths when uploading;
+the command does not upload, stage a second Dataset or change remote state.
+Dataset loading never requires authoring reports or acceptance maps.
+
+Check the generated native table without changing it:
+
+```bash
+python -m benchmarking.dataset_index --dataset /path/to/dataset --check
+```
+
+The selected Dataset owns its table/asset publication procedure and selection
+rationale. See [experiment configuration](#multiple-combinations-and-repetitions) for selecting
+native Dataset rows.
 
 ## Experiment runner
 
@@ -47,7 +80,7 @@ MCP bridge. These adapters configure and supervise native processes; they do not
 choose the next Agent action. Native harnesses retain their own conversation/tool
 loop. The scoped HTTP client supplies the layout MCP operations. Explicitly
 declared participant tools can extend the harness; generators and EDA commands
-run inside the service workspace. No Private or UserTrial implementation is imported.
+run inside the service workspace. External consumer implementations are not imported.
 Install and authenticate the
 selected vendor CLI separately; the Public wheel does not install vendor CLIs.
 
@@ -57,20 +90,40 @@ Preview a condition without creating a session or making model calls:
 python -m benchmarking.run --config configs/codex-gpt-6-astra.toml --dry-run
 ```
 
-Run it against locally prepared public resources:
+Run it against locally Dataset resources:
 
 ```bash
 python -m benchmarking.run --config configs/codex-gpt-6-astra.toml \
-  --prepared build/prepared-cell6t --output results/codex-xhigh-1
+  --dataset /path/to/ICLayout-Bench-Dataset --output results/codex-xhigh-1
 ```
 
-For an operator service, replace `--prepared ...` with `--endpoint https://...`
+For an operator service, replace `--dataset ...` with `--endpoint https://...`
 and supply its creation credential as `ICLAYOUT_BENCH_TOKEN`. Each run gets a
 fresh scoped session and exports the independent result. By default the runner
 closes on completion/failure; explicit recovery settings can retain an interrupted
-remote session until its original deadline. Set `tasks` explicitly in the TOML. Omitting `--output` uses
-`results/<harness>-<CLI-version>-<model>-<effort>/` and prints its path. An explicit output
-directory must be new unless `--resume` is supplied. Create the configuration using the example below first.
+remote session until its original deadline. Select explicit `tasks` or a `[dataset]` table in the TOML. Omitting `--output` uses
+`results/<harness>-<CLI-version>-<model>-<effort>/` and prints its path. A compatible output
+directory can be reused: completed cases are skipped, and selected unfinished
+cases require `--resume`. Use a fresh directory for changed experiment identities. Create the configuration using the example below first.
+
+For a small experiment, reuse a saved configuration and select a case directly:
+
+```bash
+python -m benchmarking.run --config configs/codex-gpt-6-astra.toml \
+  --case NAND2_X1 --repetitions 1 --concurrency 1 --output results/nand2-trial
+```
+
+`--case` accepts a full case ID or a unique final component within the configured
+task selection. Repeat it to select several cases; duplicate selections run once.
+Unknown or ambiguous names fail before sessions start. The filter applies to every
+condition in `--config` or `--matrix`; each must contain the requested cases.
+It narrows the configured selection and does not add tasks from another Dataset
+configuration/split. `--repetitions` and `--concurrency` override the corresponding
+positive integer settings for this invocation only. The TOML stays unchanged;
+omitting these flags runs its original batch. Add `--dry-run` to inspect the
+effective plan without model or service calls. Overrides enter the normal result
+identity and recovery checks; use a fresh `--output` for a separate experiment or
+changed repetitions.
 
 ### Saved layout images
 
@@ -92,12 +145,18 @@ python -m benchmarking.layout_preview results/my-condition
 An existing case directory is also accepted. The command holds the case lock;
 image failures are recorded in `result.json` without changing the score. Remote
 services currently expose no candidate-download endpoint, so remote-only results
-may have neither `final.gds` nor a PNG. Historical exports retain their original evidence; use the release that created
-them for recovery, or the one-time result migration described below.
+may have neither `final.gds` nor a PNG.
 
 ### Participant tool schemes
 
-To compare `Codex + model` with `Codex + A + model`, keep the prepared case,
+Include `scheme.instructions` only when a participant tool or experimental
+procedure needs additional usage guidance. Task requirements and acceptance
+rules belong in `problem.md`; the shared participant prompt supplies the common
+workflow. Omit the field when no extra guidance is needed, and omit `[scheme]`
+entirely when there are no participant customizations. Tool/image/launch fields
+can be declared without instructions.
+
+To compare `Codex + model` with `Codex + A + model`, keep the Dataset case,
 model, effort, repetitions and trusted toolchain fixed. Declare two schemes in
 one matrix. The following example assumes you have installed A as a stdio MCP
 server and placed its reviewed script and dependency lock beside this TOML:
@@ -113,8 +172,6 @@ repetitions = 1
 
 [[runs]]
 name = "baseline"
-[runs.scheme]
-instructions = "Use the standard layout resources."
 
 [[runs]]
 name = "with-a"
@@ -127,7 +184,7 @@ env_vars = []
 ```
 
 Run `python -m benchmarking.run --matrix contrast.toml --dry-run` to inspect
-resolved conditions, then replace `--dry-run` with `--prepared build/prepared-cell6t`
+resolved conditions, then replace `--dry-run` with `--dataset /path/to/ICLayout-Bench-Dataset`
 to execute. These files and A are participant-owned; Public does not install an
 unspecified A package. Matrix defaults are shallow: each run's `scheme` is a
 complete declaration, not a partial merge. Conditions execute in listed order;
@@ -140,7 +197,7 @@ Install fixed versions during the image build, then use `scheme.instructions`
 to explain imports or commands. The same image can contain A for both conditions
 if the experiment deliberately measures enabling its use; record that choice.
 `--image` selects the default local solver image and is resolved to an immutable
-ID before dispatch. Each scheme may override it. The prepared case's trusted
+ID before dispatch. Each scheme may override it. The Dataset case's trusted
 EDA images/resources remain unchanged. A remote service must already provide
 the declared solver image; a mismatch closes the session before launching the
 participant. The participant cannot replace an operator's evaluator.
@@ -161,7 +218,6 @@ For an existing control program, select `harness = "command"` and declare:
 ```toml
 [scheme]
 version = "my-controller-1"
-instructions = "Use the provided task contract."
 [scheme.launch]
 command = ["python", "controller.py"]
 files = ["controller.py", "requirements.lock"]
@@ -246,7 +302,7 @@ Local session creation has a separate infrastructure provisioning window, bounde
 by `SESSION_STARTUP_TIMEOUT_SECONDS` (600 seconds). This includes durable resource
 archival and container startup; large PDK bundles can exceed a short HTTP timeout.
 The client waits at least that window plus a 30-second response allowance for
-`POST /v1/sessions` only. Other HTTP requests retain their configured timeout.
+`POST /sessions` only. Other HTTP requests retain their configured timeout.
 Resource archival remains fsync-backed. Solve time starts at the engine's existing
 container-launch boundary, not at the beginning of archival; provisioning never
 resets an established solve deadline.
@@ -297,7 +353,7 @@ python -m benchmarking.run --config configs/codex-gpt-6-astra.toml \
 
 The directory in this example must have been generated by your original run.
 Case recovery compares resolved conditions, the ICLayout-Bench release
-(version and Git commit), endpoint and prepared-file content. Started participants also compare CLI version,
+(version and Git commit), endpoint and Dataset revision and input content. Started participants also compare CLI version,
 native storage location and frozen launch conditions. Atomic state writes and an
 exclusive local case lease prevent concurrent owners; the native child inherits
 the lease so an orphaned live process also blocks a second runner. Use local
@@ -310,14 +366,14 @@ These are three different operations:
 - **Batch recovery:** skip completed slots, recover started slots, then dispatch
   untouched slots. An existing batch cannot be converted to different conditions.
 - **New attempt:** a fresh solve/workspace/budget. The Public participant runner
-  does not automatically create replacement attempts. Private's operator policy
+  does not automatically create replacement attempts. the operator's operator policy
   owns its separately frozen infrastructure replacement allowance.
 - **Same-session continuation:** with `resume_session = true`, Codex or Claude
   can resume a failed/interrupted launch against the same still-active remote
   service workspace, scoped token and deadline. It requires no active execution,
   no unresolved mutation/reply and persisted native session state. This option
   requires `--endpoint`, with a service that outlives the runner; the runner-owned
-  `--prepared` service cannot preserve a live workspace after it exits.
+  `--dataset` service cannot preserve a live workspace after it exits.
 
 Codex uses `codex exec ... resume <thread-id> -`; Claude uses
 `claude -p ... --resume <session-id>`. Both persist native histories in
@@ -383,17 +439,56 @@ concurrency = 1
 repetitions = 1
 ```
 
-Every file explicitly declares harness, model, tasks, concurrency, effort and repetitions.
+Every file explicitly declares harness, model, task selection, concurrency, effort and repetitions.
 A single `effort = "high"` is accepted instead of `efforts`. Missing fields and
 `"default"` effort are rejected. Each effort runs independently; use only settings
 supported by that harness/model. Credentials remain in existing CLI configuration.
+
+To select native Dataset rows, omit `tasks` and use:
+
+```toml
+[dataset]
+source = "/path/to/ICLayout-Bench-Dataset"
+name = "core"
+split = "test"
+```
+
+For machine-specific sources, replace `source` with
+`source_env = "ICLAYOUT_BENCH_DATASET"` and set that environment variable to the
+Dataset path or HF ID. Exactly one of `source` and `source_env` is required;
+missing or empty variables fail before Dataset loading. Relative paths resolve
+against the configuration file in both forms. The resolved Dataset identity is
+recorded, not the variable name. See the [dotenv examples](../examples/README.md)
+for loading `.env` without importing the source checkout.
+
+`ICLAYOUT_BENCH_IMAGE` and `ICLAYOUT_BENCH_OUTPUT` supply defaults for `--image`
+and `--output`; explicit flags take precedence. An empty output variable retains
+the normal per-condition `results/` layout. A nonempty output requires one condition.
+
+The runner calls `datasets.load_dataset()` on the local directory or the pinned
+HF snapshot's single default table. `name` defaults to `core`, and `split` to
+`test`. Here `name` is a runner selection: `core` filters rows where `in_core` is
+true, while `all` keeps the complete corpus. These are not HF configuration names.
+A top-level `tasks` list further filters IDs; IDs outside the selection are rejected.
+Native HF browsing loads every task by default. Without `[dataset]`, specify
+explicit `tasks` IDs for a remote evaluation service.
+
+The runner verifies each row's case and PDK paths/digests and records the selected
+table's digest, configuration, split and Dataset commit. The local service uses
+the same native selection and verifies its bindings before reading the evaluation
+contract. `--dry-run` performs selection and contract-binding checks without
+Docker or model calls. It does not establish electrical qualification.
+
+For explicit remote-service task IDs, a top-level `tasks` list can be used without
+`[dataset]`. Changed inputs or selection identity require a fresh experiment
+output for overlapping cases.
 
 Select one or several files (shell wildcards also work):
 
 ```bash
 python -m benchmarking.run --config configs/codex-gpt-6-astra.toml --dry-run
 python -m benchmarking.run --config configs/codex-gpt-6-astra.toml \
-  --prepared build/prepared-cell6t --output results/comparison-1
+  --dataset /path/to/ICLayout-Bench-Dataset --output results/comparison-1
 ```
 
 The second command makes real model calls for every selected effort and repetition.
@@ -406,15 +501,14 @@ TOML. For example, `repetitions = 3` creates three independent runs per conditio
 explicit positive integer: 1 runs one conversation at a time, 2 permits two.
 Every case receives every repetition; retries do not create extra repetitions.
 Different configuration files and efforts do not multiply the concurrency cap.
-For multiple local cases, pass all prepared directories after `--prepared`;
-the runner maps their `case/case.toml` IDs and rejects missing or duplicate cases
-before launching. Each running slot gets its own local service and workspace.
+For multiple local cases, the runner resolves every selected ID through the
+Dataset catalogs before launching. Each running slot gets its own local service and workspace.
 A remote endpoint must support the selected cases and concurrent sessions; the
 standalone development service serves one case and one active session only.
 
 Condition directories skip completed results on the next identical invocation.
 `--output` selects a directory for exactly one resolved condition and uses the same case format.
-The runner verifies the frozen configuration, implementation and prepared inputs.
+The runner verifies the frozen configuration, implementation and Dataset inputs.
 It prints `SKIP case=... condition=... repetition=... outcome=... result=/...`
 for each completed slot, including failed task outcomes; it never selects the best
 repetition. Missing archived results cause an error. Other batches are not searched
@@ -434,12 +528,11 @@ hours = 3
 The runner rejects `hours`, `seconds` and budget CLI overrides in participant
 configuration. `--matrix` also requires explicit participant conditions,
 and cannot supply a task budget. Positive fractional task hours are accepted;
-missing, zero, negative or non-finite task budgets cannot be served. Public cases
-currently declare three hours individually; this migration value is not a claim
-that all cases require the same effort. Maintain and calibrate each case's value
-before comparing experiments.
+missing, zero, negative or non-finite task budgets cannot be served. Each case
+declares its own solve budget. Compare experiments using the same frozen task
+and budget.
 
-Local mode reads the prepared case. Remote mode reads the service's published
+Local mode reads the Dataset case. Remote mode reads the service's published
 task contract and checks `limits.wall_seconds == task.description.hours * 3600`
 before model calls; participants do not need the operator's case files. Dry-run
 resolves participant selections without contacting a service and therefore does
@@ -483,7 +576,7 @@ unknown. The ICLayout-Bench package version and Git commit identify the release
 that defines the inputs. Wheels and source distributions embed this revision at
 build time. Prepared cases, PDK dependencies and tool setup must come from that
 release; local overrides are outside this reuse contract and require a separate
-experiment. The default runner does not fingerprint prepared files or detect
+experiment. The runner records Dataset and task/resource input identities; it does not detect
 local edits. Copies of PDKs, models, rule sources, tool scripts, native caches and
 credentials are not terminal results.
 Preparation remains reusable under `build/`. During execution, temporary service
@@ -494,13 +587,12 @@ removed after terminal export, not retained as another environment archive.
 The evaluator report retains its raw job measurements and scoring plan. Relevant
 text logs are embedded in `evaluation/report.json`; diagnostic databases and
 waveforms remain ordinary files. Reusable source references and per-file checksum
-inventories are omitted. Compact version 3 retains task, candidate and condition
-hashes needed to bind measurements; historical version 2 exports lack those
-identities. A file-name list supports missing-output checks. The tools
+inventories are omitted. Participant results retain task, candidate and condition
+hashes needed to bind measurements. A file-name list supports missing-output checks. The tools
 image ID remains a runnable locator for image regeneration; it is not a per-file
 checksum inventory. Native traces and embedded diagnostic text remain verbatim
 except for credential redaction and may contain tool-generated hashes. This is an explicit retention projection, not the original full
-operator evidence bundle. It cannot replace Private's formal provenance archive.
+operator evidence bundle. It cannot replace the operator's formal provenance archive.
 Single-repetition cases with archived failures keep their failure summaries in
 `result.json`, and any failed-attempt candidate/traces under `attempts/`.
 
@@ -521,39 +613,19 @@ All selected cases are locked and validated before dispatch. Repeating a command
 skips finished cases and prints result paths. A subset or new cases may be selected
 and concurrency changed; changing an existing case's conditions, repetitions or
 benchmark release is rejected before dispatch. Selected unfinished cases require
-`--resume`. Results remain readable after upgrades, but a different benchmark
-release cannot automatically skip or resume them. Compact results do not provide
+`--resume`. A different benchmark release cannot skip or resume existing results. Compact results do not provide
 post-export tamper detection.
 
-Migrate old completed, single-repetition case directories with:
-
-```bash
-python -m benchmarking.participants.results results/my-condition/my-case
-```
-
-Migration is explicit because it removes redundant resource snapshots and native
-session caches. It retains the final candidate, independent result, necessary
-logs and archived failure summaries. It refuses active cases, checks candidate
-hashes and preserves runtime data on export failure. Multiple-repetition legacy
-migration requires handling each repetition explicitly. The command can be retried
-following interruption. It also simplifies previous compact exports. A historical
-release absent from the original metadata is recorded as unknown, never inferred
-from the currently installed migrator; such results cannot be automatically reused
-until their original release is established. Existing unrelated user files are left in place.
-
 An explicit `--output` uses the same case/repetition layout and recovery rules.
-Multiple conditions use their default condition directories. Historical batch
-outputs are retained evidence, not resumable inputs to the current runner. Keep
-the original release for unfinished historical batches. Dry-run launches neither
-a harness nor a service.
+Multiple conditions use their default condition directories. Dry-run launches
+neither a harness nor a service.
 
 Keep optional plots and standalone candidate rechecks in their owning experiment
 directory. Prepared resources are reusable inputs under `build/`, separate from
-`results/`; avoid moving prepared resources that contain bound paths. `build/`
+`results/`; keep pinned HF snapshots and required resource caches available. `build/`
 is rebuildable scratch space. `results/` is persistent experiment evidence,
 excluded from Git but retained across build cleanup. Back it up separately;
-ignore rules provide neither backup nor permission to delete results. Legacy
-`build/runs/` batches can be moved together without rewriting archived content.
+ignore rules provide neither backup nor permission to delete results.
 
 ## Observation and analysis
 
@@ -608,6 +680,24 @@ its identical body/key. A new operation requires a new key. Accepted submissions
 are immutable; the last accepted candidate wins. A receipt is not a passing verdict.
 Optional diagnostics/opinions are available only when advertised in capabilities.
 
+The local service advertises `process-feedback`; its MCP `check` tool evaluates
+the current declared output with the complete final judging plan. Use it during
+iteration and before the final submission. The equivalent client command is:
+
+```bash
+python -m benchmarking.client check --key check-1
+```
+
+It returns the checked candidate digest, evaluator identity, physical/electrical
+outcomes and bounded per-job reasons/log excerpts. Omitted diagnostics are marked.
+Check execution uses the ordinary HTTP execution/polling and idempotency rules,
+consumes solve time and the advertised diagnostic allowance, and does not submit.
+Submit the chosen candidate explicitly afterward. A successful command exit means
+the check was accepted; inspect `feedback.outcome` for its verdict. Final judging
+runs independently on the last submitted snapshot. A remote service that does not
+advertise the capability rejects `check`; local hand-written commands do not
+establish equivalent acceptance.
+
 ## Observation
 
 The participant harness controls its own reasoning and tool loop. ICLayout-Bench
@@ -652,7 +742,7 @@ published leaderboard or a cross-condition model ranking.
 Use the operator's endpoint and scoped credentials with the same client/harness.
 The operator controls task selection, tools, budgets and verification; installing
 the local evaluator grants no access to hidden tasks or formal credentials.
-Private's `iclayout_bench_private` owns frozen reruns, admission and reviewed releases.
+The operator owns frozen reruns, admission and reviewed releases.
 The shared `benchmarking.engine` engine and `benchmarking.service` adapter remain in Public.
 Scoring definitions are [public](tasks.md#task-scoring), and local/verified results
 remain separate analysis cohorts.
@@ -668,9 +758,8 @@ terminal collections to the operator as described in
 [website result delivery](#website-result-delivery).
 
 For offline archive processing, install `iclayout-bench[results]`. The importer
-accepts compact exports (versions 1–3) and terminal `layout-http.v1` results. It
+accepts `participant-result` exports and terminal `layout-http` results. It
 preserves recorded verification levels; importing a local run does not certify it.
-Legacy batches should first be migrated with the terminal-export workflow above.
 A protocol-only import has no inferred CLI, effort, timing or local candidate.
 
 ```bash
@@ -678,17 +767,15 @@ uv sync --locked --extra results --group analysis
 uv run --locked --extra results python -m benchmarking.results --data results/archive \
   import /path/to/participant/results --experiment my-experiment
 uv run --locked --extra results python -m benchmarking.results --data results/archive \
-  catalog --public-root /path/to/ICLayout-Bench
+  catalog --dataset /path/to/ICLayout-Bench-Dataset
 ```
 
 These optional commands create `results/archive/`; no results ship with the package.
 The operator platform imports terminal collections into its own storage and applies
 publication permissions independently of an offline archive.
 
-Current `layout-v2` scores use 100 as a source/area reference and may exceed 100.
-Plots and comparisons preserve those values. Historical `layout-v1` results keep
-their recorded maximum and frozen interpretation; importing never rescales or
-rewrites them. See the [score contract](tasks.md#task-scoring).
+Current `layout` scores use explicit task weights and 100 as a source/area
+reference; scores may exceed 100. Plots and comparisons preserve these values.
 
 The matrix keeps task version, tool identity, budget, verification level and score
 method separate. Columns distinguish model, harness, CLI and effort as well as
@@ -706,9 +793,7 @@ not inferred from directory names.
 Public checkout as a resource. That checkout must retain the corresponding Git
 objects. It verifies the netlist's declared digest and, when present, the recorded
 task digest. Missing revisions or mismatched task definitions are reported as
-unavailable rather than matched to today's circuit. Legacy compact version 2 lacks
-some measurement hashes; its drawing is explicitly bound to the recorded release,
-not newly attested as the historical solver input.
+unavailable rather than matched to today's circuit.
 
 The importer generates a net-label schematic from the target SPICE/CDL subcircuit:
 equal labels are connected, MOS body pins are explicit, and subcircuit instances
@@ -720,7 +805,7 @@ case definitions or changes task identity.
 
 Cases may declare a maintainer `schematic` asset in SVG format. The importer
 prefers that drawing when its declared SHA-256 and embedded
-`iclayout-schematic-v1` metadata match the case ID and authoritative netlist
+`iclayout-schematic` metadata match the case ID and authoritative netlist
 SHA-256. Otherwise cases without a drawing retain the generated view. Invalid
 or mismatched drawings are reported as unavailable, never silently accepted.
 These diagrams are analysis assets and are not added to solver inputs.
@@ -730,7 +815,7 @@ Git commit explicitly (replace the placeholder with the desired commit):
 
 ```bash
 uv run --locked --extra results python -m benchmarking.results \
-  --data results/archive catalog --public-root . \
+  --data results/archive catalog --dataset /path/to/ICLayout-Bench-Dataset \
   --schematic-revision <full-drawing-commit>
 ```
 
@@ -784,10 +869,8 @@ by default and previous revisions remain accessible. It cannot replace a run's
 candidate or task identity. Derived presentation artifacts may be regenerated
 without changing any score.
 
-New compact version 3 retains task, candidate and condition hashes. Import-time
-hashes for older exports identify copied files only and do not restore missing
-historical attestations. Unknown usage stays null; CLI-reported usage never becomes
-service-observed usage.
+Participant results retain task, candidate and condition hashes. Unknown usage
+stays null; CLI-reported usage never becomes service-observed usage.
 
 Automatic indexing targets the participant-selected archive, not an operator
 website. Neither `results_data` nor archive `retry` uploads files to the website,
@@ -807,8 +890,8 @@ directory and run `verify` before using it.
 
 For PostgreSQL, install `iclayout-bench[results,postgres]`, provision an empty database,
 and set `ICLAYOUT_BENCH_DATABASE_URL` to a SQLAlchemy `postgresql+psycopg` URL. Use the
-same `--data` attachment root for all processes. Alembic applies schema revisions
-when the archive opens. SQLite and PostgreSQL use the same result model; moving
+same `--data` attachment root for all processes. The archive creates missing tables from the current definitions
+when it opens; existing columns are not automatically transformed. SQLite and PostgreSQL use the same result model; moving
 existing SQL contents between backends is not an automatic database conversion.
 Reimport original exports into the target database, then regenerate presentations,
 or perform an operator-managed SQL migration. Back up PostgreSQL and its associated
@@ -819,7 +902,7 @@ operator deployment or result-publication policy.
 ## Website result delivery
 
 The installed Public package includes a standard-library-only delivery CLI,
-independent of Private and the optional SQL archive dependencies. Run your complete
+independent of operator applications and the optional SQL archive dependencies. Run your complete
 experiment first, then create a portable package:
 
 ```bash
@@ -854,7 +937,7 @@ never reruns an Agent or evaluator and never deletes original results.
 
 ### Package and HTTP contract
 
-`iclayout-results.v1` is a ZIP containing `manifest.json` and terminal collections
+`iclayout-results` is a ZIP containing `manifest.json` and terminal collections
 at `runs/NNNNNN/`. The manifest records `format`, `runs` and a `files` map of member
 paths to `{sha256, size}`. Original `result.json` bytes, declared files and available
 standard evaluator artifacts are preserved; recovery directories, participant

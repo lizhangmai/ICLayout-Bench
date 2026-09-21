@@ -48,7 +48,7 @@ def test_run_config_freezes_declared_code_and_rejects_changes(tmp_path):
     script = Asset(b"print('hello')", "python")
     (tmp_path / "cli.py").write_bytes(script.content)
     config = tmp_path / "agent.toml"
-    config.write_text(f'''schema_version = 1
+    config.write_text(f'''
 id = "offline-test"
 image = "iclayout-bench-tools:local"
 command = ["python", "/agent/cli.py"]

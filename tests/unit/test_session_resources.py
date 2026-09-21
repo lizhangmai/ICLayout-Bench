@@ -22,7 +22,7 @@ def pdk_resources(*, manifest=True, missing=()):
     } - set(missing)
     resources = {name: Asset(b"reviewed", "binary") for name in names}
     if manifest:
-        raw = {"schema_version": 1, "files": {},
+        raw = {"files": {},
                "provenance": {"kind": "reviewed-pdk-view", "view_sha256": "a" * 64}}
         resources["manifest.json"] = Asset(json.dumps(raw).encode(), "json")
     return resources
@@ -59,7 +59,7 @@ def test_generic_resources_do_not_get_pdk_environment_or_reference_material():
     resources = {"README.txt": Asset(b"solver resource", "text")}
     assert resource_environment(resources) == {}
     info = resource_preflight(resources)
-    assert info == {"schema_version": 1, "mount": "/resources", "environment": {},
+    assert info == {"mount": "/resources", "environment": {},
                     "bundles": [], "python_imports": []}
 
 
@@ -70,7 +70,7 @@ def declared_resources(environment):
     return {
         "pdks/new/python/tool.py": Asset(b"# synthetic", "python"),
         "pdk-environment.json": Asset(json.dumps({
-            "schema_version": 1, "id": "new", "environment": environment,
+            "id": "new", "environment": environment,
             "sources": {}, "checks": [["python", "-c", "pass"]],
         }).encode(), "json"),
     }

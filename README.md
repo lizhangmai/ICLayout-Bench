@@ -8,95 +8,55 @@ Run public tasks locally to debug your Agent before participating in an operator
 unified evaluation service. Both paths use the same HTTP contract, isolated EDA
 execution and independent scoring implementation. Local results are development
 evidence; formal results require operator-controlled conditions and verification.
-Private adds hidden tasks, admission, controlled reruns and reviewed releases.
+Operators may add hidden tasks, admission, controlled reruns and reviewed releases.
 
 Current tasks use source simulation as the 100-point electrical reference and a
-frozen compact-area reference (`layout-v2`); scores may exceed 100. See
-[scoring and task design](docs/tasks.md#task-scoring). Historical results retain
-their original scoring version.
+frozen compact-area reference with circuit-specific metric weights (`layout`);
+scores may exceed 100. See
+[scoring and task design](docs/tasks.md#task-scoring).
 
-## Licensing
+## Install and run
 
-The framework is licensed under [MIT](LICENSE). Task materials, reference layouts,
-PDKs and EDA tools retain their own terms; the repository is not uniformly MIT.
-In particular, both analog-db collections include **PolyForm Noncommercial 1.0.0**
-circuit materials and reference layouts, with additional upstream component terms.
-Public availability and case qualification do not grant commercial-use rights.
-See [Licensing and distribution](LICENSING.md) for collection scopes and notices
-before using or redistributing task materials.
+Use Python 3.12+ and install the ICLayout-Bench wheel. Engine source stays on
+GitHub; tasks and the official core selection live in an independent
+Dataset repository. No Dataset is bundled in the Python package.
 
-## Quick start
-
-Use Python 3.12+ and uv. From this Public checkout:
+Supply an HF Dataset repo ID and optional fixed `--revision` once published, or a
+local Dataset working copy for development. The Dataset source and revision are explicit caller inputs. Pull a prebuilt Docker Hub tools image or build and customize the Dockerfile;
+see [image setup](docs/tools.md#prebuilt-images-and-local-builds). With that image:
 
 ```bash
-uv sync --locked --group analysis
+python -m benchmarking.engine.preview --dataset /path/to/ICLayout-Bench-Dataset \
+  run --case NAND2_X1 --image iclayout-bench-tools:local --output build/reference-check
+python -m benchmarking.run --config experiment.toml \
+  --dataset /path/to/ICLayout-Bench-Dataset --output results/new-experiment
 ```
 
-For local self-testing, install Docker on Linux x86-64 and prepare a public task.
-The first command builds the public tool image; when a compatible image already
-exists, use `--skip-build --image <existing-image>` instead.
+Reference evaluation makes no model calls. The experiment runner starts the local
+service and the selected participant harness. It records the dataset commit,
+input digests and tool identities. HF manages downloaded task caches; resource
+installation and derived PDK caches are automatic. There is no prepared case
+export. Only declared inputs enter the isolated solver workspace.
 
-```bash
-uv run --locked python -m benchmarking.engine.preview quickstart \
-  --case cell_6t --output build/local-cell6t
-export ICLAYOUT_BENCH_TOKEN="$(openssl rand -hex 32)"
-uv run --locked python -m benchmarking.service \
-  --prepared build/local-cell6t/prepared --data build/local-service \
-  --image iclayout-bench-tools:local --token-env ICLAYOUT_BENCH_TOKEN
-```
+For remote participation, use `--endpoint` and operator credentials instead of a
+local Dataset. Docker and PDK resources are not needed on the participant host.
+See [running](docs/running.md) for experiment configuration and output contracts,
+and [tools](docs/tools.md) for reference checks and resource management.
 
-Quickstart prepares resources and checks the published reference without calling
-a model. Its reference is never mounted into the solver workspace. The service
-runs in the foreground. Connect your Codex, Claude Code, DSH or other Agent harness
-using the [experiment runner](docs/running.md#experiment-runner),
-`python -m benchmarking.run`, or the [generic HTTP client](docs/running.md#generic-client). The participant
-controls its own conversation and tool loop; ICLayout-Bench observes service
-operations, enforces execution constraints and scores immutable submissions.
+The [participant examples](examples/README.md) provide runnable harness
+configurations, installed-package usage instructions and persistent, Git-ignored result storage.
 
-For remote participation, use the operator's endpoint and credentials with the
-same client. No local Docker, EDA installation or Private source is needed. No
-hosted public endpoint is supplied. See [running](docs/running.md) for session
-creation, observation exports, analysis and evaluating an existing GDS directly.
+## Licensing and public data
 
-## Public materials
+The engine is [MIT licensed](LICENSE). Independently distributed circuits,
+reference layouts, PDKs and tools retain their own licenses. Consult the Dataset's
+Dataset card and collection notices; public availability does not grant additional
+redistribution or commercial-use rights.
 
-[benchmark.toml](benchmark.toml) selects qualified cases. `tasks/` holds public
-netlists, requirements and reference material across IHP SG13G2, FreePDK45 and
-GF180. [Dockerfile](Dockerfile) defines the compatible tool recipe; process
-manifests pin PDK releases or source submodules. Public preparation resolves reviewed inputs and resources into fresh
-`build/` output. References are development materials, excluded from standard
-solver inputs. DRC/LVS validity is necessary but tasks also impose geometry and
-post-layout requirements.
-
-GF180MCU and IHP SG13G2 use fixed prebuilt releases downloaded through ciel.
-`ICLAYOUT_BENCH_CACHE_DIR` overrides the default `~/.cache/iclayout-bench` cache
-(or `$XDG_CACHE_HOME/iclayout-bench`). FreePDK45 uses the pinned community
-installation. Preparation verifies cached resources and filters out example answers.
-See [PDK preparation](docs/tools.md#external-sources) for sources and extraction scope.
-
-The wheel provides one `benchmarking` namespace, including its `engine`,
-`service` and `participants` subpackages. Large task catalogs and upstream PDKs remain source/resource inputs: use a Public checkout
-for preparation, or `benchmarking.engine.preview --public-root /path/to/ICLayout-Bench` with
-an installed wheel. Serving an already prepared case does not require a checkout.
-
-## Migration
-
-The project is now **ICLayout-Bench**, distributed as `iclayout-bench`. The three
-checkout directories use the `ICLayout-Bench` prefix. Current commands read
-`ICLAYOUT_BENCH_*` environment variables and use `iclayout-bench-tools` image tags.
-All Public Python implementation now lives under `benchmarking`: use
-`benchmarking.engine` and `benchmarking.service` in place of the former top-level
-`layout_eval` and `layout_service` packages. The HTTP protocol remains unchanged. Reinstall the package and prepare
-fresh resources after moving a checkout; historical reports retain their original identities.
-
-
-Version 0.3 makes the shared evaluator and local service public. Private's formal
-operations now live in `iclayout_bench_private`; it imports the same Public engine.
-Use `python -m benchmarking.engine.cli` for local evaluate/run/recover commands and
-`python -m benchmarking.service` for local HTTP sessions. Batch admission and verified
-rerun/release commands remain operator-owned. Old generated runs are evidence of
-their recorded implementation, not inputs required by the current workflow.
+Dataset process manifests select pinned external resources. The engine wheel
+provides the `benchmarking` namespace and its `engine`, `service`, `participants`
+and result subpackages. A local Dataset is an explicit data input, never an
+importable dependency on the design authoring workspace or on another Python source checkout.
 
 <a id="resources"></a>
 
@@ -116,6 +76,6 @@ their recorded implementation, not inputs required by the current workflow.
 
 Public owns client/observation tests, engine regressions, container isolation checks
 and public reference/counterexample checks. Offline tests need neither Docker nor
-Private. Container/EDA tests require the declared tools. Private verifies admission,
+operator applications. Container/EDA tests require the declared tools. Operators verify admission,
 controlled reruns and disclosure using that same engine. Synthetic protocol runs
 are not model scores; reference evaluation is not an Agent measurement.

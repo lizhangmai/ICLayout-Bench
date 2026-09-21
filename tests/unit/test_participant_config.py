@@ -15,7 +15,43 @@ from benchmarking.participants.runner import command
 pytestmark = pytest.mark.unit
 
 
+
+
 class SelectionTests(unittest.TestCase):
+    def test_dataset_source_environment_resolves_before_selection(self):
+        # Dataset I/O is the external boundary; config parsing and identity binding
+        # stay real. Missing settings must not silently select a different dataset.
+        import tomli_w
+        fields = {'harness': 'codex', 'model': 'gpt-6-astra', 'concurrency': 1,
+                  'efforts': ['high'], 'repetitions': 1,
+                  'dataset': {'source_env': 'EXAMPLE_DATASET', 'name': 'core', 'split': 'test'}}
+        dataset = Mock(identity={'source': 'org/public-data', 'commit': 'frozen'})
+        records = Mock()
+        records.to_list.return_value = [{'task_id': 'fixture'}]
+        dataset.native_cases.return_value = (records, {'fixture': Path('case.toml')})
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'experiment.toml'
+            path.write_text(tomli_w.dumps(fields))
+            with patch.dict(os.environ, {'EXAMPLE_DATASET': 'org/public-data'}), \
+                    patch('benchmarking.dataset.load_dataset', return_value=dataset) as load:
+                rows = read_configs([path])
+                load.assert_called_once_with('org/public-data', revision=None, local_files_only=False)
+                self.assertEqual(rows[0]['tasks'], ['fixture'])
+                self.assertEqual(rows[0]['dataset']['source'], 'org/public-data')
+                self.assertNotIn('source_env', rows[0]['dataset'])
+            for value in (None, '', '   '):
+                with patch.dict(os.environ), patch('benchmarking.dataset.load_dataset') as load:
+                    os.environ.pop('EXAMPLE_DATASET', None)
+                    if value is not None:
+                        os.environ['EXAMPLE_DATASET'] = value
+                    with self.assertRaisesRegex(ValueError, 'EXAMPLE_DATASET'):
+                        read_configs([path])
+                    load.assert_not_called()
+            fields['dataset']['source'] = 'ambiguous/data'
+            path.write_text(tomli_w.dumps(fields))
+            with self.assertRaisesRegex(ValueError, 'exactly one'):
+                read_configs([path])
+
     def test_pair_configs_require_explicit_conditions_and_expand_efforts(self):
         fields = {'harness': 'codex', 'model': 'gpt-6-astra', 'tasks': ['fixture'], 'concurrency': 1,
                   'efforts': ['high', 'xhigh'], 'repetitions': 1}
@@ -30,7 +66,7 @@ class SelectionTests(unittest.TestCase):
                 path.write_text(tomli_w.dumps({k: v for k, v in fields.items() if k != key}))
                 with self.subTest(missing=key), self.assertRaises(ValueError):
                     read_configs([path])
-            for change in ({'efforts': ['default']}, {'hours': 3}, {'seconds': 1800},
+            for change in ({'efforts': ['default']}, {'benchmark': 'selection.toml'}, {'hours': 3}, {'seconds': 1800},
                            {'tasks': []}, {'tasks': ['same', 'same']}, {'tasks': 'case'},
                            {'concurrency': 0}, {'concurrency': True}, {'concurrency': 1.5}, {'repetitions': 0}, {'efforts': []}, {'efforts': ['high', 'high']}):
                 path.write_text(tomli_w.dumps(fields | change))
@@ -128,7 +164,8 @@ class BridgeTests(unittest.TestCase):
             response = dispatch(bridge, {"id": 1, "method": "initialize"})
             self.assertIn("tools", response["result"]["capabilities"])
             self.assertIsNone(dispatch(bridge, {"method": "notifications/initialized"}))
-            self.assertEqual(len(dispatch(bridge, {"id": 2, "method": "tools/list"})["result"]["tools"]), 5)
+            self.assertEqual({t['name'] for t in dispatch(bridge, {"id": 2, "method": "tools/list"})['result']['tools']},
+                             {'status', 'read', 'write', 'execute', 'submit', 'check'})
             written = dispatch(bridge, {"id": 3, "method": "tools/call", "params": {
                 "name": "write", "arguments": {"path": "probe.txt", "content": "hello"}}})
             self.assertNotIn("isError", written["result"])

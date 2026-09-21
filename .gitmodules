@@ -1,3 +1,0 @@
-[submodule "third_party/freepdk45-open-pdks"]
-	path = third_party/freepdk45-open-pdks
-	url = https://github.com/rjordans/freepdk45-open-pdks.git

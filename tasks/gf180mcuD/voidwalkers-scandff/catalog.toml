@@ -1,4 +1,0 @@
-schema_version = 3
-cases = [
-    { id = "gf180mcuD.voidwalkers-scandff.scan_dff", config_path = "cases/scan_dff/case.toml" },
-]

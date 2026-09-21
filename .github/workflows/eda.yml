@@ -1,6 +1,15 @@
 name: Public evaluator checks
 on:
   workflow_dispatch:
+    inputs:
+      dataset:
+        description: Hugging Face Dataset repository ID
+        required: true
+        type: string
+      revision:
+        description: Dataset Git commit
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -11,6 +20,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v7
         with:
           version: '0.11.2'
@@ -19,9 +29,11 @@ jobs:
       - run: docker build -t iclayout-bench-tools:dev .
       - env:
           ICLAYOUT_BENCH_TEST_IMAGE: iclayout-bench-tools:dev
-          ICLAYOUT_BENCH_PREPARED: build/prepared-cell6t-http
+          DATASET_REPO: ${{ inputs.dataset }}
+          DATASET_REVISION: ${{ inputs.revision }}
         run: |
-          uv run --locked python -m benchmarking.engine.preview prepare --case cell_6t --image iclayout-bench-tools:dev --output build/prepared-cell6t-http
+          export ICLAYOUT_BENCH_DATASET="$(uv run --locked python -c 'import os; from huggingface_hub import snapshot_download; print(snapshot_download(repo_id=os.environ["DATASET_REPO"], repo_type="dataset", revision=os.environ["DATASET_REVISION"]))')"
+          uv run --locked pytest tests/unit/test_catalogs.py
           uv run --locked pytest -m acceptance_container
           uv run --locked pytest tests/test_http.py
           uv run --locked --group eda pytest tests/integration/test_public_references.py -k 'cell_6t or NAND2_X1'

@@ -1,4 +1,4 @@
-"""HTTP client boundary checks absent from legacy socket-client coverage.
+"""HTTP client response, integrity and retry boundaries.
 
 Public wire fixtures specify independent responses. Protect secret-bearing
 redirects, response integrity and mutation keys; these are protocol tests only.
@@ -21,7 +21,7 @@ class Response(io.BytesIO):
 
 @pytest.mark.parametrize('response,code', [
     ({'protocol':'other'}, 'incompatible_protocol'),
-    ({'protocol':'layout-http.v1','content_base64':base64.b64encode(b'changed').decode(),
+    ({'protocol':'layout-http','content_base64':base64.b64encode(b'changed').decode(),
       'size_bytes':7,'sha256':'0'*64}, 'invalid_response'),
 ])
 def test_read_rejects_incompatible_or_tampered_service_content(response,code,monkeypatch):
@@ -39,7 +39,7 @@ def test_explicit_retry_preserves_key_and_body_without_automatic_mutation_retry(
         requests.append(request)
         if len(requests)==1:
             raise TimeoutError('reply lost')
-        return Response(b'{"protocol":"layout-http.v1","submission_id":"accepted"}')
+        return Response(b'{"protocol":"layout-http","submission_id":"accepted"}')
     monkeypatch.setattr(client._opener,'open',transport)
     with pytest.raises(ClientError) as failure:
         client.submit('session','output.gds',key='stable')
@@ -62,7 +62,7 @@ def test_error_retains_service_status(monkeypatch):
     client = Client('http://127.0.0.1:8000','secret')
     def transport(*args,**kwargs):
         raise HTTPError('http://127.0.0.1',409,'Conflict',{},io.BytesIO(
-            b'{"protocol":"layout-http.v1","error":{"code":"conflict","message":"Different content","retryable":false}}'))
+            b'{"protocol":"layout-http","error":{"code":"conflict","message":"Different content","retryable":false}}'))
     monkeypatch.setattr(client._opener,'open',transport)
     with pytest.raises(ClientError) as failure:
         client.submit('session','output.gds',key='used')
@@ -121,7 +121,7 @@ def test_creation_wait_covers_service_provisioning_without_extending_other_reque
     observed = []
     def transport(request, **kwargs):
         observed.append((request.full_url, kwargs['timeout']))
-        return Response(b'{"protocol":"layout-http.v1"}')
+        return Response(b'{"protocol":"layout-http"}')
     monkeypatch.setattr(client._opener, 'open', transport)
     client.create('fixture', {}, key='creation')
     client.session('fixture')

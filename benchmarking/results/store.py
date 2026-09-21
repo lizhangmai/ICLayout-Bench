@@ -9,8 +9,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from statistics import mean, stdev
 
-from alembic import command
-from alembic.config import Config
 from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -65,15 +63,15 @@ def normalize(raw):
     if raw.get("test_only"):
         raise ValueError("Protocol fixtures are not model measurements")
     if "evaluation" in raw:
-        if raw.get("schema_version") not in {1, 2, 3} or raw.get("state") != "finished":
+        if raw.get("format") != "participant-result" or raw.get("state") != "finished":
             raise ValueError("Expected a finished supported compact result")
         evaluation = raw["evaluation"]
         identity, summary = raw.get("identity", {}), raw.get("summary", {})
-    elif raw.get("protocol") == "layout-http.v1":
+    elif raw.get("protocol") == "layout-http":
         evaluation, identity, summary = raw, {}, {}
     else:
         raise ValueError(
-            "Unsupported result format; migrate legacy case directories first"
+            "Unsupported result format"
         )
     if evaluation.get("test_only") or evaluation.get("state") not in {
         "complete",
@@ -115,6 +113,8 @@ def normalize(raw):
     task_identity = {
         "task_sha256": evaluation.get("task_sha256"),
         "benchmark": identity.get("benchmark"),
+        "dataset": (identity.get("inputs", {}).get(task_id, {}).get("dataset")
+                    or plan.get("dataset")),
     }
     # Unknown task versions stay isolated by session; a release identity is an explicitly weaker fallback.
     if not task_identity["task_sha256"] and not (
@@ -187,17 +187,11 @@ class ResultStore:
                 connection.execute("PRAGMA busy_timeout=30000")
                 connection.execute("PRAGMA journal_mode=WAL")
 
-        # Serialize migration startup across local CLI / web processes.
+        # Serialize table initialization across local CLI / web processes.
         from benchmarking.engine.recorder import BatchLease
 
-        with BatchLease(self.root):
-            config = Config()
-            config.set_main_option(
-                "script_location", str(Path(__file__).parent / "migrations")
-            )
-            with self.engine.begin() as conn:
-                config.attributes["connection"] = conn
-                command.upgrade(config, "head")
+        with BatchLease(self.root), self.engine.begin() as conn:
+            s.metadata.create_all(conn)
 
     def close(self):
         self.engine.dispose()

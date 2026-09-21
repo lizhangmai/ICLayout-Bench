@@ -18,7 +18,8 @@ from benchmarking.files import Asset
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_ROOT = ROOT
+from helpers.catalog import ROOT as PUBLIC_ROOT
+
 IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
 FIXTURES = ROOT / "tests/fixtures/sg13g2"
 
@@ -53,7 +54,9 @@ def test_reviewed_psp_models_load_and_distinguish_on_and_off(tmp_path, context):
     assert report["outcome"] == "passed", report["jobs"]
     assert report["metrics"]["on_current"]["value"] > 1e5 * report["metrics"]["off_current"]["value"]
     assert report["backends"]["circuit.simulate"]["support_sha256"]
-    assert report["jobs"]["on"]["evidence"]["support:osdi/psp103.osdi"]["bytes"] > 1000
+    evidence = report["jobs"]["on"]["evidence"]
+    assert evidence["support_manifest"]["sha256"] == report["backends"]["circuit.simulate"]["support_sha256"]
+    assert not any(name.startswith("support:") for name in evidence)
 
 
 def test_gds_capacitance_matches_technology_area_and_perimeter_formula(tmp_path, context):

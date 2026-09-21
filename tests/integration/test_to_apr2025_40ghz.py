@@ -33,7 +33,8 @@ from benchmarking.files import Asset
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_ROOT = ROOT
+from helpers.catalog import ROOT as PUBLIC_ROOT
+
 CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/TO_Apr2025/cases/40_GHZ_LOW_NOISE_TIA"
 TOP = "FDM_QNC_00_LN_TIA"
 PORTS = ["RFin", "RFout", "VSS", "vcc1", "vcc2", "vcc3"]
@@ -387,7 +388,7 @@ def test_repeated_translated_candidate_preserves_decisions(context, tmp_path):
 def test_core_operating_point_uses_real_hbt_resistor_and_capacitor_models(context, tmp_path):
     """The case-owned nominal point uses the corrected DUT port order."""
     _config, image, directory = context
-    plan = parse_evaluation(json.dumps({"schema_version": 1, "mode": "characterization", "metrics": [],
+    plan = parse_evaluation(json.dumps({"mode": "characterization", "metrics": [],
         "jobs": [{"id": "op", "stage": "simulate", "operation": "circuit.simulate",
                   "inputs": {"deck": "input:deck", "circuit": "input:circuit"},
                   "outputs": {"waveform": "ngspice-raw"},

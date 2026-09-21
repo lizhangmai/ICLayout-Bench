@@ -1,9 +1,2 @@
-# Preserve upstream SPICE and notices byte-for-byte, including trailing whitespace.
-tasks/freepdk45/OpenRAM/cases/*/materials/circuit.spice whitespace=-blank-at-eol,-blank-at-eof
-tasks/freepdk45/nangate45-pdk/cases/*/materials/circuit.spice whitespace=-blank-at-eol,-blank-at-eof
-tasks/freepdk45/nangate45-pdk/NOTICE whitespace=-blank-at-eol,-blank-at-eof
-# Preserve source license text and the embedded upstream Magic technology bytes.
-tasks/gf180mcuD/2AMLogic-sar-adc/LICENSE whitespace=-blank-at-eof
-tasks/gf180mcuD/Jianxun-OTA/LICENSE whitespace=-blank-at-eol
-tasks/gf180mcuD/voidwalkers-scandff/LICENSE whitespace=-blank-at-eol
-tasks/gf180mcuD/pdk.toml whitespace=-blank-at-eol,-space-before-tab
+# Unified patches retain upstream context prefixes and tab indentation.
+scripts/patches/*.patch whitespace=-blank-at-eol,-space-before-tab

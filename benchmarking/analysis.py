@@ -27,7 +27,7 @@ def export_session_result(result, destination):
         "complete",
         "error",
     }:
-        raise ValueError("Expected a terminal layout-http.v1 result")
+        raise ValueError("Expected a terminal layout-http result")
     output = Path(destination)
     output.mkdir(parents=True, exist_ok=False)
     raw = json_bytes(result)

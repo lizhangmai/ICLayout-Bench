@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from benchmarking.bundles import load_bundle
+from benchmarking.dataset import process_manifest
 from benchmarking.engine.docker import DockerTool
 from benchmarking.engine.environment import prepare_pdk
 from benchmarking.engine.evaluate import run_evaluation
@@ -17,10 +19,11 @@ from benchmarking.files import Asset
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_ROOT = ROOT
+from helpers.catalog import ROOT as PUBLIC_ROOT
+
 IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
 
-PLAN = b'''schema_version = 1
+PLAN = b'''
 mode = "characterization"
 [[jobs]]
 id = "rc"
@@ -94,8 +97,7 @@ def context(tmp_path_factory):
         "circuit.simulate": NgspiceDocker(image=IMAGE, support=str(root / "models")),
     }
     source = Asset((ROOT / "tests/fixtures/sg13g2/make_switch.py").read_bytes(), "python")
-    primitive_files = {"pdk/" + p.relative_to(root / "view").as_posix(): Asset(p.read_bytes(), "binary")
-                       for p in (root / "view").rglob("*") if p.is_file()}
+    primitive_files = {"pdk/" + name: asset for name, asset in load_bundle(root / "view").files}
     environment = {"KLAYOUT": "1", "PYTHONDONTWRITEBYTECODE": "1",
                    "PYTHONPATH": "/workspace/pdk/ihp-sg13g2/libs.tech/klayout/python:"
                                  "/workspace/pdk/ihp-sg13g2/libs.tech/klayout/python/pycell4klayout-api/source/python"}
@@ -167,7 +169,7 @@ def test_same_conductor_port_aliases_are_rejected(tmp_path, context):
 def test_internal_wire_with_low_w_over_l_drivers_retains_resistance(tmp_path, context):
     backends, _, primitive_files, environment, tool = context
     source = Asset((ROOT / "tests/fixtures/sg13g2/make_series_switch.py").read_bytes(), "python")
-    plan = parse_evaluation(b'''schema_version = 1
+    plan = parse_evaluation(b'''
 mode = "characterization"
 [[jobs]]
 id = "rc"
@@ -236,7 +238,7 @@ def test_isolated_body_cannot_gain_a_resistive_path_to_substrate(tmp_path, geome
     support = tmp_path / 'magic'
     profile = config['support_profiles']['support']
     prepare_support(None,
-                    f'{case.parents[3]}/pdk.toml#{profile}', support)
+                    f'{process_manifest(case)}#{profile}', support)
     settings = {**config['settings'], 'support': str(support)}
     backend = MagicRCDocker(**settings)
     from benchmarking.evaluation import Job

@@ -31,7 +31,8 @@ from benchmarking.tasks import load_task
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_ROOT = ROOT
+from helpers.catalog import ROOT as PUBLIC_ROOT
+
 CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/TO_Apr2025/cases/97_GHZ_LINEAR_TIA"
 TOP = "FMD_QNC_01_LIN_TIA"
 PORTS = ["RFIN", "RFOUT", "VCC1", "VCC2", "VCC3", "VSS"]

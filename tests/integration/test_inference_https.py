@@ -12,7 +12,7 @@ from dataclasses import replace
 
 import pytest
 
-from benchmarking.engine.inference import InferenceConfig, ResponsesGateway
+from benchmarking.engine.inference import InferenceConfig, InferenceGateway
 from benchmarking.engine.recorder import RunRecorder
 from benchmarking.files import Asset
 
@@ -101,7 +101,7 @@ def test_http_and_https_auth_redirects_and_secret_reflection(tmp_path, monkeypat
         proxy_thread = threading.Thread(target=proxy.serve_forever, daemon=True)
         proxy_thread.start()
         profile = replace(profile, proxy_url=f'http://127.0.0.1:{proxy.server_port}')
-    gateway = ResponsesGateway(profile)
+    gateway = InferenceGateway(profile)
     assert gateway.public['transport'] == scheme
     gateway.recorder = RunRecorder(tmp_path / "run")
     gateway.deadline = time.monotonic()+20

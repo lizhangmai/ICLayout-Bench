@@ -1,5 +1,4 @@
 """Small terminal results; live recovery material remains in .runtime until export commits."""
-import argparse
 import hashlib
 import json
 import re
@@ -12,7 +11,6 @@ from benchmarking.engine.recorder import BatchLease
 from benchmarking.files import atomic_write, read_file
 
 from .runner import save
-from .storage import CaseLease
 
 
 def load(path):
@@ -58,12 +56,9 @@ def compact_result(result):
         for key in ('task_sha256', 'condition', 'submission'):
             if key in evaluation_identity:
                 evaluation[key] = evaluation_identity[key]
-    result['schema_version'] = 3
+    result['format'] = 'participant-result'
     result['files'] = list(result.get('files', []))
     result.pop('resources', None)
-    identity = result['identity']
-    # Historical exports cannot infer the executing release from the migrator.
-    identity.setdefault('benchmark', {'version': None, 'commit': None})
     if 'tool_identity' in evaluation_identity:
         result['evaluation']['tool_identity'] = evaluation_identity['tool_identity']
     result.get('image', {}).pop('image_id', None)
@@ -85,23 +80,6 @@ def verify(root, result):
     for name in result.get('files', []):
         if name != 'layout.png':  # A derived image may be regenerated.
             read_file(root, name)
-
-
-def simplify_case(root, result):
-    """Idempotently simplify an already completed export; caller holds its lease."""
-    verify(root, result)
-    report = root / 'evaluation/report.json'
-    if report.exists():
-        save(report, compact_report(load(report)))
-    events = root / 'evaluation/events.jsonl'
-    if events.exists():
-        raw = ''.join(json.dumps(without_hashes(json.loads(line))) + '\n'
-                      for line in events.read_text().splitlines() if line.strip())
-        atomic_write(events, raw.encode())
-    result = compact_result(result)
-    atomic_write(root / 'report.md', report_text(result))
-    save(root / 'result.json', result)
-    return result
 
 
 def evaluation_export(source, root, files):
@@ -171,34 +149,28 @@ def report_text(result):
     row = result['identity']['plan'][0]
     lines = [f"# {summary.get('task', evaluation.get('task_id', 'Case'))}", '',
              f"Model: `{row.get('model')}`; effort: `{row.get('effort')}`; outcome: **{summary.get('outcome')}**.",
-             f"Score: **{summary.get('score')}** ({'reference = 100; uncapped' if score.get('method') == 'layout-v2' else 'maximum = 100'}); verification: `{evaluation.get('verification_level', 'unknown')}`.",
+             f"Score: **{summary.get('score')}** (reference = 100; uncapped); verification: `{evaluation.get('verification_level', 'unknown')}`.",
              f"Agent time: {result.get('execution', {}).get('elapsed_seconds', 'unknown')} seconds (excludes preparation and evaluation).", '',
              '[Machine-readable result](result.json)', '']
     benchmark = result['identity'].get('benchmark') or {}
     lines += [f"ICLayout-Bench: `{benchmark.get('version') or 'unknown'}`; Git commit: `{benchmark.get('commit') or 'unknown'}`.", '']
     if 'final.gds' in result.get('files', []):
         lines += ['[Submitted GDS](final.gds) · [Layout image](layout.png)', '']
-    if score.get('method') == 'layout-v2':
-        lines += ['## Scoring', '',
-                  '`S = 100 × sqrt(E × Q)` after physical and functional checks.', '',
-                  'E is the geometric mean of electrical dimensions; each dimension is the geometric mean of its metric ratios, each using its worst paired observation. Source simulation defines 100. Q is reference area / candidate area. Scores may exceed 100. Errors are unknown; functional rejection is zero.', '',
+    if score.get('method') == 'layout':
+        formula = '`S = 100 × product(q_i ** w_i)` with explicit metric and area weights.'
+        lines += ['## Scoring', '', formula, '',
+                  'Each metric uses its worst paired source-relative quality. Q is reference area / candidate area. Scores may exceed 100. Errors are unknown; functional rejection is zero.', '',
                   '| Component | Value |', '| --- | ---: |']
         lines += [f'| {key} | {value} |' for key, value in score.get('components', {}).items()]
         area = score.get('area') or {}
         lines += ['', f"Area: {area.get('value')} µm²; reference: {area.get('target')} µm².", '']
-    elif score:
-        lines += ['## Scoring', '', '`S = G * (60E + 20H + 20HQ)`.', '',
-                  'G requires physical validity and complete valid measurements. E averages the applicable response, bias and supply dimensions; each dimension uses its worst metric and each metric its worst observation. H is 1 only when all electrical requirements pass. Q is the clipped linear area utility. Electrical acceptance earns 80–100 points. Evaluator errors can leave the score unknown.', '',
-                  'Attainment is 1 within inclusive acceptance bounds and decreases linearly to the declared zero boundaries outside them. Better-than-target performance earns no additional points.', '',
-                  '| Component | Value |', '| --- | ---: |']
-        lines += [f'| {key} | {value} |' for key, value in score.get('components', {}).items()]
-        area = score.get('area') or {}
-        lines += ['', f"Area: {area.get('value')} µm²; full-score target: {area.get('target')}; zero-area-score boundary: {area.get('zero')}.", '']
-    relative = score.get('method') == 'layout-v2'
-    fields = ('value', 'unit', 'lower', 'upper', 'normalization', 'scale', 'status') if relative else (
-        'value', 'unit', 'lower', 'upper', 'zero_lower', 'zero_upper', 'status')
-    headers = ['Metric', 'Value', 'Unit', 'Lower', 'Upper'] + (
-        ['Normalization', 'Scale', 'Status'] if relative else ['Lower zero', 'Upper zero', 'Status'])
+    if score.get('method') == 'layout':
+        lines += ['### Weights', '', '| Metric | Weight |', '| --- | ---: |']
+        lines += [f'| {key} | {weight:.6g} |' for key, weight in score.get('weights', {}).items()]
+        lines += ['']
+    relative = score.get('method') == 'layout'
+    fields = ('value', 'unit', 'lower', 'upper', 'normalization', 'scale', 'status')
+    headers = ['Metric', 'Value', 'Unit', 'Lower', 'Upper', 'Normalization', 'Scale', 'Status']
     lines += ['## Measurements', '', '| ' + ' | '.join(headers) + ' |',
               '| ' + ' | '.join('---' for _ in headers) + ' |']
     for key, metric in evaluation.get('metrics', {}).items():
@@ -228,8 +200,8 @@ def finish_case(root):
     state = load(root / 'result.json')
     runtime = root / '.runtime'
     if state.get('state') == 'finished':
-        if state.get('schema_version') not in {2, 3}:
-            raise ValueError('Migrate historical results explicitly with benchmarking.participants.results')
+        if state.get('format') != 'participant-result':
+            raise ValueError('Unsupported participant result format')
         verify(root, state)
         if runtime.exists():
             shutil.rmtree(runtime)
@@ -241,7 +213,7 @@ def finish_case(root):
     with ExitStack() as stack:
         for store in sorted(runtime.rglob('service-store')):
             stack.enter_context(BatchLease(store))
-        result = {'schema_version': 1, 'identity': state['identity'], 'state': 'finalizing',
+        result = {'format': 'participant-result', 'identity': state['identity'], 'state': 'finalizing',
                   'summary': dict(summary, result='result.json'), 'files': []}
         files = result['files']
         raw_path = runtime / 'participant/analysis/result.json'
@@ -295,10 +267,6 @@ def finish_case(root):
                 if old.get('candidate'):
                     put(root, 'attempts/' + attempt.name + '/final.gds', checked(report.parent, old['candidate']), files)
             result['attempts'].append(entry)
-        # Reuse an existing image during migration; future runs can render final.gds.
-        preview = runtime / 'layout-preview.json'
-        if preview.exists():
-            result['image'] = load(preview)
         result = compact_result(result)
         save(root / 'result.json', result)
         from benchmarking.layout_preview import ensure_layout_preview
@@ -315,52 +283,3 @@ def finish_case(root):
         save(root / 'result.json', result)
     shutil.rmtree(runtime)
     return result['summary']
-
-
-def migrate_case(root):
-    """Migrate a completed case-v2 directory; stop before deleting any unidentified files."""
-    root = Path(root)
-    result_path = root / 'result.json'
-    if result_path.exists():
-        record = load(result_path)
-        if record.get('state') != 'migrating':
-            if record.get('state') == 'finished' and record.get('schema_version') not in {2, 3}:
-                simplify_case(root, record)
-            return finish_case(root)
-        manifest, summary = {'identity': record['identity']}, record['summary']
-    else:
-        manifest = load(root / 'case.json')
-        summary = load(root / 'summary.json')
-        if summary.get('state') != 'finished':
-            raise ValueError('Only finished cases may be migrated')
-        if manifest['identity']['plan'][0]['repetitions'] != 1:
-            raise ValueError('Migrate each repetition explicitly before removing its case manifest')
-        save(result_path, {'identity': manifest['identity'], 'state': 'migrating', 'summary': summary})
-    runtime = root / '.runtime'
-    runtime.mkdir(mode=0o700, exist_ok=True)
-    # Explicit legacy list, not a blanket deletion of user-created files.
-    names = ('participant', 'service', 'attempts', 'recovery-history', 'case.json', 'summary.json',
-             'state.json', 'layout-preview.json', 'layout-preview-error.json', 'execution-summary.json',
-             'execution-summary.md', 'scoring-details.md')
-    for name in names:
-        source = root / name
-        if source.exists():
-            if (runtime / name).exists():
-                raise ValueError('Conflicting migration state: ' + name)
-            source.rename(runtime / name)
-    save(root / 'result.json', {'identity': manifest['identity'], 'state': 'finalizing', 'summary': summary})
-    return finish_case(root)
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('case', type=Path, nargs='+', help='Completed case directories to migrate')
-    args = parser.parse_args()
-    for case in args.case:
-        with CaseLease(case):
-            migrate_case(case)
-        print('Saved compact result: ' + str(case / 'result.json'), flush=True)
-
-
-if __name__ == '__main__':
-    main()

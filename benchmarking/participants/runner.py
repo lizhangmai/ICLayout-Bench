@@ -36,6 +36,11 @@ Use remaining time to diagnose and improve your candidate with available tools.
 Use status to check remaining time. Submission acceptance is delivery, not a
 passing verdict. Finish after submitting your best candidate; the runner closes
 the session and obtains an independent evaluation. Never claim a pass yourself.
+When status advertises process-feedback, use check on your current output GDS
+before the final submission. It runs the same complete plan as final judging,
+including strict port checks, distributed RC and electrical conditions. Read its
+diagnostics and correct your candidate while time remains. Hand-written local
+tool commands are exploratory checks and do not establish evaluator acceptance.
 """
 ROOT = Path(__file__).resolve().parent
 
@@ -56,7 +61,7 @@ def stop(process, signum=signal.SIGTERM):
 
 
 @contextmanager
-def service(prepared, output, image):
+def service(case, output, image):
     """Local mode starts the installed service; remote mode needs no evaluator."""
     private = output / ".private"
     private.mkdir(mode=0o700, exist_ok=True)
@@ -68,14 +73,18 @@ def service(prepared, output, image):
     env["ICLAYOUT_BENCH_LOCAL_TOKEN"] = token
     with (output / "service.log").open("a") as log:
         process = subprocess.Popen([
-            sys.executable, "-I", "-m", "benchmarking.service", "--prepared", str(Path(prepared).resolve()),
+            sys.executable, "-I", "-m", "benchmarking.service", "--dataset", case["dataset"], "--case", case["case"],
+            *(["--revision", case["revision"]] if case.get("revision") else []),
+            *(["--offline"] if case.get("offline") else []),
+            *(["--dataset-name", case["dataset_name"], "--dataset-split", case["dataset_split"]]
+              if case.get("dataset_name") else []),
             "--data", str(output / "service-store"), "--port", "0",
             "--image", image, "--token-env", "ICLAYOUT_BENCH_LOCAL_TOKEN",
         ], cwd=output, env=env, stdout=subprocess.PIPE, stderr=log, text=True, start_new_session=True)
         try:
             with selectors.DefaultSelector() as selector:
                 selector.register(process.stdout, selectors.EVENT_READ)
-                if not selector.select(timeout=45):
+                if not selector.select(timeout=600):
                     raise TimeoutError("Local service did not start; see service.log")
             line = process.stdout.readline().strip()
             prefix = "Local development service: "

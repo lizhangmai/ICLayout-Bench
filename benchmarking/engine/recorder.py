@@ -90,8 +90,7 @@ class RunRecorder:
                     raise ValueError("Cannot resume an event journal with an incomplete tail")
                 event = json.loads(line)
                 self._sequence += 1
-                if (event.get("schema_version") != 1
-                        or event.get("sequence") != self._sequence):
+                if event.get('sequence') != self._sequence:
                     raise ValueError("Cannot resume an invalid event journal")
         self._started = time.monotonic()
         self.error = None
@@ -125,7 +124,7 @@ class RunRecorder:
 
     def event(self, kind, **data):
         with self._lock:
-            event = {"schema_version": 1, "sequence": self._sequence + 1,
+            event = {"sequence": self._sequence + 1,
                      "time": datetime.now(UTC).isoformat(),
                      "elapsed_seconds": time.monotonic() - self._started,
                      "kind": kind, "data": data}
@@ -169,7 +168,7 @@ def recover_submissions(destination):
                 break
             event = json.loads(line)
             count += 1
-            if event.get("schema_version") != 1 or event.get("sequence") != count:
+            if (event.get("sequence") != count):
                 raise ValueError("Invalid event journal sequence or schema")
             if event["kind"] != "submission":
                 continue

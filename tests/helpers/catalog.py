@@ -1,15 +1,12 @@
-"""Read declared public catalog metadata without walking upstream assets."""
+"""Read published case metadata without walking upstream assets."""
 
+import os
 import tomllib
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-CATALOGS = sorted((ROOT / "tasks").glob("*/*/catalog.toml"))
+ROOT = Path(os.environ.get("ICLAYOUT_BENCH_DATASET", "build/no-dataset")).resolve()
+CASES = sorted((ROOT / "tasks").glob("*/*/cases/*/case.toml"))
 
 
-def read_catalog(path):
-    catalog = tomllib.loads(path.read_text())
-    configs = [(path.parent / item["config_path"],
-                tomllib.loads((path.parent / item["config_path"]).read_text()))
-               for item in catalog["cases"]]
-    return catalog, configs
+def read_case(path):
+    return tomllib.loads(path.read_text())

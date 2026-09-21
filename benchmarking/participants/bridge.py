@@ -33,6 +33,7 @@ TOOLS = [
          {"command": STRING, "seconds": {"type": "number", "exclusiveMinimum": 0}}, ["command"]),
     tool("submit", "Snapshot the declared GDS candidate for independent judging. Acceptance is not success.",
          {"path": STRING}, ["path"]),
+    tool("check", "Check the current declared GDS output with the final evaluator's full plan. Returns physical/electrical failures and diagnostics; does not submit. Uses the remaining solve budget; requires process-feedback capability.", {}),
 ]
 
 
@@ -60,7 +61,7 @@ class Bridge:
         for key, value in args.items():
             if key != "seconds" and not isinstance(value, str):
                 raise ValueError("Expected string argument")
-        mutation = name in {"write", "execute", "submit"}
+        mutation = name in {"write", "execute", "submit", "check"}
         if mutation and self.delivery_unknown:
             raise ClientError("operation_unresolved", "Previous bridge reply delivery is unknown; refusing a new mutation")
         if not self.delivery_unknown:
@@ -75,8 +76,11 @@ class Bridge:
             key = pending["key"]
         if mutation and pending is None:
             pending = {"tool": name, "arguments": args, "key": key}
-            if name == "execute":
-                remaining = self.client.session(self.session)["remaining_seconds"]
+            if name in {"execute", "check"}:
+                status = self.client.session(self.session)
+                if name == "check" and "process-feedback" not in status.get("capabilities", []):
+                    raise ValueError("Service does not advertise process-feedback")
+                remaining = status["remaining_seconds"]
                 seconds = args.get("seconds", min(remaining, self.command_seconds or remaining))
                 if type(seconds) not in (int, float) or not math.isfinite(seconds) or seconds <= 0:
                     raise ValueError("Command seconds must be positive and finite")
@@ -95,13 +99,15 @@ class Bridge:
             result = client.submit(sid, args["path"], key=key)
         else:
             seconds = pending["seconds"]
-            started = client.execute(sid, args["command"], seconds, key=key)
+            started = (client.check(sid, seconds, key=key) if name == "check" else
+                       client.execute(sid, args["command"], seconds, key=key))
             offset, chunks, count = 0, [], 0
+            limit = 128 * 1024 if name == "check" else 48000
             deadline = time.monotonic() + seconds + 60
             while True:
                 polled = client.poll(sid, started["execution_id"], offset=offset)
                 raw = base64.b64decode(polled["log_base64"], validate=True)
-                chunks.append(raw[:max(0, 48000 - count)])
+                chunks.append(raw[:max(0, limit - count)])
                 count += len(raw)
                 offset = polled["next_offset"]
                 if polled["state"] != "running" and not raw:
@@ -111,7 +117,7 @@ class Bridge:
                 time.sleep(.1)
             result = {"output": b"".join(chunks).decode(errors="replace"),
                       "state": polled["state"], "exit_code": polled["exit_code"],
-                      "truncated": polled["truncated"] or count > 48000}
+                      "truncated": polled["truncated"] or count > limit}
         self.record({"tool": name, "key": key, "result": result})
         if mutation:
             atomic_write(self.delivery, json.dumps({"key": key, "tool": name, "result": result}).encode())

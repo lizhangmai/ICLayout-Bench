@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 from benchmarking.files import read_file
 
-FORMAT = "iclayout-results.v1"
+FORMAT = "iclayout-results"
 MAX_BYTES = 512 * 1024 * 1024
 MAX_FILES = 20000
 DEFAULT_FILES = (

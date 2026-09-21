@@ -1,4 +1,0 @@
-schema_version = 3
-cases = [
-    { id = "gf180mcuD.tt_tnt_gf_vco.vco", config_path = "cases/vco/case.toml" },
-]

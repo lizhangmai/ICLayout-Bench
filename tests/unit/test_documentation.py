@@ -45,3 +45,20 @@ def test_document_symlink_does_not_read_outside_checkout(tmp_path):
     assert len(errors) == 1
     assert 'regular file' in errors[0]
     assert 'sensitive-path' not in errors[0]
+
+
+def test_public_repository_rejects_implicit_consumers_but_accepts_explicit_data(tmp_path):
+    """A public checkout must not need maintainer siblings or ship a Dataset."""
+    check_repository = runpy.run_path(str(ROOT / 'scripts/check_repository.py'))['check']
+    subprocess.run(['git', 'init', '-q', str(tmp_path)], check=True)
+    source = tmp_path / 'consumer.py'
+    source.write_text('from benchmarking.dataset import load_dataset\nload_dataset(args.dataset)\n')
+    assert check_repository(tmp_path) == []
+    source.write_text('from iclayout_bench_private import platform\n')
+    assert any('internal application import' in e for e in check_repository(tmp_path))
+    source.write_text('source = "../' + 'ICLayout-' + 'Bench/benchmarking"\n')
+    assert any('implicit workspace' in e for e in check_repository(tmp_path))
+    source.write_text('pass\n')
+    (tmp_path / 'tasks').mkdir()
+    (tmp_path / 'tasks/case.toml').write_text('id = "example"\n')
+    assert any('Dataset or application content' in e for e in check_repository(tmp_path))

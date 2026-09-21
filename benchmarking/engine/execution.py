@@ -6,23 +6,47 @@ from dataclasses import replace
 from pathlib import Path
 
 from benchmarking.engine import benchmark_feedback as opinions
-from benchmarking.files import Asset
+from benchmarking.files import Asset, ReadOnlyMount
 from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY
 
 from .evaluate import run_evaluation
+from .identity import evaluation_identity
 from .inference import USAGE_FIELDS, validate_harness_wire
 from .recorder import RecordingError, RunRecorder
 from .session import task_message
 from .source import source_path
 
 
-def _zero_attempt_score(method="layout-v1"):
-    """Return the frozen version's zero for a conclusive incomplete solve."""
-    if method == "layout-v2":
-        return {"method": method, "value": 0.0, "maximum": None, "reference": 100,
-                "components": {"G": 0.0, "E": None, "Q": None}}
-    return {"method": "layout-v1", "value": 0.0, "maximum": 100,
-            "components": {"G": 0.0, "E": None, "H": None, "Q": None}}
+def _zero_attempt_score(method="layout"):
+    """Return zero for a conclusive incomplete solve."""
+    return {"method": method, "value": 0.0, "maximum": None, "reference": 100,
+            "components": {"G": 0.0, "E": None, "Q": None}}
+
+
+def feedback_details(report, directory):
+    """Bounded job diagnostics; evaluator inputs and reference assets stay private."""
+    jobs = {}
+    log_budget = 6000
+    for name, job in report["jobs"].items():
+        detail = {"status": job["status"], "reason": job.get("reason", "")[:512]}
+        if job["status"] in {"failed", "error"}:
+            logs = {}
+            for key in ("log", "console", "result.json"):
+                asset = job.get("evidence", {}).get(key, {})
+                if asset.get("path") and log_budget:
+                    raw = (directory / asset["path"]).read_bytes()
+                    limit = min(log_budget, 2000)
+                    logs[key] = {"text": raw[-limit:].decode(errors="replace"),
+                                 "truncated": len(raw) > limit}
+                    log_budget -= min(len(raw), limit)
+            detail["evidence"] = logs
+        jobs[name] = detail
+    score = report.get("score")
+    detail = {"score": score.get("value") if score else None, "jobs": jobs, "omitted_jobs": 0}
+    while len(json.dumps(detail).encode()) > 28000 and jobs:
+        jobs.pop(next(reversed(jobs)))
+        detail["omitted_jobs"] += 1
+    return detail
 
 
 def run_session(task, config, resources, backends, destination: Path, *, session, inference=None, execution=None):
@@ -42,7 +66,7 @@ def run_session(task, config, resources, backends, destination: Path, *, session
     recorder = RunRecorder(destination)
     archive = recorder.archive
     message = task_message(task, config)
-    report = {"schema_version": 2, "events": {"path": "events.jsonl", "schema_version": 1}, "run_kind": "offline_cli_development", "task_sha256": task.digest,
+    report = {"events": {"path": "events.jsonl"}, "run_kind": "offline_cli_development", "task_sha256": task.digest,
               "task_witnessed": task.witnessed,
               "agent_id": config.id, "harness": config.harness.identity(),
               "configuration": archive(config.source), "execution": execution,
@@ -51,14 +75,15 @@ def run_session(task, config, resources, backends, destination: Path, *, session
               "task": archive(task.evaluation_inputs()["task"]),
               "inputs": {role: archive(asset) for role, asset in task.input_assets().items()},
               "agent_files": {name: archive(a) for name, a in config.files.items()},
-              "resources": {name: archive(a) for name, a in resources.items()},
+              "resources": {name: archive(a.provenance if isinstance(a, ReadOnlyMount) else a)
+                            for name, a in resources.items()},
               "implementation": {name: archive(Asset(source_path(name).read_bytes(), "python"))
                                  for name in ("execution.py", "session.py", "snapshot.py", "workspace.py", "submit.py", "process_check.py", "benchmark_feedback.py",
                                               "model_config.py", "harnesses.py", "recorder.py", "recording.py")},
               "usage": {field: None for field in USAGE_FIELDS},
               "phase": "running", "outcome": None, "task_success": None, "evaluation": None}
     if (task.evaluation.scoring is not None
-            and task.evaluation.scoring.method in {"layout-v1", "layout-v2"}):
+            and task.evaluation.scoring.method == "layout"):
         # Keep evaluator or infrastructure failures visibly pending for a
         # scored task. Unscored standalone runs do not claim an official score.
         report["score"] = None
@@ -89,6 +114,8 @@ def run_session(task, config, resources, backends, destination: Path, *, session
         raw = (feedback_root / "report.json").read_bytes()
         return {
             "report": evaluated,
+            "evaluator_identity": evaluation_identity(task, backends),
+            "details": feedback_details(evaluated, feedback_root),
             "report_path": f"feedback/check-{sequence}/report.json",
             "report_ref": archive(Asset(raw, "json")),
         }
@@ -144,7 +171,7 @@ def run_session(task, config, resources, backends, destination: Path, *, session
         report.update(outcome="error", task_success=None)
         report["score"] = None
     elif (task.evaluation.scoring is not None
-          and task.evaluation.scoring.method in {"layout-v1", "layout-v2"}
+          and task.evaluation.scoring.method == "layout"
           and (result.termination in {"agent_error", "budget_exhausted"}
                or report["outcome"] == "no_submission")):
         # A timed-out or otherwise incomplete Agent attempt is a conclusive

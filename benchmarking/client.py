@@ -1,4 +1,4 @@
-"""Generic layout-http.v1 client; no Docker, model SDK or Private dependency."""
+"""Generic layout-http client; no Docker, model SDK or Private dependency."""
 
 import argparse
 import base64
@@ -93,8 +93,8 @@ class Client:
                 time.sleep(delay)
 
     def _request(self, method, path, body=None, *, key=None):
-        if not path.startswith("/v1/") or path.startswith("//") or "#" in path:
-            raise ValueError("Expected a /v1/ service path")
+        if not path.startswith("/sessions") or path.startswith("//") or "#" in path:
+            raise ValueError("Expected a /sessions service path")
         if method not in {"GET", "POST"}:
             raise ValueError("Only GET and POST are supported")
         headers = {"Authorization": f"Bearer {self.token}", "Accept": "application/json"}
@@ -109,7 +109,7 @@ class Client:
         try:
             try:
                 timeout = self.timeout
-                if method == "POST" and path == "/v1/sessions":
+                if method == "POST" and path == "/sessions":
                     timeout = max(timeout, SESSION_STARTUP_TIMEOUT_SECONDS + SESSION_STARTUP_RESPONSE_GRACE_SECONDS)
                 response = self._opener.open(req, timeout=timeout)
             except HTTPError as error:
@@ -140,10 +140,10 @@ class Client:
         return result
 
     def create(self, task_id, condition, *, key):
-        return self.request("POST", "/v1/sessions", {"task_id": task_id, "condition": condition}, key=key)
+        return self.request("POST", "/sessions", {"task_id": task_id, "condition": condition}, key=key)
 
     def session(self, session_id, operation="", body=None, *, key=None):
-        path = f"/v1/sessions/{_identifier(session_id)}"
+        path = f"/sessions/{_identifier(session_id)}"
         if operation:
             path += "/" + operation
         return self.request("POST" if key is not None else "GET", path, body, key=key)
@@ -171,6 +171,14 @@ class Client:
             raise ValueError("Offset must be a nonnegative integer")
         return self.session(session_id, f"executions/{_identifier(execution_id)}?offset={offset}")
 
+    def check(self, session_id, timeout_seconds=None, *, key):
+        """Start a frozen-candidate check through the normal replayable execution API."""
+        status = self.session(session_id)
+        if "process-feedback" not in status.get("capabilities", []):
+            raise ValueError("Service does not advertise process-feedback")
+        seconds = status["remaining_seconds"] if timeout_seconds is None else timeout_seconds
+        return self.execute(session_id, "python -I /protocol/process_check.py", seconds, key=key)
+
     def submit(self, session_id, path, *, key):
         return self.session(session_id, "submissions", {"path": path}, key=key)
 
@@ -189,7 +197,7 @@ class Client:
 def command_main(argv):
     """Small shell-friendly view of the same client, useful to any local harness."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("status", "exec", "submit", "close", "result", "read", "write"))
+    parser.add_argument("action", choices=("status", "exec", "check", "submit", "close", "result", "read", "write"))
     parser.add_argument("value", nargs="?")
     parser.add_argument("--key")
     parser.add_argument("--seconds", type=float, default=120)
@@ -197,8 +205,9 @@ def command_main(argv):
     args = parser.parse_args(argv)
     client = Client(os.environ.get("ICLAYOUT_BENCH_ENDPOINT", ""), os.environ.get("ICLAYOUT_BENCH_TOKEN", ""))
     sid = os.environ.get("ICLAYOUT_BENCH_SESSION", "")
-    if args.action == "exec":
-        started = client.execute(sid, args.value, args.seconds, key=args.key)
+    if args.action in {"exec", "check"}:
+        started = (client.check(sid, key=args.key) if args.action == "check" else
+                   client.execute(sid, args.value, args.seconds, key=args.key))
         offset = 0
         while True:
             status = client.poll(sid, started["execution_id"], offset=offset)
@@ -232,7 +241,7 @@ def command_main(argv):
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    if argv and argv[0] in {"status", "exec", "submit", "close", "result", "read", "write"}:
+    if argv and argv[0] in {"status", "exec", "check", "submit", "close", "result", "read", "write"}:
         try:
             return command_main(argv)
         except (ClientError, ValueError, OSError) as error:
@@ -260,13 +269,13 @@ def main(argv=None):
                 with open(args.json) as stream:
                     body = json.load(stream)
         if args.session:
-            path = f"/v1/sessions/{_identifier(args.session)}"
+            path = f"/sessions/{_identifier(args.session)}"
             if args.operation != "status":
                 path += "/" + args.operation
         else:
             if args.operation != "sessions":
                 raise ValueError("Set --session for session operations")
-            path = "/v1/sessions"
+            path = "/sessions"
         result = client.request(args.method, path, body, key=args.key)
         print(json.dumps(result, allow_nan=False))
     except (ClientError, ValueError, OSError) as error:

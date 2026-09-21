@@ -5,7 +5,9 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${repo_root}"
 test_tmp="$(mktemp -d "${TMPDIR:-/tmp}/iclayout-bench-pdk.XXXXXX")"
 trap 'rm -rf "${test_tmp}"' EXIT
-uv run --project ../ICLayout-Bench --locked python -m benchmarking.engine.environment tasks/ihp-sg13g2/pdk.toml "${test_tmp}/pdk"
+
+: "${ICLAYOUT_BENCH_DATASET:?Set an explicit local Dataset root}"
+uv run --locked python -m benchmarking.engine.environment "${ICLAYOUT_BENCH_DATASET}/tasks/ihp-sg13g2/pdk.toml" "${test_tmp}/pdk"
 docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
     --memory 1g --cpus 1 --pids-limit 64 -i \
     --mount "type=bind,src=${test_tmp}/pdk,dst=/pdk,readonly" \

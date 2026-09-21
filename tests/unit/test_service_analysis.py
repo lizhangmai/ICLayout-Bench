@@ -1,4 +1,4 @@
-"""Service cohort analysis is independent of legacy private batch verification.
+"""Service cohort analysis preserves measurement conditions.
 
 Expectations follow missing-value and condition-separation contracts, rather than
 copying generated CSVs. Synthetic input scores exercise statistics only.
@@ -14,15 +14,15 @@ from benchmarking.protocol import PROTOCOL, USAGE_FIELDS
 pytestmark = pytest.mark.unit
 
 
-def sample(sid, kind="official", outcome="pass", score=80):
+def sample(sid, harness="fixture", outcome="pass", score=80):
     return {
         "protocol": PROTOCOL,
         "session_id": sid,
         "task_id": "task",
         "task_sha256": "a" * 64,
         "condition": {
-            "harness_kind": kind,
-            "harness_id": "fixture",
+            "harness_kind": "agent",
+            "harness_id": harness,
             "harness_version": "1",
             "model": "model",
             "prompt_sha256": None,
@@ -39,12 +39,12 @@ def sample(sid, kind="official", outcome="pass", score=80):
     }
 
 
-def test_unknown_errors_do_not_become_zero_or_merge_custom_conditions(tmp_path):
+def test_unknown_errors_do_not_become_zero_or_merge_agent_conditions(tmp_path):
     output = export_results(
         [
             sample("one"),
             sample("two", outcome="error", score=0),
-            sample("three", "custom", outcome="no_submission", score=0),
+            sample("three", "other-agent", outcome="no_submission", score=0),
         ],
         tmp_path / "out",
     )

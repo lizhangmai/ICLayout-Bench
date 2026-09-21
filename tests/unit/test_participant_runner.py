@@ -23,6 +23,17 @@ def external_runtime_boundaries(monkeypatch):
     monkeypatch.setattr("benchmarking.run.harness_version", lambda _: ("1.2.3", "fixture-cli 1.2.3"))
 
 
+def write_dataset(root, names):
+    from helpers.protocol import write_protocol_task
+    for name in names:
+        config = write_protocol_task(root / 'tasks' / name.split('.')[0] / 'fixture/cases' / name)
+        (config.parent / 'case.toml').write_text(config.read_text().replace('protocol-test', name))
+        process = root / 'tasks' / name.split('.')[0]
+        process.mkdir(parents=True, exist_ok=True)
+        (process / 'pdk.toml').write_text('id="fixture"\n')
+    return root
+
+
 class ServiceFixture:
     endpoint = 'http://127.0.0.1:8765'
 
@@ -130,8 +141,7 @@ class LifecycleTests(unittest.TestCase):
         for local in (False, True):
             with self.subTest(local=local), tempfile.TemporaryDirectory() as directory:
                 batch = Path(directory) / 'results/generated'
-                (Path(directory) / 'case').mkdir()
-                (Path(directory) / 'case/case.toml').write_text('id="fixture"')
+                write_dataset(Path(directory), ["fixture"])
                 config = Path(directory) / 'trial.toml'
                 config.write_text('harness="claude-code"\nmodel="fixture-model"\ntasks=["fixture"]\nconcurrency=1\neffort="high"\nrepetitions=1\n')
                 fixture = ServiceFixture()
@@ -153,7 +163,7 @@ class LifecycleTests(unittest.TestCase):
                         patch('benchmarking.participants.runner.command', return_value=[sys.executable, '-c', 'print("done")']), \
                         patch.dict('os.environ', {'ICLAYOUT_BENCH_ENDPOINT': ''}), \
                         patch('builtins.print'):
-                    mode = ['--prepared', directory] if local else ['--endpoint', fixture.endpoint]
+                    mode = ['--dataset', directory] if local else ['--endpoint', fixture.endpoint]
                     code = main(['--config', str(config), *mode])
                 self.assertEqual(code, 0)
                 result = json.loads((batch / 'fixture/result.json').read_text())
@@ -193,6 +203,60 @@ class LifecycleTests(unittest.TestCase):
             self.assertEqual(len(summary), 2)
             self.assertEqual(summary[0]['harness_error'], 'RuntimeError')
             self.assertEqual(summary[1]['outcome'], 'no_submission')
+
+
+def test_environment_defaults_and_explicit_runner_overrides(tmp_path, monkeypatch):
+    from benchmarking.run import main
+    config = tmp_path / 'trial.toml'
+    config.write_text('harness="codex"\nmodel="fixture-model"\neffort="medium"\n'
+                      'tasks=["library.cell"]\nconcurrency=1\nrepetitions=1\n')
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('CODEX_HOME', str(tmp_path))
+    monkeypatch.setenv('ICLAYOUT_BENCH_ENDPOINT', 'https://example.invalid/evaluation')
+    monkeypatch.setenv('ICLAYOUT_BENCH_IMAGE', 'tools:configured')
+    monkeypatch.setenv('ICLAYOUT_BENCH_OUTPUT', 'results/from-env')
+    with patch('benchmarking.run.execute_condition', return_value=0) as execute:
+        assert main(['--config', str(config)]) == 0
+        assert execute.call_args.args[0].image == 'tools:configured'
+        assert execute.call_args.args[3] == tmp_path / 'results/from-env'
+        assert main(['--config', str(config), '--image', 'tools:explicit', '--output', 'results/explicit']) == 0
+        assert execute.call_args.args[0].image == 'tools:explicit'
+        assert execute.call_args.args[3] == tmp_path / 'results/explicit'
+        monkeypatch.setenv('ICLAYOUT_BENCH_OUTPUT', '')
+        assert main(['--config', str(config)]) == 0
+        assert execute.call_args.args[3] == tmp_path / 'results/codex-1.2.3-fixture-model-medium'
+
+
+def test_cli_case_selection_and_scale_overrides(tmp_path, capsys, monkeypatch):
+    """A small invocation must not dispatch the rest of a saved batch."""
+    from benchmarking.run import main
+
+    monkeypatch.setenv('CODEX_HOME', str(tmp_path))
+    tasks = ['process.library.small', 'process.library.large', 'other.library.small']
+    config = tmp_path / 'batch.toml'
+    source = ('harness="codex"\nmodel="fixture-model"\neffort="medium"\n'
+              f'tasks={json.dumps(tasks)}\nconcurrency=4\nrepetitions=3\n')
+    config.write_text(source)
+    base = ['--config', str(config), '--dry-run']
+    assert main(base + ['--case', 'large', '--repetitions', '1', '--concurrency', '1']) == 0
+    row, = json.loads(capsys.readouterr().out)
+    assert row['tasks'] == [tasks[1]]
+    assert row['repetitions'] == row['concurrency'] == 1
+    assert main(base + ['--case', tasks[0], '--case', 'large', '--case', tasks[0]]) == 0
+    row, = json.loads(capsys.readouterr().out)
+    assert row['tasks'] == tasks[:2]
+    assert main(base) == 0
+    row, = json.loads(capsys.readouterr().out)
+    assert row['tasks'] == tasks
+    assert row['repetitions'] == 3 and row['concurrency'] == 4
+    assert config.read_text() == source
+    for flags, error in [(['--case', 'small'], 'Ambiguous case'),
+                         (['--case', 'missing'], 'Unknown case'),
+                         (['--repetitions', '0'], 'positive integer')]:
+        with pytest.raises(SystemExit) as raised:
+            main(base + flags)
+        assert raised.value.code == 2
+        assert error in capsys.readouterr().err
 
 
 if __name__ == '__main__':
@@ -278,18 +342,6 @@ def test_batch_resume_skips_completed_and_rejects_config_change(tmp_path, monkey
     with pytest.raises(SystemExit):
         main(args + ['--resume'])
     assert len(calls) == 3
-    # A historical batch must not gain new case-format measurements on upgrade.
-    historical = tmp_path / 'historical'
-    historical.mkdir()
-    evidence = historical / 'batch.json'
-    evidence.write_bytes(b'{"identity": "retained historical execution"}')
-    original = evidence.read_bytes()
-    for flags in ([], ['--resume']):
-        with pytest.raises(SystemExit):
-            main(args[:-1] + [str(historical)] + flags)
-    assert list(historical.iterdir()) == [evidence]
-    assert evidence.read_bytes() == original
-    assert len(calls) == 3
 
 
 def test_concurrent_batch_resume_cannot_launch(tmp_path, monkeypatch):
@@ -343,20 +395,20 @@ def test_service_restart_terminates_lost_execution_and_preserves_receipt(tmp_pat
     (root / sid / 'http.json').write_text(json.dumps(data))
     service = LocalService(root, load_task(executable_case), {}, {}, 'unused', 'access', seconds=60)
     try:
-        _, status = service.handle('GET', f'/v1/sessions/{sid}', {}, 'scoped', None, None)
+        _, status = service.handle('GET', f'/sessions/{sid}', {}, 'scoped', None, None)
         assert status['state'] == 'error'
         assert status['active_execution_id'] is None
         assert status['deadline'] == data['deadline']
-        _, replay = service.handle('POST', f'/v1/sessions/{sid}/submissions', {}, 'scoped', {'path': 'answer.gds'}, 'same')
+        _, replay = service.handle('POST', f'/sessions/{sid}/submissions', {}, 'scoped', {'path': 'answer.gds'}, 'same')
         assert replay == receipt
         with pytest.raises(APIError):
-            service.handle('POST', f'/v1/sessions/{sid}/executions', {}, 'scoped', {'command': 'increment'}, 'new')
-        _, result = service.handle('GET', f'/v1/sessions/{sid}/result', {}, 'scoped', None, None)
+            service.handle('POST', f'/sessions/{sid}/executions', {}, 'scoped', {'command': 'increment'}, 'new')
+        _, result = service.handle('GET', f'/sessions/{sid}/result', {}, 'scoped', None, None)
         assert result['failure_category'] == 'service_failure'
         assert result['score'] is None
         # Unacknowledged creation after restart must never create a replacement.
         with pytest.raises(APIError):
-            service.handle('POST', '/v1/sessions', {}, 'access', data['creation_body'], 'create')
+            service.handle('POST', '/sessions', {}, 'access', data['creation_body'], 'create')
     finally:
         service.shutdown()
 
@@ -381,21 +433,18 @@ def test_lost_close_reply_recovers_finalization_without_model_relaunch(tmp_path)
         assert launch.call_count == 1
 
 
-def test_batch_resume_rejects_changed_prepared_input(tmp_path, monkeypatch):
+@pytest.mark.parametrize('resource_binding', [False, True])
+def test_batch_resume_rejects_changed_dataset_input(tmp_path, monkeypatch, resource_binding):
     from benchmarking.run import main
     config = tmp_path / 'trial.toml'
     config.write_text('harness="codex"\nmodel="fixture"\neffort="high"\ntasks=["test"]\nconcurrency=1\nrepetitions=1\n')
-    prepared = tmp_path / 'prepared'
-    prepared.mkdir()
-    (prepared / 'case').mkdir()
-    (prepared / 'case/case.toml').write_text('id="test"')
-    asset = prepared / 'netlist'
-    asset.write_text('original input')
+    dataset = write_dataset(tmp_path / 'dataset', ['test'])
+    asset = dataset / ('tasks/test/pdk.toml' if resource_binding else 'tasks/test/fixture/cases/test/input.spice')
     monkeypatch.delenv('ICLAYOUT_BENCH_ENDPOINT', raising=False)
     monkeypatch.setattr('benchmarking.run.resolve', lambda *args: ({}, {}, {}))
     monkeypatch.setattr('benchmarking.run.service', lambda *args: nullcontext(ServiceFixture()))
     with patch('benchmarking.run.run_one', side_effect=lambda a, r, out, s: terminal_files(out)) as launch:
-        args = ['--config', str(config), '--prepared', str(prepared), '--output', str(tmp_path / 'batch')]
+        args = ['--config', str(config), '--dataset', str(dataset), '--output', str(tmp_path / 'batch')]
         assert main(args) == 0
         asset.write_text('different input')
         with pytest.raises(SystemExit):
@@ -472,32 +521,29 @@ def test_case_list_bounds_independent_sessions_and_prints_completed_results(tmp_
     assert len(calls) == len(tasks) * 2
 
 
-def test_local_case_list_routes_prepared_inputs_and_rejects_missing_cases(tmp_path, monkeypatch):
+def test_local_case_list_routes_dataset_inputs_and_rejects_missing_cases(tmp_path, monkeypatch):
     from benchmarking.run import main
     config = tmp_path / 'trial.toml'
     config.write_text('harness="codex"\nmodel="fixture"\neffort="high"\n'
                       'tasks=["a", "b"]\nconcurrency=2\nrepetitions=1\n')
-    prepared = {}
-    for task in ['a', 'b']:
-        directory = tmp_path / task
-        (directory / 'case').mkdir(parents=True)
-        (directory / 'case/case.toml').write_text(f'id="{task}"')
-        prepared[task] = directory
+    dataset = write_dataset(tmp_path / 'dataset', ['a'])
     routed = []
     monkeypatch.delenv('ICLAYOUT_BENCH_ENDPOINT', raising=False)
     monkeypatch.setattr('benchmarking.run.resolve', lambda *args: ({}, {}, {}))
     monkeypatch.setattr('benchmarking.run.service', lambda path, *args: nullcontext(path))
     def run(access, row, output, selection):
-        assert access == prepared[row['task']]
+        assert access['case'] == row['task']
+        assert access['dataset'] == str(dataset)
         routed.append(row['task'])
         return terminal_files(output)
     monkeypatch.setattr('benchmarking.run.run_one', run)
-    args = ['--config', str(config), '--output', str(tmp_path / 'batch'), '--prepared']
+    args = ['--config', str(config), '--output', str(tmp_path / 'batch'), '--dataset', str(dataset)]
     with pytest.raises(SystemExit):
-        main(args + [str(prepared['a'])])
+        main(args)
     assert not routed
     assert not (tmp_path / 'batch').exists()
-    assert main(args + [str(prepared['b']), str(prepared['a'])]) == 0
+    write_dataset(dataset, ['a', 'b'])
+    assert main(args) == 0
     assert sorted(routed) == ['a', 'b']
 
 
@@ -631,12 +677,7 @@ def test_append_cases_skips_original_and_runs_new_cases_concurrently(tmp_path, m
     monkeypatch.setattr('benchmarking.run.harness_version', lambda _: ('1.2.3', 'codex-cli 1.2.3'))
     monkeypatch.setattr('benchmarking.run.resolve', lambda *args: ({}, {}, {}))
     monkeypatch.setattr('benchmarking.run.service', lambda *args: nullcontext(None))
-    directories = []
-    for task in ['old', 'new-a', 'new-b']:
-        directory = tmp_path / task
-        (directory / 'case').mkdir(parents=True)
-        (directory / 'case/case.toml').write_text(f'id="{task}"')
-        directories.append(str(directory))
+    dataset = write_dataset(tmp_path / 'dataset', ['old', 'new-a', 'new-b'])
     barrier = threading.Barrier(2)
     calls = []
     def run(access, row, output, selection):
@@ -646,14 +687,14 @@ def test_append_cases_skips_original_and_runs_new_cases_concurrently(tmp_path, m
         return terminal_files(output, 'pass')
     monkeypatch.setattr('benchmarking.run.run_one', run)
     configure(['old'], 1)
-    args = ['--config', str(config), '--prepared']
-    assert main(args + directories[:1]) == 0
+    args = ['--config', str(config), '--dataset', str(dataset)]
+    assert main(args) == 0
     root = tmp_path / 'results/codex-1.2.3-fixture-medium'
     original = {str(p.relative_to(root / 'old')): p.read_bytes() for p in (root / 'old').rglob('*') if p.is_file()}
     manifest = (root / 'old/result.json').read_bytes()
     configure(['old', 'new-a', 'new-b'], 2)
     capsys.readouterr()
-    assert main(args + directories) == 0
+    assert main(args) == 0
     printed = capsys.readouterr().out
     assert 'SKIP case=old ' in printed
     assert str(root / 'old/result.json') in printed
@@ -661,7 +702,7 @@ def test_append_cases_skips_original_and_runs_new_cases_concurrently(tmp_path, m
     assert original == {str(p.relative_to(root / 'old')): p.read_bytes() for p in (root / 'old').rglob('*') if p.is_file()}
     assert (root / 'old/result.json').read_bytes() == manifest
     assert {p.name for p in root.iterdir()} == {'old', 'new-a', 'new-b'}
-    assert main(args + directories) == 0
+    assert main(args) == 0
     assert len(calls) == 3
     import shutil
     relocated = tmp_path / 'relocated'
@@ -669,7 +710,7 @@ def test_append_cases_skips_original_and_runs_new_cases_concurrently(tmp_path, m
     shutil.copytree(root / 'old', copied)
     configure(['old'], 1)
     monkeypatch.chdir(relocated)
-    assert main(args + directories[:1]) == 0
+    assert main(args) == 0
     assert len(calls) == 3
     assert {p.name for p in copied.parent.iterdir()} == {'old'}
     monkeypatch.chdir(tmp_path)
@@ -677,7 +718,7 @@ def test_append_cases_skips_original_and_runs_new_cases_concurrently(tmp_path, m
     # Inputs are version-owned: changing the benchmark release rejects all dispatch.
     monkeypatch.setattr('benchmarking.run.package_version', lambda: {"version": "different", "commit": None})
     with pytest.raises(SystemExit):
-        main(args + directories)
+        main(args)
     assert len(calls) == 3
 
 
@@ -691,7 +732,7 @@ def test_startup_failure_is_durable_and_same_key_never_starts_another_worker(tmp
         raise OSError('resource archive unavailable')
     monkeypatch.setattr('benchmarking.service.server.run_session', broken_startup)
     monkeypatch.setattr('benchmarking.service.server.AttachedSession', lambda *args: object())
-    body = {'task_id': task.id, 'condition': {'harness_kind': 'custom', 'harness_id': 'startup-test',
+    body = {'task_id': task.id, 'condition': {'harness_kind': 'agent', 'harness_id': 'startup-test',
             'harness_version': '1', 'model': 'none', 'prompt_sha256': None, 'configuration_sha256': None}}
     root = tmp_path / 'service'
     for _ in range(2):
@@ -699,7 +740,7 @@ def test_startup_failure_is_durable_and_same_key_never_starts_another_worker(tmp
         try:
             for _ in range(2):
                 with pytest.raises(APIError):
-                    service.handle('POST', '/v1/sessions', {}, 'access', body, 'same-create')
+                    service.handle('POST', '/sessions', {}, 'access', body, 'same-create')
             assert len(attempts) == 1
             metadata = list(root.glob('*/http.json'))
             assert len(metadata) == 1
@@ -742,14 +783,14 @@ def test_slow_resource_provisioning_has_separate_startup_and_solve_budgets(tmp_p
         session.ready(SimpleNamespace(remaining=lambda: config.wall_seconds, active=False), None)
         return {'outcome': 'no_submission'}
     monkeypatch.setattr(server_module, 'run_session', provision)
-    body = {'task_id': task.id, 'condition': {'harness_kind': 'custom', 'harness_id': 'startup-test',
+    body = {'task_id': task.id, 'condition': {'harness_kind': 'agent', 'harness_id': 'startup-test',
             'harness_version': '1', 'model': 'none', 'prompt_sha256': None, 'configuration_sha256': None}}
     try:
-        status, created = service.handle('POST', '/v1/sessions', {}, 'access', body, 'creation')
+        status, created = service.handle('POST', '/sessions', {}, 'access', body, 'creation')
         assert status == 201
         assert created['limits']['wall_seconds'] == service.limits['wall_seconds']
         assert observed and observed[0] > service.limits['wall_seconds']
-        assert service.handle('POST', '/v1/sessions', {}, 'access', body, 'creation') == (status, created)
+        assert service.handle('POST', '/sessions', {}, 'access', body, 'creation') == (status, created)
         assert len(service.runs) == 1
     finally:
         release.set()

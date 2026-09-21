@@ -1,5 +1,0 @@
-schema_version = 3
-
-[[cases]]
-id = "gf180mcuD.2AMLogic-sar-adc.track_switch"
-config_path = "cases/track_switch/case.toml"

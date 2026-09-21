@@ -15,6 +15,13 @@ from . import schema as s
 from .store import digest
 
 
+def reader_summary(case):
+    """Read browsing metadata directly from the current task contract."""
+    fields = case.get("presentation", {})
+    return {"title": case.get("title", ""), "category": fields.get("category", "Other circuits"),
+            "summary": fields.get("summary", "")}
+
+
 def parse_netlist(text, subcircuit):
     lines = []
     for line in text.splitlines():
@@ -135,6 +142,44 @@ def schematic_svg(circuit):
     return ("".join(elements) + "</g></svg>").encode()
 
 
+def case_schematic(task_id, path, data, read):
+    """Validate a case-owned SVG against its declared circuit and content digests."""
+    netlist_sha256 = data["task"]["inputs"]["netlist"]["sha256"]
+    drawings = [a for a in data.get("assets", []) if a["role"] == "schematic"]
+    if not drawings:
+        return None
+    if len(drawings) != 1:
+        raise ValueError("Expected one declared schematic per case")
+    asset = drawings[0]
+    if asset["format"] != "svg":
+        raise ValueError("Schematic must be SVG")
+    svg = read(str(PurePosixPath(path).parent / asset["path"]))
+    if digest(svg) != asset["sha256"]:
+        raise ValueError("Schematic digest mismatch")
+    try:
+        root = ElementTree.fromstring(svg)
+        metadata = json.loads(
+            root.findtext("{http://www.w3.org/2000/svg}metadata", "")
+        )
+    except (ElementTree.ParseError, json.JSONDecodeError) as error:
+        raise ValueError("Schematic provenance metadata is invalid") from error
+    if root.tag != "{http://www.w3.org/2000/svg}svg" or not isinstance(
+        metadata, dict
+    ):
+        raise ValueError("Schematic must carry SVG provenance")
+    if (
+        metadata.get("format") != "iclayout-schematic"
+        or metadata.get("case_id") != task_id
+        or metadata.get("netlist_sha256") != netlist_sha256
+    ):
+        raise ValueError("Schematic provenance does not match the recorded circuit")
+    return svg, {
+        "kind": "authored",
+        "schematic_path": str(PurePosixPath(path).parent / asset["path"]),
+        "schematic_sha256": digest(svg),
+    }
+
+
 class GitCatalog:
     def __init__(self, root, revision):
         self.root = Path(root)
@@ -176,42 +221,12 @@ class GitCatalog:
         if task_id not in self.cases:
             return None
         path, data = self.cases[task_id]
-        drawings = [a for a in data.get("assets", []) if a["role"] == "schematic"]
-        if not drawings:
-            return None
-        if len(drawings) != 1:
-            raise ValueError("Expected one declared schematic per case")
-        asset = drawings[0]
-        if asset["format"] != "svg":
-            raise ValueError("Schematic must be SVG")
         if data["task"]["inputs"]["netlist"]["sha256"] != netlist_sha256:
             raise ValueError("Authored schematic belongs to a different netlist")
-        svg = self.read(str(PurePosixPath(path).parent / asset["path"]))
-        if digest(svg) != asset["sha256"]:
-            raise ValueError("Schematic digest mismatch")
-        try:
-            root = ElementTree.fromstring(svg)
-            metadata = json.loads(
-                root.findtext("{http://www.w3.org/2000/svg}metadata", "")
-            )
-        except (ElementTree.ParseError, json.JSONDecodeError) as error:
-            raise ValueError("Schematic provenance metadata is invalid") from error
-        if root.tag != "{http://www.w3.org/2000/svg}svg" or not isinstance(
-            metadata, dict
-        ):
-            raise ValueError("Schematic must carry SVG provenance")
-        if (
-            metadata.get("format") != "iclayout-schematic-v1"
-            or metadata.get("case_id") != task_id
-            or metadata.get("netlist_sha256") != netlist_sha256
-        ):
-            raise ValueError("Schematic provenance does not match the recorded circuit")
-        return svg, {
-            "kind": "authored",
-            "schematic_commit": self.revision,
-            "schematic_path": str(PurePosixPath(path).parent / asset["path"]),
-            "schematic_sha256": digest(svg),
-        }
+        drawing = case_schematic(task_id, path, data, self.read)
+        if drawing:
+            drawing[1]["schematic_commit"] = self.revision
+        return drawing
 
     def attach(self, store, task, schematic_catalog=None):
         path, data = self.cases[task["task_id"]]
@@ -222,11 +237,7 @@ class GitCatalog:
             )
         base = PurePosixPath(path).parent
         entry = data["task"]["inputs"]["netlist"]
-        source = (
-            base.parent.parent / entry["collection_source"]
-            if "collection_source" in entry
-            else base / entry.get("source", entry["path"])
-        )
+        source = base / entry.get("source", entry["path"])
         raw = self.read(str(source))
         if digest(raw) != entry["sha256"]:
             raise ValueError("Catalog netlist digest mismatch")
@@ -284,25 +295,39 @@ class GitCatalog:
         }
 
 
+class SnapshotCatalog(GitCatalog):
+    def __init__(self, source, revision):
+        from benchmarking.dataset import load_dataset
+        if not re.fullmatch(r"[0-9a-f]{40,64}", revision or ""):
+            raise ValueError("A recorded full Dataset commit is required for catalog binding")
+        dataset = load_dataset(source, revision=revision)
+        self.root, self.revision = dataset.root, dataset.identity["commit"]
+        self.paths = [p.relative_to(self.root).as_posix()
+                      for p in (self.root / "tasks").rglob("*") if p.is_file()]
+        self.cases = {name: (path.relative_to(self.root).as_posix(),
+                            tomllib.loads(path.read_text()))
+                      for name, path in dataset.cases().items()}
+
+    def read(self, path):
+        from benchmarking.files import read_file
+        return read_file(self.root, path)
+
+
 def attach_catalog(store, root, *, schematic_revision=None):
+    catalog_type = GitCatalog if Path(root).is_dir() else SnapshotCatalog
     cache, results = {}, []
     schematic_catalog = (
-        GitCatalog(root, schematic_revision) if schematic_revision else None
+        catalog_type(root, schematic_revision) if schematic_revision else None
     )
     with store.engine.connect() as conn:
         tasks = list(conn.execute(select(s.tasks)).mappings())
     for task in tasks:
-        revision = (task["identity"].get("benchmark") or {}).get("commit")
+        revision = (task["identity"].get("dataset") or {}).get("commit")
         try:
             if revision not in cache:
-                cache[revision] = GitCatalog(root, revision)
+                cache[revision] = catalog_type(root, revision)
             results.append(cache[revision].attach(store, task, schematic_catalog))
-        except (ValueError, KeyError, subprocess.SubprocessError) as error:
-            results.append(
-                {
-                    "task_id": task["task_id"],
-                    "status": "unavailable",
-                    "reason": str(error),
-                }
-            )
+        except (ValueError, KeyError, OSError, subprocess.SubprocessError) as error:
+            results.append({"task_id": task["task_id"], "status": "unavailable",
+                            "reason": str(error)})
     return results

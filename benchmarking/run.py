@@ -1,11 +1,9 @@
 """Run a single participant condition or a TOML experiment matrix."""
 import argparse
-import hashlib
 import json
 import os
 import re
 import subprocess
-import tomllib
 import uuid
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from contextlib import ExitStack, nullcontext
@@ -13,16 +11,20 @@ from pathlib import Path
 from urllib.parse import quote
 
 from benchmarking.client import Client, ClientError
+from benchmarking.dataset import process_manifest
 from benchmarking.layout_preview import ensure_layout_preview
 
+from .dataset import load_dataset
 from .engine.session import DockerSession
-from .participants.config import digest, read_configs, read_matrix, resolve
+from .files import Asset
+from .participants.config import digest, read_configs, read_matrix, resolve, validate
 from .participants.recovery import classify, policy
 from .participants.results import finish_case, verify
 from .participants.runner import run_one, save, service
 from .participants.scheme import check as check_scheme
 from .participants.scheme import identity as scheme_identity
 from .participants.storage import CaseLease, case_identity
+from .tasks import load_task
 from .version import package_version
 
 
@@ -53,11 +55,17 @@ def main(argv=None):
     inputs = parser.add_mutually_exclusive_group(required=True)
     inputs.add_argument("--config", type=Path, nargs="+", help="TOML files with explicit experiment conditions")
     inputs.add_argument("--matrix", type=Path, help="TOML [defaults] and [[runs]] combinations")
-    parser.add_argument("--prepared", type=Path, nargs="+", help="Prepared case directories (one for each selected case)")
-    parser.add_argument("--image", default="iclayout-bench-tools:dev")
+    parser.add_argument("--case", action="append", help="Select a configured case by full ID or unique final name; repeat for multiple cases")
+    parser.add_argument("--repetitions", type=int, help="Override repetitions for this invocation")
+    parser.add_argument("--concurrency", type=int, help="Override concurrent sessions for this invocation")
+    parser.add_argument("--dataset", help="HF Dataset repo ID or local Dataset directory")
+    parser.add_argument("--revision", help="HF dataset revision (resolved to a fixed commit)")
+    parser.add_argument("--offline", action="store_true", help="Use only the Hugging Face cache")
+    parser.add_argument("--image", default=os.environ.get("ICLAYOUT_BENCH_IMAGE") or "iclayout-bench-tools:local")
     parser.add_argument("--endpoint", default=os.environ.get("ICLAYOUT_BENCH_ENDPOINT"))
     parser.add_argument("--token-env", default="ICLAYOUT_BENCH_TOKEN")
-    parser.add_argument("--output", type=Path, help="Condition directory (requires one condition); default: results/<harness>-<version>-<model>-<effort>")
+    parser.add_argument("--output", type=Path, default=os.environ.get("ICLAYOUT_BENCH_OUTPUT") or None,
+                        help="Condition directory (requires one condition); default: results/<harness>-<version>-<model>-<effort>")
     parser.add_argument("--results-data", type=Path, default=os.environ.get("ICLAYOUT_BENCH_RESULTS_DATA"),
                         help="Copy terminal results to this database/archive; indexing failures stay queued")
     parser.add_argument("--resume", action="store_true", help="Recover the batch at --output without replacing attempts")
@@ -65,6 +73,23 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         rows = read_configs(args.config) if args.config else read_matrix(args.matrix)
+        for row in rows:
+            if args.case:
+                selected = []
+                for name in args.case:
+                    matches = ([name] if name in row["tasks"] else
+                               [task for task in row["tasks"] if task.rsplit(".", 1)[-1] == name])
+                    if not matches:
+                        raise ValueError(f"Unknown case {name!r} in condition {row['name']}; choose a configured case ID")
+                    if len(matches) > 1:
+                        raise ValueError(f"Ambiguous case {name!r}; use a full ID: {', '.join(matches)}")
+                    if matches[0] not in selected:
+                        selected.append(matches[0])
+                row["tasks"] = selected
+            for key in ("repetitions", "concurrency"):
+                if getattr(args, key) is not None:
+                    row[key] = getattr(args, key)
+            validate(row)
         # Resolve every condition before creating any sessions; no credentials enter the plan.
         selections = [resolve(r["harness"], r.get("model"), r.get("effort")) for r in rows]
         plan = [{**{k: v for k, v in r.items() if k != "results_data"}, "resolved": selection[0]}
@@ -73,10 +98,10 @@ def main(argv=None):
             print(json.dumps([dict(p, **({"results_data": r["results_data"]} if "results_data" in r else {}))
                               for p, r in zip(plan, rows)], indent=2, ensure_ascii=False))
             return 0
-        if args.prepared and args.endpoint:
-            raise ValueError("Choose --prepared or --endpoint, not both")
-        if not args.prepared and not args.endpoint:
-            raise ValueError("Supply --prepared for local mode or --endpoint for remote mode")
+        if (args.dataset or args.revision or args.offline) and args.endpoint:
+            raise ValueError("Choose a dataset or --endpoint, not both")
+        if not args.dataset and not any(r.get("dataset") for r in rows) and not args.endpoint:
+            raise ValueError("Supply --dataset or a dataset configuration for local mode, or --endpoint for remote mode")
         if args.output and len(rows) != 1:
             raise ValueError("--output requires exactly one condition")
         versions = [(r["scheme"]["version"], r["scheme"]["version"]) if r["harness"] == "command"
@@ -85,37 +110,47 @@ def main(argv=None):
                    [default_output(r, version[0]).resolve() for r, version in zip(rows, versions)])
         if len(set(outputs)) != len(outputs):
             raise ValueError("Duplicate harness/model/effort output directories")
-        if args.prepared and any(policy(r.get("recovery"))["resume_session"] for r in rows):
+        if not args.endpoint and any(policy(r.get("recovery"))["resume_session"] for r in rows):
             raise ValueError("resume_session requires an independently running --endpoint service")
-        if args.prepared:
+        if not args.endpoint:
             images = {r.get("scheme", {}).get("solver_image", args.image) for r in rows}
             pinned = {image: DockerSession(image).image_id for image in sorted(images)}
             args.image = pinned.get(args.image, args.image)
-        identity = {"plan": plan, "endpoint": args.endpoint, "image": args.image if args.prepared else None,
+        identity = {"plan": plan, "endpoint": args.endpoint, "image": args.image if not args.endpoint else None,
                     "benchmark": package_version()}
-        if args.prepared:
-            prepared_by_task = {}
+        if not args.endpoint:
+            args.cases = {}
             identity["inputs"] = {}
-            for directory in args.prepared:
-                prepared = directory.resolve()
-                task_id = tomllib.loads((prepared / "case/case.toml").read_text())["id"]
-                if task_id in prepared_by_task:
-                    raise ValueError("Duplicate prepared case: " + task_id)
-                prepared_by_task[task_id] = prepared
-                identity["inputs"][task_id] = {
-                    str(p.relative_to(prepared)): hashlib.sha256(p.read_bytes()).hexdigest()
-                    for p in sorted(prepared.rglob("*")) if p.is_file()
-                    and not any(p.is_relative_to(output) for output in outputs)}
-            missing = {task for row in rows for task in row["tasks"]} - prepared_by_task.keys()
-            if missing:
-                raise ValueError("Missing prepared cases: " + ", ".join(sorted(missing)))
-            args.prepared = prepared_by_task
+            for row in rows:
+                spec = row.get("dataset", {})
+                source = args.dataset or spec.get("source")
+                revision = args.revision or (spec.get("commit") if source and not Path(source).is_dir() else None)
+                dataset = load_dataset(source, revision=revision, local_files_only=args.offline or spec.get("local_files_only", False))
+                native = None
+                if spec:
+                    records, native = dataset.native_cases(spec["name"], spec["split"])
+                    if digest(records.to_list()) != spec["index_sha256"]:
+                        raise ValueError("Dataset index changed after experiment selection")
+                for name in row["tasks"]:
+                    config = native[name] if native is not None else dataset.case(name)
+                    task = load_task(config)
+                    selection = {"dataset": dataset.identity["source"],
+                                 "revision": dataset.identity["commit"] if not Path(source).is_dir() else None,
+                                 "case": name, "offline": args.offline or spec.get("local_files_only", False)}
+                    if spec:
+                        selection.update(dataset_name=spec["name"], dataset_split=spec["split"])
+                    if name in args.cases and args.cases[name] != selection:
+                        raise ValueError(f"Conflicting datasets for case: {name}")
+                    args.cases[name] = selection
+                    identity["inputs"][name] = {"dataset": dataset.identity, "case_sha256": task.digest,
+                        "pdk_sha256": Asset((process_manifest(config)).read_bytes(), "toml").sha256,
+                        "inputs": {key: value.sha256 for key, value in task.input_assets().items()}}
         code = 0
         blocked = set()
         for index, output in enumerate(outputs):
-            current_identity = dict(identity, plan=[plan[index]], layout="case-v1",
+            current_identity = dict(identity, plan=[plan[index]],
                                     cli_version=versions[index][1],
-                                    image=rows[index].get("scheme", {}).get("solver_image", args.image) if args.prepared else None)
+                                    image=rows[index].get("scheme", {}).get("solver_image", args.image) if not args.endpoint else None)
             code = max(code, execute_condition(args, rows[index], selections[index],
                                                output, current_identity, blocked))
         return code
@@ -125,8 +160,6 @@ def main(argv=None):
 
 def execute_condition(args, row, selection, output, identity, blocked):
     """Each case owns its identity and lock; the condition root contains only cases."""
-    if (output / "batch.json").exists() or (output / "summary.json").is_file():
-        raise ValueError("Historical batch requires its original release; choose a new condition directory")
     if args.resume and not output.exists():
         raise ValueError("Cannot resume missing output: " + str(output))
     leases, new_manifests = {}, []
@@ -140,8 +173,6 @@ def execute_condition(args, row, selection, output, identity, blocked):
             current = case_identity(identity, task)
             slots = [output / slot_name(row, task, rep)
                      for rep in range(1, row["repetitions"] + 1)]
-            if (directory / "case.json").exists():
-                raise ValueError("Migrate completed legacy cases with benchmarking.participants.results: " + task)
             existing_repetitions = sorted(directory.glob("repetition-*/result.json"))
             if (directory / "result.json").exists():
                 existing_repetitions.append(directory / "result.json")
@@ -186,9 +217,9 @@ def execute_slot(args, row, selection, repetition, name, output, lease):
     save(run_dir / "state.json", {"state": "running", "attempt": 1})
     settings = policy(row.get("recovery"))
     service_dir = run_dir / "service"
-    if args.prepared:
+    if not args.endpoint:
         service_dir.mkdir(mode=0o700, exist_ok=True)
-        context = service(args.prepared[row["task"]], service_dir, row.get("scheme", {}).get("solver_image", args.image))
+        context = service(args.cases[row["task"]], service_dir, row.get("scheme", {}).get("solver_image", args.image))
     else:
         context = nullcontext(Client(args.endpoint, os.environ.get(args.token_env, ""), timeout=60,
                                      retry_policy=settings))

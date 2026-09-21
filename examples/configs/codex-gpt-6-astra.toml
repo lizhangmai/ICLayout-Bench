@@ -1,0 +1,11 @@
+harness = "codex"
+model = "gpt-6-astra"
+efforts = ["medium"]
+concurrency = 2
+repetitions = 1
+
+[dataset]
+source = "MAI716/ICLayout-Bench"
+revision = "aa575833700f469473892c117ad57e397e6cd1f5"
+name = "core"
+split = "test"

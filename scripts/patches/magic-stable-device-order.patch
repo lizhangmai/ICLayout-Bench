@@ -1,0 +1,286 @@
+--- a/resis/ResRex.c
++++ b/resis/ResRex.c
+@@ -1880,55 +1880,39 @@
+  *-------------------------------------------------------------------------
+  */
+ 
++static int
++resNodeNameCompare(ResExtNode *a, ResExtNode *b)
++{
++    if (a == b) return 0;
++    if (a == NULL) return -1;
++    if (b == NULL) return 1;
++    return strcmp(a->name, b->name);
++}
++
+ int
+-devSortFunc(rec1, rec2)
+-    devPtr **rec1, **rec2;
++devSortFunc(devPtr **rec1, devPtr **rec2)
+ {
+-    devPtr *dev1 = *rec1;
+-    devPtr *dev2 = *rec2;
+-    RDev *rd1 = dev1->thisDev;
+-    RDev *rd2 = dev2->thisDev;
+-
+-    if (dev1->terminal == GATE)
+-	return 1;
+-    else if (dev2->terminal == GATE)
+-	return -1;
+-    else if (rd1->gate > rd2->gate)
+-    	return 1;
+-    else if (rd1->gate == rd2->gate)
+-    {
+-	if ((dev1->terminal == SOURCE &&
+-		dev2->terminal == SOURCE &&
+-		rd1->drain > rd2->drain)    ||
+-		(dev1->terminal == SOURCE &&
+-		dev2->terminal == DRAIN &&
+-		rd1->drain > rd2->source)    ||
+-		(dev1->terminal == DRAIN &&
+-		dev2->terminal == SOURCE &&
+-		rd1->source > rd2->drain)    ||
+-		(dev1->terminal == DRAIN &&
+-		dev2->terminal == DRAIN &&
+-		rd1->source >  rd2->source))
+-	{
+-	    return 1;
+-	}
+-	else if ((dev1->terminal == SOURCE &&
+-		dev2->terminal == SOURCE &&
+-		rd1->drain == rd2->drain)    ||
+-		(dev1->terminal == SOURCE &&
+-		dev2->terminal == DRAIN &&
+-		rd1->drain == rd2->source)    ||
+-		(dev1->terminal == DRAIN &&
+-		dev2->terminal == SOURCE &&
+-		rd1->source == rd2->drain)    ||
+-		(dev1->terminal == DRAIN &&
+-		dev2->terminal == DRAIN &&
+-		rd1->source == rd2->source))
+-	{
+-	    return 0;
+-	}
+-    }
+-    return -1;
++    devPtr *a = *rec1, *b = *rec2;
++    RDev *da = a->thisDev, *db = b->thisDev;
++    int order;
++
++    /* Group equal electrical terminals, then break driver ties by geometry.
++     * Pointer addresses and first-seen file order are not physical properties.
++     */
++    if ((a->terminal == GATE) != (b->terminal == GATE))
++        return (a->terminal == GATE) ? 1 : -1;
++    order = resNodeNameCompare(da->gate, db->gate);
++    if (order) return order;
++    order = resNodeNameCompare(a->terminal == SOURCE ? da->drain : da->source,
++                              b->terminal == SOURCE ? db->drain : db->source);
++    if (order) return order;
++    if (da->location.p_x != db->location.p_x)
++        return da->location.p_x > db->location.p_x ? 1 : -1;
++    if (da->location.p_y != db->location.p_y)
++        return da->location.p_y > db->location.p_y ? 1 : -1;
++    if (da->rs_ttype != db->rs_ttype)
++        return da->rs_ttype > db->rs_ttype ? 1 : -1;
++    return (a->terminal > b->terminal) - (a->terminal < b->terminal);
+ }
+ 
+ /*
+--- a/resis/ResMerge.c
++++ b/resis/ResMerge.c
+@@ -558,7 +558,6 @@
+     {
+ 	HashTable	NodeResTable;
+ 	HashEntry	*he, *he2;
+-	HashSearch	hs;
+ 
+ 	/* Hash the neighboring connections */
+ 	HashInit(&NodeResTable, HT_DEFAULTSIZE, HT_WORDKEYS);
+@@ -576,13 +575,16 @@
+ 		HashSetValue(he, (char *)rcell2);
+ 	}
+ 
+-	HashStartSearch(&hs);
+-	while ((he = HashNext(&NodeResTable, &hs)))
+-	{
+-	    /* Get each node that neighbors resptr */
+-	    n1 = (resNode *)he->h_key.h_ptr;
+-	    rcell1 = (resElement *)HashGetValue(he);
++	/* Walk the geometric adjacency list, not pointer-hash bucket order.
++	 * Keep hash lookups for linear-time neighbor membership tests.
++	 */
++	for (rcell1 = resptr->rn_re; rcell1 != NULL; rcell1 = rcell1->re_nextEl)
++	{
+ 	    rr1 = rcell1->re_thisEl;
++	    n1 = rr1->rr_connection1;
++	    if (n1 == resptr) n1 = rr1->rr_connection2;
++	    he = HashLookOnly(&NodeResTable, (char *)n1);
++	    if ((resElement *)HashGetValue(he) != rcell1) continue;
+ 
+ 	    /* Check the list of resistors of neighbor n1 for any resistor whose
+ 	     * other end is also a neighbor of resptr.
+--- a/extract/ExtCouple.c
++++ b/extract/ExtCouple.c
+@@ -22,6 +22,8 @@
+ #endif  /* not lint */
+ 
+ #include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
+ #include <math.h>		/* For atan() */
+ 
+ #include "utils/magic.h"
+@@ -285,30 +287,51 @@
+  * ----------------------------------------------------------------------------
+  */
+ 
++typedef struct {
++    char *first, *second;
++
++    CapValue value;
++} extOrderedCap;
++
++static int
++extCompareOrderedCaps(const void *left, const void *right)
++{
++    const extOrderedCap *a = left, *b = right;
++    int order = strcmp(a->first, b->first);
++    return order ? order : strcmp(a->second, b->second);
++}
++
+ void
+-extOutputCoupling(table, outFile)
+-    HashTable *table;	/* Coupling capacitance hash table */
+-    FILE *outFile;	/* Output file */
++extOutputCoupling(HashTable *table, FILE *outFile)
+ {
+     HashEntry *he;
+-    CoupleKey *ck;
+     HashSearch hs;
+-    char *text;
+-    CapValue cap;  /* value of capacitance. */
+-
++    int count = 0, i;
++    extOrderedCap *caps = mallocMagic((HashGetNumEntries(table) + 1) * sizeof(*caps));
+     HashStartSearch(&hs);
+     while ((he = HashNext(table, &hs)))
+     {
+-	cap = extGetCapValue(he) / ExtCurStyle->exts_capScale;
+-	if (cap == 0)
+-	    continue;
+-
+-	ck = (CoupleKey *) he->h_key.h_words;
+-	text = extNodeName((LabRegion *) ck->ck_1);
+-	fprintf(outFile, "cap \"%s\" ", text);
+-	text = extNodeName((LabRegion *) ck->ck_2);
+-	fprintf(outFile, "\"%s\" %lg\n", text, cap);
+-    }
++        CoupleKey *ck = (CoupleKey *)he->h_key.h_words;
++        extOrderedCap *entry = &caps[count++];
++        entry->first = StrDup(NULL, extNodeName((LabRegion *)ck->ck_1));
++        entry->second = StrDup(NULL, extNodeName((LabRegion *)ck->ck_2));
++        entry->value = extGetCapValue(he) / ExtCurStyle->exts_capScale;
++        if (strcmp(entry->first, entry->second) > 0)
++        {
++            char *swap = entry->first;
++            entry->first = entry->second;
++            entry->second = swap;
++        }
++    }
++    qsort(caps, count, sizeof(*caps), extCompareOrderedCaps);
++    for (i = 0; i < count; i++)
++    {
++        if (caps[i].value != 0)
++            fprintf(outFile, "cap \"%s\" \"%s\" %lg\n", caps[i].first, caps[i].second, caps[i].value);
++        freeMagic(caps[i].first);
++        freeMagic(caps[i].second);
++    }
++    freeMagic(caps);
+ }
+ 
+ /*
+--- a/extflat/EFvisit.c
++++ b/extflat/EFvisit.c
+@@ -625,28 +625,57 @@
+  * ----------------------------------------------------------------------------
+  */
+ 
++typedef struct {
++    char *first, *second;
++    HierName *node1, *node2;
++    EFCapValue value;
++} efOrderedCap;
++
++static int
++efCompareOrderedCaps(const void *left, const void *right)
++{
++    const efOrderedCap *a = left, *b = right;
++    int order = strcmp(a->first, b->first);
++    return order ? order : strcmp(a->second, b->second);
++}
++
+ int
+-EFVisitCaps(capProc, cdata)
+-    int (*capProc)();
+-    ClientData cdata;
+-{
++EFVisitCaps(int (*capProc)(), ClientData cdata)
++{
++    HashEntry *he;
+     HashSearch hs;
+-    HashEntry *he;
+-    EFCoupleKey *ck;
+-    EFCapValue cap;
+-
++    int count = 0, i, result = 0;
++    efOrderedCap *caps = mallocMagic((HashGetNumEntries(&efCapHashTable) + 1) * sizeof(*caps));
+     HashStartSearch(&hs);
+     while ((he = HashNext(&efCapHashTable, &hs)))
+     {
+-	cap = CapHashGetValue(he);
+-	ck = (EFCoupleKey *) he->h_key.h_words;
+-	if ((*capProc)(ck->ck_1->efnode_name->efnn_hier,
+-		       ck->ck_2->efnode_name->efnn_hier,
+-		       (double) cap, cdata))
+-	    return 1;
+-    }
+-
+-    return 0;
++        EFCoupleKey *ck = (EFCoupleKey *)he->h_key.h_words;
++        efOrderedCap *entry = &caps[count++];
++        entry->node1 = ck->ck_1->efnode_name->efnn_hier;
++        entry->node2 = ck->ck_2->efnode_name->efnn_hier;
++        entry->first = StrDup(NULL, EFHNToStr(entry->node1));
++        entry->second = StrDup(NULL, EFHNToStr(entry->node2));
++        entry->value = CapHashGetValue(he);
++        if (strcmp(entry->first, entry->second) > 0)
++        {
++            char *swap = entry->first;
++            HierName *node = entry->node1;
++            entry->first = entry->second;
++            entry->second = swap;
++            entry->node1 = entry->node2;
++            entry->node2 = node;
++        }
++    }
++    qsort(caps, count, sizeof(*caps), efCompareOrderedCaps);
++    for (i = 0; i < count; i++)
++    {
++        if (!result)
++            result = (*capProc)(caps[i].node1, caps[i].node2, (double)caps[i].value, cdata);
++        freeMagic(caps[i].first);
++        freeMagic(caps[i].second);
++    }
++    freeMagic(caps);
++    return result ? 1 : 0;
+ }
+ 
+ /*
+--- a/extract/ExtCouple.c
++++ b/extract/ExtCouple.c
+@@ -28,2 +28,4 @@
+ #include "utils/magic.h"
++#include "utils/malloc.h"
++#include "utils/utils.h"
+ #include "utils/geometry.h"

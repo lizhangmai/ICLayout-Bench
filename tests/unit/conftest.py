@@ -12,7 +12,7 @@ def circuit_case(tmp_path):
     netlist = b".subckt CIRCUIT_REF A B\nR1 A B 1000\n.ends\n"
     (checkout / "circuit.spice").write_bytes(netlist)
     path = tmp_path / "case.toml"
-    path.write_text('''schema_version = 2
+    path.write_text('''
 kind = "layout_case"
 id = "synthetic-circuit"
 title = "Synthetic circuit"
@@ -26,7 +26,7 @@ url = "https://example.invalid/synthetic-circuit"
 @pytest.fixture
 def executable_case(circuit_case):
     root = circuit_case.parent
-    plan = 'schema_version = 1\nmode = "physical"\nmetrics = []\n'
+    plan = 'mode = "physical"\nmetrics = []\n'
     for gate in ("artifact", "drc", "lvs"):
         plan += f'''[[jobs]]
 id = "{gate}"
@@ -49,7 +49,6 @@ subcircuit = "CIRCUIT_REF"
 path = "checks.toml"
 sha256 = "{hashlib.sha256(plan.encode()).hexdigest()}"
 [task.constraints]
-schema_version = 1
 hard = []
 [task.output]
 path = "answer.gds"
@@ -57,7 +56,6 @@ format = "gds"
 top_cell = "LAYOUT_TOP"
 max_bytes = 1024
 [toolchain]
-schema_version = 1
 [toolchain.backends.fixture]
 type = "synthetic"
 [toolchain.bindings]

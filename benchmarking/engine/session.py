@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from benchmarking.engine import benchmark_feedback as opinions
-from benchmarking.files import Asset, relative
+from benchmarking.files import Asset, ReadOnlyMount, relative
 from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY
 
 from .inference import INFERENCE_SOCKET
@@ -72,6 +72,8 @@ def resource_environment(resources):
     if not pdk:
         return {}
     missing = [name for name in PDK_RESOURCE_FILES if name not in resources]
+    if isinstance(resources.get("ihp-sg13g2"), ReadOnlyMount):
+        missing = []
     if missing:
         message = ("PDK resource bundle is incomplete; missing " + ", ".join(missing) +
                    ". Recreate it with `python -m benchmarking.engine.preview prepare --output <new-dir>`.")
@@ -82,7 +84,7 @@ def resource_environment(resources):
 def resource_preflight(resources):
     """Describe mounted resource checks without exposing task/reference files."""
     environment = resource_environment(resources)
-    result = {"schema_version": 1, "mount": "/resources", "environment": environment,
+    result = {"mount": "/resources", "environment": environment,
               "bundles": [], "python_imports": []}
     declared = descriptor(resources)
     if declared is not None:
@@ -136,7 +138,7 @@ def task_message(task, config):
                      "Feedback is diagnostic and never replaces the final independent evaluation.\n")
     if opinions.CAPABILITY in config.harness.capabilities:
         message += ("You may report problems with the benchmark independently of your layout submission.\n"
-                    "Write a JSON object with schema_version=1, category, summary and observed;\n"
+                    "Write a JSON object with category, summary and observed;\n"
                     f"category must be one of: {', '.join(opinions.CATEGORIES)}.\n"
                     "Optional text fields: expected, suggestion, evidence (commands or log excerpts).\n"
                     "Send it with python -I /protocol/benchmark_feedback.py <your-json-file>.\n"
@@ -314,10 +316,18 @@ class DockerSession:
                 # Keep the old filename readable while harnesses migrate to the
                 # generic inference profile name.
                 groups["protocol"]["model.json"] = profile
+            resource_mounts = []
             for group, files in groups.items():
                 (root / group).mkdir()
                 for name, asset in files.items():
-                    destination = root / group / relative(name, "session input")
+                    relative(name, "session input")
+                    if isinstance(asset, ReadOnlyMount):
+                        target = root / group / name
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.mkdir() if asset.path.is_dir() else target.touch()
+                        resource_mounts.extend(asset.docker_args(f"/{group}/{name}"))
+                        continue
+                    destination = root / group / name
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     destination.write_bytes(asset.content)
                     destination.chmod(0o444)
@@ -330,6 +340,7 @@ class DockerSession:
             server.settimeout(0.05)
             mounts = [arg for name in ("task", "agent", "resources", "protocol")
                       for arg in ("--mount", f"type=bind,src={root/name},dst=/{name},readonly")]
+            mounts.extend(resource_mounts)
             env = [arg for k, v in agent_environment.items() for arg in ("--env", f"{k}={v}")]
             # Agent-specific loader/locale settings must not affect the trusted reader.
             reader_env = [arg for k in agent_environment for arg in ("--env", f"{k}=")]
@@ -425,9 +436,10 @@ class DockerSession:
                             physical_valid=evaluated.get("physical_valid"),
                             specs_pass=evaluated.get("specs_pass"),
                             task_success=evaluated.get("task_success"),
-                            tool_identity=evaluated.get("backends"),
+                            tool_identity=result.get("evaluator_identity", evaluated.get("backends")),
                             report=result.get("report_ref"),
                             report_path=result.get("report_path"),
+                            details=result.get("details"),
                         )
                         if entry["report"] is not None and not isinstance(entry["report"], dict):
                             raise ValueError("Process feedback report reference is invalid")

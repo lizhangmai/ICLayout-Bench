@@ -11,14 +11,15 @@ from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
 
-PLAN = b'''schema_version = 1
+PLAN = b'''
 mode = "post_layout"
 
 [scoring]
-method = "layout-v1"
+method = "layout"
 area_metric = "functional_area"
 area_target = 1.0
-area_zero = 2.0
+rationale = "Delay and area control."
+weights = {delay = 0.5, functional_area = 0.5}
 
 [[jobs]]
 id = "slow"
@@ -83,7 +84,8 @@ unit = "s"
 direction = "minimize"
 aggregation = "max"
 upper = 4.0
-zero_upper = 6.0
+baseline = ["source_nominal:delay", "source_slow:delay"]
+normalization = "ratio"
 dimension = "response"
 
 [[metrics]]
@@ -93,6 +95,48 @@ observations = ["geometry:area"]
 unit = "um2"
 direction = "minimize"
 aggregation = "max"
+
+[pre_layout]
+source_report_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+
+[pre_layout.backends]
+response = "synthetic reference"
+
+[pre_layout.jobs.source_nominal]
+operation = "response"
+
+[pre_layout.jobs.source_nominal.inputs]
+dut = "input:netlist"
+
+[pre_layout.jobs.source_nominal.parameters]
+load = 1.0
+
+[pre_layout.jobs.source_nominal.outputs]
+
+[pre_layout.jobs.source_nominal.input_sha256]
+dut = "6604afd98a39f581bd04e52a12c75294eccd42bc69f94d8cc4419807bf8a3620"
+
+[pre_layout.jobs.source_nominal.measurements.delay]
+value = 1.0
+unit = "s"
+
+[pre_layout.jobs.source_slow]
+operation = "response"
+
+[pre_layout.jobs.source_slow.inputs]
+dut = "input:netlist"
+
+[pre_layout.jobs.source_slow.parameters]
+load = 2.0
+
+[pre_layout.jobs.source_slow.outputs]
+
+[pre_layout.jobs.source_slow.input_sha256]
+dut = "6604afd98a39f581bd04e52a12c75294eccd42bc69f94d8cc4419807bf8a3620"
+
+[pre_layout.jobs.source_slow.measurements.delay]
+value = 3.0
+unit = "s"
 '''
 
 
@@ -132,7 +176,7 @@ class Simulator:
         self.factor, self.unit, self.missing = factor, unit, missing
 
     def run(self, job, inputs):
-        assert inputs["dut"].content == b"derived-from-layout"
+        assert inputs["dut"].content in {b"derived-from-layout", b"schematic", b"netlist"}
         value = self.factor * (1.0 if job.parameters["load"] == 1.0 else 3.0)
         return JobResult("passed", measurements={} if self.missing else {"delay": Measurement(value, self.unit)},
                          evidence={"waveform": Asset(b"synthetic response", "text")})
@@ -153,6 +197,38 @@ def evaluate(tmp_path, inputs, bindings, raw=PLAN):
     return run_evaluation(parse_evaluation(raw), inputs, bindings, tmp_path / "report")
 
 
+@pytest.mark.parametrize('crash', [False, True])
+def test_independent_simulations_overlap_after_extraction(tmp_path, inputs, bindings, crash):
+    """Serial corner execution wastes the explicit backend concurrency allowance.
+
+    A barrier tests overlap without machine-dependent performance thresholds;
+    the existing plan independently supplies the expected results and dependency.
+    """
+    from threading import Barrier
+
+    simulator = bindings['response']
+    simulator.max_parallel_jobs = 2
+    original = simulator.run
+    barrier = Barrier(simulator.max_parallel_jobs, timeout=2)
+
+    def simultaneous(job, assets):
+        assert assets['dut'].content == b'derived-from-layout'
+        barrier.wait()
+        if crash and job.id == 'slow':
+            raise RuntimeError('One corner failed')
+        return original(job, assets)
+
+    simulator.run = simultaneous
+    report = evaluate(tmp_path, inputs, bindings)
+    assert report['jobs']['nominal']['status'] == 'passed'
+    if crash:
+        assert report['jobs']['slow']['status'] == 'error'
+        assert report['task_success'] is None
+    else:
+        assert report['task_success'] is True
+        assert report['metrics']['delay']['value'] == 3.0
+
+
 @pytest.mark.parametrize("file_format", ["toml", "json"])
 def test_dependencies_follow_extracted_candidate_and_archive_evidence(tmp_path, inputs, bindings, file_format):
     raw = PLAN if file_format == "toml" else json.dumps(tomllib.loads(PLAN.decode())).encode()
@@ -170,8 +246,8 @@ def test_dependencies_follow_extracted_candidate_and_archive_evidence(tmp_path, 
     assert report["physical_valid"] is True
     assert report["task_success"] is True
     assert report["quality_eligible"] is True
-    assert report["score"]["method"] == "layout-v1"
-    assert report["score"]["maximum"] == 100
+    assert report["score"]["method"] == "layout"
+    assert report["score"]["maximum"] is None and report["score"]["reference"] == 100
     assert report["metrics"]["delay"]["value"] == 3.0
     assert list(report["jobs"]).index("parasitics") < list(report["jobs"]).index("slow")
     assert "input:unlisted_reference" not in report["inputs"]
@@ -184,8 +260,8 @@ def test_dependencies_follow_extracted_candidate_and_archive_evidence(tmp_path, 
     for path, mode in ((root, 0o700), (root / "artifacts", 0o700),
                        (root / "report.json", 0o600), (root / output["path"], 0o400)):
         assert path.stat().st_mode & 0o777 == mode
-    assert report["score"]["value"] == pytest.approx(90)
-    assert report["score"]["components"] == {"G": 1.0, "E": 1.0, "H": 1.0, "Q": 0.5}
+    assert report["score"]["value"] == pytest.approx(100 * (2 / 3)**0.5)
+    assert report["score"]["components"] == {"G": 1.0, "E": 1.0, "Q": 2/3}
 
 def test_drc_lvs_success_is_not_performance_success(tmp_path, inputs, bindings):
     report = evaluate(tmp_path, inputs, bindings, PLAN.replace(b"upper = 4.0", b"upper = 2.0"))
@@ -194,19 +270,19 @@ def test_drc_lvs_success_is_not_performance_success(tmp_path, inputs, bindings):
     assert report["task_success"] is False
     assert report["metrics"]["delay"]["observations"]["nominal:delay"]["status"] == "passed"
     assert report["metrics"]["delay"]["observations"]["slow:delay"]["status"] == "failed"
-    assert report["score"]["components"]["E"] == pytest.approx(0.75)
-    assert report["score"]["components"]["H"] == 0
-    assert 0 < report["score"]["value"] < 60
+    assert report["score"]["value"] == 0
 
 
 def test_summary_cannot_hide_a_failing_case(tmp_path, inputs, bindings):
-    raw = PLAN.replace(b"upper = 4.0", b"lower = 2.0\nzero_lower = 0.0\nupper = 4.0")
+    raw = PLAN.replace(b"upper = 4.0", b"lower = 2.0\nupper = 4.0")
     report = evaluate(tmp_path, inputs, bindings, raw)
     assert report["metrics"]["delay"]["value"] == 3.0
     assert report["metrics"]["delay"]["status"] == "failed"
 
 
-def test_failed_gate_blocks_dependent_work_but_preserves_independent_checks(tmp_path, inputs, bindings):
+@pytest.mark.parametrize('parallel_jobs', [1, 2])
+def test_failed_gate_blocks_dependent_work_but_preserves_independent_checks(tmp_path, inputs, bindings, parallel_jobs):
+    bindings['response'].max_parallel_jobs = parallel_jobs
     bindings["check"] = Checks(reject="drc")
     report = evaluate(tmp_path, inputs, bindings)
     assert report["physical_valid"] is False
@@ -217,11 +293,15 @@ def test_failed_gate_blocks_dependent_work_but_preserves_independent_checks(tmp_
     assert report["metrics"]["delay"]["value"] is None
 
 
-def test_unscored_post_layout_plan_has_no_legacy_score(tmp_path, inputs, bindings):
-    unscored = PLAN.replace(b'\n[scoring]\nmethod = "layout-v1"\narea_metric = "functional_area"\narea_target = 1.0\narea_zero = 2.0\n', b"")
-    unscored = unscored.replace(b'zero_upper = 6.0\n', b"").replace(
-        b'dimension = "response"\n', b"")
-    report = evaluate(tmp_path, inputs, bindings, unscored)
+def test_unscored_post_layout_plan_has_no_score(tmp_path, inputs, bindings):
+    import tomli_w
+
+    data = tomllib.loads(PLAN.decode())
+    data.pop("scoring")
+    for metric in data["metrics"]:
+        for key in ("dimension", "baseline", "normalization"):
+            metric.pop(key, None)
+    report = evaluate(tmp_path, inputs, bindings, tomli_w.dumps(data).encode())
     assert report["score"] is None
     assert report["task_success"] is True
 
@@ -263,8 +343,6 @@ unit = "s"
 direction = "minimize"
 aggregation = "max"
 upper = 2.0
-zero_upper = 6.0
-dimension = "response"
 '''
     bindings["response"] = MixedSimulator()
     report = evaluate(tmp_path, inputs, bindings, raw)
@@ -272,7 +350,7 @@ dimension = "response"
     assert report["metrics"]["delay"]["status"] == "blocked"
     assert report["outcome"] == "failed"
     assert report["task_success"] is False
-    assert report["score"]["value"] is None
+    assert report["score"]["value"] == 0
 
 
 @pytest.mark.parametrize("simulator", [
@@ -292,8 +370,8 @@ def test_missing_nonfinite_or_wrong_unit_never_passes(tmp_path, inputs, bindings
 def test_partial_scope_does_not_claim_full_task_success(tmp_path, inputs, bindings, mode):
     raw = PLAN.replace(b'"post_layout"', f'"{mode}"'.encode())
     raw = raw[:raw.index(b"\n[scoring]")] + raw[raw.index(b"\n[[jobs]]"):]
-    raw = raw.replace(b'zero_upper = 6.0\n', b"").replace(
-        b'dimension = "response"\n', b"")
+    raw = raw.replace(b'baseline = ["source_nominal:delay", "source_slow:delay"]\n', b"")
+    raw = raw.replace(b'normalization = "ratio"\n', b"").replace(b'dimension = "response"\n', b"")
     report = evaluate(tmp_path, inputs, bindings, raw)
     assert report["outcome"] == "passed"
     assert report["task_success"] is None
@@ -338,7 +416,7 @@ def test_measurement_bounds_are_inclusive_for_signed_and_zero_values(
               'direction': 'minimize', 'aggregation': 'max',
               'observations': ['sample:voltage']}
     metric.update({k: v for k, v in [('lower', lower), ('upper', upper)] if v is not None})
-    raw = {'schema_version': 1, 'mode': 'characterization',
+    raw = {'mode': 'characterization',
            'jobs': [{'id': 'sample', 'stage': 'simulate', 'operation': 'measure',
                      'inputs': {'circuit': 'input:source'}}], 'metrics': [metric]}
 

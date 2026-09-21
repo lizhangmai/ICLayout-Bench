@@ -1,5 +1,4 @@
 # Analytically checkable simulator qualification; no GDS/DRC/LVS claim.
-schema_version = 1
 mode = "characterization"
 
 [[jobs]]

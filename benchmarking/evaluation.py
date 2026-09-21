@@ -54,8 +54,6 @@ class Metric:
     lower: float | None
     upper: float | None
     dimension: str | None = None
-    zero_lower: float | None = None
-    zero_upper: float | None = None
     baseline: tuple[str, ...] = ()
     normalization: str | None = None
     scale: float | None = None
@@ -73,6 +71,11 @@ class EvaluationPlan:
     raw: bytes
     format: str = "toml"
     scoring: "ScoringSpec | None" = None
+    pre_layout_json: str = "{}"
+
+    @property
+    def pre_layout(self) -> dict:
+        return json.loads(self.pre_layout_json)
 
     @property
     def sha256(self) -> str:
@@ -82,8 +85,10 @@ class EvaluationPlan:
         return _decode_evaluation(self.raw, self.format)
 
     def external_inputs(self) -> frozenset[str]:
-        return frozenset(ref for job in self.jobs for _, ref in job.inputs
-                         if ref in {"candidate", "task"} or ref.startswith("input:"))
+        references = {ref for job in self.jobs for _, ref in job.inputs
+                      if ref in {"candidate", "task"} or ref.startswith("input:")}
+        references.update(ref for job in self.pre_layout.values() for ref in job["inputs"].values())
+        return frozenset(references)
 
 
 def _decode_evaluation(raw: bytes, file_format: str) -> dict:
@@ -96,22 +101,16 @@ def _decode_evaluation(raw: bytes, file_format: str) -> dict:
 
 @dataclass(frozen=True)
 class ScoringSpec:
-    """Frozen configuration for the single public task score.
-
-    ``area_target`` and ``area_zero`` are absolute functional-area values in
-    the unit declared by ``area_metric``.  The latter is deliberately larger:
-    reaching the target earns the full area component and reaching the zero
-    boundary earns none of it.
-    """
+    """Area reference and explicit metric weights for the task score."""
 
     method: str
     area_metric: str
     area_target: float
-    area_zero: float | None = None
+    weights: tuple[tuple[str, float], ...]
+    rationale: str
 
 
-SCORING_METHOD = "layout-v2"
-SCORING_METHODS = frozenset({"layout-v1", SCORING_METHOD})
+SCORING_METHOD = "layout"
 SCORING_DIMENSIONS = frozenset({"response", "bias", "supply"})
 
 
@@ -124,9 +123,7 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
     TOML files and JSON snapshots of inline plans share the same validation.
     """
     data = _decode_evaluation(raw, file_format)
-    keys(data, {"schema_version", "mode", "jobs", "metrics"}, {"scoring"}, "evaluation")
-    if type(data["schema_version"]) is not int or data["schema_version"] != 1:
-        raise ValueError("Unsupported evaluation schema_version")
+    keys(data, {"mode", "jobs", "metrics"}, {"scoring", "pre_layout"}, "evaluation")
     if data["mode"] not in {"physical", "post_layout", "characterization"}:
         raise ValueError("Unknown evaluation mode")
     if not isinstance(data["jobs"], list) or not data["jobs"]:
@@ -202,13 +199,50 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
                                tuple(sorted(deps)), job.gate, job.parameters_json))
             del pending[job.id]
 
+    pre_layout = data.get("pre_layout", {})
+    if pre_layout:
+        keys(pre_layout, {"jobs", "source_report_sha256", "backends"}, set(), "pre_layout")
+        if not re.fullmatch(r"[0-9a-f]{64}", pre_layout["source_report_sha256"]):
+            raise ValueError("Pre-layout evidence needs a report digest")
+        if not isinstance(pre_layout["backends"], dict) or not pre_layout["backends"]:
+            raise ValueError("Pre-layout evidence needs backend identities")
+    pre_layout = pre_layout.get("jobs", {})
+    if not isinstance(pre_layout, dict):
+        raise TypeError("Pre-layout observations must be a table")
+    for name, source in pre_layout.items():
+        identifier(name)
+        if name in jobs:
+            raise ValueError("Pre-layout observations are not executable evaluation jobs")
+        keys(source, {"operation", "inputs", "outputs", "input_sha256", "parameters", "measurements"}, set(), "pre_layout job")
+        text(source["operation"], "pre-layout operation")
+        if not isinstance(source["parameters"], dict) or not isinstance(source["measurements"], dict):
+            raise TypeError("Pre-layout parameters and measurements must be tables")
+        if any(not isinstance(source[field], dict) for field in ("inputs", "input_sha256", "outputs")):
+            raise TypeError("Pre-layout input and output declarations must be tables")
+        if not source["inputs"] or set(source["inputs"]) != set(source["input_sha256"]):
+            raise ValueError("Pre-layout input identities are incomplete")
+        for role, ref in source["inputs"].items():
+            identifier(role)
+            if not isinstance(ref, str) or not ref.startswith("input:"):
+                raise ValueError("Pre-layout must be independent of the candidate")
+            identifier(ref[6:])
+            if not re.fullmatch(r"[0-9a-f]{64}", source["input_sha256"][role]):
+                raise ValueError("Invalid pre-layout input digest")
+        if not ({"input:netlist", "input:simulation"} & set(source["inputs"].values())):
+            raise ValueError("Pre-layout must consume the declared source circuit")
+        for name, measurement in source["measurements"].items():
+            identifier(name)
+            keys(measurement, {"value", "unit"}, set(), "pre-layout measurement")
+            number(measurement["value"])
+            text(measurement["unit"], "pre-layout measurement unit")
+
     metrics = []
     seen = set()
     if not isinstance(data["metrics"], list):
         raise TypeError("Metrics must be a list")
     for entry in data["metrics"]:
         keys(entry, {"id", "category", "observations", "unit", "direction", "aggregation"},
-             {"lower", "upper", "dimension", "zero_lower", "zero_upper",
+             {"lower", "upper", "dimension",
               "baseline", "normalization", "scale"}, "metric")
         name = identifier(entry["id"])
         if name in seen:
@@ -246,18 +280,6 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
                 raise ValueError(f"Unknown scoring dimension: {dimension}")
             if lower is None and upper is None and not entry.get("baseline"):
                 raise ValueError(f"Metric dimension requires a bound or baseline: {name}")
-        zero_lower = number(entry["zero_lower"]) if "zero_lower" in entry else None
-        zero_upper = number(entry["zero_upper"]) if "zero_upper" in entry else None
-        if entry["category"] != "performance" and (zero_lower is not None or zero_upper is not None):
-            raise ValueError(f"Only performance metrics may declare scoring boundaries: {name}")
-        if zero_lower is not None and lower is None:
-            raise ValueError(f"zero_lower requires a lower bound: {name}")
-        if zero_upper is not None and upper is None:
-            raise ValueError(f"zero_upper requires an upper bound: {name}")
-        if lower is not None and zero_lower is not None and zero_lower > lower:
-            raise ValueError(f"zero_lower must not exceed the lower bound: {name}")
-        if upper is not None and zero_upper is not None and zero_upper < upper:
-            raise ValueError(f"zero_upper must not be below the upper bound: {name}")
         baseline = entry.get("baseline", [])
         normalization = entry.get("normalization")
         scale = number(entry["scale"]) if "scale" in entry else None
@@ -278,51 +300,58 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
                 raise ValueError(f"Invalid normalization scale: {name}")
             for paired_ref, ref in zip(refs, baseline, strict=True):
                 parts = text(ref, "baseline observation").split(":")
-                if len(parts) != 2 or parts[0] not in jobs or jobs[parts[0]].stage != "simulate":
-                    raise ValueError(f"Baseline must be a source simulation: {ref}")
+                if len(parts) != 2 or parts[0] not in pre_layout:
+                    raise ValueError(f"Baseline must name a frozen pre-layout observation: {ref}")
                 identifier(parts[1])
-                source = jobs[parts[0]]
-                if data_ancestors[source.id] or "candidate" in dict(source.inputs).values():
-                    raise ValueError(f"Baseline must be independent of the candidate: {ref}")
-                if not ({"input:netlist", "input:simulation"} & set(dict(source.inputs).values())):
-                    raise ValueError(f"Baseline must consume the declared source circuit: {ref}")
+                source = pre_layout[parts[0]]
                 paired = jobs[paired_ref.split(":")[0]]
-                if source.operation != paired.operation or source.parameters != paired.parameters:
+                if source["operation"] != paired.operation or source["parameters"] != paired.parameters:
                     raise ValueError(f"Baseline and candidate simulation settings differ: {name}")
                 if paired_ref.split(":")[1] != parts[1]:
                     raise ValueError(f"Baseline and candidate measurement names differ: {name}")
-                if dict(source.inputs).get("deck") != dict(paired.inputs).get("deck"):
-                    raise ValueError(f"Baseline and candidate testbench differ: {name}")
-                source_inputs, paired_inputs = dict(source.inputs), dict(paired.inputs)
+                measurement = source["measurements"].get(parts[1])
+                if measurement is None or measurement["unit"] != entry["unit"]:
+                    raise ValueError(f"Missing or incompatible frozen baseline measurement: {ref}")
+                source_inputs, paired_inputs = source["inputs"], dict(paired.inputs)
                 if source_inputs.keys() != paired_inputs.keys() or any(
-                    paired_inputs[role] != ref and not (
-                        ref in {"input:netlist", "input:simulation"}
+                    paired_inputs[role] != input_ref and not (
+                        input_ref in {"input:netlist", "input:simulation"}
                         and paired_inputs[role].startswith("job:"))
-                    for role, ref in source_inputs.items()
+                    for role, input_ref in source_inputs.items()
                 ):
                     raise ValueError(f"Baseline and candidate non-circuit inputs differ: {name}")
         elif normalization is not None or scale is not None:
             raise ValueError(f"Normalization requires baseline observations: {name}")
         metrics.append(Metric(name, entry["category"], tuple(refs), text(entry["unit"], "unit"),
                               entry["direction"], entry["aggregation"], lower, upper,
-                              dimension, zero_lower, zero_upper, tuple(baseline), normalization, scale))
+                              dimension, tuple(baseline), normalization, scale))
 
     scoring = None
     scoring_data = data.get("scoring")
     if scoring_data is not None:
         method = text(scoring_data.get("method"), "scoring method")
-        if method not in SCORING_METHODS:
+        if method != SCORING_METHOD:
             raise ValueError(f"Unsupported scoring method: {method}")
-        keys(scoring_data, {"method", "area_metric", "area_target"} |
-             ({"area_zero"} if method == "layout-v1" else set()), set(), "evaluation.scoring")
+        keys(scoring_data, {"method", "area_metric", "area_target", "weights", "rationale"},
+             set(), "evaluation.scoring")
         area_metric = identifier(scoring_data["area_metric"])
         area_target = number(scoring_data["area_target"])
-        area_zero = number(scoring_data["area_zero"]) if "area_zero" in scoring_data else None
         if area_target <= 0:
             raise ValueError("scoring.area_target must be positive")
-        if area_zero is not None and area_zero <= area_target:
-            raise ValueError("scoring.area_zero must exceed area_target")
-        scoring = ScoringSpec(method, area_metric, area_target, area_zero)
+        declared = scoring_data["weights"]
+        if not isinstance(declared, dict) or not declared:
+            raise ValueError("scoring.weights must be a nonempty metric-weight table")
+        weights = tuple(sorted((identifier(k), number(v)) for k, v in declared.items()))
+        expected = {area_metric} | {metric.id for metric in metrics if metric.baseline}
+        if set(declared) != expected:
+            raise ValueError("scoring.weights must name exactly the area and baseline metrics")
+        if (any(v < 0 or v > 1 for _, v in weights)
+                or not math.isclose(math.fsum(v for _, v in weights), 1, rel_tol=0, abs_tol=1e-9)):
+            raise ValueError("scoring.weights must be nonnegative and sum to one")
+        if not any(k != area_metric and v > 0 for k, v in weights):
+            raise ValueError("scoring.weights needs a positive electrical weight")
+        rationale = text(scoring_data["rationale"], "scoring rationale")
+        scoring = ScoringSpec(method, area_metric, area_target, weights, rationale)
 
     if data["mode"] != "characterization":
         for gate in ("artifact", "drc", "lvs"):
@@ -332,6 +361,8 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
     if data["mode"] == "post_layout":
         gates = {j.id for j in ordered if j.gate in {"artifact", "drc", "lvs"}}
         for job in ordered:
+            if job.stage == "simulate" and not any(ref.startswith("job:") for _, ref in job.inputs):
+                raise ValueError("Post-layout simulations must consume candidate extraction; pre-layout is frozen")
             if job.stage == "extract" and not gates <= ancestors[job.id]:
                 raise ValueError(f"Extraction must depend on physical validity gates: {job.id}")
         performance = [m for m in metrics if m.category == "performance"]
@@ -351,8 +382,7 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
                         raise ValueError(f"Simulation must consume candidate extraction: {simulation.id}")
 
     if scoring is None:
-        if any(metric.baseline or metric.dimension is not None or metric.zero_lower is not None
-               or metric.zero_upper is not None for metric in metrics):
+        if any(metric.baseline or metric.dimension is not None for metric in metrics):
             raise ValueError("Scoring metric metadata requires evaluation.scoring")
     else:
         if data["mode"] != "post_layout":
@@ -381,23 +411,11 @@ def parse_evaluation(raw: bytes, *, file_format: str = "toml") -> EvaluationPlan
                     if metric.category == "performance" and metric.is_requirement]
         if not required:
             raise ValueError("Scored layout evaluation needs a bounded performance metric")
-        if scoring.method == "layout-v2":
-            if not any(metric.baseline for metric in metrics):
-                raise ValueError("layout-v2 requires pre-layout baselines")
-            for metric in metrics:
-                if metric.zero_lower is not None or metric.zero_upper is not None:
-                    raise ValueError("layout-v2 uses baselines, not zero-score boundaries")
-                if metric.dimension and not metric.baseline:
-                    raise ValueError(f"Scored metric needs a baseline: {metric.id}")
-            required = []
-        elif any(metric.baseline for metric in metrics):
-            raise ValueError("layout-v1 cannot use baseline normalization")
-        for metric in required:
-            if metric.dimension not in SCORING_DIMENSIONS:
-                raise ValueError(f"Required performance metric needs a scoring dimension: {metric.id}")
-            if metric.lower is not None and metric.zero_lower is None:
-                raise ValueError(f"Required performance metric needs zero_lower: {metric.id}")
-            if metric.upper is not None and metric.zero_upper is None:
-                raise ValueError(f"Required performance metric needs zero_upper: {metric.id}")
+        if not any(metric.baseline for metric in metrics):
+            raise ValueError("Layout scoring requires pre-layout baselines")
+        for metric in metrics:
+            if metric.dimension and not metric.baseline:
+                raise ValueError(f"Scored metric needs a baseline: {metric.id}")
 
-    return EvaluationPlan(data["mode"], tuple(ordered), tuple(metrics), raw, file_format, scoring)
+    return EvaluationPlan(data["mode"], tuple(ordered), tuple(metrics), raw, file_format, scoring,
+                          json.dumps(pre_layout, sort_keys=True, allow_nan=False))

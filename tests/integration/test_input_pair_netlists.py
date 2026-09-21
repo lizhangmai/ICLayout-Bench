@@ -14,7 +14,8 @@ from benchmarking.files import Asset
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_ROOT = ROOT
+from helpers.catalog import ROOT as PUBLIC_ROOT
+
 CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/IHP-AnalogAcademy/cases/input_pair"
 
 
@@ -60,13 +61,15 @@ File.write('comparison.json', JSON.pretty_generate(result))
     prepare_support(None, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#klayout",
                     tmp_path / "support")
     bundle = load_bundle(tmp_path / "support")
+    prepare_support(None, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#model-calls", tmp_path / "model-calls")
+    model_calls = load_bundle(tmp_path / "model-calls")
     result = DockerTool(os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local"),
                         ["klayout", "-v"], 120).run(
         ["klayout", "-b", "-r", "compare.rb"],
         {"compare.rb": Asset(script.encode(), "ruby"),
          "fresh.cdl": Asset(raw.encode(), "cdl"),
          "circuit.spice": simulation,
-         **bundle.mounted_files()},
+         **bundle.mounted_files(), **model_calls.mounted_files()},
         {"comparison.json": "json"},
     )
     assert result.returncode == 0 and not result.reason, result.evidence["console"].content.decode()

@@ -33,7 +33,7 @@ def result(
 ):
     root.mkdir(parents=True, exist_ok=True)
     raw = {
-        "schema_version": 3,
+        "format": "participant-result",
         "state": "finished",
         "identity": {
             "benchmark": {"commit": "a" * 40, "version": "test"},
@@ -47,7 +47,7 @@ def result(
         "execution": {"elapsed_seconds": 12},
         "top_cell": "TOP",
         "evaluation": {
-            "protocol": "layout-http.v1",
+            "protocol": "layout-http",
             "state": "complete",
             "session_id": sid,
             "task_id": task,
@@ -55,10 +55,10 @@ def result(
             "condition": {"model": model},
             "outcome": outcome,
             "task_success": outcome == "pass",
-            "score": {"method": "layout-v1", "value": score, "maximum": 100},
+            "score": {"method": "layout", "value": score, "maximum": None, "reference": 100},
             "metrics": {"power": {"value": 1.2, "unit": "W", "status": "passed"}},
             "limits": {"wall_seconds": 3600},
-            "tool_identity": {"image_id": "test-image"},
+            "tool_identity": {"image_id": "test-image", "evaluator": {"image_id": "test-image"}},
             "verification_level": "local_development",
             "submission": {
                 "candidate_sha256": digest(b"candidate"),
@@ -334,8 +334,8 @@ def test_runner_storage_configuration_does_not_change_frozen_conditions(
         read_configs([config])
 
 
-def test_legacy_reevaluation_cannot_replace_the_imported_candidate(tmp_path):
-    """Missing historical hashes do not authorize replacement of a run's copied GDS."""
+def test_reevaluation_cannot_replace_the_imported_candidate(tmp_path):
+    """A missing submission digest does not authorize replacing a run's copied GDS."""
     store = ResultStore(tmp_path / "archive")
     source = result(tmp_path / "source")
     change(source, lambda d: d["evaluation"]["submission"].pop("candidate_sha256"))
@@ -356,15 +356,15 @@ def test_authored_schematic_requires_matching_source_and_artifact_digests(tmp_pa
     import subprocess
     from html import escape
 
-    from benchmarking.results.presentation import GitCatalog
+    from benchmarking.results.presentation import GitCatalog, attach_catalog
 
     root = tmp_path / "catalog"
-    case = root / "tasks/pdk/library/cases/gate"
+    case = root / "tasks/pdk.library.gate"
     case.mkdir(parents=True)
     subprocess.run(["git", "init", str(root)], check=True, capture_output=True)
     raw = b".subckt gate a z\nR1 a z 1k\n.ends\n"
     metadata = {
-        "format": "iclayout-schematic-v1",
+        "format": "iclayout-schematic",
         "case_id": "gate",
         "netlist_sha256": digest(raw),
     }
@@ -379,6 +379,8 @@ def test_authored_schematic_requires_matching_source_and_artifact_digests(tmp_pa
         'path = "schematic.svg"\nsha256 = "' + digest(svg) + '"\n'
         '[task.inputs.netlist]\nsha256 = "' + digest(raw) + '"\n'
     )
+    config += 'path = "circuit.spice"\nsubcircuit = "gate"\n'
+    (case / "circuit.spice").write_bytes(raw)
     (case / "case.toml").write_text(config)
 
     def snapshot():
@@ -405,6 +407,18 @@ def test_authored_schematic_requires_matching_source_and_artifact_digests(tmp_pa
         return GitCatalog(root, revision)
 
     catalog = snapshot()
+    # The evaluator commit deliberately differs: presentation must use Dataset provenance.
+    source = result(tmp_path / "source", task="gate")
+    export = json.loads(source.read_text())
+    export["identity"]["inputs"] = {"gate": {"dataset": {"source": str(root), "commit": catalog.revision}}}
+    export["evaluation"]["task_sha256"] = digest(config.encode())
+    source.write_text(json.dumps(export))
+    store = ResultStore(tmp_path / "archive")
+    try:
+        store.import_result(source)
+        assert attach_catalog(store, root)[0]["status"] == "attached"
+    finally:
+        store.close()
     drawing, provenance = catalog.schematic("gate", digest(raw))
     assert drawing == svg
     assert provenance["kind"] == "authored"
@@ -497,15 +511,12 @@ def test_tool_schemes_share_evaluator_context_without_merging_conditions(tmp_pat
     assert len(store.comparison()['tasks']) == 2
 
 
-def test_import_preserves_reference_scores_above_100_and_separates_versions(tmp_path):
+def test_import_preserves_reference_scores_above_100(tmp_path):
     store = ResultStore(tmp_path / 'archive')
     source = result(tmp_path / 'relative', score=144)
     change(source, lambda raw: raw['evaluation']['score'].update(
-        method='layout-v2', maximum=None, reference=100))
+        method="layout", maximum=None, reference=100))
     imported = store.import_result(source)
     assert store.detail(imported['run_id'])['evaluation']['score'] == 144
-    store.import_result(result(tmp_path / 'legacy', sid='legacy', score=100))
-    cells = store.comparison()['cells']
-    assert sorted(cell['mean'] for cell in cells) == [100, 144]
     assert not store.verify()['failures']
     store.close()

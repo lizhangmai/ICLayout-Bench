@@ -6,7 +6,6 @@ from benchmarking.engine.geometry import validate_constraints
 
 pytestmark = pytest.mark.unit
 DATA = {
-    'schema_version': 1,
     'hard': [
         {'id': 'outline', 'type': 'bbox_max', 'functional_layers': [[1, 0]],
          'max_width_um': 10.0, 'max_height_um': 10.0},

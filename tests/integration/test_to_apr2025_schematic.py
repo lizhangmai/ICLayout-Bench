@@ -23,7 +23,8 @@ from benchmarking.files import Asset
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_ROOT = ROOT
+from helpers.catalog import ROOT as PUBLIC_ROOT
+
 CASE = PUBLIC_ROOT / "tasks/ihp-sg13g2/TO_Apr2025/cases/DC_to_130_GHz_TIA.design_1"
 TOP = "FMD_QNC_03a_TIA_1"
 PORTS = ["INPUT", "OUTPUT", "VCC2V", "VCC2V1", "VEE"]
@@ -44,7 +45,7 @@ def context(tmp_path_factory):
 
 def test_core_operating_point_uses_real_hbt_resistor_and_capacitor_models(context, tmp_path):
     config, image, directory = context
-    plan = parse_evaluation(json.dumps({"schema_version": 1, "mode": "characterization", "metrics": [],
+    plan = parse_evaluation(json.dumps({"mode": "characterization", "metrics": [],
         "jobs": [{"id": "op", "stage": "simulate", "operation": "circuit.simulate",
                   "inputs": {"deck": "input:deck", "circuit": "input:circuit"},
                   "outputs": {"waveform": "ngspice-raw"},
@@ -103,7 +104,7 @@ def test_complete_physical_proposal_passes_both_drc_decks_and_lvs(context, tmp_p
             # labels; only the final functional witness uses strict ports.
             settings["profile"] = "lvs-to-apr2025.json"
         backends[operation] = KLayoutDocker(**settings)
-    plan = parse_evaluation(json.dumps({"schema_version": 1, "mode": "physical",
+    plan = parse_evaluation(json.dumps({"mode": "physical",
                                        "metrics": [], "jobs": jobs}).encode(), file_format="json")
     report = run_evaluation(plan, {"candidate": candidate,
         "input:netlist": Asset((CASE / "materials/circuit.cdl").read_bytes(), "spice")},

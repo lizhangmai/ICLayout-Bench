@@ -33,7 +33,7 @@ IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local"
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_ROOT = ROOT
+from helpers.catalog import ROOT as PUBLIC_ROOT
 
 PREAMBLE = '''import json, os, subprocess, time
 from pathlib import Path
@@ -107,39 +107,36 @@ assert submit()['accepted']
 @pytest.mark.parametrize("manifest", sorted((PUBLIC_ROOT / "tasks").glob("*/pdk.toml")),
                          ids=lambda path: path.parent.name)
 def test_declared_pdks_are_usable_in_agent_container(tmp_path, manifest):
-    from benchmarking.bundles import load_bundle
 
-    cases = []
-    for catalog in sorted(manifest.parent.glob("*/catalog.toml")):
-        for entry in tomllib.loads(catalog.read_text())["cases"]:
-            case = catalog.parent / entry["config_path"]
-            data = tomllib.loads(case.read_text())
-            if data.get("qualification", {}).get("reference") and data["status"] in {"candidate", "qualified"}:
-                task = load_task(case)
-                if task.evaluation and task.evaluation.mode == "post_layout":
-                    cases.append(case)
+    from benchmarking.dataset import Dataset, process_manifest
+
+    cases = [case for case in Dataset(PUBLIC_ROOT, {}).cases().values()
+             if process_manifest(case) == manifest]
     assert cases, "A published process must have an executable witness"
-    prepared = tmp_path / "prepared"
-    command = [sys.executable, "-m", "benchmarking.engine.preview", "prepare",
-               "--case", str(cases[0]), "--image", IMAGE, "--output", str(prepared)]
-    preparation = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
-    assert preparation.returncode == 0, preparation.stdout + preparation.stderr
-    bundle = load_bundle(prepared / "agent-resources")
-    witness_digests = set()
-    for case in cases:
-        data = tomllib.loads(case.read_text())
-        reference = data["qualification"]["reference"]
-        witness_digests.update(asset["sha256"] for asset in data.get("assets", [])
-                               if asset["path"] == reference)
-    mounted_digests = {identity["sha256"] for identity in json.loads(bundle.manifest.content)["files"].values()}
-    assert witness_digests, "Published witnesses must carry content digests"
-    assert witness_digests.isdisjoint(mounted_digests), "A published answer entered the PDK resources"
+    from benchmarking.engine.runtime import load_case
+
+    runtime = load_case(cases[0], image=IMAGE)
+    bundle = runtime.agent
+    # Case metadata, rather than a process-wide wish list, owns runtime profiles.
+    from benchmarking.engine.preparation import support_bindings
+
+    backends = tomllib.loads(cases[0].read_text())["toolchain"]["backends"]
+    required = {profile for name, backend in backends.items() for _, profile in support_bindings(name, backend)}
+    assert {name.split("/")[1] for name, _ in bundle.files if name.startswith("support/")} == required
+    assert not any("/verilog-a/" in name or "/compilation/" in name for name, _ in bundle.files)
+
+    from benchmarking.files import ReadOnlyMount
+
+    roots = {name: value for name, value in bundle.files if name.startswith("pdks/")}
+    assert len(roots) == 1
+    assert all(isinstance(value, ReadOnlyMount) and value.path.is_dir() for value in roots.values())
+    assert all(not item.path.startswith("reference/") for item in runtime.task.inputs)
     resources = {**dict(bundle.files), "manifest.json": bundle.manifest}
     code = '''
 info = json.loads(Path('/protocol/resources.json').read_text())
 assert os.environ['ICLAYOUT_BENCH_PDK'] == info['pdk']
 assert Path(os.environ['PDK_PATH']).is_dir()
-assert not list(Path('/resources').rglob('.git'))
+assert not Path('/resources/tasks').exists()
 assert not Path('/task/reference').exists()
 assert not Path('/var/run/docker.sock').exists()
 assert not Path('/resources/tasks').exists()
@@ -154,11 +151,11 @@ for command in info['checks']:
     check = subprocess.run(command, capture_output=True, text=True, timeout=90)
     print(check.stdout, check.stderr, flush=True)
     assert check.returncode == 0, command
-    assert 'in PCellDeclaration.produce' not in check.stderr, 'PCell generation failed internally'
+    assert 'in PCellDeclaration.' not in check.stderr, 'PCell generation failed internally'
 print('PDK_CHECKS_PASSED', flush=True)
 '''
     config = replace(configuration(code, seconds=180), memory_mb=2048, workspace_mb=256, pids=128)
-    task = load_task(prepared / "case/case.toml")
+    task = runtime.task
     result = DockerSession(IMAGE).run(task, config, resources, task_message(task, config))
     assert result.termination == "completed", result.console.content.decode(errors="replace")
     assert b"PDK_CHECKS_PASSED" in result.console.content

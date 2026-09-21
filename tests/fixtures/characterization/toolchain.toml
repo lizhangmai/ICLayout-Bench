@@ -1,5 +1,3 @@
-schema_version = 1
-
 [backends.spice]
 type = "ngspice-docker"
 [backends.spice.settings]

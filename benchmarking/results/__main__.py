@@ -21,9 +21,9 @@ def main(argv=None):
     importer.add_argument("--namespace", default="local")
     importer.add_argument("--reevaluation", action="store_true")
     catalog = commands.add_parser(
-        "catalog", help="Attach schematics from each recorded Public Git revision"
+        "catalog", help="Attach schematics from each recorded Dataset revision"
     )
-    catalog.add_argument("--public-root", type=Path, required=True)
+    catalog.add_argument("--dataset", required=True)
     catalog.add_argument(
         "--schematic-revision",
         help="Full Git commit containing authored SVGs; must match each recorded netlist digest",
@@ -57,7 +57,7 @@ def main(argv=None):
             from .presentation import attach_catalog
 
             result = attach_catalog(
-                store, args.public_root, schematic_revision=args.schematic_revision
+                store, args.dataset, schematic_revision=args.schematic_revision
             )
         elif args.command == "geometry":
             from .geometry import attach_geometry

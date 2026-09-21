@@ -1,0 +1,58 @@
+name: Publish reviewed website
+
+# The site is built and reviewed externally. This workflow never imports an
+# operator checkout, builds website sources, or participates in Python package CI.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: gh-pages
+          persist-credentials: false
+      - name: Verify the reviewed artifact
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          root = Path('.')
+          manifest = json.loads(Path('release-manifest.json').read_text())
+          paths = [p for p in root.rglob('*') if '.git' not in p.parts]
+          assert not any(p.is_symlink() for p in paths), 'Symlinks are not publishable'
+          files = {p.as_posix() for p in paths if p.is_file()}
+          assert files == set(manifest['files']) | {'release-manifest.json'}, 'Unexpected release files'
+          assert {'index.html', '404.html', '.nojekyll', 'site-data/snapshot.json'} <= files
+          assert not any(p.split('/')[0] in {'admin', 'account', 'api', '.github'} for p in files)
+          assert sum(Path(p).stat().st_size for p in files) <= 1024 ** 3
+          for name, digest in manifest['files'].items():
+              path = Path(name)
+              assert not path.is_absolute() and '..' not in path.parts
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == digest, name
+          PY
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: .
+  deploy:
+    needs: upload
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

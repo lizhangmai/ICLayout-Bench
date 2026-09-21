@@ -9,28 +9,26 @@ import json
 import os
 import threading
 import time
-from pathlib import Path
 
 import pytest
 
-from benchmarking.bundles import load_bundle
 from benchmarking.client import Client, ClientError
-from benchmarking.engine.toolchains import load_toolchain
-from benchmarking.files import Asset
+from benchmarking.dataset import load_dataset
+from benchmarking.engine.runtime import load_case
 from benchmarking.service.server import LocalService, serve
-from benchmarking.tasks import load_task
 
-PREPARED = Path(os.environ.get('ICLAYOUT_BENCH_PREPARED', 'build/prepared-cell6t-http')).resolve()
-CONDITION = {'harness_kind': 'custom', 'harness_id': 'protocol-test', 'harness_version': '1',
+DATASET = os.environ.get('ICLAYOUT_BENCH_DATASET')
+CASE = os.environ.get('ICLAYOUT_BENCH_CASE', 'freepdk45.nangate45-pdk.NAND2_X1')
+CONDITION = {'harness_kind': 'agent', 'harness_id': 'protocol-test', 'harness_version': '1',
                  'model': 'none', 'prompt_sha256': None, 'configuration_sha256': None}
 
 
 @pytest.fixture
 def host(tmp_path):
-    case = PREPARED/'case/case.toml'
-    bundle = load_bundle(PREPARED/'agent-resources')
-    service = LocalService(tmp_path/'store',load_task(case),dict(bundle.files)|{'manifest.json':Asset(bundle.manifest.content,'json')},
-                           load_toolchain(case),os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE','iclayout-bench-tools:dev'), 'operator-test')
+    dataset = load_dataset(DATASET)
+    runtime = load_case(dataset.case(CASE), image=os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-bench-tools:local'))
+    service = LocalService(tmp_path/'store', runtime.task, runtime.agent_resources(), runtime.backends,
+                           os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE','iclayout-bench-tools:local'), 'operator-test')
     server = serve(service)
     thread = threading.Thread(target=server.serve_forever,daemon=True)
     thread.start()
@@ -71,6 +69,19 @@ def test_remote_snapshot_retry_and_independent_evaluation(host, tmp_path):
     client.write(sid,path,b'second',key='rewrite')
     assert client.submit(sid,path,key='candidate') == first
     assert first['candidate_sha256'] == hashlib.sha256(b'first').hexdigest()
+    from benchmarking.participants.bridge import Bridge
+    bridge = Bridge(client, sid, tmp_path / 'bridge.jsonl')
+    before = client.session(sid)
+    checked = bridge.call('check', {})
+    assert checked['exit_code'] == 0
+    feedback = json.loads(checked['output'])['feedback']
+    assert feedback['candidate']['sha256'] == hashlib.sha256(b'second').hexdigest()
+    assert feedback['outcome'] in ('failed', 'error')
+    assert feedback['details']['jobs']['artifact']['status'] in ('failed', 'error')
+    assert feedback['tool_identity'] == service.evaluator_identity
+    after = client.session(sid)
+    assert after['last_submission'] == before['last_submission']
+    assert after['diagnostics_remaining'] == before['diagnostics_remaining'] - 1
     with pytest.raises(ClientError) as conflict:
         client.submit(sid,'different.gds',key='candidate')
     assert conflict.value.status == 409
@@ -109,14 +120,102 @@ def test_remote_snapshot_retry_and_independent_evaluation(host, tmp_path):
     recovered = LocalService(service.root, service.task, service.resources, service.backends,
                              service.image, service.token)
     try:
-        status, replay = recovered.handle('POST', f'/v1/sessions/{sid}/submissions', {},
+        status, replay = recovered.handle('POST', f'/sessions/{sid}/submissions', {},
                                           client.token, {'path': path}, 'candidate')
         assert status == 200
         assert replay == first
-        _, replayed_events = recovered.handle('GET', f'/v1/sessions/{sid}/observations', {}, client.token, None, None)
+        _, replayed_events = recovered.handle('GET', f'/sessions/{sid}/observations', {}, client.token, None, None)
         assert replayed_events == observed
     finally:
         recovered.shutdown()
+
+
+def test_witness_qualification_uses_participant_check_and_final_evaluation(tmp_path, monkeypatch):
+    """A qualified witness must survive the same HTTP/MCP path as a participant.
+
+    Existing snapshot tests use invalid bytes and cannot detect drift between a
+    passing direct evaluation and full participant checks. The Dataset contract
+    supplies both the witness and all expectations; no model is invoked.
+    """
+    from dataclasses import replace
+    from types import SimpleNamespace
+
+    from benchmarking.engine.qualification import (
+        acceptance_summary,
+        repeatability,
+        run,
+        verify,
+    )
+
+    image = os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-bench-tools:local')
+    runtime = load_case(load_dataset(DATASET).case(CASE), image=image)
+    output = tmp_path / 'qualification'
+    run(runtime, output, image)
+    verify(runtime, output)
+    portable = tmp_path / 'portable'
+    portable.mkdir()
+    for name in ('qualification.json', 'direct.json', 'check.json', 'final.json'):
+        (portable / name).write_bytes((output / name).read_bytes())
+    verify(runtime, portable)  # Neither the service store nor raw waveforms are needed.
+    summary = acceptance_summary(runtime, portable, 'a' * 40)
+    assert summary['task_sha256'] == runtime.task.digest
+    assert summary['passed'] is True and summary['scope'] == 'direct/check/final'
+    assert summary['evidence_sha256'] == hashlib.sha256((portable / 'qualification.json').read_bytes()).hexdigest()
+    assert str(portable) not in json.dumps(summary)
+    with pytest.raises(ValueError, match='Git commit'):
+        acceptance_summary(runtime, portable, 'not-a-commit')
+    # The publication gate consumes explicit author evidence, without a Dataset ledger.
+    from benchmarking.engine import qualification
+
+    evidence_map = tmp_path / 'evidence.json'
+    summaries = tmp_path / 'summaries.json'
+    evidence_map.write_text(json.dumps({runtime.task.id: 'portable'}))
+    summaries.write_text(json.dumps({runtime.task.id: summary}))
+    with monkeypatch.context() as patch:
+        patch.setattr(qualification, 'load_dataset', lambda *a, **k: SimpleNamespace(
+            native_cases=lambda *a: (None, {runtime.task.id: runtime.config})))
+        patch.setattr(qualification, 'load_case', lambda *a, **k: runtime)
+        arguments = ['verify-core', '--dataset', DATASET, '--evidence', str(evidence_map),
+                     '--summaries', str(summaries)]
+        qualification.main(arguments)
+        summaries.write_text(json.dumps({runtime.task.id: {**summary, 'passed': False}}))
+        with pytest.raises(SystemExit) as rejected:
+            qualification.main(arguments)
+        assert rejected.value.code == 1
+    changed = dict(runtime.backends)
+    operation = next(iter(changed))
+    changed[operation] = SimpleNamespace(identity={**changed[operation].identity, 'changed': True})
+    with pytest.raises(ValueError, match='bindings changed'):
+        verify(replace(runtime, backends=changed), output)
+    report = output / 'check.json'
+    report.write_bytes(report.read_bytes() + b' ')
+    with pytest.raises(ValueError, match='digest mismatch'):
+        verify(runtime, output)
+    # A synthetic numerical change must be disclosed, never silently described
+    # as bit-identical. It does not change the task's acceptance requirements.
+    report = portable / 'check.json'
+    observed = json.loads(report.read_bytes())
+    observed['score']['value'] += 0.000001
+    report.write_text(json.dumps(observed))
+    record_path = portable / 'qualification.json'
+    record = json.loads(record_path.read_bytes())
+    record['reports']['check']['sha256'] = hashlib.sha256(report.read_bytes()).hexdigest()
+    record_path.write_text(json.dumps(record))
+    with pytest.raises(ValueError, match='repeatability disclosure'):
+        verify(runtime, portable)
+    record['repeatability'] = repeatability([json.loads((portable / f'{s}.json').read_bytes())
+                                            for s in ('direct', 'check', 'final')], runtime.task.evaluation)
+    record_path.write_text(json.dumps(record))
+    assert verify(runtime, portable)['repeatability']['observations_identical'] is False
+    assert verify(runtime, portable)['repeatability']['within_limits'] is True
+    observed['score']['value'] += 2 * record['repeatability']['policy']['score_spread']
+    report.write_text(json.dumps(observed))
+    record['reports']['check']['sha256'] = hashlib.sha256(report.read_bytes()).hexdigest()
+    record['repeatability'] = repeatability([json.loads((portable / f'{s}.json').read_bytes())
+                                            for s in ('direct', 'check', 'final')], runtime.task.evaluation)
+    record_path.write_text(json.dumps(record))
+    with pytest.raises(ValueError, match='repeatability exceeds'):
+        verify(runtime, portable)
 
 
 def test_workspace_links_background_cleanup_and_cancellation(host):

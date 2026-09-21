@@ -12,7 +12,7 @@ from benchmarking.files import Asset
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_ROOT = ROOT
+from helpers.catalog import ROOT as PUBLIC_ROOT
 
 
 def test_model_calls_preserve_geometry_multiplicity_terminals_and_hierarchy(tmp_path):
@@ -62,10 +62,12 @@ File.write('devices.json', JSON.generate(circuits))
 """
     prepare_support(None, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#klayout", tmp_path / "support")
     support = load_bundle(tmp_path / "support")
+    prepare_support(None, f"{PUBLIC_ROOT}/tasks/ihp-sg13g2/pdk.toml#model-calls", tmp_path / "model-calls")
+    model_calls = load_bundle(tmp_path / "model-calls")
     result = DockerTool("iclayout-bench-tools:local", ["klayout", "-v"], 120).run(
         ["klayout", "-b", "-r", "probe.rb"],
         {"probe.rb": Asset(script.encode(), "ruby"), "source.spice": Asset(source.encode(), "spice"),
-         **support.mounted_files()}, {"devices.json": "json"})
+         **support.mounted_files(), **model_calls.mounted_files()}, {"devices.json": "json"})
     assert result.returncode == 0 and not result.reason, result.evidence["console"].content.decode()
     circuits = json.loads(result.files["devices.json"].content)
     child, sample = circuits["CHILD"], circuits["SAMPLE"]

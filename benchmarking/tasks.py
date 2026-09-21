@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .evaluation import EvaluationPlan, identifier, parse_evaluation
-from .files import Asset
+from .files import Asset, is_hub_file
 from .files import keys as _keys
 from .files import read_file as _read_file
 from .files import relative as _relative
@@ -130,16 +130,20 @@ class Task:
 
 def _validate_case(data: dict) -> None:
     """Validate maintained case metadata and source attribution."""
-    _keys(data, {"schema_version", "kind", "id", "title", "status", "origin"},
-          {"role", "task", "toolchain", "assets", "qualification", "screening"}, "case")
-    if type(data["schema_version"]) is not int or data["schema_version"] != 2:
-        raise ValueError("Unsupported case schema_version")
+    _keys(data, {"kind", "id", "title", "status", "origin"},
+          {"role", "task", "toolchain", "assets", "qualification", "screening", "presentation", "in_core"}, "case")
+    if "in_core" in data and type(data["in_core"]) is not bool:
+        raise ValueError("case.in_core must be boolean")
     if data["kind"] != "layout_case":
         raise ValueError("Only layout_case cases are supported")
     if "toolchain" in data and not isinstance(data["toolchain"], dict):
         raise TypeError("case.toolchain must be a table")
     for field in ("id", "title", "status"):
         _text(data[field], f"case.{field}")
+    if "presentation" in data:
+        _keys(data["presentation"], {"category", "summary"}, set(), "case.presentation")
+        for field in ("category", "summary"):
+            _text(data["presentation"][field], f"case.presentation.{field}")
     if data["status"] not in {"candidate", "qualified", "source-only", "supporting-source"}:
         raise ValueError("Case status is not recognized")
     screening = data.get("screening")
@@ -165,20 +169,17 @@ def _validate_case(data: dict) -> None:
             raise ValueError("case.assets.sha256 must be a lowercase SHA-256")
     qualification = data.get("qualification")
     if qualification is not None:
-        _keys(qualification, {"evidence"}, {"reference"}, "case.qualification")
-        _relative(qualification["evidence"], "case.qualification.evidence")
+        _keys(qualification, set(), {"reference"}, "case.qualification")
         if "reference" in qualification:
             _relative(qualification["reference"], "case.qualification.reference")
 
 
 def _load_task_data(data: dict, config: Path, raw: bytes, *, label: str) -> Task:
-    """Load the executable task section from either schema."""
+    """Load a standalone executable task or the task section of a case."""
     config = config.absolute()
-    _keys(data, {"schema_version", "id", "title", "kind", "family", "status",
+    _keys(data, {"id", "title", "kind", "family", "status",
                  "environment", "inputs", "output"},
           {"provenance", "constraints", "evaluation", "_witnessed", "coefficient", "hours"}, "task")
-    if type(data["schema_version"]) is not int or data["schema_version"] != 1:
-        raise ValueError("Unsupported task schema_version")
     if data["kind"] != "netlist_to_gds":
         raise ValueError("Only netlist_to_gds tasks are supported")
     if data["status"] not in {"candidate", "qualified"}:
@@ -209,20 +210,10 @@ def _load_task_data(data: dict, config: Path, raw: bytes, *, label: str) -> Task
     for role, entry in data["inputs"].items():
         identifier(role)
         required = {"path", "sha256", "subcircuit"} if role == "netlist" else {"path", "sha256"}
-        _keys(entry, required, {"format", "source", "collection_source"}, f"inputs.{role}")
+        _keys(entry, required, {"format", "source"}, f"inputs.{role}")
         relative = _relative(entry["path"], f"inputs.{role}.path")
         source_root = config.parent
-        if "collection_source" in entry:
-            if "source" in entry:
-                raise ValueError("Declare at most one of source or collection_source")
-            if (label != "case.task" or config.name != "case.toml"
-                    or config.parent.parent.name != "cases"):
-                raise ValueError("collection_source requires <collection>/cases/<circuit>/case.toml")
-            source_root = config.parent.parent.parent
-            _read_file(source_root, "catalog.toml")
-            source_relative = _relative(entry["collection_source"], f"inputs.{role}.collection_source")
-        else:
-            source_relative = _relative(entry.get("source", relative), f"inputs.{role}.source")
+        source_relative = _relative(entry.get("source", relative), f"inputs.{role}.source")
         if any(relative == p or relative.startswith(p + "/") or p.startswith(relative + "/")
                for p in seen_paths):
             raise ValueError(f"Overlapping task input paths: {relative}")
@@ -247,6 +238,11 @@ def _load_task_data(data: dict, config: Path, raw: bytes, *, label: str) -> Task
             available.add("input:constraints")
         if not evaluation.external_inputs() <= available:
             raise ValueError("Evaluation references an undeclared task input")
+        identities = {f"input:{item.role}": item.sha256 for item in inputs}
+        for source in evaluation.pre_layout.values():
+            for role, reference in source["inputs"].items():
+                if identities.get(reference) != source["input_sha256"][role]:
+                    raise ValueError(f"Frozen pre-layout input changed: {reference}")
     output = data["output"]
     subcircuit = _text(data["inputs"]["netlist"]["subcircuit"], "inputs.netlist.subcircuit")
     _keys(output, {"path", "format", "top_cell", "max_bytes"}, set(), "output")
@@ -277,7 +273,8 @@ def _load_task_data(data: dict, config: Path, raw: bytes, *, label: str) -> Task
 def load_task(config: Path) -> Task:
     """Read a standalone task or the executable section of a circuit case."""
     config = config.absolute()
-    if config.resolve(strict=True) != config or not config.is_file():
+    resolved = config.resolve(strict=True)
+    if not config.is_file() or (resolved != config and not is_hub_file(config)):
         raise ValueError("Task configuration must be a regular, non-symlink file")
     raw = config.read_bytes()
     data = tomllib.loads(raw.decode("utf-8"))
@@ -290,7 +287,21 @@ def load_task(config: Path) -> Task:
     if not isinstance(task_data, dict):
         raise TypeError("case.task must be a table")
     task_data = dict(task_data)
-    task_data.update({"schema_version": 1, "id": data["id"], "title": data["title"],
+    task_data.update({"id": data["id"], "title": data["title"],
                       "status": data["status"],
                       "_witnessed": (data.get("qualification") or {}).get("reference") is not None})
     return _load_task_data(task_data, config, raw, label="case.task")
+
+
+def contract_digest(description, inputs):
+    """Compare canonical and prepared tasks without host tool paths or references."""
+    value = {key: description[key] for key in
+             ("id", "title", "family", "coefficient", "environment", "netlist_subcircuit", "output")}
+    value["input_paths"] = description["inputs"]
+    value["inputs"] = {role: {key: ref[key] for key in ("sha256", "format", "bytes")}
+                       for role, ref in inputs.items()}
+    return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
+
+
+def task_contract(task):
+    return contract_digest(task.description(), {role: asset.identity() for role, asset in task.input_assets().items()})

@@ -15,43 +15,6 @@ pytestmark = pytest.mark.unit
 pytest_plugins = ["test_evaluate"]
 
 
-def test_electrical_attainment_uses_the_worst_observation_then_equal_dimensions(
-        tmp_path, inputs, bindings):
-    raw = PLAN + b'''
-[[metrics]]
-id = "bias_observation"
-category = "performance"
-observations = ["nominal:delay", "slow:delay"]
-unit = "s"
-direction = "maximize"
-aggregation = "min"
-lower = 2.0
-zero_lower = 0.0
-dimension = "bias"
-'''
-    report = evaluate(tmp_path, inputs, bindings, raw)
-    assert report["score"]["components"]["E"] == pytest.approx(0.75)
-    assert report["score"]["dimensions"] == {"bias": 0.5, "response": 1.0}
-    assert report["score"]["components"]["H"] == 0.0
-    assert report["score"]["value"] < 60
-
-
-def test_area_utility_is_clipped_and_report_recomputation_is_identical(
-        tmp_path, inputs, bindings):
-    plan = parse_evaluation(PLAN)
-    report = run_evaluation(plan, inputs, bindings, tmp_path / "report")
-    display_tampered = copy.deepcopy(report)
-    display_tampered["metrics"]["functional_area"]["value"] = 0.5
-    assert recompute_score(plan, display_tampered) == report["score"]
-
-    evidence_changed = copy.deepcopy(report)
-    evidence_changed["jobs"]["geometry"]["measurements"]["area"]["value"] = 0.5
-    score = recompute_score(plan, evidence_changed)
-    assert score["components"]["Q"] == 1.0
-    assert score["value"] == pytest.approx(100)
-    assert score == recompute_score(plan, {**evidence_changed, "score": score})
-
-
 def test_missing_unbounded_metric_measurement_is_not_a_numeric_score(
         tmp_path, inputs, bindings):
     raw = PLAN + b'''
@@ -88,18 +51,12 @@ def test_area_metric_must_use_the_candidate_constraint_check():
 # baseline semantics; expected values follow the stated ratios, not engine output.
 def reference_plan(**metric_changes):
     data = tomllib.loads(PLAN.decode())
-    data["scoring"].update(method="layout-v2")
-    data["scoring"].pop("area_zero")
-    for job in list(data["jobs"]):
-        if job["stage"] == "simulate":
-            source = copy.deepcopy(job)
-            source.update(id="source_" + job["id"], inputs={"dut": "input:netlist"})
-            data["jobs"].append(source)
     metric = data["metrics"][0]
-    metric.pop("zero_upper")
     metric.pop("upper")
     metric.update(lower=0, baseline=["source_" + ref for ref in metric["observations"]],
                   normalization="ratio", **metric_changes)
+    for job in data["pre_layout"]["jobs"].values():
+        job["measurements"]["delay"]["value"] = 2 * job["parameters"]["load"]
     return data
 
 
@@ -118,7 +75,7 @@ class ReferenceSimulator:
 
 def reference_report(tmp_path, inputs, bindings):
     plan = parse_evaluation(json.dumps(reference_plan()).encode(), file_format="json")
-    report = run_evaluation(plan, inputs, {**bindings, "response": ReferenceSimulator()}, tmp_path / "v2")
+    report = run_evaluation(plan, inputs, {**bindings, "response": ReferenceSimulator()}, tmp_path / "reference")
     return plan, report
 
 
@@ -137,20 +94,18 @@ def test_reference_scores_are_continuous_uncapped_and_recomputable(tmp_path, inp
     assert score["value"] == pytest.approx(100 * math.sqrt(0.5 / 1.5))
 
 
-@pytest.mark.parametrize("defect", [
-    "missing",
-    "unit",
-    "failed_job",
-])
-def test_invalid_source_evidence_never_awards_a_score(tmp_path, inputs, bindings, defect):
-    plan, report = reference_report(tmp_path, inputs, bindings)
-    if defect == "failed_job":
-        report["jobs"]["source_nominal"]["status"] = "failed"
-    elif defect == "missing":
-        report["jobs"]["source_nominal"]["measurements"].clear()
+@pytest.mark.parametrize("defect", ["missing", "unit", "nonfinite"])
+def test_invalid_frozen_source_evidence_is_rejected(defect):
+    data = reference_plan()
+    source = data["pre_layout"]["jobs"]["source_nominal"]
+    if defect == "missing":
+        source["measurements"].clear()
+    elif defect == "unit":
+        source["measurements"]["delay"]["unit"] = "V"
     else:
-        report["jobs"]["source_nominal"]["measurements"]["delay"]["unit"] = "V"
-    assert recompute_score(plan, report)["value"] is None
+        source["measurements"]["delay"]["value"] = float("nan")
+    with pytest.raises(ValueError):
+        parse_evaluation(json.dumps(data).encode(), file_format="json")
 
 
 def test_function_failure_is_zero_without_a_degradation_cutoff(tmp_path, inputs, bindings):
@@ -187,7 +142,7 @@ def test_reference_normalization_handles_db_signed_targets_and_zero(
         if "delay" in job.get("measurements", {}):
             job["measurements"]["delay"].update(unit=unit, value=post)
     for name in ("source_nominal", "source_slow"):
-        report["jobs"][name]["measurements"]["delay"]["value"] = source
+        data["pre_layout"]["jobs"][name]["measurements"]["delay"].update(value=source, unit=unit)
     plan = parse_evaluation(json.dumps(data).encode(), file_format="json")
     assert recompute_score(plan, report)["components"]["E"] == pytest.approx(expected)
 
@@ -195,7 +150,7 @@ def test_reference_normalization_handles_db_signed_targets_and_zero(
 @pytest.mark.parametrize("defect", ["candidate", "parameters", "deck", "unpaired"])
 def test_baseline_requires_independent_same_condition_source_simulation(defect):
     data = reference_plan()
-    source = next(j for j in data["jobs"] if j["id"] == "source_nominal")
+    source = data["pre_layout"]["jobs"]["source_nominal"]
     if defect == "candidate":
         source["inputs"]["dut"] = "job:parasitics:netlist"
     elif defect == "parameters":
@@ -208,23 +163,26 @@ def test_baseline_requires_independent_same_condition_source_simulation(defect):
         parse_evaluation(json.dumps(data).encode(), file_format="json")
 
 
-def test_unusable_baseline_changes_success_to_evaluator_error(tmp_path, inputs, bindings):
-    from benchmarking.engine.evaluate import JobResult
+def test_frozen_baseline_is_not_simulated_and_changed_input_is_rejected(tmp_path, inputs, bindings):
+    from benchmarking.files import Asset
 
-    class MissingSource(ReferenceSimulator):
+    class PostOnly(ReferenceSimulator):
         def run(self, job, inputs):
-            if inputs['dut'].content == b'schematic':
-                return JobResult('passed', evidence={'log': inputs['dut']})
+            assert inputs['dut'].content == b'derived-from-layout'
             return super().run(job, inputs)
 
     plan = parse_evaluation(json.dumps(reference_plan()).encode(), file_format='json')
-    report = run_evaluation(plan, inputs, {**bindings, 'response': MissingSource()}, tmp_path / 'missing-source')
-    assert report['physical_valid'] is True and report['specs_pass'] is True
-    assert report['outcome'] == 'error'
-    assert report['task_success'] is None and report['score']['value'] is None
-    # A conclusive functional violation still cannot disappear from statistics.
-    report['jobs']['slow']['measurements']['delay']['value'] = -1
-    assert recompute_score(plan, report)['value'] == 0
+    report = run_evaluation(plan, inputs, {**bindings, 'response': PostOnly()}, tmp_path / 'post-only')
+    assert report['task_success'] is True
+    assert not (plan.pre_layout.keys() & report['jobs'].keys())
+    expected = recompute_score(plan, report)
+    report['jobs']['source_nominal'] = {
+        'status': 'passed', 'measurements': {'delay': {'value': 999999, 'unit': 's'}}}
+    assert recompute_score(plan, report) == expected
+    inputs['input:netlist'] = Asset(b'changed-source', 'spice')
+    with pytest.raises(ValueError, match='Frozen pre-layout input changed'):
+        run_evaluation(plan, inputs, bindings, tmp_path / 'stale-reference')
+    assert not (tmp_path / 'stale-reference').exists()
 
 
 def test_extreme_finite_area_does_not_emit_nonfinite_score_evidence(tmp_path, inputs, bindings):
@@ -236,3 +194,86 @@ def test_extreme_finite_area_does_not_emit_nonfinite_score_evidence(tmp_path, in
     score = recompute_score(plan, report)
     assert score['value'] is None
     json.dumps(score, allow_nan=False)
+
+
+# Explicit weights protect task priorities from dimension size and from diagnostics.
+# The existing source/candidate control supplies ratios of 2 (delay), 1/2 (power)
+# and 2/3 (area); expectations below follow the product of declared exponents.
+def weighted_plan():
+    data = reference_plan()
+    data['scoring'].update(method='layout', rationale='Delay first, then power and area.',
+                           weights={'delay': 0.6, 'power': 0.2, 'functional_area': 0.2})
+    power = copy.deepcopy(data['metrics'][0])
+    power.update(id='power', dimension='supply', direction='maximize')
+    data['metrics'].append(power)
+    return data
+
+
+def test_explicit_weights_control_tradeoffs_and_ignore_dimension_grouping(tmp_path, inputs, bindings):
+    _, report = reference_report(tmp_path, inputs, bindings)
+    data = weighted_plan()
+    plan = parse_evaluation(json.dumps(data).encode(), file_format='json')
+    score = recompute_score(plan, report)
+    assert score['value'] == pytest.approx(100 * 2**0.6 * 0.5**0.2 * (2/3)**0.2)
+    assert score['weights'] == data['scoring']['weights']
+    assert score['components']['E'] == pytest.approx(2**0.75 * 0.5**0.25)
+    # Display edits cannot rewrite the frozen policy or the raw observations.
+    report['score'] = {'weights': {'power': 1}, 'value': 0}
+    report['metrics']['delay']['value'] = 10000
+    assert recompute_score(plan, report) == score
+    data['metrics'][-1]['dimension'] = 'response'
+    regrouped = parse_evaluation(json.dumps(data).encode(), file_format='json')
+    assert recompute_score(regrouped, report)['value'] == pytest.approx(score['value'])
+    data['scoring']['weights'].update(delay=0.2, power=0.6)
+    power_first = parse_evaluation(json.dumps(data).encode(), file_format='json')
+    assert recompute_score(power_first, report)['value'] < score['value']
+
+
+def test_zero_weight_excludes_quality_but_not_measurement_or_function_checks(tmp_path, inputs, bindings):
+    _, report = reference_report(tmp_path, inputs, bindings)
+    data = weighted_plan()
+    data['scoring']['weights'].update(delay=0.8, power=0)
+    plan = parse_evaluation(json.dumps(data).encode(), file_format='json')
+    # A valid zero utility on an excluded observation does not erase the score.
+    data['metrics'][-1].update(observations=['nominal:power'], baseline=['source_nominal:power'])
+    report['jobs']['nominal']['measurements']['power'] = {'value': 0, 'unit': 's'}
+    data['pre_layout']['jobs']['source_nominal']['measurements']['power'] = {'value': 1, 'unit': 's'}
+    plan = parse_evaluation(json.dumps(data).encode(), file_format='json')
+    score = recompute_score(plan, report)
+    assert score['value'] == pytest.approx(100 * 2**0.8 * (2/3)**0.2)
+    assert score['dimensions']['supply'] is None
+    report['jobs']['nominal']['measurements']['power']['value'] = -1
+    assert recompute_score(plan, report)['value'] == 0
+    report['jobs']['nominal']['measurements']['power'].pop('value')
+    assert recompute_score(plan, report)['value'] is None
+
+
+@pytest.mark.parametrize('weights', [
+    {'delay': 1},  # area omitted
+    {'delay': 0.5, 'power': 0.3, 'functional_area': 0.2, 'typo': 0},
+    {'delay': -0.1, 'power': 0.9, 'functional_area': 0.2},
+    {'delay': 0.6, 'power': 0.3, 'functional_area': 0.2},
+    {'delay': True, 'power': 0, 'functional_area': 0},
+    {'delay': 0, 'power': 0, 'functional_area': 1},
+])
+def test_weight_schema_rejects_incomplete_or_ambiguous_policies(weights):
+    data = weighted_plan()
+    data['scoring']['weights'] = weights
+    with pytest.raises((TypeError, ValueError)):
+        parse_evaluation(json.dumps(data).encode(), file_format='json')
+
+
+def test_weighted_evaluation_and_report_rendering(tmp_path, inputs, bindings):
+    from benchmarking.engine.execution import _zero_attempt_score
+    from benchmarking.participants.results import report_text
+
+    plan = parse_evaluation(json.dumps(weighted_plan()).encode(), file_format='json')
+    report = run_evaluation(plan, inputs, {**bindings, 'response': ReferenceSimulator()}, tmp_path / 'weighted')
+    assert report['task_success'] is True
+    assert report['score'] == recompute_score(plan, report)
+    rendered = report_text({'evaluation': report, 'summary': {'score': report['score']['value']},
+                            'identity': {'plan': [{}]}}).decode()
+    assert 'product(q_i ** w_i)' in rendered and '| delay | 0.6 |' in rendered
+    assert 'maximum = 100' not in rendered
+    zero = _zero_attempt_score('layout')
+    assert zero['method'] == 'layout' and zero['value'] == 0 and zero['maximum'] is None

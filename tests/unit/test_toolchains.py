@@ -9,7 +9,7 @@ pytestmark = pytest.mark.unit
 def toolchain_config(tmp_path):
     def write(content, *, embedded=True):
         if embedded:
-            content = ('schema_version = 2\nkind = "layout_case"\n[toolchain]\n'
+            content = ('kind = "layout_case"\n[toolchain]\n'
                        + content.replace('[', '[toolchain.'))
         path = tmp_path / "tools.toml"
         path.write_text(content)
@@ -19,7 +19,7 @@ def toolchain_config(tmp_path):
 
 @pytest.mark.parametrize("embedded", [False, True], ids=["standalone", "embedded"])
 def test_external_adapter_can_be_bound_without_changing_task_or_evaluator(toolchain_config, embedded):
-    config = toolchain_config('''schema_version = 1
+    config = toolchain_config('''
 [backends.a]
 type = "independent-implementation"
 settings = { scale = 2 }
@@ -39,7 +39,7 @@ settings = { scale = 2 }
 
 
 def test_unknown_binding_fails_before_backend_creation(toolchain_config):
-    config = toolchain_config('''schema_version = 1
+    config = toolchain_config('''
 [backends.a]
 type = "custom"
 settings = {}
@@ -54,8 +54,11 @@ response = "absent"
         load_toolchain(config, factories={"custom": factory})
 
 
-def test_composite_support_profile_metadata_covers_each_support_setting(toolchain_config):
-    config = toolchain_config('''schema_version = 1
+# Runtime profile binding must cover each composite support setting, including
+# paths with spaces. Missing profiles fail before external tool construction.
+@pytest.mark.parametrize("prepared", [False, True])
+def test_composite_support_profile_metadata_covers_each_support_setting(toolchain_config, prepared):
+    config = toolchain_config('''
 [backends.a]
 type = "custom"
 settings = { image = "tools", support = "build/support/models", klayout_support = "build/support/klayout", magic_support = "build/support/magic" }
@@ -69,9 +72,22 @@ response = "a"
         created.append(settings)
         return object()
 
-    load_toolchain(config, factories={"custom": factory})
-    assert created == [{"image": "tools", "support": "build/support/models", "klayout_support": "build/support/klayout",
-                       "magic_support": "build/support/magic"}]
+    expected = {"image": "tools", "support": "build/support/models", "klayout_support": "build/support/klayout",
+                "magic_support": "build/support/magic"}
+    profiles = None
+    if prepared:
+        profiles = {name: str(config.parent / "shared cache" / name) for name in ("models", "klayout", "magic")}
+        expected.update({"support": profiles["models"], "klayout_support": profiles["klayout"],
+                         "magic_support": profiles["magic"]})
+    original = config.read_bytes()
+    load_toolchain(config, profiles=profiles, factories={"custom": factory})
+    assert created == [expected]
+    assert config.read_bytes() == original
+    if prepared:
+        del profiles["magic"]
+        with pytest.raises(ValueError, match="Missing runtime profile"):
+            load_toolchain(config, profiles=profiles, factories={"custom": factory})
+        assert created == [expected]
 
 
 @pytest.mark.parametrize("card", [

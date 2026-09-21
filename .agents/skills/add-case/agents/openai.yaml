@@ -1,4 +1,0 @@
-interface:
-  display_name: "Add Case"
-  short_description: "Add or revise benchmark cases with scoped validation"
-  default_prompt: "Use $add-case to create or revise an ICLayout-Bench case, following the repository standards and validating the requested changes."

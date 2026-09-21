@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_ROOT = ROOT
 _SPEC = importlib.util.spec_from_file_location("iclayout_bench_main", ROOT / "benchmarking/engine/cli.py")
 _MODULE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_MODULE)
@@ -65,8 +64,8 @@ def test_case_toolchain_default_and_explicit_override(executable_case, tmp_path,
         return {"mode": "physical", "outcome": "passed", "physical_valid": True,
                 "specs_pass": None, "task_success": None, "metrics": {},
                 "task_witnessed": False,
-                "score": {"method": "layout-v1", "value": 90.0, "maximum": 100,
-                          "components": {"G": 1, "E": 1, "H": 1, "Q": 0.5}}}
+                "score": {"method": "layout", "value": 90.0, "maximum": None, "reference": 100,
+                          "components": {"G": 1, "E": 0.9, "Q": 0.9}}}
 
     monkeypatch.setattr(_MODULE, "run_evaluation", evaluate)
     if override:
@@ -77,6 +76,6 @@ def test_case_toolchain_default_and_explicit_override(executable_case, tmp_path,
     assert invoked == [output]
     if command == "evaluate":
         assert json.loads(capsys.readouterr().out)["score"] == {
-            "method": "layout-v1", "value": 90.0, "maximum": 100,
-            "components": {"G": 1, "E": 1, "H": 1, "Q": 0.5},
+            "method": "layout", "value": 90.0, "maximum": None, "reference": 100,
+            "components": {"G": 1, "E": 0.9, "Q": 0.9},
         }

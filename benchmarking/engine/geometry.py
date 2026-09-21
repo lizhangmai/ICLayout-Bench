@@ -11,9 +11,7 @@ from .evaluate import JobResult, Measurement
 
 
 def validate_constraints(data):
-    keys(data, {"schema_version", "hard", "quality"}, set(), "geometry constraints")
-    if type(data["schema_version"]) is not int or data["schema_version"] != 1:
-        raise ValueError("Unsupported geometry constraint version")
+    keys(data, {"hard", "quality"}, set(), "geometry constraints")
     if not isinstance(data["hard"], list) or not data["hard"] or not isinstance(data["quality"], list):
         raise ValueError("Geometry constraints require hard and quality lists")
     ids, outlines = set(), set()

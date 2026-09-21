@@ -35,6 +35,18 @@ def preview_archive(tmp_path):
     return archive, candidate
 
 
+def exported_case(root):
+    candidate = Asset(b'scored candidate', 'gds')
+    root.mkdir(parents=True, exist_ok=True)
+    (root / 'final.gds').write_bytes(candidate.content)
+    record = {'format': 'participant-result', 'state': 'finished', 'top_cell': 'TOP',
+              'files': ['final.gds'], 'evaluation': {'score': {'value': 75},
+              'tool_identity': {'image_id': 'frozen-image'},
+              'submission': {'candidate_sha256': candidate.sha256, 'submission_id': 'last'}}}
+    (root / 'result.json').write_text(json.dumps(record))
+    return candidate
+
+
 def renderer_fixture(monkeypatch):
     calls = []
     def chunk(kind, data):
@@ -54,65 +66,50 @@ def renderer_fixture(monkeypatch):
     return calls
 
 
-def test_preview_uses_scored_snapshot_and_reuses_intact_image(tmp_path, monkeypatch):
-    _archive, candidate = preview_archive(tmp_path)
+def test_preview_uses_scored_snapshot_and_reuses_image(tmp_path, monkeypatch):
+    candidate = exported_case(tmp_path)
     calls = renderer_fixture(monkeypatch)
-    original = {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}
     metadata = export_layout(tmp_path)
     assert calls[0][0] == 'frozen-image'
     assert calls[0][1]['candidate.gds'] == candidate
-    assert metadata['candidate_sha256'] == candidate.sha256
-    assert metadata['png_sha256'] == Asset((tmp_path / 'layout.png').read_bytes(), 'png').sha256
     assert export_layout(tmp_path) == metadata
-    assert len(calls) == 1  # Completed skip cannot launch another rendering container.
-    (tmp_path / 'layout.png').write_bytes(b'interrupted/corrupt image')
+    assert len(calls) == 1
+    (tmp_path / 'layout.png').unlink()
     assert export_layout(tmp_path) == metadata
     assert len(calls) == 2
-    assert all(p.read_bytes() == raw for p, raw in original.items())
+    assert (tmp_path / 'final.gds').read_bytes() == candidate.content
 
 
-def test_preview_rejects_corrupted_or_wrong_submission_before_rendering(tmp_path, monkeypatch):
-    archive, candidate = preview_archive(tmp_path)
+def test_preview_rejects_corrupted_submission_before_rendering(tmp_path, monkeypatch):
+    exported_case(tmp_path)
     calls = renderer_fixture(monkeypatch)
-    source = archive / 'artifacts' / candidate.sha256
-    source.write_bytes(b'tampered')
-    assert ensure_layout_preview(tmp_path)['status'] == 'error'
-    source.write_bytes(candidate.content)
-    result = tmp_path / 'participant/analysis/result.json'
-    data = json.loads(result.read_text())
-    data['submission']['candidate_sha256'] = 'wrong-submission'
-    result.write_text(json.dumps(data))
+    (tmp_path / 'final.gds').write_bytes(b'tampered')
     assert ensure_layout_preview(tmp_path)['status'] == 'error'
     assert not calls
     assert not (tmp_path / 'layout.png').exists()
-    assert json.loads(result.read_text()) == data
 
 
 def test_renderer_failure_does_not_change_score_and_can_retry(tmp_path, monkeypatch):
-    preview_archive(tmp_path)
-    result = tmp_path / 'participant/analysis/result.json'
-    before = result.read_bytes()
+    exported_case(tmp_path)
+    result = tmp_path / 'result.json'
+    before = json.loads(result.read_text())['evaluation']
     def unavailable(*args):
         raise RuntimeError('sensitive external diagnostics')
     monkeypatch.setattr('benchmarking.layout_preview.DockerTool', unavailable)
     assert ensure_layout_preview(tmp_path)['status'] == 'error'
-    assert 'sensitive' not in (tmp_path / 'layout-preview-error.json').read_text()
-    assert result.read_bytes() == before
+    assert 'sensitive' not in result.read_text()
+    assert json.loads(result.read_text())['evaluation'] == before
     renderer_fixture(monkeypatch)
     assert ensure_layout_preview(tmp_path)['status'] == 'complete'
-    assert result.read_bytes() == before
+    assert json.loads(result.read_text())['evaluation'] == before
 
 
 def test_remote_or_unsubmitted_result_does_not_render(tmp_path, monkeypatch):
-    archive, _ = preview_archive(tmp_path)
     calls = renderer_fixture(monkeypatch)
-    archive.rename(archive.with_name('unavailable'))
-    assert export_layout(tmp_path)['reason'] == 'local_candidate_archive_unavailable'
-    result = tmp_path / 'participant/analysis/result.json'
-    data = json.loads(result.read_text())
-    data['submission'] = None
-    result.write_text(json.dumps(data))
-    assert export_layout(tmp_path)['reason'] == 'no_final_submission'
+    assert export_layout(tmp_path)['reason'] == 'no_terminal_result'
+    exported_case(tmp_path)
+    (tmp_path / 'final.gds').unlink()
+    assert export_layout(tmp_path)['reason'] == 'no_local_final_candidate'
     assert not calls
 
 
@@ -157,12 +154,15 @@ def test_runner_automatically_renders_and_backfills_on_skip(tmp_path, monkeypatc
         assert {p.name for p in case.parent.iterdir()} == {'case'}
 
 
-def legacy_case(root):
-    archive, candidate = preview_archive(root)
-    (root / 'case.json').write_text(json.dumps({'identity': {'plan': [
+def unfinished_case(root):
+    root.mkdir(parents=True, exist_ok=True)
+    runtime = root / '.runtime'
+    archive, candidate = preview_archive(runtime)
+    (root / 'result.json').write_text(json.dumps({'state': 'pending', 'identity': {'plan': [
         {'tasks': ['case'], 'model': 'fixture', 'effort': 'high', 'repetitions': 1}]}}))
-    (root / 'summary.json').write_text(json.dumps({'state': 'finished', 'task': 'case', 'score': 75,
+    (runtime / 'summary.json').write_text(json.dumps({'state': 'finished', 'task': 'case', 'score': 75,
                                                 'outcome': 'pass', 'result': 'participant/analysis/result.json'}))
+    root = runtime
     private = root / 'participant/.private'
     private.mkdir()
     (private / 'recovery.json').write_text(json.dumps({'redactions': ['credential-value']}))
@@ -172,12 +172,12 @@ def legacy_case(root):
     return archive, candidate
 
 
-def test_compact_migration_preserves_results_and_redacted_trace_without_environment(tmp_path, monkeypatch):
-    from benchmarking.participants.results import migrate_case
-    _archive, candidate = legacy_case(tmp_path)
-    original = json.loads((tmp_path / 'participant/analysis/result.json').read_text())
+def test_compact_export_preserves_results_and_redacted_trace_without_environment(tmp_path, monkeypatch):
+    from benchmarking.participants.results import finish_case
+    _archive, candidate = unfinished_case(tmp_path)
+    original = json.loads((tmp_path / '.runtime/participant/analysis/result.json').read_text())
     renderer_fixture(monkeypatch)
-    migrate_case(tmp_path)
+    finish_case(tmp_path)
     result = json.loads((tmp_path / 'result.json').read_text())
     assert result['evaluation']['score'] == original['score']
     assert result['evaluation']['submission']['submission_id'] == original['submission']['submission_id']
@@ -192,13 +192,13 @@ def test_compact_migration_preserves_results_and_redacted_trace_without_environm
     assert not (tmp_path / 'layout-preview.json').exists()
     assert not any('credential-value' in p.read_text(errors='ignore') for p in tmp_path.rglob('*') if p.is_file())
     before = {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}
-    migrate_case(tmp_path)
+    finish_case(tmp_path)
     assert before == {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}
 
 
 def test_compact_export_retains_runtime_until_commit_and_retries_without_duplicate_trace(tmp_path, monkeypatch):
     from benchmarking.participants import results
-    legacy_case(tmp_path)
+    unfinished_case(tmp_path)
     renderer_fixture(monkeypatch)
     save = results.save
     def disk_full(path, value):
@@ -207,77 +207,28 @@ def test_compact_export_retains_runtime_until_commit_and_retries_without_duplica
         save(path, value)
     monkeypatch.setattr(results, 'save', disk_full)
     with pytest.raises(OSError):
-        results.migrate_case(tmp_path)
+        results.finish_case(tmp_path)
     assert (tmp_path / '.runtime/participant/harness.jsonl').exists()
     assert json.loads((tmp_path / 'result.json').read_text())['state'] == 'finalizing'
     monkeypatch.setattr(results, 'save', save)
-    results.migrate_case(tmp_path)
+    results.finish_case(tmp_path)
     assert len((tmp_path / 'agent.jsonl').read_text().splitlines()) == 1
     assert not (tmp_path / '.runtime').exists()
 
 
-def test_compact_migration_rejects_active_or_corrupt_evidence(tmp_path, monkeypatch):
-    from benchmarking.participants.results import migrate_case
-    archive, candidate = legacy_case(tmp_path)
+def test_compact_export_rejects_active_or_corrupt_evidence(tmp_path, monkeypatch):
+    from benchmarking.participants.results import finish_case
+    archive, candidate = unfinished_case(tmp_path)
     renderer_fixture(monkeypatch)
-    summary = tmp_path / 'summary.json'
+    summary = tmp_path / '.runtime/summary.json'
     original = summary.read_bytes()
     summary.write_text('{"state":"running"}')
     with pytest.raises(ValueError, match='finished'):
-        migrate_case(tmp_path)
-    assert not (tmp_path / '.runtime').exists()
+        finish_case(tmp_path)
+    assert (tmp_path / '.runtime').exists()
     summary.write_bytes(original)
     (archive / 'artifacts' / candidate.sha256).write_bytes(b'corrupt')
     with pytest.raises(ValueError, match='identity mismatch'):
-        migrate_case(tmp_path)
+        finish_case(tmp_path)
     assert (tmp_path / '.runtime/service').exists()
     assert not (tmp_path / 'final.gds').exists()
-
-
-def test_simplify_completed_export_preserves_measurements_after_interrupted_commit(tmp_path, monkeypatch):
-    """Old compact exports can lose their hash inventories without losing scores or logs.
-
-    Inject a write failure at the external disk boundary: a repeated migration must
-    finish even though the evaluator report was already simplified on the first pass.
-    """
-    from benchmarking.participants import results
-    legacy_case(tmp_path)
-    renderer_fixture(monkeypatch)
-    results.migrate_case(tmp_path)
-    result = tmp_path / 'result.json'
-    before = json.loads(result.read_text())
-    before['schema_version'] = 1
-    before['resources'] = {'pdk': {'sha256': 'obsolete-inventory'}}
-    before['identity']['inputs'] = {'case': {'input': 'retained-input-identity'}}
-    evaluation = tmp_path / 'evaluation'
-    evaluation.mkdir()
-    raw_job = {'measurements': {'area': {'value': 12.5}}, 'status': 'passed',
-               'outputs': {'log': {'content': 'original diagnostics', 'sha256': 'obsolete-inventory'}},
-               'evidence': {'runner': {'sha256': 'obsolete-inventory', 'format': 'python'}}}
-    report = {'jobs': {'geometry': raw_job}, 'score': before['evaluation']['score'],
-              'inputs': {'netlist': {'sha256': 'obsolete-inventory'}}}
-    (evaluation / 'report.json').write_text(json.dumps(report))
-    before['files'] = {name: Asset((tmp_path / name).read_bytes(), 'text').sha256
-                       for name in before['files'] + ['evaluation/report.json']}
-    result.write_text(json.dumps(before))
-    candidate = (tmp_path / 'final.gds').read_bytes()
-    save = results.save
-    def interrupted(path, data):
-        if path == result:
-            raise OSError('injected commit interruption')
-        save(path, data)
-    monkeypatch.setattr(results, 'save', interrupted)
-    with pytest.raises(OSError):
-        results.migrate_case(tmp_path)
-    monkeypatch.setattr(results, 'save', save)
-    results.migrate_case(tmp_path)
-    after = json.loads(result.read_text())
-    assert after['evaluation']['score'] == before['evaluation']['score']
-    assert (tmp_path / 'final.gds').read_bytes() == candidate
-    assert 'resources' not in after
-    assert after['identity']['inputs'] == before['identity']['inputs']
-    assert 'obsolete-inventory' not in result.read_text()
-    retained = json.loads((evaluation / 'report.json').read_text())
-    assert retained['jobs']['geometry']['measurements'] == raw_job['measurements']
-    assert retained['jobs']['geometry']['outputs']['log']['content'] == 'original diagnostics'
-    assert not retained['jobs']['geometry']['evidence']

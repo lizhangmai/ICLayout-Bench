@@ -3,3 +3,6 @@
 !uv.lock
 !scripts/
 !scripts/build_ngspice.sh
+!scripts/build_magic.sh
+!scripts/patches/
+!scripts/patches/magic-stable-device-order.patch
