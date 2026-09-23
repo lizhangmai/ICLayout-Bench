@@ -1,0 +1,883 @@
+in_core = false
+kind = "layout_case"
+id = "TO_Apr2025.97_GHZ_LINEAR_TIA"
+title = "TO_Apr2025 97-derived multi-stage linear TIA"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "05dbe3a98796a51d2a409b6bf458430e55db4798d2582ae3b1f5229eb8704ba0"
+
+[[assets]]
+path = "reference/FMD_QNC_01_LIN_TIA.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "4c8f7d25a2255922054056f8fb69c8b9980b3b1857d9762a9b05365437a9d028"
+
+[task]
+hours = 3
+coefficient = 6
+kind = "netlist_to_gds"
+family = "ihp_sg13g2_hbt_tia_physical"
+environment = "ihp-sg13g2-to-97-derived-linear-tia"
+
+[task.inputs.description]
+path = "problem.md"
+sha256 = "3a580e58e0a138f9b81ce584117abba2c7efc0e6f8537bcda94fb1388f22f6b9"
+format = "text"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+sha256 = "150ab19522eecccf2889ed62c07b14e15e29e97a75ce12563fcd95d846be9112"
+format = "spice"
+subcircuit = "FMD_QNC_01_LIN_TIA"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+sha256 = "fc6c9d1a6ea884f20e7cbddee9c30b4feff18e4a70fbf729789101955a87c334"
+format = "spice"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+sha256 = "759a7548f5ea81399322a73a10b58207d3ff28b2a5ed0ef7d55850b1a6b3959e"
+format = "spice"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 720
+max_height_um = 620
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "FMD_QNC_01_LIN_TIA"
+max_bytes = 33554432
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 18718.54
+rationale = "SiGe low-frequency transfer tasks: signal transfer 53.2%; linearity 20.5%; bias 4.09%; supply cost 12.3%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+transimpedance_high = 0.265909090909
+transimpedance_low = 0.265909090909
+linearity_error_pct = 0.204545454545
+input_bias = 0.020454545455
+output_bias = 0.020454545455
+supply_power = 0.122727272727
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.parasitics"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "RFIN",
+    "RFOUT",
+    "VCC1",
+    "VCC2",
+    "VCC3",
+    "VSS",
+]
+
+[[task.evaluation.jobs]]
+id = "negative"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+dc = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_current = -5e-06
+
+[task.evaluation.jobs.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+supply3_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+linearity_error_pct = "percent"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+dc = "dc_transfer.raw"
+
+[[task.evaluation.jobs]]
+id = "zero"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+dc = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_current = 0
+
+[task.evaluation.jobs.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+supply3_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+linearity_error_pct = "percent"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+dc = "dc_transfer.raw"
+
+[[task.evaluation.jobs]]
+id = "positive"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+dc = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_current = 5e-06
+
+[task.evaluation.jobs.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+supply3_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+linearity_error_pct = "percent"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+dc = "dc_transfer.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "transimpedance_low"
+category = "performance"
+observations = [
+    "negative:transimpedance_low",
+    "zero:transimpedance_low",
+    "positive:transimpedance_low",
+]
+unit = "ohm"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_negative:transimpedance_low",
+    "source_zero:transimpedance_low",
+    "source_positive:transimpedance_low",
+]
+normalization = "ratio"
+lower = 0
+
+[[task.evaluation.metrics]]
+id = "transimpedance_high"
+category = "performance"
+observations = [
+    "negative:transimpedance_high",
+    "zero:transimpedance_high",
+    "positive:transimpedance_high",
+]
+unit = "ohm"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_negative:transimpedance_high",
+    "source_zero:transimpedance_high",
+    "source_positive:transimpedance_high",
+]
+normalization = "ratio"
+lower = 0
+
+[[task.evaluation.metrics]]
+id = "linearity_error_pct"
+category = "performance"
+observations = [
+    "negative:linearity_error_pct",
+    "zero:linearity_error_pct",
+    "positive:linearity_error_pct",
+]
+unit = "percent"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_negative:linearity_error_pct",
+    "source_zero:linearity_error_pct",
+    "source_positive:linearity_error_pct",
+]
+normalization = "saturating_ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "input_bias"
+category = "performance"
+observations = [
+    "negative:input_bias",
+    "zero:input_bias",
+    "positive:input_bias",
+]
+unit = "V"
+direction = "target"
+aggregation = "min"
+dimension = "bias"
+baseline = [
+    "source_negative:input_bias",
+    "source_zero:input_bias",
+    "source_positive:input_bias",
+]
+normalization = "target"
+scale = 2.1
+lower = 0
+upper = 2.1
+
+[[task.evaluation.metrics]]
+id = "output_bias"
+category = "performance"
+observations = [
+    "negative:output_bias",
+    "zero:output_bias",
+    "positive:output_bias",
+]
+unit = "V"
+direction = "target"
+aggregation = "min"
+dimension = "bias"
+baseline = [
+    "source_negative:output_bias",
+    "source_zero:output_bias",
+    "source_positive:output_bias",
+]
+normalization = "target"
+scale = 2.1
+lower = 0
+upper = 2.1
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = [
+    "negative:supply_power",
+    "zero:supply_power",
+    "positive:supply_power",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+dimension = "supply"
+baseline = [
+    "source_negative:supply_power",
+    "source_zero:supply_power",
+    "source_positive:supply_power",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "a295d81e4884b121e95ea84f91182d3530050133c06f4365da881249ce63968e"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:6562558774d43c085a289bbba696c55959eb8051a0996f96633451fbeb9c652d\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"b9527ba49c9eab307a254db28aa45c302eadd71b2563bdec44c610780fa6ed62\", \"timeout_seconds\": 600.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_negative]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_negative.inputs]
+circuit = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_negative.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+dc = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_negative.parameters.values]
+input_current = -5e-06
+
+[task.evaluation.pre_layout.jobs.source_negative.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+supply3_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+linearity_error_pct = "percent"
+
+[task.evaluation.pre_layout.jobs.source_negative.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+dc = "dc_transfer.raw"
+
+[task.evaluation.pre_layout.jobs.source_negative.input_sha256]
+circuit = "fc6c9d1a6ea884f20e7cbddee9c30b4feff18e4a70fbf729789101955a87c334"
+deck = "759a7548f5ea81399322a73a10b58207d3ff28b2a5ed0ef7d55850b1a6b3959e"
+
+[task.evaluation.pre_layout.jobs.source_negative.measurements.input_bias]
+value = 0.798802317629
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative.measurements.linearity_error_pct]
+value = 1.465435
+unit = "percent"
+
+[task.evaluation.pre_layout.jobs.source_negative.measurements.output_bias]
+value = 2.065488397228
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative.measurements.supply1_current]
+value = 0.00070235823188
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_negative.measurements.supply2_current]
+value = 0.001477902939459
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_negative.measurements.supply3_current]
+value = 0.001252731967454
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_negative.measurements.supply_power]
+value = 0.006928342298712
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_negative.measurements.transimpedance_high]
+value = 541.2968
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_negative.measurements.transimpedance_low]
+value = 492.1833
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_zero]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_zero.inputs]
+circuit = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_zero.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+dc = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_zero.parameters.values]
+input_current = 0
+
+[task.evaluation.pre_layout.jobs.source_zero.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+supply3_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+linearity_error_pct = "percent"
+
+[task.evaluation.pre_layout.jobs.source_zero.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+dc = "dc_transfer.raw"
+
+[task.evaluation.pre_layout.jobs.source_zero.input_sha256]
+circuit = "fc6c9d1a6ea884f20e7cbddee9c30b4feff18e4a70fbf729789101955a87c334"
+deck = "759a7548f5ea81399322a73a10b58207d3ff28b2a5ed0ef7d55850b1a6b3959e"
+
+[task.evaluation.pre_layout.jobs.source_zero.measurements.input_bias]
+value = 0.7998357535227
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_zero.measurements.linearity_error_pct]
+value = 1.465435
+unit = "percent"
+
+[task.evaluation.pre_layout.jobs.source_zero.measurements.output_bias]
+value = 2.068457712479
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_zero.measurements.supply1_current]
+value = 0.0007272904222501
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_zero.measurements.supply2_current]
+value = 0.001467234534531
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_zero.measurements.supply3_current]
+value = 0.001144949194325
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_zero.measurements.supply_power]
+value = 0.006721979548423
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_zero.measurements.transimpedance_high]
+value = 513.9527
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_zero.measurements.transimpedance_low]
+value = 468.8727
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_positive]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_positive.inputs]
+circuit = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_positive.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+dc = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_positive.parameters.values]
+input_current = 5e-06
+
+[task.evaluation.pre_layout.jobs.source_positive.parameters.measurements]
+input_bias = "V"
+output_bias = "V"
+supply_power = "W"
+supply1_current = "A"
+supply2_current = "A"
+supply3_current = "A"
+transimpedance_low = "ohm"
+transimpedance_high = "ohm"
+linearity_error_pct = "percent"
+
+[task.evaluation.pre_layout.jobs.source_positive.parameters.exports]
+op = "operating_point.raw"
+ac = "frequency_response.raw"
+dc = "dc_transfer.raw"
+
+[task.evaluation.pre_layout.jobs.source_positive.input_sha256]
+circuit = "fc6c9d1a6ea884f20e7cbddee9c30b4feff18e4a70fbf729789101955a87c334"
+deck = "759a7548f5ea81399322a73a10b58207d3ff28b2a5ed0ef7d55850b1a6b3959e"
+
+[task.evaluation.pre_layout.jobs.source_positive.measurements.input_bias]
+value = 0.800845761589
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive.measurements.linearity_error_pct]
+value = 1.465435
+unit = "percent"
+
+[task.evaluation.pre_layout.jobs.source_positive.measurements.output_bias]
+value = 2.07125793121
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive.measurements.supply1_current]
+value = 0.0007524039847819
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_positive.measurements.supply2_current]
+value = 0.001456530436158
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_positive.measurements.supply3_current]
+value = 0.001043304433517
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_positive.measurements.supply_power]
+value = 0.006528740000445
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_positive.measurements.transimpedance_high]
+value = 485.9209
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_positive.measurements.transimpedance_low]
+value = 444.8252
+unit = "ohm"
+
+[qualification]
+reference = "reference/FMD_QNC_01_LIN_TIA.gds"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.parasitics" = "parasitics"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 120
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+support = "build/support/tia97-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+support = "build/support/tia97-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 60
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "hbt-models"
+
+[toolchain.backends.simulation.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/tia97-hbt-models"
+timeout_seconds = 600
+
+[toolchain.backends.parasitics]
+type = "sg13g2-hbt-rc-docker"
+
+[toolchain.backends.parasitics.support_profiles]
+klayout_support = "klayout"
+magic_support = "magic"
+
+[toolchain.backends.parasitics.settings]
+image = "iclayout-bench-tools:local"
+klayout_support = "build/support/tia97-klayout"
+klayout_profile = "lvs-upstream.json"
+magic_support = "build/support/tia97-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+timeout_seconds = 600
+disable_tap_extraction = true
+
+[origin]
+url = "https://github.com/IHP-GmbH/TO_Apr2025/blob/63e203a0eccfb6028a1a0a8364553e4e979b55b3/97_GHZ_LINEAR_TIA/design_data/qucs-s/97_GHZ_LINEAR_TIA.sch"
+
+[presentation]
+category = "Amplifiers & RF"
+summary = "Converts input current to voltage using three SiGe HBT stages and active emitter-follower feedback."

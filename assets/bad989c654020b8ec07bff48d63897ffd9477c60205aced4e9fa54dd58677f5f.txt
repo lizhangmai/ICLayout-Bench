@@ -1,0 +1,1012 @@
+in_core = true
+kind = "layout_case"
+id = "gf180mcuD.tt_tnt_gf_vco.vco"
+title = "Quadrature Voltage-Controlled Oscillator"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "e1113550941284d9688713e8cf2193bdd555f5b92db6e57fc4dccfd93edce5f1"
+
+[[assets]]
+path = "reference/vco.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "bb9965bde8204258d632097e28f91ebaf0e8bbfeb663cd0d89f619b9faf3f2b5"
+
+[task]
+hours = 3
+kind = "netlist_to_gds"
+family = "gf180_vco"
+coefficient = 8
+environment = "gf180mcuD-typical-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "853a2bc2c5b4ac3f32ad71d69100afd69ff08ff0b9e98d9938df2d4e640e7c65"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "021943933973e205dfb533131232917d18d1ffe8b24bedc5e45534992e2a1615"
+subcircuit = "vco"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "10807fd6a4d31baac59badfa27b3e7ff84ccde6ee929b29b745f7b3ec7f11f50"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "vco"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
+]
+max_width_um = 700
+max_height_um = 240
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "GND",
+    "VDD",
+    "ctrl",
+    "out_0",
+    "out_90",
+    "out_180",
+    "out_270",
+]
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+frequency_lo = "Hz"
+frequency_hi = "Hz"
+tuning_ratio = "1"
+phase90_lo = "1"
+phase90_hi = "1"
+phase180_lo = "1"
+phase180_hi = "1"
+phase270_lo = "1"
+phase270_hi = "1"
+min0_lo = "V"
+min0_hi = "V"
+min90_lo = "V"
+min90_hi = "V"
+min180_lo = "V"
+min180_hi = "V"
+min270_lo = "V"
+min270_hi = "V"
+max0_lo = "V"
+max0_hi = "V"
+max90_lo = "V"
+max90_hi = "V"
+max180_lo = "V"
+max180_hi = "V"
+max270_lo = "V"
+max270_hi = "V"
+power_lo = "W"
+power_hi = "W"
+
+[task.evaluation.jobs.parameters.values]
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "low_control_frequency"
+category = "performance"
+observations = [
+    "nominal:frequency_lo",
+]
+unit = "Hz"
+direction = "target"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_nominal:frequency_lo",
+]
+normalization = "target"
+scale = 150000000.0
+lower = 0
+
+[[task.evaluation.metrics]]
+id = "high_control_frequency"
+category = "performance"
+observations = [
+    "nominal:frequency_hi",
+]
+unit = "Hz"
+direction = "target"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_nominal:frequency_hi",
+]
+normalization = "target"
+scale = 300000000.0
+lower = 0
+
+[[task.evaluation.metrics]]
+id = "tuning"
+category = "performance"
+observations = [
+    "nominal:tuning_ratio",
+]
+unit = "1"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_nominal:tuning_ratio",
+]
+normalization = "ratio"
+lower = 0
+
+[[task.evaluation.metrics]]
+id = "quadrature90"
+category = "performance"
+observations = [
+    "nominal:phase90_lo",
+    "nominal:phase90_hi",
+]
+unit = "1"
+direction = "target"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_nominal:phase90_lo",
+    "source_nominal:phase90_hi",
+]
+normalization = "target"
+scale = 1.0
+
+[[task.evaluation.metrics]]
+id = "quadrature180"
+category = "performance"
+observations = [
+    "nominal:phase180_lo",
+    "nominal:phase180_hi",
+]
+unit = "1"
+direction = "target"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_nominal:phase180_lo",
+    "source_nominal:phase180_hi",
+]
+normalization = "target"
+scale = 1.0
+
+[[task.evaluation.metrics]]
+id = "quadrature270"
+category = "performance"
+observations = [
+    "nominal:phase270_lo",
+    "nominal:phase270_hi",
+]
+unit = "1"
+direction = "target"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_nominal:phase270_lo",
+    "source_nominal:phase270_hi",
+]
+normalization = "target"
+scale = 1.0
+
+[[task.evaluation.metrics]]
+id = "low"
+category = "performance"
+observations = [
+    "nominal:min0_lo",
+    "nominal:min0_hi",
+    "nominal:min90_lo",
+    "nominal:min90_hi",
+    "nominal:min180_lo",
+    "nominal:min180_hi",
+    "nominal:min270_lo",
+    "nominal:min270_hi",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+upper = 0.33
+
+[[task.evaluation.metrics]]
+id = "high"
+category = "performance"
+observations = [
+    "nominal:max0_lo",
+    "nominal:max0_hi",
+    "nominal:max90_lo",
+    "nominal:max90_hi",
+    "nominal:max180_lo",
+    "nominal:max180_hi",
+    "nominal:max270_lo",
+    "nominal:max270_hi",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+lower = 2.97
+
+[[task.evaluation.metrics]]
+id = "supply"
+category = "performance"
+observations = [
+    "nominal:power_lo",
+    "nominal:power_hi",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "min"
+dimension = "supply"
+baseline = [
+    "source_nominal:power_lo",
+    "source_nominal:power_hi",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 441.23265
+rationale = "Quadrature VCO: frequency targets 31.5%; tuning 18%; quadrature 27%; power 13.5%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+high_control_frequency = 0.1575
+low_control_frequency = 0.1575
+tuning = 0.18
+quadrature180 = 0.09
+quadrature270 = 0.09
+quadrature90 = 0.09
+supply = 0.135
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "a5b35f2742ccca984ae926050bd4a5c0a2e8e9107803304c36b811323eebbd81"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:6562558774d43c085a289bbba696c55959eb8051a0996f96633451fbeb9c652d\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"a340269fb13edfad479628bd59a0b72b878e648c0740e89671cd95b64adc03ef\", \"timeout_seconds\": 240.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_nominal]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_nominal.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_nominal.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.measurements]
+frequency_lo = "Hz"
+frequency_hi = "Hz"
+tuning_ratio = "1"
+phase90_lo = "1"
+phase90_hi = "1"
+phase180_lo = "1"
+phase180_hi = "1"
+phase270_lo = "1"
+phase270_hi = "1"
+min0_lo = "V"
+min0_hi = "V"
+min90_lo = "V"
+min90_hi = "V"
+min180_lo = "V"
+min180_hi = "V"
+min270_lo = "V"
+min270_hi = "V"
+max0_lo = "V"
+max0_hi = "V"
+max90_lo = "V"
+max90_hi = "V"
+max180_lo = "V"
+max180_hi = "V"
+max270_lo = "V"
+max270_hi = "V"
+power_lo = "W"
+power_hi = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.values]
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.input_sha256]
+deck = "10807fd6a4d31baac59badfa27b3e7ff84ccde6ee929b29b745f7b3ec7f11f50"
+dut = "021943933973e205dfb533131232917d18d1ffe8b24bedc5e45534992e2a1615"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.frequency_hi]
+value = 245975700.0
+unit = "Hz"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.frequency_lo]
+value = 97631840.0
+unit = "Hz"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.max0_hi]
+value = 3.317763
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.max0_lo]
+value = 3.309453
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.max180_hi]
+value = 3.317763
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.max180_lo]
+value = 3.309453
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.max270_hi]
+value = 3.317763
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.max270_lo]
+value = 3.309453
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.max90_hi]
+value = 3.317764
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.max90_lo]
+value = 3.309453
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.min0_hi]
+value = -0.0107174
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.min0_lo]
+value = -0.004189301
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.min180_hi]
+value = -0.01070071
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.min180_lo]
+value = -0.004189262
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.min270_hi]
+value = -0.01069855
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.min270_lo]
+value = -0.004189316
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.min90_hi]
+value = -0.01069834
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.min90_lo]
+value = -0.004189306
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.phase180_hi]
+value = 0.5000085
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.phase180_lo]
+value = 0.4999975
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.phase270_hi]
+value = 0.7500184
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.phase270_lo]
+value = 0.7500025
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.phase90_hi]
+value = 0.2500067
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.phase90_lo]
+value = 0.2499969
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.power_hi]
+value = 0.002622109
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.power_lo]
+value = 0.001899201
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.tuning_ratio]
+value = 2.51942
+unit = "1"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 180
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "lvs.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 180
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/gf180-magic"
+technology = "gf180mcuD.tech"
+tech_name = "gf180mcuD"
+style = "ngspice()"
+gds_readonly = false
+grid_subdivision = 10
+case_insensitive_ports = true
+timeout_seconds = 240
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/gf180-models"
+timeout_seconds = 240
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[origin]
+url = "https://github.com/smunaut/tt_tnt_gf_vco/tree/897b3ec12ed693161fb56f4205d1b19dc5e56c1a/xschem/vco.sch"
+
+[qualification]
+reference = "reference/vco.gds"
+
+[presentation]
+category = "Mixed-signal"
+summary = "Generates quadrature oscillation with a voltage-controlled tuning response."

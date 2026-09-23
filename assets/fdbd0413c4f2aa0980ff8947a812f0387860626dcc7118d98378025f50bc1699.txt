@@ -1,0 +1,197 @@
+# Auxiliary Source-Driven Output-Control OTA Layout Task
+
+## Objective
+
+Lay out `amp_012_peng_tcfc` with its complete transistor signal and bias paths.
+The PMOS-input folded stage produces `voutp`, driving the output PMOS and
+`net043` branch. The large PMOS path through `net049` feeds `net10`, while
+`net043` controls its NMOS pulldown. `net10` drives the output NMOS. Preserve
+both original compensation branches and the added local output-control MIM.
+Unlike a direct `net050/net049` output stage, this circuit includes the
+source-driven auxiliary PMOS and a separate `net10` control node.
+
+## Inputs and Interface
+
+- `materials/circuit.cdl`: authoritative native physical graph.
+- `materials/circuit.spice`: equivalent simulator graph with finite body taps.
+- `materials/testbench.spice`: DC, bilateral-loop and sustained-step measurements.
+
+Ordered ports: `vss vdd vinn vinp vout vb1`. VSS/VDD are return/supply;
+VINN/VINP are inverting/noninverting inputs; VOUT is output; `vb1`
+connects to the external bias sink. Input PMOS bodies use the separate
+`net31` source-tied well; other PMOS use VDD and NMOS use the VSS substrate.
+Preserve all 32 MOS groups, 108 physical fingers,
+W/L/m, every body connection and all physical passive devices.
+
+MOS dimensions are rounded to the 10 nm physical grid. Parallel regrouping
+within each original group preserves its rounded total W and L, with at most
+10 um single-finger width; individual width/multiplicity and diffusion perimeter
+change. Distributed 2 × 2 um body contacts have at most 20 um pitch.
+All internal capacitors use `cap_cmim`:
+
+- `c0`: `voutp` (top) to `vout` (bottom), 1 parallel 35.325 × 35.325 um MIM units.
+- `c1`: `net049` (top) to `vout` (bottom), 1 parallel 41.2 × 41.2 um MIM units.
+- `clocal`: `net10` (top) to `vout` (bottom), 1 parallel 51.64 × 51.64 um MIM units.
+
+The raw 1.29849 uA sink is calibrated to 0.16231125 uA. A real approximately
+4 pF `net10–vout` MIM is added to suppress the internal output-control
+oscillation. Both original 1.87196 pF `voutp–vout` and 2.54606 pF
+`net049–vout` branches remain. There is no added output-to-ground capacitor.
+No ideal servo, diagnostic clamp or hidden damping element is part of this DUT.
+
+## Operating Conditions
+
+Use typical IHP LV MOS/MIM/poly models at 27 C and VDD=1.2 V, with a
+0.162311 uA sink from `vb1` to VSS. All combinations of external
+5/10/15 pF load and 0.5/0.7 V DC input must pass. These external loads are
+additional to every internal capacitor above.
+
+A zero-volt source connects VINN (`vm`) to VOUT. VINP is AC ground.
+Use series voltage and parallel current injection at that boundary, retaining
+the complete DUT and loading. With voltage-injection `b=-I(VPROBE)`,
+`d=V(vm)` and current-injection `a=-I(VPROBE)`, `c=V(vm)`, set
+`delta=a*d-b*c` and `T=(2*delta-a+d)/(1-2*delta+a-d)` (Tian Eq. 30).
+Both raw injections are exported for independent Y-matrix reconstruction.
+Sweep 0.01 Hz–10 GHz at 300 points/decade. Continuous phase uses its natural
+low-frequency branch without an offset correction. Check first and final
+descending unity crossings, minimum sampled `abs(1+T)`, maximum absolute
+continuous phase of `1+T` across the entire sweep, and gain over 2–10 GHz.
+A good first crossover alone cannot establish acceptance.
+
+VINP pulses 0.5→0.7→0.5 V with 20 ns edges, rising at 2 us and falling
+at 20.02 us, period 100 us. Transient starts at its own pulse-start operating
+point, independently of the AC DC-input setting. Simulate 0–40 us with Gear2,
+2 ns maximum step, KLU, `itl4=1000`, `rshunt=1e12`, `reltol=1e-5`,
+`abstol=1e-12`, `vntol=1e-8`. The numerical shunt is not a physical device.
+Qualification also checks half step, tighter tolerances/dense AC, trapezoidal
+integration, long tails and finite stimulus/load boundaries.
+These are finite external-loop and observable-recovery requirements, not an
+internal pole inventory, arbitrary-load stability, PVT, noise, mismatch,
+distortion, rail-to-rail behavior or supply-startup qualification.
+
+First and final crossing phase margins must both lie in [0, 180] degrees.
+Minimum return distance and return-phase excursion have only nonnegative
+domain bounds; high-frequency gain has no acceptance bound. These full-sweep
+metrics affect continuous quality without adding a stability acceptance screen.
+Missing crossings or invalid observations are evaluator errors.
+
+## Physical Requirements
+
+Submit GDSII top cell `amp_012_peng_tcfc`, at most 32 MiB. Native IHP main/maximal DRC
+must pass without waivers (standalone scope, density/antenna off), together
+with strict named-interface LVS and a 1400 × 160 um functional envelope.
+All device/contact/interconnect drawing layers in the runtime `outline`
+constraint contribute to area; annotation/pin-purpose layers do not.
+Post-layout simulation uses the submitted GDS's complete Magic RC, with
+physical MIM devices and interconnect resistances/capacitances. Half-grid
+import is explicit. Magic retains only Metal3 interface labels in its isolated
+extraction copy to avoid repeated internal well-name aliases, while native LVS
+checks the original GDS and its explicit tap devices. No resistance/capacitance threshold omits small parasitics.
+Magic idealizes well/substrate taps, whereas source simulation uses finite
+physical tap models. Distributed substrate resistance/noise and fabrication
+signoff remain unqualified. The long independent witness is a feasibility
+layout, not an area optimum.
+
+
+## Electrical Requirements and Scoring
+
+Physical checks and declared functional bounds remain mandatory. Quality has no
+fixed allowed-degradation threshold. Each `source_*` job simulates the declared
+source circuit with exactly the same testbench, model resources, parameters,
+load and measurement window as its paired extracted-candidate job. A source
+observation is the 100-point electrical baseline; it is independent of the
+submitted GDS. All individual pairs are retained in the evaluation report.
+
+For a post-layout observation x and its source observation b:
+
+- Maximize: q = x/b; minimize: q = b/x. When a numerical scale s is declared,
+  use (x+s)/(b+s) or its inverse. This handles zero-valued error measurements;
+  s is a normalization floor, not an allowed degradation or pass threshold.
+- Amplitude dB: q = 10^((x-b)/20) for maximize, its inverse for minimize.
+- Target: q = 1/(1+abs(x-b)/s), with a declared physical scale s. Signed and
+  zero-valued operating points are never divided directly.
+
+Scoring uses `layout`. A metric uses its worst paired quality q. The score is
+S = 100 * product(q_i ** w_i), including area quality
+q_area = area_reference / candidate_functional_area. The weights below sum to
+one. Dimensions describe measurements but do not determine their weights.
+Physical or functional rejection scores zero; missing or invalid measurements
+produce an unknown score, including measurements with zero weight.
+Source-equivalent performance at the area reference scores 100; improvements
+can exceed 100. A weight expresses a tradeoff, not a hard acceptance limit.
+
+Measurement definitions below use the supplied SPICE node/source names.
+`v(n)` is node voltage and `i(V)` is current into a voltage source; delivered
+power therefore uses a minus sign. `db(z)=20*log10(abs(z))`, `mag/abs`
+denote magnitude, and `cph` is continuous phase in radians. `find`, `when`,
+`from/to`, and `rise/fall` retain the deck's interpolation, window and
+crossing conventions; SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/
+milli/mega/giga. Nested `avg`, `min`, `max`, `vecmin/vecmax` and `deriv`
+mean the stated window average, extrema and sampled derivative. All
+declared conditions are measured separately and paired with the same
+source condition; a group uses its worst paired quality.
+
+Error quality uses `saturating_ratio` for `output_error_v`, `recovery_up_v`, `recovery_down_v`. For candidate error x, paired source error b and the positive scale s listed below, q = 2(b+s)/(b+x+2s). Source-equivalent error gives q=1; improvement approaches a quality ceiling of 2 with diminishing returns. The scale retains its declared units and numerical-floor meaning. Normalize each condition separately, then take the worst paired quality. Other normalizations and functional requirements retain their declared rules.
+
+| Metric | Definition / observations | Unit | Quality rule | Functional bounds | Scale | Dimension |
+| --- | --- | --- | --- | --- | --- | --- |
+| `output_v` | DC operating point: `v(vout)`. | V | target / target | 0 … 1.2 | 1.2 | bias |
+| `output_error_v` | DC operating point: `abs(v(vout)-v(vp))`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 | bias |
+| `bias_v` | DC operating point: `v(vb1)`. | V | target / target | 0 … 1.2 | 1.2 | bias |
+| `power_w` | DC operating point: `-v(vdd)*i(VDD)`. | W | minimize / ratio | 0 … +∞ | 1e-12 | supply |
+| `dc_gain_db` | AC: Value of `(db((T))) at=0.01`. | dB | maximize / db20 | −∞ … +∞ | — | response |
+| `unity_hz` | AC: Crossing coordinate where `(db((T)))=0 fall=1`. | Hz | maximize / ratio | 0 … +∞ | — | response |
+| `phase_margin_deg` | AC: `180+(find (180*cph((T))/pi) when (db((T)))=0 fall=1)`. | deg | target / target | 0 … 180 | 180 | response |
+| `final_unity_hz` | AC: Crossing coordinate where `(db((T)))=0 fall=last`. | Hz | maximize / ratio | 0 … +∞ | — | response |
+| `final_phase_margin_deg` | AC: `180+(find (180*cph((T))/pi) when (db((T)))=0 fall=last)`. | deg | target / target | 0 … 180 | 180 | response |
+| `minimum_return_distance` | AC: `vecmin((mag(1+(T))))`; sweep `dec 300 0.01 10g`. | 1 | target / target | 0 … +∞ | 1.0 | response |
+| `return_phase_excursion_deg` | AC: `vecmax(abs(180*cph(1+(T))/pi))`; sweep `dec 300 0.01 10g`. | deg | minimize / ratio | 0 … +∞ | 1e-12 | response |
+| `hf_gain_db` | AC: Maximum of `(db((T))) from=2g to=10g`. | dB | minimize / db20 | −∞ … +∞ | — | response |
+| `recovery_up_v` | TRAN: Maximum of `(abs(v(vout)-v(vp))) from=15u to=19u`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 | response |
+| `recovery_down_v` | TRAN: Maximum of `(abs(v(vout)-v(vp))) from=30u to=39u`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 | response |
+| `step_gain` | Transient: `((avg v(vout) from=18u to=19u)-(avg v(vout) from=38u to=39u))/0.2`. | V/V | target / target | −∞ … +∞ | 1.0 | response |
+| `mean_power_w` | TRAN: Mean of `(-v(vdd)*i(VDD)) from=2u to=40u`. | W | minimize / ratio | 0 … +∞ | 1e-12 | supply |
+| `peak_v` | TRAN: Maximum of `v(vout) from=2u to=20u`. | V | target / target | 0 … 1.2 | 1.2 | response |
+| `trough_v` | TRAN: Minimum of `v(vout) from=20.04u to=40u`. | V | target / target | 0 … 1.2 | 1.2 | response |
+
+Area reference: **14710.04 um2**. 180 expanded device instances; sum of device/contact envelopes 9648.5648 um2, per-side envelope allowance 0.6 um, 50% routing allowance and total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across two opposite sides; the envelope sum is displayed rounded to four decimals. MOS/passive envelopes use declared W/L (or resistor dimensions) and multiplicity; explicit tap areas and HBT emitter/contact envelopes are included. This is a frozen engineering estimate, not a foundry minimum or a feasibility claim.
+
+The capability coefficient remains **8**; it is independent of
+the reference-relative task score.
+
+
+### Score weights
+
+Multiple-crossing feedback amplifiers: loaded recovery 28.6%; loop stability 24.5%; gain and bandwidth 12.3%; step transfer and extrema 8.18%; bias 4.09%; power 12.3%; area 10%. Each objective's weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `output_error_v` | 0.095454545449 |
+| `recovery_down_v` | 0.095454545455 |
+| `recovery_up_v` | 0.095454545455 |
+| `final_phase_margin_deg` | 0.061363636364 |
+| `minimum_return_distance` | 0.061363636364 |
+| `phase_margin_deg` | 0.061363636364 |
+| `return_phase_excursion_deg` | 0.061363636364 |
+| `dc_gain_db` | 0.030681818182 |
+| `final_unity_hz` | 0.030681818182 |
+| `hf_gain_db` | 0.030681818182 |
+| `unity_hz` | 0.030681818182 |
+| `peak_v` | 0.027272727273 |
+| `step_gain` | 0.027272727273 |
+| `trough_v` | 0.027272727273 |
+| `bias_v` | 0.020454545455 |
+| `output_v` | 0.020454545455 |
+| `mean_power_w` | 0.061363636364 |
+| `power_w` | 0.061363636364 |
+
+## Tools and Submission
+
+Solve budget: **3 hours**.
+
+Discover inputs/resources/feedback through `/protocol/task.json`,
+`/protocol/resources.json` and `/protocol/harness.json`. Use supplied IHP
+primitives with KLayout, Magic and ngspice. Write `/workspace/output/final.gds`
+and explicitly submit through the harness. Host configuration, source records
+and reference answers remain outside solver inputs.

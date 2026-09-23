@@ -1,0 +1,1399 @@
+in_core = true
+kind = "layout_case"
+id = "gf180mcuD.gf-r2r-dac.r2r"
+title = "Eight-Bit R-2R DAC Core"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "f6846d1ab58e335db992e0759e5fa57988247cbc761667b9aaed9a8bf04bdcfe"
+
+[[assets]]
+path = "reference/r2r.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "d78ed01ef438f1770385b5fd6233853e3a9bdde1973ccf7a2b7e4f5c59f9c3c7"
+
+[task]
+hours = 3
+kind = "netlist_to_gds"
+family = "gf180_r2r"
+coefficient = 4
+environment = "gf180mcuD-typical-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "c742d81a240234a66d95e0d1e073c069e5ded4f2299b64ec9ff2e671fa452f8c"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957"
+subcircuit = "r2r"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "r2r"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
+]
+max_width_um = 200
+max_height_um = 200
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "b7",
+    "b1",
+    "b0",
+    "b2",
+    "b3",
+    "b4",
+    "b5",
+    "b6",
+    "out",
+    "VGND",
+]
+
+[[task.evaluation.jobs]]
+id = "code0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "code1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 1
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "code2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 1
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "code4"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 1
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "code8"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 1
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "code16"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 1
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "code32"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 1
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "code64"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 1
+bit7 = 0
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "code128"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "code255"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.jobs.parameters.values]
+bit0 = 1
+bit1 = 1
+bit2 = 1
+bit3 = 1
+bit4 = 1
+bit5 = 1
+bit6 = 1
+bit7 = 1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "accuracy"
+category = "performance"
+observations = [
+    "code0:error_v",
+    "code1:error_v",
+    "code2:error_v",
+    "code4:error_v",
+    "code8:error_v",
+    "code16:error_v",
+    "code32:error_v",
+    "code64:error_v",
+    "code128:error_v",
+    "code255:error_v",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_code0:error_v",
+    "source_code1:error_v",
+    "source_code2:error_v",
+    "source_code4:error_v",
+    "source_code8:error_v",
+    "source_code16:error_v",
+    "source_code32:error_v",
+    "source_code64:error_v",
+    "source_code128:error_v",
+    "source_code255:error_v",
+]
+normalization = "saturating_ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "settling"
+category = "performance"
+observations = [
+    "code0:settling_error_v",
+    "code1:settling_error_v",
+    "code2:settling_error_v",
+    "code4:settling_error_v",
+    "code8:settling_error_v",
+    "code16:settling_error_v",
+    "code32:settling_error_v",
+    "code64:settling_error_v",
+    "code128:settling_error_v",
+    "code255:settling_error_v",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_code0:settling_error_v",
+    "source_code1:settling_error_v",
+    "source_code2:settling_error_v",
+    "source_code4:settling_error_v",
+    "source_code8:settling_error_v",
+    "source_code16:settling_error_v",
+    "source_code32:settling_error_v",
+    "source_code64:settling_error_v",
+    "source_code128:settling_error_v",
+    "source_code255:settling_error_v",
+]
+normalization = "saturating_ratio"
+lower = 0
+scale = 1e-06
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 8727.76
+rationale = "Passive R-2R DAC: conversion accuracy 63%; dynamic residual 27%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+accuracy = 0.63
+settling = 0.27
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "3946170e0f6c6d8774e0e43176c4c4dfd736031a2f9de58139a9db7373dab196"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:6562558774d43c085a289bbba696c55959eb8051a0996f96633451fbeb9c652d\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"a340269fb13edfad479628bd59a0b72b878e648c0740e89671cd95b64adc03ef\", \"timeout_seconds\": 240.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_code0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_code0.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_code0.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_code0.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_code0.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.pre_layout.jobs.source_code0.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_code0.input_sha256]
+deck = "9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a"
+dut = "64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957"
+
+[task.evaluation.pre_layout.jobs.source_code0.measurements.error_v]
+value = 0.0
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code0.measurements.settling_error_v]
+value = 0.0
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_code1.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_code1.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_code1.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_code1.parameters.values]
+bit0 = 1
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.pre_layout.jobs.source_code1.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_code1.input_sha256]
+deck = "9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a"
+dut = "64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957"
+
+[task.evaluation.pre_layout.jobs.source_code1.measurements.error_v]
+value = 5e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code1.measurements.settling_error_v]
+value = 5e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code2]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_code2.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_code2.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_code2.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_code2.parameters.values]
+bit0 = 0
+bit1 = 1
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.pre_layout.jobs.source_code2.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_code2.input_sha256]
+deck = "9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a"
+dut = "64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957"
+
+[task.evaluation.pre_layout.jobs.source_code2.measurements.error_v]
+value = 3.469447e-18
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code2.measurements.settling_error_v]
+value = 3.469447e-18
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code4]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_code4.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_code4.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_code4.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_code4.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 1
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.pre_layout.jobs.source_code4.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_code4.input_sha256]
+deck = "9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a"
+dut = "64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957"
+
+[task.evaluation.pre_layout.jobs.source_code4.measurements.error_v]
+value = 6.938894e-18
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code4.measurements.settling_error_v]
+value = 6.938894e-18
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code8]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_code8.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_code8.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_code8.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_code8.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 1
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.pre_layout.jobs.source_code8.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_code8.input_sha256]
+deck = "9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a"
+dut = "64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957"
+
+[task.evaluation.pre_layout.jobs.source_code8.measurements.error_v]
+value = 1.387779e-17
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code8.measurements.settling_error_v]
+value = 1.387779e-17
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code16]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_code16.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_code16.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_code16.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_code16.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 1
+bit5 = 0
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.pre_layout.jobs.source_code16.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_code16.input_sha256]
+deck = "9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a"
+dut = "64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957"
+
+[task.evaluation.pre_layout.jobs.source_code16.measurements.error_v]
+value = 2.775558e-17
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code16.measurements.settling_error_v]
+value = 2.775558e-17
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code32]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_code32.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_code32.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_code32.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_code32.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 1
+bit6 = 0
+bit7 = 0
+
+[task.evaluation.pre_layout.jobs.source_code32.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_code32.input_sha256]
+deck = "9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a"
+dut = "64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957"
+
+[task.evaluation.pre_layout.jobs.source_code32.measurements.error_v]
+value = 5.551115e-17
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code32.measurements.settling_error_v]
+value = 5.551115e-17
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code64]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_code64.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_code64.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_code64.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_code64.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 1
+bit7 = 0
+
+[task.evaluation.pre_layout.jobs.source_code64.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_code64.input_sha256]
+deck = "9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a"
+dut = "64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957"
+
+[task.evaluation.pre_layout.jobs.source_code64.measurements.error_v]
+value = 1.110223e-16
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code64.measurements.settling_error_v]
+value = 1.110223e-16
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code128]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_code128.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_code128.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_code128.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_code128.parameters.values]
+bit0 = 0
+bit1 = 0
+bit2 = 0
+bit3 = 0
+bit4 = 0
+bit5 = 0
+bit6 = 0
+bit7 = 1
+
+[task.evaluation.pre_layout.jobs.source_code128.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_code128.input_sha256]
+deck = "9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a"
+dut = "64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957"
+
+[task.evaluation.pre_layout.jobs.source_code128.measurements.error_v]
+value = 4.440892e-16
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code128.measurements.settling_error_v]
+value = 4.440892e-16
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code255]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_code255.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_code255.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_code255.parameters.measurements]
+error_v = "V"
+settling_error_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_code255.parameters.values]
+bit0 = 1
+bit1 = 1
+bit2 = 1
+bit3 = 1
+bit4 = 1
+bit5 = 1
+bit6 = 1
+bit7 = 1
+
+[task.evaluation.pre_layout.jobs.source_code255.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_code255.input_sha256]
+deck = "9392ac55586aabd3303b728f1e3fc712e6214bb5473eb55c906dd64f5d4cf77a"
+dut = "64ee316b7953b9444c61d2ac5639e4ac4b32ddd83323e1cc5b190e4865e97957"
+
+[task.evaluation.pre_layout.jobs.source_code255.measurements.error_v]
+value = 3.75e-07
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_code255.measurements.settling_error_v]
+value = 3.75e-07
+unit = "V"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 180
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "lvs.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 180
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/gf180-magic"
+technology = "gf180mcuD.tech"
+tech_name = "gf180mcuD"
+style = "ngspice()"
+gds_readonly = false
+grid_subdivision = 10
+case_insensitive_ports = true
+timeout_seconds = 240
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/gf180-models"
+timeout_seconds = 240
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[origin]
+url = "https://github.com/mattvenn/gf-r2r-dac/tree/1c5c8ddec54fc4e70ce03a19510d4d7461b919e9/xschem/simulation/r2r.spice"
+
+[qualification]
+reference = "reference/r2r.gds"
+
+[presentation]
+category = "Mixed-signal"
+summary = "Converts an eight-bit digital code into an analog voltage through an R-2R network."

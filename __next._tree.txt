@@ -1,3 +1,5 @@
-:HL["/ICLayout-Bench/_next/static/chunks/25phisebeeifo.css","style"]
+:HL["/ICLayout-Bench/_next/static/chunks/2zy0fdf9zg9b1.css","style"]
 :HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
-0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"path","param":{"type":"oc","key":"","siblings":[]},"prefetchHints":4192,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}},"staleTime":300,"buildId":"U2oZdoUjWqT_XfcDHuQ5i"}
+:HL["/ICLayout-Bench/assets/a534ad20d5a346f4e4d38ac68d585fada41fd2a2c978859271113b903572b775.svg","image"]
+:HL["/ICLayout-Bench/assets/93549d0c68925317f19e8156b3612c06adfecb8ba9a32d2e227b7499274e173e.png","image"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"path","param":{"type":"oc","key":"","siblings":[]},"prefetchHints":4192,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}},"staleTime":300,"buildId":"riVQqUGrBWvYQM5ym2NBJ"}

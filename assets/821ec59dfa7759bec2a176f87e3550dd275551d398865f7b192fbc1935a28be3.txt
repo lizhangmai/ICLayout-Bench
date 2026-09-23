@@ -1,0 +1,1108 @@
+in_core = false
+kind = "layout_case"
+id = "gf180mcuD.analog-db.cmfb_003_5t_nmos_input"
+title = "Segmented-Resistor NMOS Common-Mode Controller"
+status = "qualified"
+
+[[assets]]
+path = "materials/schematic.svg"
+role = "schematic"
+visibility = "maintainer"
+format = "svg"
+sha256 = "85f280f181bc24e19c8f89ca7b639173adc1bb740d08ce53fdcd7c485c3572ff"
+
+[[assets]]
+path = "reference/cmfb_003_5t_nmos_input.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "2231cc449499dd1950deab3347613907727685bcdb2c048cd8b8adde87b7ef90"
+
+[task]
+hours = 3
+kind = "netlist_to_gds"
+family = "gf180mcuD_cmfb_003_5t_nmos_input"
+coefficient = 6
+environment = "gf180mcuD-cmfb_003_5t_nmos_input-nominal-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "48d16042b1f8f53100c620a57d1af6c94da9496d3184e44037f722488e00936c"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "ed1848c64b323f669f0af718f61dce96c389bfff34576f91940950242a100c5a"
+subcircuit = "cmfb_003_5t_nmos_input"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "b0e54435cc82b9ebbaa50d8ff766335ff3fd909a83374fd4341744f9d538b665"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "cmfb_003_5t_nmos_input"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
+]
+max_width_um = 1100
+max_height_um = 280
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vinp",
+    "vinn",
+    "vcmfb",
+    "vref",
+    "vdd",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+diff_v = 0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+error_v = "V"
+power_w = "W"
+recovery_up_v = "V"
+recovery_down_v = "V"
+recovery_zero_v = "V"
+peak_error_v = "V"
+mean_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+diff_v = 0.1
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+error_v = "V"
+power_w = "W"
+recovery_up_v = "V"
+recovery_down_v = "V"
+recovery_zero_v = "V"
+peak_error_v = "V"
+mean_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 3.3
+diff_v = 0.2
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+error_v = "V"
+power_w = "W"
+recovery_up_v = "V"
+recovery_down_v = "V"
+recovery_zero_v = "V"
+peak_error_v = "V"
+mean_power_w = "W"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "output_v"
+category = "performance"
+observations = [
+    "condition_0:output_v",
+    "condition_1:output_v",
+    "condition_2:output_v",
+]
+unit = "V"
+dimension = "bias"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:output_v",
+    "source_condition_1:output_v",
+    "source_condition_2:output_v",
+]
+normalization = "target"
+scale = 3.3
+lower = 0
+upper = 3.3
+
+[[task.evaluation.metrics]]
+id = "error_v"
+category = "performance"
+observations = [
+    "condition_0:error_v",
+    "condition_1:error_v",
+    "condition_2:error_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:error_v",
+    "source_condition_1:error_v",
+    "source_condition_2:error_v",
+]
+normalization = "saturating_ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "power_w"
+category = "performance"
+observations = [
+    "condition_0:power_w",
+    "condition_1:power_w",
+    "condition_2:power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:power_w",
+    "source_condition_1:power_w",
+    "source_condition_2:power_w",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[[task.evaluation.metrics]]
+id = "recovery_up_v"
+category = "performance"
+observations = [
+    "condition_0:recovery_up_v",
+    "condition_1:recovery_up_v",
+    "condition_2:recovery_up_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:recovery_up_v",
+    "source_condition_1:recovery_up_v",
+    "source_condition_2:recovery_up_v",
+]
+normalization = "saturating_ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "recovery_down_v"
+category = "performance"
+observations = [
+    "condition_0:recovery_down_v",
+    "condition_1:recovery_down_v",
+    "condition_2:recovery_down_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:recovery_down_v",
+    "source_condition_1:recovery_down_v",
+    "source_condition_2:recovery_down_v",
+]
+normalization = "saturating_ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "recovery_zero_v"
+category = "performance"
+observations = [
+    "condition_0:recovery_zero_v",
+    "condition_1:recovery_zero_v",
+    "condition_2:recovery_zero_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:recovery_zero_v",
+    "source_condition_1:recovery_zero_v",
+    "source_condition_2:recovery_zero_v",
+]
+normalization = "saturating_ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "peak_error_v"
+category = "performance"
+observations = [
+    "condition_0:peak_error_v",
+    "condition_1:peak_error_v",
+    "condition_2:peak_error_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:peak_error_v",
+    "source_condition_1:peak_error_v",
+    "source_condition_2:peak_error_v",
+]
+normalization = "saturating_ratio"
+lower = 0
+scale = 1e-06
+
+[[task.evaluation.metrics]]
+id = "mean_power_w"
+category = "performance"
+observations = [
+    "condition_0:mean_power_w",
+    "condition_1:mean_power_w",
+    "condition_2:mean_power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:mean_power_w",
+    "source_condition_1:mean_power_w",
+    "source_condition_2:mean_power_w",
+]
+normalization = "ratio"
+lower = 0
+scale = 1e-12
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 122380.96
+rationale = "Common-mode sensing/controllers: recovery and error 62.3%; output bias 6.92%; power 20.8%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+error_v = 0.124615384617
+peak_error_v = 0.124615384615
+recovery_down_v = 0.124615384615
+recovery_up_v = 0.124615384615
+recovery_zero_v = 0.124615384615
+output_v = 0.069230769231
+mean_power_w = 0.103846153846
+power_w = 0.103846153846
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "ca92a36735b6c9519507a649e9af3be05f4216c3e85d9fe6d7285957f000ca75"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"ef9cb87fa27b849376472663b7362673979b89e012f161ba47bb5f6af6ede8eb\", \"compatibility\": null, \"execution_sha256\": \"5424b579002782bfddf0a729715b8fbf2a5f7f2b4cf14982d7616e352d5de9be\", \"image_id\": \"sha256:6562558774d43c085a289bbba696c55959eb8051a0996f96633451fbeb9c652d\", \"limits\": {\"cpus\": 4, \"memory_mb\": 4096, \"pids\": 256}, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"a340269fb13edfad479628bd59a0b72b878e648c0740e89671cd95b64adc03ef\", \"timeout_seconds\": 240.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_condition_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.values]
+supply_v = 3.3
+diff_v = 0
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.measurements]
+output_v = "V"
+error_v = "V"
+power_w = "W"
+recovery_up_v = "V"
+recovery_down_v = "V"
+recovery_zero_v = "V"
+peak_error_v = "V"
+mean_power_w = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.input_sha256]
+deck = "b0e54435cc82b9ebbaa50d8ff766335ff3fd909a83374fd4341744f9d538b665"
+dut = "ed1848c64b323f669f0af718f61dce96c389bfff34576f91940950242a100c5a"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.error_v]
+value = 0.002103636318471
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.mean_power_w]
+value = 0.0001628409
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.output_v]
+value = 1.652103636298
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.peak_error_v]
+value = 0.2011193
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.power_w]
+value = 0.0001628462505231
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.recovery_down_v]
+value = 0.002431036
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.recovery_up_v]
+value = 0.001780462
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.recovery_zero_v]
+value = 0.002103118
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.values]
+supply_v = 3.3
+diff_v = 0.1
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.measurements]
+output_v = "V"
+error_v = "V"
+power_w = "W"
+recovery_up_v = "V"
+recovery_down_v = "V"
+recovery_zero_v = "V"
+peak_error_v = "V"
+mean_power_w = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.input_sha256]
+deck = "b0e54435cc82b9ebbaa50d8ff766335ff3fd909a83374fd4341744f9d538b665"
+dut = "ed1848c64b323f669f0af718f61dce96c389bfff34576f91940950242a100c5a"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.error_v]
+value = 0.002103636318594
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.mean_power_w]
+value = 0.0001628409
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.output_v]
+value = 1.652103636298
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.peak_error_v]
+value = 0.2011193
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.power_w]
+value = 0.0001628462505231
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.recovery_down_v]
+value = 0.002431036
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.recovery_up_v]
+value = 0.001780462
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.recovery_zero_v]
+value = 0.002103118
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.values]
+supply_v = 3.3
+diff_v = 0.2
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.measurements]
+output_v = "V"
+error_v = "V"
+power_w = "W"
+recovery_up_v = "V"
+recovery_down_v = "V"
+recovery_zero_v = "V"
+peak_error_v = "V"
+mean_power_w = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.input_sha256]
+deck = "b0e54435cc82b9ebbaa50d8ff766335ff3fd909a83374fd4341744f9d538b665"
+dut = "ed1848c64b323f669f0af718f61dce96c389bfff34576f91940950242a100c5a"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.error_v]
+value = 0.002103636318715
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.mean_power_w]
+value = 0.0001628409
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.output_v]
+value = 1.652103636298
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.peak_error_v]
+value = 0.2011193
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.power_w]
+value = 0.0001628462505231
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.recovery_down_v]
+value = 0.002431036
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.recovery_up_v]
+value = 0.001780462
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.recovery_zero_v]
+value = 0.002103118
+unit = "V"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-bench-tools:local"
+check = "artifact"
+timeout_seconds = 180
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-bench-tools:local"
+check = "drc"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-bench-tools:local"
+check = "lvs"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "lvs.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-bench-tools:local"
+timeout_seconds = 180
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/gf180-magic"
+technology = "gf180mcuD.tech"
+tech_name = "gf180mcuD"
+style = "ngspice()"
+gds_readonly = false
+grid_subdivision = 10
+case_insensitive_ports = true
+timeout_seconds = 240
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+image = "iclayout-bench-tools:local"
+support = "build/support/gf180-models"
+timeout_seconds = 240
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/cmfb_003_5t_nmos_input"
+
+[qualification]
+reference = "reference/cmfb_003_5t_nmos_input.gds"
+
+[presentation]
+category = "Amplifiers & RF"
+summary = "Controls common-mode voltage using an NMOS-input core and segmented resistors."
