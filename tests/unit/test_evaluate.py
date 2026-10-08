@@ -1,11 +1,13 @@
 import hashlib
 import json
+import sys
 import tomllib
 from typing import ClassVar
 
 import pytest
 
 from benchmarking.engine.evaluate import JobResult, Measurement, run_evaluation
+from benchmarking.engine.feedback import feedback_details
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
 
@@ -229,6 +231,34 @@ def test_independent_simulations_overlap_after_extraction(tmp_path, inputs, bind
         assert report['metrics']['delay']['value'] == 3.0
 
 
+@pytest.mark.parametrize('parallel_jobs', [1, 2])
+def test_soft_evaluation_removes_native_job_caps_without_changing_measurements(tmp_path, inputs, bindings, parallel_jobs):
+    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.engine.tools.native import NativeTool
+
+    runtime = ExternalRuntime('test', {'image': 'unused', 'environment': {}, 'mounts': []})
+    tool = NativeTool(runtime, timeout_seconds=.02)
+    simulator = bindings['response']
+    simulator.max_parallel_jobs = parallel_jobs
+    original = simulator.run
+
+    def simulate(job, assets):
+        result = tool.run([sys.executable, '-c', 'import time; time.sleep(.1); print("complete")'], {}, {})
+        if result.reason:
+            return JobResult('error', result.reason, evidence=result.evidence)
+        return original(job, assets)
+
+    simulator.run = simulate
+    plan = parse_evaluation(PLAN)
+    report = run_evaluation(plan, inputs, bindings, tmp_path / 'soft', limit_tools=False)
+    assert report['task_success'] is True
+    assert report['metrics']['delay']['value'] == 3.0
+    # The caller's scope must not leak into subsequent independent evaluations.
+    limited = run_evaluation(plan, inputs, bindings, tmp_path / 'limited')
+    assert limited['jobs']['nominal']['status'] == 'error'
+    assert limited['jobs']['slow']['status'] == 'error'
+
+
 @pytest.mark.parametrize("file_format", ["toml", "json"])
 def test_dependencies_follow_extracted_candidate_and_archive_evidence(tmp_path, inputs, bindings, file_format):
     raw = PLAN if file_format == "toml" else json.dumps(tomllib.loads(PLAN.decode())).encode()
@@ -247,7 +277,7 @@ def test_dependencies_follow_extracted_candidate_and_archive_evidence(tmp_path, 
     assert report["task_success"] is True
     assert report["quality_eligible"] is True
     assert report["score"]["method"] == "layout"
-    assert report["score"]["maximum"] is None and report["score"]["reference"] == 100
+    assert report["score"]["maximum"] == 100 and report["score"]["reference"] == 100
     assert report["metrics"]["delay"]["value"] == 3.0
     assert list(report["jobs"]).index("parasitics") < list(report["jobs"]).index("slow")
     assert "input:unlisted_reference" not in report["inputs"]
@@ -262,6 +292,16 @@ def test_dependencies_follow_extracted_candidate_and_archive_evidence(tmp_path, 
         assert path.stat().st_mode & 0o777 == mode
     assert report["score"]["value"] == pytest.approx(100 * (2 / 3)**0.5)
     assert report["score"]["components"] == {"G": 1.0, "E": 1.0, "Q": 2/3}
+    from benchmarking.engine.sessions.archive import EvaluationArchive
+    from benchmarking.results.export import evaluation_export
+
+    files = []
+    destination = tmp_path / 'portable'
+    evaluation_export(EvaluationArchive(root), destination, files)
+    exported = json.loads((destination / 'evaluation/report.json').read_text())
+    assert exported['score'] == report['score']
+    assert exported['jobs']['parasitics']['outputs']['netlist']['content'] == 'derived-from-layout'
+    assert json.loads((root / 'report.json').read_text()) == report
 
 def test_drc_lvs_success_is_not_performance_success(tmp_path, inputs, bindings):
     report = evaluate(tmp_path, inputs, bindings, PLAN.replace(b"upper = 4.0", b"upper = 2.0"))
@@ -271,6 +311,54 @@ def test_drc_lvs_success_is_not_performance_success(tmp_path, inputs, bindings):
     assert report["metrics"]["delay"]["observations"]["nominal:delay"]["status"] == "passed"
     assert report["metrics"]["delay"]["observations"]["slow:delay"]["status"] == "failed"
     assert report["score"]["value"] == 0
+    # Successful simulator execution must still expose failing spec measurements.
+    details = feedback_details(report, tmp_path)
+    assert details["jobs"]["slow"]["status"] == "passed"
+    metric = details["metrics"]["delay"]
+    assert metric["status"] == "failed"
+    assert metric["value"] == report["metrics"]["delay"]["value"]
+    assert metric["excess"] == pytest.approx(1.0)
+    assert metric["unit"] == report["metrics"]["delay"]["unit"]
+    assert "inputs" not in details and "backends" not in details
+
+
+def test_post_layout_still_requires_candidate_performance_metrics_without_limits():
+    data = tomllib.loads(PLAN.decode())
+    data.pop("scoring")
+    data["metrics"] = [metric for metric in data["metrics"]
+                       if metric["category"] == "physical"]
+    with pytest.raises(ValueError, match="needs a performance metric"):
+        parse_evaluation(json.dumps(data).encode(), file_format="json")
+
+
+@pytest.mark.parametrize("bounded", [True, False])
+def test_feedback_preserves_candidate_diagnostics_without_scoring(tmp_path, inputs, bindings, bounded):
+    report = evaluate(tmp_path, inputs, bindings)
+    original = json.dumps(report, sort_keys=True)
+    assert report["score"]["value"] > 0
+
+    details = feedback_details(report, tmp_path, bounded=bounded)
+
+    assert set(details) == {"jobs", "metrics", "omitted_jobs", "omitted_metrics"}
+    assert details["metrics"]["delay"]["observations"] == report["metrics"]["delay"]["observations"]
+    assert details["metrics"]["functional_area"]["value"] == report["metrics"]["functional_area"]["value"]
+    assert details["metrics"]["delay"]["unit"] == report["metrics"]["delay"]["unit"]
+    assert json.dumps(report, sort_keys=True) == original  # Full judge evidence keeps its score.
+    assert json.loads((tmp_path / "report" / "report.json").read_text())["score"] == report["score"]
+
+
+def test_bounded_feedback_marks_omissions_and_full_report_keeps_diagnostics(tmp_path, inputs, bindings):
+    report = evaluate(tmp_path, inputs, bindings)
+    report["jobs"].update({f"diagnostic_{i}": {"status": "passed", "reason": "x" * 512}
+                           for i in range(100)})
+    full = feedback_details(report, tmp_path, bounded=False)
+    bounded = feedback_details(report, tmp_path)
+
+    assert len(json.dumps(bounded).encode()) <= 28000
+    assert bounded["omitted_jobs"] > 0
+    assert len(bounded["jobs"]) + bounded["omitted_jobs"] == len(full["jobs"])
+    assert full["omitted_jobs"] == full["omitted_metrics"] == 0
+    assert bounded["metrics"] == full["metrics"]
 
 
 def test_summary_cannot_hide_a_failing_case(tmp_path, inputs, bindings):
@@ -278,6 +366,8 @@ def test_summary_cannot_hide_a_failing_case(tmp_path, inputs, bindings):
     report = evaluate(tmp_path, inputs, bindings, raw)
     assert report["metrics"]["delay"]["value"] == 3.0
     assert report["metrics"]["delay"]["status"] == "failed"
+    # The aggregate passes, but a lower-valued corner violates the lower bound.
+    assert feedback_details(report, tmp_path)["metrics"]["delay"]["shortfall"] == pytest.approx(1.0)
 
 
 @pytest.mark.parametrize('parallel_jobs', [1, 2])

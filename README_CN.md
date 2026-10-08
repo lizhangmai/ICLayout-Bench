@@ -11,7 +11,7 @@
 
 ```bash
 python -m benchmarking.engine.preview --dataset /path/to/ICLayout-Bench-Dataset \
-  run --case NAND2_X1 --image iclayout-bench-tools:local --output build/reference-check
+  run --case NAND2_X1 --image iclayout-eda-open:local --output build/reference-check
 python -m benchmarking.run --config experiment.toml \
   --dataset /path/to/ICLayout-Bench-Dataset --output results/new-experiment
 ```

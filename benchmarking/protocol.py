@@ -1,5 +1,6 @@
 """Public HTTP protocol identifiers and validation; no execution dependencies."""
 import json
+import math
 import re
 
 PROTOCOL = "layout-http"
@@ -8,6 +9,15 @@ SESSION_STARTUP_TIMEOUT_SECONDS = 600
 SESSION_STARTUP_RESPONSE_GRACE_SECONDS = 30
 ID = re.compile(r"[A-Za-z0-9_.-]{1,128}\Z")
 USAGE_FIELDS = ("input_tokens", "output_tokens", "cached_input_tokens", "reasoning_output_tokens", "cost")
+EVALUATION_MODES = ("self_run", "controlled_run")
+
+
+def evaluation_mode(result):
+    """Validate the execution-control mode of a service result."""
+    value = result.get("evaluation_mode")
+    if value not in EVALUATION_MODES:
+        raise ValueError("evaluation_mode must be self_run or controlled_run")
+    return value
 
 
 def identifier(value):
@@ -40,3 +50,15 @@ def evaluation_tools(result):
     """Select the evaluator identity independently of participant resources."""
     tool = result.get("tool_identity") or {}
     return tool.get("evaluator")
+
+
+def layout_score_value(score):
+    """Read the single 0–100 layout score contract; None means unknown."""
+    if score is None:
+        return None
+    if not isinstance(score, dict) or (score.get("method"), score.get("maximum"), score.get("reference")) != ("layout", 100, 100):
+        raise ValueError("Expected a layout score with maximum and reference 100")
+    value = score.get("value")
+    if value is not None and (type(value) not in {int, float} or not math.isfinite(value) or not 0 <= value <= 100):
+        raise ValueError("Layout score must be between 0 and 100 or null")
+    return value

@@ -7,8 +7,12 @@ import re
 import tomllib
 from pathlib import Path
 
-HARNESSES = ("codex", "claude-code", "dsh", "command")
-EFFORTS = ("low", "medium", "high", "xhigh", "max", "ultra")
+import benchmarking
+from benchmarking.version import package_version
+
+from . import adapters
+from .adapters.contracts import EFFORTS, HARNESSES
+
 FIELDS = {"name", "harness", "model", "effort", "tasks", "dataset", "concurrency", "repetitions", "recovery", "results_data", "scheme"}
 
 
@@ -24,66 +28,26 @@ def clean_env():
 def resolve(harness, model=None, effort=None):
     if harness not in HARNESSES:
         raise ValueError("Unknown harness")
-    env = clean_env()
-    if harness == "command":
-        return {"harness": harness, "model": model, "effort_requested": effort, "effort_resolved": effort}, env, {}
-    if harness == "dsh":
-        from .dsh import resolve_dsh
-        condition, settings = resolve_dsh(model, effort)
-        return condition, env, settings
-    source = "experiment" if effort is not None else "harness default (unresolved)"
-    settings = {}
-    resolved_effort = effort
-    if harness == "claude-code":
-        path = Path(os.environ.get("CLAUDE_CONFIG_DIR", str(Path.home() / ".claude"))) / "settings.json"
-        settings = json.loads(path.read_text()) if path.exists() else {}
-        # Reuse provider configuration, not user hooks, plugins or host tools.
-        provider_env = {k: v for k, v in settings.get("env", {}).items()
-                        if k.startswith("ANTHROPIC_") or k in {
-                            "CLAUDE_CODE_EFFORT_LEVEL", "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY",
-                            "CLAUDE_CODE_MAX_OUTPUT_TOKENS", "MAX_THINKING_TOKENS", "API_TIMEOUT_MS",
-                        }}
-        env.update(provider_env)
-        model = model or env.get("ANTHROPIC_MODEL") or settings.get("model")
-        if effort is None:
-            resolved_effort = env.get("CLAUDE_CODE_EFFORT_LEVEL") or settings.get("effortLevel")
-            if resolved_effort:
-                source = "claude provider environment/settings"
-        if resolved_effort:
-            env["CLAUDE_CODE_EFFORT_LEVEL"] = resolved_effort
-        cli_settings = {"disableAllHooks": True}
-        if settings.get("apiKeyHelper"):
-            cli_settings["apiKeyHelper"] = settings["apiKeyHelper"]
-    else:
-        path = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "config.toml"
-        settings = tomllib.loads(path.read_text()) if path.exists() else {}
-        profile = settings.get("profile")
-        effective = dict(settings)
-        if profile:
-            effective.update(settings.get("profiles", {}).get(profile, {}))
-        model = model or effective.get("model")
-        if effort is None:
-            resolved_effort = effective.get("model_reasoning_effort")
-            if resolved_effort:
-                source = "codex user configuration"
-        cli_settings = {}
-    if not isinstance(model, str) or not model.strip():
-        raise ValueError("Supply --model or configure a default model in the selected harness")
-    if resolved_effort is not None and resolved_effort not in EFFORTS:
-        raise ValueError("Unsupported effort value; use an effort accepted by your CLI/model")
-    return {"harness": harness, "model": model, "effort_requested": effort,
-            "effort_resolved": resolved_effort, "effort_source": source,
-            "provider_effective_effort": None}, env, cli_settings
+    return adapters.resolve(harness, model, effort, clean_env())
 
 
 def package_identity():
     dist = importlib.metadata.distribution("iclayout-bench")
-    files = {}
-    for file in dist.files or []:
-        if str(file).startswith("benchmarking/") and file.suffix != ".pyc":
-            files[str(file)] = hashlib.sha256(Path(dist.locate_file(file)).read_bytes()).hexdigest()
     direct = json.loads(dist.read_text("direct_url.json") or "{}")
+    files = {}
+    if direct.get("dir_info", {}).get("editable"):
+        root = Path(benchmarking.__file__).resolve().parent
+        for file in sorted(root.rglob("*")):
+            if file.is_file() and "__pycache__" not in file.parts and file.suffix != ".pyc":
+                files["benchmarking/" + file.relative_to(root).as_posix()] = hashlib.sha256(file.read_bytes()).hexdigest()
+    else:
+        for file in dist.files or []:
+            if str(file).startswith("benchmarking/") and file.suffix != ".pyc":
+                files[str(file)] = hashlib.sha256(Path(dist.locate_file(file)).read_bytes()).hexdigest()
+    if not files:
+        raise ValueError("Installed benchmark has no identifiable package files")
     return {"name": dist.metadata["Name"], "version": dist.version, "installed_content_sha256": digest(files),
+            "commit": package_version()["commit"],
             "wheel_sha256": direct.get("archive_info", {}).get("hashes", {}).get("sha256")}
 
 
@@ -109,9 +73,12 @@ def validate(row):
     if "results_data" in row and (not isinstance(row["results_data"], str) or not row["results_data"].strip()):
         raise ValueError("results_data must be a nonempty archive directory")
     from .recovery import policy
-    settings = policy(row.get("recovery"))
-    if row["harness"] in {"dsh", "command"} and settings["resume_session"]:
+    settings = policy(row.get("recovery"), harness=row["harness"])
+    capabilities = adapters.capabilities(row["harness"])
+    if not capabilities["resume_session"] and settings["resume_session"]:
         raise ValueError("This harness does not support resume_session")
+    if not capabilities["capacity_resumes"] and settings["capacity_resumes"]:
+        raise ValueError("This harness does not support capacity_resumes")
     return row
 
 

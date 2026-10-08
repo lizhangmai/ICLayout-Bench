@@ -12,11 +12,13 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
+from benchmarking.participants.adapters.contracts import ParticipantSelection
+
 pytest.importorskip("sqlalchemy")
 
 from benchmarking.results import ResultStore
+from benchmarking.results.normalization import digest
 from benchmarking.results.presentation import parse_netlist, schematic_svg
-from benchmarking.results.store import digest
 
 pytestmark = pytest.mark.unit
 
@@ -55,11 +57,11 @@ def result(
             "condition": {"model": model},
             "outcome": outcome,
             "task_success": outcome == "pass",
-            "score": {"method": "layout", "value": score, "maximum": None, "reference": 100},
+            "score": {"method": "layout", "value": score, "maximum": 100, "reference": 100},
             "metrics": {"power": {"value": 1.2, "unit": "W", "status": "passed"}},
             "limits": {"wall_seconds": 3600},
             "tool_identity": {"image_id": "test-image", "evaluator": {"image_id": "test-image"}},
-            "verification_level": "local_development",
+            "evaluation_mode": "self_run",
             "submission": {
                 "candidate_sha256": digest(b"candidate"),
                 "submission_id": "1",
@@ -125,16 +127,16 @@ def test_conflicts_rollback_and_revisions_remain_accessible(tmp_path):
     store.close()
 
 
-def test_newest_revision_filter_never_resurrects_old_verification(tmp_path):
+def test_newest_revision_filter_never_resurrects_old_evaluation_mode(tmp_path):
     store = ResultStore(tmp_path / "archive")
     source = result(tmp_path / "source")
     store.import_result(source)
     change(
-        source, lambda d: d["evaluation"].update(verification_level="service_recorded")
+        source, lambda d: d["evaluation"].update(evaluation_mode="controlled_run")
     )
     store.import_result(source, reevaluation=True)
-    assert store.list_runs(verification="local_development")["total"] == 0
-    assert store.list_runs(verification="service_recorded")["total"] == 1
+    assert store.list_runs(evaluation_mode="self_run")["total"] == 0
+    assert store.list_runs(evaluation_mode="controlled_run")["total"] == 1
 
 
 def test_comparison_separates_efforts_contexts_and_planned_coverage(tmp_path):
@@ -169,6 +171,76 @@ def test_comparison_separates_efforts_contexts_and_planned_coverage(tmp_path):
     assert (
         len(store.comparison()["tasks"]) == 3
     )  # two measured contexts and one planned task
+
+
+def test_comparison_aggregation_uses_rows_and_schedules_without_database():
+    from benchmarking.results.comparison import aggregate
+
+    rows = [
+        {
+            "task_version": "a" * 64,
+            "evaluation": {
+                "tool_identity": {"evaluator": {"image_id": "test-image"}},
+                "limits": {"wall_seconds": 10},
+            },
+            "evaluation_mode": "self_run",
+            "method": "layout",
+            "task_id": "circuit-a",
+            "title": "Circuit A",
+            "condition_id": "condition-a",
+            "condition": {
+                "model": "model-a",
+                "harness": "codex",
+                "effort_resolved": "medium",
+            },
+            "score": 80,
+            "outcome": "pass",
+            "id": "run-a",
+        },
+        {
+            "task_version": "b" * 64,
+            "evaluation": {
+                "tool_identity": {"evaluator": {"image_id": "test-image"}},
+                "limits": {"wall_seconds": 10},
+            },
+            "evaluation_mode": "self_run",
+            "method": "layout",
+            "task_id": "circuit-b",
+            "title": "Circuit B",
+            "condition_id": "condition-a",
+            "condition": {
+                "model": "model-a",
+                "harness": "codex",
+                "effort_resolved": "medium",
+            },
+            "score": None,
+            "outcome": "error",
+            "id": "run-b",
+        },
+    ]
+    schedules = [
+        {
+            "model": "model-a",
+            "harness": "codex",
+            "effort": "medium",
+            "tasks": ["circuit-a", "circuit-b", "circuit-c"],
+        }
+    ]
+
+    result = aggregate(rows, schedules, {})
+
+    assert len(result["tasks"]) == 3
+    assert len(result["conditions"]) == 1
+    assert sorted(cell["measured"] for cell in result["cells"]) == [0, 1]
+    assert result["totals"] == [
+        {
+            "condition_id": "condition-a",
+            "common_tasks": 1,
+            "coverage": 2,
+            "total_tasks": 3,
+            "mean": 80,
+        }
+    ]
 
 
 def test_candidate_integrity_path_isolation_and_interrupted_transaction(
@@ -218,7 +290,7 @@ def test_parallel_import_deduplicates_shared_conditions(tmp_path):
 
 def test_outbox_retries_without_reexecuting_model(tmp_path, monkeypatch):
     import benchmarking.results
-    from benchmarking.participants.archive import enqueue, retry
+    from benchmarking.results.outbox import enqueue, retry
 
     source = result(tmp_path / "source")
     archive = tmp_path / "archive"
@@ -237,16 +309,17 @@ def test_outbox_retries_without_reexecuting_model(tmp_path, monkeypatch):
 
 def test_schematic_keeps_ordered_pins_models_and_escapes_labels():
     circuit = parse_netlist(
-        ".subckt top a b c d\nM1 a b c d nmos\n+ W=1u L=0.1u\nR1 a b 1k\n.ends\n", "top"
+        ".subckt top a b c d\nM1 a b c d / nmos\n+ W={base / 2} L=0.1u AD='0.18u / W'\nR1 a b 1k\n.ends\n", "top"
     )
     assert circuit["ports"] == ["a", "b", "c", "d"]
     assert circuit["devices"][0]["nodes"] == ["a", "b", "c", "d"]
-    assert circuit["devices"][0]["parameters"] == "W=1u L=0.1u"
+    assert circuit["devices"][0]["model"] == "nmos"
+    assert circuit["devices"][0]["parameters"] == "W={base / 2} L=0.1u AD='0.18u / W'"
     # Maintained CDL includes dollar-bearing identifiers and substrate terminals.
     # Explicit pin expectations protect display binding, not electrical evaluation.
     cdl = parse_netlist(
         ".subckt top c b e bulk\nQ$1 $10 b e $1 npn13G2 m=1\n"
-        "R$2 c e $1 rsil w=4u $ comment\nQplain c b e npn 2\n.ends\n", "top"
+        "R$2 c e $1 rsil w=4u $ author's comment: \"\nQplain c b e npn 2\n.ends\n", "top"
     )
     assert cdl["devices"][0]["name"] == "Q$1"
     assert cdl["devices"][0]["nodes"] == ["$10", "b", "e", "$1"]
@@ -308,26 +381,26 @@ def test_runner_storage_configuration_does_not_change_frozen_conditions(
     tmp_path, monkeypatch
 ):
     """Archive destinations affect delivery only, never whether completed work is rerun."""
-    import benchmarking.run as runner
+    from benchmarking.participants import batch, cli, planning
     from benchmarking.participants.config import read_configs
 
     config = tmp_path / "experiment.toml"
     base = 'harness="codex"\nmodel="model-a"\nefforts=["medium"]\ntasks=["case"]\nconcurrency=1\nrepetitions=1\n'
     config.write_text(base)
-    monkeypatch.setattr(runner, "resolve", lambda *args: ({}, {}, {}))
-    monkeypatch.setattr(runner, "harness_version", lambda _: ("1.0", "cli 1.0"))
+    monkeypatch.setattr(planning, "resolve", lambda *args: ParticipantSelection({}, {}, {}))
+    monkeypatch.setattr(planning, "harness_version", lambda _: ("1.0", "cli 1.0"))
     identities = []
 
     def capture(args, row, selection, output, identity, blocked):
         identities.append(identity)
         return 0
 
-    monkeypatch.setattr(runner, "execute_condition", capture)
+    monkeypatch.setattr(batch, "execute_condition", capture)
     args = ["--config", str(config), "--endpoint", "https://example.invalid"]
-    assert runner.main(args) == 0
+    assert cli.main(args) == 0
     config.write_text('results_data="results/archive"\n' + base)
     assert read_configs([config])[0]["results_data"] == "results/archive"
-    assert runner.main(args) == 0
+    assert cli.main(args) == 0
     assert identities[0] == identities[1]
     config.write_text("results_data=false\n" + base)
     with pytest.raises(ValueError, match="results_data"):
@@ -511,12 +584,23 @@ def test_tool_schemes_share_evaluator_context_without_merging_conditions(tmp_pat
     assert len(store.comparison()['tasks']) == 2
 
 
-def test_import_preserves_reference_scores_above_100(tmp_path):
+@pytest.mark.parametrize("score", [-1, 101, float("inf")])
+def test_import_rejects_scores_outside_the_contract(tmp_path, score):
     store = ResultStore(tmp_path / 'archive')
-    source = result(tmp_path / 'relative', score=144)
-    change(source, lambda raw: raw['evaluation']['score'].update(
-        method="layout", maximum=None, reference=100))
-    imported = store.import_result(source)
-    assert store.detail(imported['run_id'])['evaluation']['score'] == 144
-    assert not store.verify()['failures']
+    source = result(tmp_path / 'invalid', score=score)
+    with pytest.raises(ValueError):
+        store.import_result(source)
+    store.close()
+
+
+def test_unknown_score_stays_in_the_layout_comparison(tmp_path):
+    store = ResultStore(tmp_path / 'archive')
+    store.import_result(result(tmp_path / 'measured', sid='measured', score=90))
+    failed = result(tmp_path / 'error', sid='error', score=None, outcome='error')
+    change(failed, lambda raw: raw['evaluation'].update(score=None))
+    store.import_result(failed)
+    comparison = store.comparison()
+    assert len(comparison['tasks']) == 1
+    cell = comparison['cells'][0]
+    assert cell['count'] == 2 and cell['measured'] == 1 and cell['mean'] == 90
     store.close()

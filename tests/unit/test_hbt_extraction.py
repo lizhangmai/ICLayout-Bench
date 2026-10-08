@@ -4,7 +4,8 @@ from textwrap import dedent
 
 import pytest
 
-from benchmarking.engine.hbt import convert_klayout_netlist, merge_hbt_netlists
+from benchmarking.engine.backends.hbt.merge import merge_hbt_netlists
+from benchmarking.engine.backends.hbt.netlist import convert_klayout_netlist
 
 pytestmark = pytest.mark.unit
 
@@ -28,6 +29,53 @@ R$3 OUT VEE VEE rppd w=2u l=3u ps=0u b=0 m=1
     assert "Nx=5" in converted and "Nx=4" in converted
     assert "$internal" not in converted
     assert "rppd w=2u l=3u ps=0u b=0 m=1" in converted
+
+
+def test_hbt_and_schematic_read_escaped_nets_continuations_and_comments():
+    from benchmarking.engine.backends.hbt.netlist import parse_spice_netlist
+    from benchmarking.results.presentation import parse_netlist
+
+    raw = r'''* the extractor's comment may contain an unmatched quote: "
+.SUBCKT AMP OUT IN
+* port annotation
+  + GND
+Q$1 \$10 "IN" GND GND npn13G2
+* geometry annotation
+  + we=70n le=900n Nx=5 m=1 ; author's comment: "
+Rwire \$10 wire# 1
+.ENDS AMP
+
+* expanding symbol: generated export
++ of pins=3
+'''
+    parsed = parse_spice_netlist(raw)
+    assert parsed.ports == ('OUT', 'IN', 'GND')
+    device = parsed.hbt_devices[0]
+    assert device.nets == ('$10', 'IN', 'GND', 'GND')
+    assert device.parameters == (('we', '70n'), ('le', '900n'), ('Nx', '5'), ('m', '1'))
+    assert device.line.physical_lines == (4, 6)
+    drawing = parse_netlist(raw, 'AMP')
+    assert drawing['ports'] == ['OUT', 'IN', 'GND']
+    assert drawing['devices'][0]['nodes'] == ['$10', 'IN', 'GND', 'GND']
+    assert drawing['devices'][1]['nodes'] == ['$10', 'wire#']
+    with pytest.raises(ValueError, match='Invalid SPICE line at 5'):
+        parse_spice_netlist(raw.replace('"IN"', '"IN').replace('author\'s comment: "', 'comment'))
+
+
+@pytest.mark.parametrize('reader', ['hbt', 'schematic', 'dspf'])
+def test_netlist_readers_reject_orphan_continuations(reader):
+    from benchmarking.engine.backends.hbt.netlist import parse_spice_netlist
+    from benchmarking.engine.netlists.dspf import adapt_dspf
+    from benchmarking.results.presentation import parse_netlist
+
+    raw = '+ OUT IN GND\n.SUBCKT AMP OUT IN GND\n.ENDS AMP\n'
+    with pytest.raises(ValueError, match='continuation.*line at 1'):
+        if reader == 'hbt':
+            parse_spice_netlist(raw)
+        elif reader == 'schematic':
+            parse_netlist(raw, 'AMP')
+        else:
+            adapt_dspf(raw, 'AMP', ['OUT', 'IN', 'GND'], {})
 
 
 def test_merge_rejects_ambiguous_parallel_hbts():
@@ -128,8 +176,8 @@ def test_hbt_terminal_diagnostics_require_native_provenance_and_complete_mapping
     from types import SimpleNamespace
 
     from benchmarking.bundles import publish_bundle
-    from benchmarking.engine.hbt import SG13G2HBTRCDocker
-    from benchmarking.engine.magic import MagicRCDocker
+    from benchmarking.engine.backends.hbt.backend import SG13G2HBTRCDocker
+    from benchmarking.engine.backends.magic import MagicRCDocker
     from benchmarking.evaluation import Job
     from benchmarking.files import Asset
 
@@ -171,8 +219,8 @@ R3 e_local GND 3
             return SimpleNamespace(reason='', returncode=0,
                                    files=files, evidence={'console': Asset(log.encode(), 'text')})
 
-    monkeypatch.setattr('benchmarking.engine.klayout.DockerTool', Tool)
-    monkeypatch.setattr('benchmarking.engine.magic.DockerTool', Tool)
+    monkeypatch.setattr('benchmarking.engine.backends.klayout.DockerTool', Tool)
+    monkeypatch.setattr('benchmarking.engine.backends.magic.DockerTool', Tool)
     publish_bundle({'rules.lvs': Asset(b'# test', 'text'),
                     'profile.json': Asset(b'{"deck":"rules.lvs","variables":{},"scope":"test candidate extraction"}', 'json')},
                    {}, tmp_path / 'klayout')
@@ -571,14 +619,14 @@ def test_merged_interface_consumes_wrapped_subcircuit_header():
     native = b".subckt AMP OUT IN GND\nQ1 OUT IN GND GND npn13G2 Nx=3\n.ends AMP\n"
     magic = b".subckt AMP OUT\n+ IN GND\nX1 OUT IN GND GND npn13g2\n.ends AMP\n"
     merged, _ = merge_hbt_netlists(native, magic, ["IN", "OUT", "GND"], magic)
-    from benchmarking.engine.hbt import parse_spice_netlist
+    from benchmarking.engine.backends.hbt.netlist import parse_spice_netlist
     assert parse_spice_netlist(merged, strict_devices=False).ports == ("IN", "OUT", "GND")
 
 
 @pytest.mark.parametrize("changed", [None, "candidate_sha256", "database_sha256", "top_cell"])
 def test_kpex_rejects_a_database_bound_to_a_different_candidate(changed):
     """An LVS database from a different submission must not drive extraction."""
-    from benchmarking.engine.kpex import validate_binding
+    from benchmarking.engine.backends.kpex import validate_binding
     from benchmarking.files import Asset
 
     layout = Asset(b"candidate snapshot", "gds")
@@ -591,3 +639,105 @@ def test_kpex_rejects_a_database_bound_to_a_different_candidate(changed):
             validate_binding(layout, database, binding, "DUT")
     else:
         validate_binding(layout, database, binding, "DUT")
+
+
+@pytest.mark.parametrize("terminals,width,expected", [
+    (("A", "B", "SUB"), 0.5, "passed"),
+    (("B", "A", "SUB"), 0.5, "passed"),
+    (("B", "A", "A"), 0.5, "error"),
+    (("A", "A", "SUB"), 0.5, "error"),
+    (("B", "A", "SUB"), 0.6, "error"),
+], ids=["unchanged", "swapped-ends", "wrong-substrate", "shorted-ends", "wrong-width"])
+def test_kpex_uses_completed_native_lvs_after_database_reload(
+        native_tmp_path, monkeypatch, terminals, width, expected):
+    """A persisted native LVS verdict retains the device rules used to compare.
+
+    Independent oracle: a symmetric resistor connects A and B with its bulk at
+    SUB; a MIM capacitor from A to SUB distinguishes the two signal nets.
+    Reversing the resistor ends preserves that circuit; changing the bulk,
+    shorting A/B, or changing its geometry does not. Real KLayout comparison and database I/O
+    run here; only the external geometry deck and capacitance tool are replaced.
+    No process geometry or extraction-accuracy claim is made by this control.
+    """
+    db = pytest.importorskip("klayout.db")
+    pytest.importorskip("klayout_pex")
+    from types import SimpleNamespace
+
+    from benchmarking.engine.container_scripts import kpex_runner as runner
+
+    def populate(netlist, ends, device_width):
+        device_class = db.DeviceClassResistor()
+        device_class.name = "rsil"
+        device_class.clear_parameters()
+        device_class.clear_terminals()
+        device_class.clear_equivalent_terminal_ids()
+        for name in ("rsil_1", "rsil_2", "rsil_sub"):
+            device_class.add_terminal(db.DeviceTerminalDefinition(name))
+        parameters = {"w": device_width, "l": 1.0, "ps": 0.0, "b": 0.0, "m": 1.0}
+        for name in parameters:
+            device_class.add_parameter(db.DeviceParameterDefinition(name))
+        # The fixture declares its device semantics before native LVS, just as
+        # a PDK deck does. The runner must consume that completed comparison.
+        device_class.equivalent_terminal_id(1, 0)
+        netlist.add(device_class)
+        circuit = db.Circuit()
+        circuit.name = "DUT"
+        netlist.add(circuit)
+        nets = {name: circuit.create_net(name) for name in ("A", "B", "SUB")}
+        for name, net in nets.items():
+            circuit.connect_pin(circuit.create_pin(name), net)
+        device = circuit.create_device(device_class, "R1")
+        for index, name in enumerate(ends):
+            device.connect_terminal(index, nets[name])
+        for name, value in parameters.items():
+            device.set_parameter(name, value)
+        anchor_class = db.DeviceClassCapacitor()
+        anchor_class.name = "cap_cmim"
+        anchor_class.clear_parameters()
+        anchor_class.clear_terminals()
+        anchor_class.clear_equivalent_terminal_ids()
+        for name in ("mim_top", "mim_btm"):
+            anchor_class.add_terminal(db.DeviceTerminalDefinition(name))
+        for name in ("w", "l", "m"):
+            anchor_class.add_parameter(db.DeviceParameterDefinition(name))
+        netlist.add(anchor_class)
+        anchor = circuit.create_device(anchor_class, "C1")
+        anchor.connect_terminal(0, nets["A"])
+        anchor.connect_terminal(1, nets["SUB"])
+        for name, value in {"w": 2.0, "l": 3.0, "m": 1.0}.items():
+            anchor.set_parameter(name, value)
+
+    def write_database(path, ends, device_width):
+        report = db.LayoutVsSchematic("DUT", 0.001)
+        report.extract_netlist()
+        populate(report.netlist(), ends, device_width)
+        reference = db.Netlist()
+        populate(reference, ("A", "B", "SUB"), 0.5)
+        report.reference = reference
+        report.compare(db.NetlistComparer())
+        report.write(str(path))
+
+    write_database(native_tmp_path / "candidate.lvsdb", ("A", "B", "SUB"), 0.5)
+    geometry = native_tmp_path / "geometry-source.lvsdb"
+    write_database(geometry, terminals, width)
+
+    def run_geometry(*args, **kwargs):
+        (native_tmp_path / "geometry.lvsdb").write_bytes(geometry.read_bytes())
+
+    def run_capacitance(*args, **kwargs):
+        (native_tmp_path / "extracted.spice").write_text(
+            ".SUBCKT DUT A B SUB\nXphysical_1 B A SUB rsil w=0.5u l=1u m=1\n"
+            "Xphysical_2 A SUB cap_cmim w=2u l=3u m=1\n.ENDS DUT\n")
+
+    monkeypatch.chdir(native_tmp_path)
+    monkeypatch.setattr(runner.subprocess, "run", run_geometry)
+    monkeypatch.setattr(runner, "KpexCLI", lambda: SimpleNamespace(main=run_capacitance))
+    monkeypatch.setattr(runner.NetlistPrinter, "write_device", runner.NetlistPrinter.write_device)
+    config = {"top_cell": "DUT", "ports": ["A", "B", "SUB"], "substrate": "SUB"}
+    if expected == "error":
+        with pytest.raises(ValueError, match="KPEX geometry extraction differs"):
+            runner.extract(config)
+    else:
+        details = runner.extract(config)
+        assert details["physical_devices"] == {"rsil": 1, "cap_cmim": 1}
+        assert ".SUBCKT DUT A B SUB" in (native_tmp_path / "extracted.spice").read_text()

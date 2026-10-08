@@ -1,198 +1,145 @@
 # Architecture and Extension Interfaces
 
-ICLayout-Bench measures an Agent's ability to turn authoritative netlists, constraints, and process resources into GDS. The system under test includes the harness, model, prompt, context strategy, and tools; each measurement covers one task, one configuration, and one independent repetition. The benchmark owns a small session protocol and treats harness internals as opaque. Declared mode labels record measurement conditions; they do not select or install a runtime. See the root [README](../README.md) for the current public scope.
+ICLayout-Bench measures an Agent's ability to turn authoritative netlists,
+constraints and process resources into GDS. Each measurement covers one task,
+one participant configuration and one independent repetition. The benchmark
+provides task contracts, a session protocol, isolated evaluation and result
+formats; participant harness internals remain outside its control. Mode labels
+record measurement conditions and do not select or install a runtime. See the
+[root README](../README.md) for the public scope.
 
 <a id="repositories"></a>
 
-## Repository responsibilities
+## System roles and boundaries
 
-Public provides both local self-testing and participation in an operator service.
-All Public implementation lives in the `benchmarking` package. Its top-level
-modules own observation, the client, protocol, task/score definitions and analysis.
-`benchmarking.engine` owns preparation, isolated execution, immutable submissions,
-EDA backends and independent evaluation. `benchmarking.service` is the HTTP adapter
-over that engine. `benchmarking.participants` owns reusable CLI launch adapters,
-configuration resolution, MCP bridging, lifecycle cleanup and trace collection;
-`benchmarking.run` schedules explicit case lists and repetitions with bounded
-concurrency per condition, independent sessions, and case-owned result reuse. These are subpackages of one distribution, not separately
-installed products. Participant recovery uses the shared atomic file writer and
-batch lease, with private per-session credentials and frozen experiment conditions;
-see [recovery semantics](running.md#failures-retry-ownership-and-recovery). Local evaluation requires Docker and compatible tool/resources;
-remote participation does not.
+ICLayout-Bench is an installable framework for local self-testing and participation
+in a service. It loads a selected Dataset from an explicit local path or supported
+Dataset repository revision. Task contracts and declared resources are inputs;
+normal loading and evaluation do not require an authoring workspace or operator
+platform.
 
-```text
-benchmarking/
-  client.py, protocol.py, observe.py, analysis.py, ...
-  engine/     # shared evaluator and execution implementation
-  service/    # HTTP transport and local server entry point
-  participants/ # native Agent launch adapters and scoped MCP bridge
-  run.py      # experiment runner entry point
-```
+Authors prepare task descriptions, static inputs, evaluation declarations and
+reference evidence. Operators independently decide what to admit, how to deploy
+a service, and whether results or materials may be published. Authoring evidence,
+participant credentials and reference layouts are not solver inputs. A solver
+receives only the declared task inputs and reviewed resources, with writable
+access limited to its session workspace. The evaluator uses immutable candidate
+snapshots in a separate trusted environment.
 
-The engine owns the task format, validation, scoring semantics and execution.
-An independently selected Dataset owns concrete contracts, coefficients, static
-inputs, witnesses, licenses and compact acceptance summaries. Full development
-and participant-path reports are retained by the author. Dataset loading and normal
-evaluation require neither a design source checkout nor an operator platform.
+Use the installed package's documented CLI, task format, HTTP session contract
+and result formats as integration surfaces. Deployment policy, accounts,
+authorization, resource capacity and disclosure remain responsibilities of the
+service operator. Local identities and successful protocol exchanges do not by
+themselves certify a participant or grant rights to publish task materials.
+Tool images, PDK resources and local preparation are described in the
+[tool guide](tools.md).
 
-Design authors deliver validated static materials. Participants install this
-package and keep experiment configurations and terminal results in their own
-workspace. Operators implement deployment, admission, accounts, publication and
-restricted-data policy through the public interfaces. Those applications are
-consumers, not dependencies or implementation directories of this repository.
+The `python -m benchmarking.service` server is for local development: it binds
+to loopback and serves one active session. It is not a production deployment.
+Operators provide deployment authentication, TLS, capacity and task admission.
+Model credentials stay with the participant host or a controlled gateway; solver
+containers receive neither those credentials nor reference layouts.
 
-The checkout's `examples/` directory maintains participant configurations and
-instructions for running an installed wheel with Python isolated mode. Machine settings, environments and
-retained results are ignored by Git; they are not package assets. Examples accept
-explicit Dataset and endpoint inputs and do not import the enclosing source tree.
+Python callers may pass a dedicated `session_control` to `LocalService` when
+composing the local HTTP adapter. `SessionControl` accepts the run implementation
+and session factory; the same authenticated controller operations, durable replay
+and result projections remain in use. A supplied supervisor belongs exclusively
+to that controller, whose shutdown closes and joins its live sessions.
 
-The Dataset is an explicit resource input, resolved with `huggingface_hub` for HF
-repo IDs or from a supplied local Dataset working copy. `tasks/` and the official
-case-level `in_core` flags belong only to that independent data repository. HF owns download
-caches. The evaluator reads snapshot files directly and binds tools/resources in
-memory; there is no prepared case export or rewritten task configuration. Dataset
-commits and content digests are recorded separately from engine implementation.
-
-PDK preparation belongs to the shared engine. Process manifests select pinned
-upstreams or ciel prebuilt releases and evaluator profiles. The tool image
-contains EDA programs; ciel owns its installed PDK releases. Evaluator
-support and the Agent mount use the same declared installation. Agents receive
-the complete selected PDK root as a read-only bind mount. Runtime bindings stay in memory; no per-case resource directories are generated. Evaluator files
-are mounted from the installation or shared derived cache, with explicit profile
-adaptations. Archives retain the recipe and compiler identity rather than copying
-PDK contents. Task inputs and submissions remain byte snapshots. Bench does not
-maintain a second PDK checksum inventory. See the
-[preparation contract](tools.md#external-sources).
+Author tools may use `benchmarking.engine.qualification.run(runtime, output,
+retain_evaluation=True)` with a runtime from `benchmarking.engine.runtime.load_case`.
+It keeps raw evaluation evidence in `output/evaluation`, including failed runs;
+only a passing complete evaluation writes `qualification.json`. The default keeps
+only that compact report. The output must not already exist. To compose author
+backends, use `dataclasses.replace(runtime, backends=...)` before calling `run`;
+no module globals need to be modified.
 
 ### Static website hosting
 
-The public repository can host an operator-reviewed static website on its
-`gh-pages` branch. That branch contains generated HTML, browser assets and
-explicitly published data only. Website authoring, source data, accounts, review
-and export tooling remain external operator responsibilities. Neither package
-installation nor package CI depends on this branch or on a website backend.
+The repository can host an operator-reviewed static website on its `gh-pages`
+branch. That branch contains generated HTML, browser assets and explicitly
+published data only. Website authoring, source data, accounts, review and export
+tooling remain external operator responsibilities. Package installation and CI
+do not depend on this branch or on a website backend.
 
 The optional `Publish reviewed website` workflow is manually dispatched from the
 main branch after a reviewed `gh-pages` commit has been pushed. Configure the
 repository's Pages source as **GitHub Actions** and restrict the `github-pages`
-environment to the main branch. The workflow verifies the release file manifest,
-uploads that branch's static artifact and deploys it; it does not build or import
-an operator application. Alternatively, GitHub's built-in branch publishing can
-serve `gh-pages` directly when no custom workflow is enabled. Choose one method.
+environment to the main branch. The workflow verifies the release file manifest
+and deploys that branch's static artifact; it does not build or import an operator
+application. Alternatively, GitHub's built-in branch publishing can serve
+`gh-pages` directly when no custom workflow is enabled. Choose one method.
 
 Static publication is a public snapshot, including Git history. Withdrawal
 requires a new export and deployment; it cannot revoke already downloaded or
 historically committed bytes. A custom domain can later point to an operator
 service while preserving public route and record identifiers.
 
-### Execution entry points
+<a id="execution-entry-points"></a>
 
-`python -m benchmarking.run` is the participant experiment entry point. It owns
-TOMLs, launch adapters, case/repetition scheduling, recovery and terminal exports.
-`python -m benchmarking.engine.cli` owns task inspection, candidate evaluation,
-characterization and inference preflight. It does not launch participant experiments.
+### Participant and evaluation entry points
 
-| Method | Control program | Execution location |
-| --- | --- | --- |
-| Built-in harness | Installed Codex, Claude Code or DSH; Public supplies launch settings and observation | Participant host; layout commands execute in the service's isolated solver workspace |
-| Harness with tool A | The same harness, with declared instructions, stdio MCP tools and/or A installed in a pinned solver image | MCP processes on the participant host; Python/CLI layout tools in the solver workspace |
-| Custom participant | A declared command owning its decision loop and using Public's HTTP client or MCP bridge | Participant-selected host, container or remote deployment; the launcher must forward the session contract to that runtime |
+`python -m benchmarking.run` runs participant experiments from explicit
+configurations, task selections and repetitions. `python -m benchmarking.engine.cli` inspects tasks and evaluates or characterizes candidate
+layouts; it does not launch a participant experiment. See the [participation guide](running.md) for configuration and command details.
 
-Adding a Python library or layout abstraction does not require writing a new
-Agent. Install it in the solver image and give the existing harness instructions
-for using it. A custom command is appropriate when the participant already has
-its own control program. Public supervises that command without implementing its
-Agent loop. See [scheme configuration](running.md#participant-tool-schemes).
+| Participation method | Participant control | Execution location |
+|---|---|---|
+| Built-in harness | An installed Codex, Claude Code, DSH or other supported harness owns its model and action loop. | Participant host; layout commands run in the isolated solver workspace. |
+| Harness with declared tools | The harness uses declared instructions and optional MCP or command-line tools. | MCP processes may run on the participant host; layout tools run in the solver workspace. |
+| Custom participant | A participant command owns its decision loop and uses the HTTP client or MCP interface. | Participant-selected host, container or remote deployment. |
 
-The solver environment and trusted evaluator are separate. A scheme freezes its
-instructions, declared tool files, executable bytes and optional solver image.
-The service attests a separate evaluator identity from the task, trusted inputs,
-backend identities and evaluation implementation. A/B comparisons share only an
-identical evaluator context and limits; scheme identities remain distinct.
-Historical unsplit tool identities stay intact and are not promoted into new
-attestations. Local identities never imply operator verification.
+Install and authenticate vendor CLIs separately; the package does not install
+them. A custom participant is responsible for forwarding the session contract
+to its runtime. Installing a Python library or layout abstraction alone does not
+require a new harness.
 
-The local HTTP service advertises `process-feedback`. The participant MCP `check`
-tool and `benchmarking.client check` invoke the service-owned
-`/protocol/process_check.py` through the normal execution channel. Each call freezes
-the current declared output, runs the complete final evaluation plan with the same
-trusted backends, and returns bounded job diagnostics and the evaluator identity.
-It consumes the existing solve deadline and diagnostic allowance, creates no
-submission, and never replaces the independent final evaluation. Solver-authored
-EDA commands remain exploratory; they are not the authoritative acceptance path.
+### Evaluation identity and process checks
 
-`benchmarking.engine.qualification` verifies a witness through direct evaluation,
-HTTP/MCP checking and final HTTP submission. The three paths must agree on every
-job/metric acceptance status and task outcome. All measurements and scores are
-retained; score and per-condition numerical spreads must also satisfy the
-[repeatability limits](../CONTRIBUTING.md#task-qualification). Retained evidence binds the
-contract, witness, PDK declaration, evaluator and participant-check implementation.
-The core publication gate receives an explicit external case-to-evidence map and
-rejects missing or stale evidence; qualification does
-not rely on the catalog status alone. See [qualification](../CONTRIBUTING.md#task-qualification).
+A participant configuration freezes its instructions, declared tools and
+optional solver image. The evaluator independently identifies the task, trusted
+inputs, backend resources and evaluation implementation. A/B comparisons require
+matching evaluator context and limits; participant configurations remain
+separate conditions. Local identities never imply operator verification.
 
-`benchmarking.engine.execution.run_session` requires the caller's session. It
-records inputs, runs that session and evaluates its accepted snapshot. The HTTP
-service supplies its attached workspace session; external orchestrators may
-supply another compatible frozen session. Orchestrator-specific admission,
-replacement and release policies remain with that consumer.
+The local HTTP service may advertise `process-feedback`. When available, the
+participant client or MCP `check` operation asks the service to evaluate the
+current declared output using the normal trusted evaluation path. A check consumes
+the existing solve deadline and diagnostic allowance, creates no submission,
+and does not replace final independent evaluation. Inline and paginated check
+reports expose candidate measurements and engineering diagnostics, without total
+scores or scoring breakdowns. Complete scores belong to the final result after
+execution ends. Solver-authored EDA commands remain exploratory.
 
-### Result handoff and storage ownership
+Authors should retain qualification evidence for delivered task inputs and
+reference layouts. The public evaluator can verify an explicitly supplied
+reference against its recorded run and declared evaluation inputs; this does not
+certify author identity, material rights or operator publication decisions.
+
+<a id="result-handoff-and-storage-ownership"></a>
+
+## Result handoff and storage ownership
 
 | Boundary | Owner | Responsibility |
-| --- | --- | --- |
-| Evaluation and terminal export | Installed package, invoked by a participant | Run the declared experiment, observe the evaluator and write the shared result format without changing its verification level. |
-| Participant experiment workspace | Participant | Choose configurations, invoke the installed Public runner and retain original exports; it has no website database credentials or publication authority. |
-| Optional participant archive | Public `benchmarking.results`, installed in the participant environment | Index exports for local inspection; this is separate from the operator website's database. |
-| Website ingestion and retained archive | Operator | Accept operator-selected exports, validate and deduplicate using Public code, store metadata and artifacts, and track import diagnostics. |
-| Public disclosure | Operator | Review and publish results and assets separately, calculate website rankings and enforce withdrawal. |
+|---|---|---|
+| Evaluation and terminal export | Installed framework, invoked by a participant | Run the declared experiment and write results without changing their evaluation mode. |
+| Participant experiment workspace | Participant | Select configurations, retain original exports and control any local archive. It has no operator website credentials or publication authority. |
+| Optional local archive | Participant or operator, using the documented archive interface | Index exports for local inspection; it is separate from an operator website. |
+| Website ingestion and retained archive | Operator | Select imports, validate and deduplicate packages, retain metadata and artifacts, and track import diagnostics. |
+| Public disclosure | Operator | Review and publish results and assets, calculate rankings and handle withdrawal. |
 
-Submitting a candidate to an evaluation session, transferring terminal exports,
-importing records and publishing them are separate operations. Public's
-`benchmarking.transfer` owns the portable package contract and generic upload/status
-client. When enabled by the operator, its application accepts authenticated HTTP uploads,
-assigns account ownership and source labels, validates packages, and queues ingestion.
-The participant's
-`results_data` outbox only indexes its selected local archive; it is not a website
-delivery queue. Evaluation `--endpoint` and upload `--website` are distinct services.
+Candidate submission to an evaluation session, transfer of terminal exports,
+archive import and publication are separate operations. The optional delivery
+client creates a portable package and can upload it only when a deployment
+explicitly enables participant access. A successful transfer reports receipt or
+a durable job identifier, not a publication promise. See [website result
+delivery](running.md#website-result-delivery).
 
-A participant uses the installed Public client and has
-no website database credentials or publication authority. Operators may support
-administrator-triggered imports from a configured read-only filesystem root.
-A same-machine mount is a data handoff, not a source dependency. Neither
-upload nor import promotes an evaluation's recorded verification level. Configuring
-the generic archive with PostgreSQL does not authorize direct production writes.
-
-The archive accepts an `object_store` with `put(bytes) -> (sha256, size)` and
-`path(sha256) -> Path`. Public supplies `FileObjects`; operator applications may supply S3 objects
-with a disposable local cache. `ResultStore.artifact` checks SQL membership and
-content digests regardless of storage. Public's SQLAlchemy `results.schema` and
-`ensure_record` support transactional joins and insert-once records; operators own
-their publication/ownership tables and queries. This avoids per-table forwarding
-APIs and private-method overrides. Schema changes require coordinated consumers
-and table initialization; no database schema or recorded identity is changed by choosing
-an object adapter.
-
-See [website result delivery](running.md#website-result-delivery) for the package,
-client commands and failure/retry contract. Operators own provider configuration,
-email delivery, accounts, authorization, storage, review and publication.
-
-Local self-testing and operator-service participation use `layout-http`,
-the same task checks and scoring arithmetic.
-Local results are always `local_development`; a harness name does
-not certify a participant-controlled run. Only a frozen evaluator-operated rerun
-can receive `evaluator_verified`. Equal task, resources, engine and tool identities
-are needed to compare local and operator results; hidden tasks can differ.
-`tool_identity.public_revision` is a `sha256:` content identity of the installed
-Public implementation, including packaged runtime resources, independent of Git.
-
-The local service binds to loopback, supports one active session and advertises
-no optional diagnostics/opinions. It retains receipts across restart, marks lost
-live work as an error, and requires manual cleanup after retention. It is a local
-development server, not a supplied production deployment. Operators must provide
-their deployment authentication, TLS, capacity and task admission arrangements.
-Model credentials stay with the local harness or controlled host gateway; solver
-containers receive neither credentials nor reference layouts.
+Participants do not receive website database credentials. An operator may also
+import from a configured read-only filesystem location; a shared mount is a data
+handoff, not a source dependency. Importing or moving results never upgrades the
+recorded evaluation mode. Direct production database writes require explicit
+operator authorization.
 
 <a id="http-session"></a>
 
@@ -209,7 +156,10 @@ required request member.
 Use `Authorization: Bearer <token>` on every request. An operator-issued access
 token can create sessions; creation returns a fresh token scoped to that one
 session's operations and evidence. Use TLS except on loopback for development.
-Credentials never enter EDA containers. Cross-session and nonexistent identifiers
+Model, website and session credentials never enter EDA containers. Explicit
+commercial runtimes may provide only the reviewed tool license access described
+in [external commercial runtimes](tools.md#external-commercial-runtimes).
+Cross-session and nonexistent identifiers
 both return `404` after authentication.
 
 Errors have the shape
@@ -246,10 +196,11 @@ override it. It is covered by task identity and cannot change during recovery.
 The creation response's `limits` contains `wall_seconds`, `cpus`, `memory_mb`,
 `pids`, `workspace_mb`, `max_file_bytes`, `max_response_bytes`,
 `max_candidate_bytes`, `max_command_seconds`, `max_log_bytes`,
-`diagnostic_requests`, `opinion_requests`. The server enforces them. A command is
+`opinion_requests`. The server enforces them. A command is
 capped by remaining session time. The local service sets `max_command_seconds`
-to `wall_seconds`; participant adapters add no mutation-count budget or shorter
-execution deadline. Repetitions belong to experiment scheduling. Logs are bounded with explicit truncation.
+to `wall_seconds`; the built-in participant runner adds no mutation-count budget
+or shorter execution deadline. Repetitions belong to experiment scheduling.
+Logs are bounded with explicit truncation.
 Only one execution or workspace read/write/snapshot can run at once; conflicting
 requests return `409`. The deadline and explicit close take precedence and stop
 execution before freezing the final selection. Failed creation never returns an
@@ -275,7 +226,8 @@ also includes the common `protocol` field.
 | Method and path | Request | Success fields |
 |---|---|---|
 | `POST /sessions` | `task_id`, `condition` | `session_id`, `session_token`, status fields, `task`, `capabilities`, `limits`, `tool_identity`, `retained_until` |
-| `GET /sessions/{sid}` | None | `session_id`, `state`, `created_at`, `deadline`, `remaining_seconds`, `active_execution_id` (nullable), `last_submission` (nullable receipt), `diagnostics_remaining`, `opinions_remaining` |
+| `GET /sessions/{sid}/reports/{report_id}?offset=N` | None | Participant diagnostic JSON `content`, character `next_offset`, `has_more`; session-token scoped, available after closure |
+| `GET /sessions/{sid}` | None | `session_id`, `state`, `created_at`, `deadline`, `remaining_seconds`, `active_execution_id` (nullable), `last_submission` (nullable receipt), `diagnostics` (request/completion counts and elapsed seconds), `opinions_remaining` |
 | `GET /sessions/{sid}/file?path=...` | URL-encoded relative path | `path`, `content_base64`, `sha256`, `size_bytes` |
 | `POST /sessions/{sid}/files` | `path`, `content_base64` | `path`, `sha256`, `size_bytes` |
 | `POST /sessions/{sid}/executions` | `command` (shell string), `timeout_seconds` | `execution_id`, `state` |
@@ -304,7 +256,10 @@ approved resources under `/resources`. Only `/workspace` is accessible through
 file APIs. Paths use POSIX relative syntax excluding empty segments, `.`, `..`,
 NUL, absolute paths, symlinks and special files. Resolve beneath the workspace
 without races against commands; writes are atomic. Commands use `/bin/sh -lc`
-in `/workspace`, with no network, credentials, references or private repo mounts.
+in `/workspace`, with no network by default, no model, website or session
+credentials, references or private repo mounts. An explicitly selected commercial
+runtime may provide reviewed tool license access and an operator-restricted
+license network as described in the [tool guide](tools.md#external-commercial-runtimes).
 
 Receipts contain `submission_id`, `sequence` (increasing within the session),
 `candidate_sha256`, `size_bytes`, `accepted_at`. The server snapshots a bounded
@@ -325,7 +280,7 @@ identity or absence of human assistance. Different Agent configurations remain
 separate comparison groups.
 
 Results contain `session_id`, `state`, `task_id`, `task_sha256`, `condition`,
-`tool_identity`, `limits`, `verification_level`, `provenance`, `usage`,
+`tool_identity`, `limits`, `evaluation_mode`, `provenance`, `usage`,
 `submission` (nullable receipt), `outcome`, `task_success`, `score`, `metrics`,
 `failure_reason`, `evidence`. Before terminal state, verdict fields are null and
 metrics/evidence empty. Terminal `outcome` is `pass`, `fail`, `no_submission` or
@@ -334,8 +289,10 @@ success. Score uses the public task score envelope and incomplete-attempt policy
 Metrics retain units and missing values from the evaluation specification. Do
 not conflate physical failure, no submission and infrastructure errors.
 
-`verification_level` is `local_development`, `service_recorded` or
-`evaluator_verified`; the last requires a frozen evaluator-operated rerun.
+`evaluation_mode` describes who controls execution: `self_run` for participant-run
+experiments, or `controlled_run` for operator-controlled execution with frozen
+conditions and checked evidence. It is independent of pass/fail, score, publication
+and model identity certification. The field is required and accepts only these two values.
 `provenance` maps `candidate`, `interaction`, `condition`, `usage` to
 `server_observed`, `participant_reported` or `unknown`. `usage` contains nullable
 `input_tokens`, `output_tokens`, `cached_input_tokens`, `reasoning_output_tokens`,
@@ -354,144 +311,96 @@ scores. Hidden-task result export requires disclosure review.
 
 ## Evaluation observation and participant control
 
-The evaluation framework and the participant Agent harness are separate layers.
-Codex, Claude Code, DSH or another participant owns its conversation, context,
-model calls and tool choices. ICLayout-Bench supplies the task, isolated workspace,
-HTTP tools, server-enforced budgets, observation and independent scoring. It does
-not choose the participant's next action. `benchmarking.official` and its
-structured-action solver loop have been removed.
+The participant harness owns its conversation, model calls and tool choices.
+ICLayout-Bench supplies the task, isolated workspace, HTTP operations, enforced
+budgets, observation and independent scoring; it does not choose the participant's
+next action.
 
 `GET /sessions/{id}/observations?offset=0` is a read-only, session-token-scoped
 view of successful API interactions. It returns `session_id`, `provenance`
 (`server_observed`), `available`, ordered `events`, `next_offset` and `has_more`.
-The offset is a zero-based event count; each event has `sequence`, `timestamp`,
+Offsets count events from zero; each event contains `sequence`, `timestamp`,
 `kind` and `data`. Pages contain up to 100 events and approximately 256 KiB.
-Invalid offsets are rejected. Poll from `next_offset` while `has_more` is true;
-a caught-up active session can gain events later. Reading observations never
-advances the Agent, closes its session or consumes an action allowance.
+Poll from `next_offset` while `has_more` is true. Reading observations never
+advances the participant, closes the session or consumes an action allowance.
 
-Events cover session creation, accepted file writes/reads (path and digest),
-execution requests (command and timeout), execution completion, submissions,
-cancellation and closing. Idempotent mutation replays do not duplicate events.
-They persist across restart. Denied requests, Agent-local activity and internal
-model reasoning are outside this stream. Original execution logs remain available
-through the execution polling interface. The endpoint exposes API-visible material,
-not the evaluator's internal journal, hidden inputs or judge diagnostics. Older
-stores without this stream return `available: false`, not fabricated history.
+Events may include session creation, accepted file reads and writes, execution
+requests and completion, submissions, cancellation and closing. Denied requests,
+participant-local activity and model reasoning are not included. Execution logs
+remain available through the execution polling API. The observation endpoint
+exposes API-visible material only; it does not reveal evaluator journals, hidden
+inputs or judge diagnostics. Older services without the stream report
+`available: false`.
 
-`benchmarking.observe` snapshots these events and the service result, while
-optionally copying explicitly supplied local participant traces into a separate
-`participant/` directory. Its manifest binds file digests and distinguishes
-`server_observed` from `participant_reported`. It can run during or after a session;
-an active snapshot is partial. Public participant adapters collect available CLI messages,
-tool traces and session records through this exporter without imposing a benchmark
-reasoning loop. Trace coverage depends on the CLI; hidden reasoning is not assumed
-available. CLI usage counters remain raw participant evidence and never overwrite
-service usage or change a result's trust label. Files are local, never uploaded.
+The optional observation export can combine service events and a result with
+explicitly supplied participant trace files. Its manifest distinguishes
+`server_observed` from `participant_reported`; active-session snapshots are
+partial. Trace coverage depends on the participant CLI, and hidden reasoning is
+not assumed available. Participant usage counters do not overwrite service usage
+or change a result's evaluation mode. Local traces are not uploaded automatically.
 
-Public scoring arithmetic and task/evaluation schemas remain auditable. The shared evaluator
-freezes inputs and executes the declared checks against immutable candidates.
-Public can evaluate public Dataset tasks locally without an operator account. Protocol
-simulators return explicit errors and cannot be analyzed as model measurements.
-
-Only independently verified evaluator-controlled conditions can receive
-`evaluator_verified`. The generic operator process launcher freezes its command,
-files and declared condition, and binds the complete task/repetition schedule,
-service observations, receipts and independent reports. Its outputs remain
-`service_recorded`: starting a process does not attest its remote model identity. Unknown usage stays null; CLI
-usage counters in private transcripts do not become gateway-observed usage.
-
-Public analysis groups identical harness/model/prompt/configuration, tool, budget
-and trust conditions separately. It preserves infrastructure errors and missing
-values rather than filling them with zeros. Hidden-task admission and conservative
-aggregate disclosure remain evaluator-side operations.
+Public task schemas and scoring arithmetic remain auditable. The evaluator uses
+frozen inputs and immutable candidate snapshots. Protocol simulators are for
+interface testing only and cannot be analyzed as model measurements. Hidden-task
+admission and aggregate disclosure remain operator responsibilities.
 
 ## Result archive and platform presentation
 
-`benchmarking.results` owns database import, immutable run/evaluation identities,
-artifact copies, comparison grouping, task presentations and table initialization.
-Its `ResultStore` interface is shared by the CLI, participant outbox and operator platform.
-SQLAlchemy initializes the current tables in local SQLite and PostgreSQL. Existing
-tables are updated explicitly with a backup and retained-data verification; startup
-does not transform existing columns. Repository Git tags identify code releases.
-Maintained formats use one current shape without numeric schema fields or version
-dispatch. Published leaderboard revisions are independent business records.
-Original exports remain evidence, while normalized columns serve paginated queries.
-Evaluation revisions are append-only. Content-addressed artifacts are persisted
-before their SQL references are committed; an interrupted transaction can leave
-unreferenced objects but never a committed reference to an unwritten object.
+The optional `results` extra provides an offline archive CLI for importing,
+querying and presenting terminal result collections. It preserves task, candidate
+and condition identities and the recorded evaluation mode; importing a local
+run does not certify it. The operator platform owns result browsing, review and
+publication. The package does not ship a standalone viewer or frontend. See
+[result storage and presentation](running.md#result-archive) for supported
+commands and formats.
 
-Operators own the unified Web service, browser frontend, HTTP routes and publication
-permissions. Public ships shared result storage, queries and presentation processing
-through the optional `results` extra, with no standalone Web server or frontend.
-The evaluation HTTP service remains a separate execution interface.
+The archive accepts an `object_store` implementing `put(bytes) -> (sha256, size)`
+and `path(sha256) -> Path`. The default stores content-addressed files locally;
+operator integrations can supply another storage adapter. Artifact membership
+and content digests are checked independently of the storage backend. The
+`ResultStore` interface supports archive consumers that need transactional
+imports and queries; operators retain ownership of publication and account data.
 
-`benchmarking.participants.archive` is a terminal-export outbox. A committed result
-can be indexed or retried without altering a session or invoking a provider.
-Indexing is opt-in through TOML `results_data`, `--results-data`, or
-`ICLAYOUT_BENCH_RESULTS_DATA`; storage selection does not change run identity.
-Prepared environments, authentication homes and `.runtime` are not archive inputs.
-Task presentations use explicitly supplied Public catalog resources at recorded
-Git revisions. They remain analysis assets, never implicit solver inputs. Authored SVGs can
-come from a separately selected Git revision only after case identity, source
-netlist digest, asset digest and embedded provenance checks. The archive records
-both revisions; the platform renders images without embedding an editor.
+Local SQLite archives keep `results.sqlite3` with the associated `objects/`
+directory. Back up or move them together after stopping readers and writers;
+verify a restored copy before use. PostgreSQL is available for shared archive
+metadata, with an associated attachment store required for all processes.
+Neither backend is a website publication policy. See the running guide for
+backup and migration details.
 
-Participants install this package and choose storage and configuration.
-The operator remains responsible for formal deployments and disclosure. A public
-platform must consume reviewed exports rather than unrestricted hidden-task stores.
-See [result archive operation](running.md#result-archive) for formats, comparison
-semantics, presentation limitations and backups.
+Result comparisons keep task, tool identity, budget, condition, provenance and
+evaluation mode separate. Missing or failed observations remain explicit and
+are not filled with zero. Task presentations are analysis assets, not solver
+inputs. Catalog revisions and authored drawings are checked against the recorded
+task and netlist identity; presentation changes do not alter scores or trust
+labels.
+
+<a id="verified-reruns-and-disclosure"></a>
 
 ## Verified reruns and disclosure
 
-The public [protocol](#http-session) owns trust labels and result
-fields. Admission, raw evidence verification and release construction execute in
-operator applications. A participant harness identity does not raise its trust level.
+The [HTTP protocol](#http-session) distinguishes `self_run` from `controlled_run`.
+Self-run experiments are organized by the participant, on a local or remote host.
+Controlled runs require the operator to control execution, freeze conditions and
+check the complete evidence; merely launching someone else's command is insufficient.
+The operator records the task and input identities, participant configuration,
+resources, budgets, repetition schedule, candidate bytes and independent verdicts.
+Missing or modified evidence prevents verification. A declared remote model
+identifier describes requested conditions; it does not attest to the provider's
+internal implementation. Unknown usage remains null. Import, publication and
+an official source label do not change the evaluation mode.
 
-### Frozen evaluator-operated reruns
-
-Before model calls, an operator freezes the task set and digests, model/harness
-configuration, prompt policy, source digests, participant executable identity, EDA image and
-backend identities, resource inventories, budgets and repetition schedule. Each
-slot starts an independent workspace. The pre-run manifest digest is retained
-outside the output bundle as the verification anchor.
-
-The operator checks every scheduled slot, the harness configuration and action
-transcript, last durable submission, archived candidate bytes and independent
-verdict. Modified evidence or missing repetitions fail verification. The generic participant-process
-launcher retains `service_recorded`, including failed launches: it freezes declared
-configuration but cannot attest the actual remote model. `evaluator_verified`
-requires independently verified controlled conditions. Local runs remain
-`local_development`. These are
-operator assertions backed by evidence, not signatures authenticating a remote
-operator. Publish the identity/trust arrangement separately when deploying a service.
-
-CLI-reported token counters remain separate from service-observed usage. A frozen
-model identifier establishes requested conditions, not an assertion about a remote
-provider's internal implementation. Unknown cost/usage is never zero-filled.
-
-### Hidden data
-
-Restricted tasks and evidence are external operator inputs. The public package
-does not define an operator's authorization workflow, exposure reservations or
-aggregate disclosure policy. A deployment must enforce those policies before
-calling execution or publishing results. Generic trust labels do not establish
-asset rights or authorize disclosure.
-
-### Publication boundary
-
-Analysis is local by default. Generating a reviewed release artifact does not
-upload it or make a leaderboard. Keep credentials and growing raw evidence out
-of Git. Actual hidden-task qualification, deployment identities and authority to
-publish restricted materials must exist before a real hidden release. The
-framework's tests and a successful public rerun do not supply that authority.
+Restricted task data and evidence are supplied by the operator. Deployments must
+enforce authorization, exposure and aggregate disclosure policies before running
+restricted tasks or publishing results. Evaluation modes do not establish asset
+rights or authorize disclosure. Generating a release artifact does not upload it
+or create a leaderboard; release approval belongs to the operator.
 
 ## Pre-layout calibration and post-layout evaluation
 
-the design authoring workspace owns source-circuit characterization, target selection and retained
-calibration evidence. Public receives frozen `pre_layout` measurements alongside
-the static case. Candidate evaluation executes candidate-dependent post-layout
-jobs and compares their observations with those fixed baselines. It never runs
-source characterization to set targets during candidate evaluation. See
-[tasks](tasks.md#electrical-quality) for the contract and invalidation rules.
+Task authors supply fixed pre-layout measurements with the static task when the
+evaluation uses them. Candidate evaluation runs candidate-dependent post-layout
+checks and compares their observations against those frozen baselines; it does
+not generate new author baselines during a participant run. See
+[electrical quality](tasks.md#electrical-quality) for contract and invalidation
+rules.

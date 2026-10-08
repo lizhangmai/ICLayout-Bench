@@ -10,7 +10,7 @@ import tomli_w
 from helpers.catalog import CASES, read_case
 from helpers.protocol import write_protocol_task
 
-from benchmarking.engine.runtime import load_case
+from benchmarking.engine.runtime import load_case, load_case_inputs
 from benchmarking.tasks import load_task
 
 pytestmark = [pytest.mark.unit, pytest.mark.acceptance, pytest.mark.acceptance_fast]
@@ -101,6 +101,17 @@ def test_runtime_uses_source_case_and_only_materializes_declared_inputs(preview_
     case.task.materialize(root.parent / "solver")
     assert {p.name for p in (root.parent / "solver").iterdir()} == {"input.spice"}
     assert case.witness().content == (source / "reference.gds").read_bytes()
+
+
+def test_reference_inputs_load_without_pdk_or_tool_image(preview_case, monkeypatch):
+    from benchmarking.engine import runtime
+
+    root, source = preview_case
+    (root / "tasks/synthetic-pdk/pdk.toml").unlink()
+    monkeypatch.setattr(runtime.subprocess, "check_output", lambda *args, **kwargs: pytest.fail("Tool image inspected"))
+    selected = load_case_inputs(source / "case.toml")
+    assert selected.task.digest == load_task(source / "case.toml").digest
+    assert selected.witness().content == b"Maintainer-only witness"
 
 
 @pytest.mark.parametrize("shared_blobs", [False, True])

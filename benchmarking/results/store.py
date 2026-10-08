@@ -1,136 +1,26 @@
 """Import, query and compare immutable measurements through one archive interface."""
 
-import hashlib
 import json
-import math
-import mimetypes
-import re
 from datetime import UTC, datetime
 from pathlib import Path
-from statistics import mean, stdev
 
 from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from benchmarking.files import atomic_write, read_file
-from benchmarking.protocol import evaluation_tools
+from benchmarking.protocol import evaluation_mode, layout_score_value
 
 from . import schema as s
+from .comparison import aggregate
+from .importing import prepare_result
+from .normalization import digest, finite, media
+from .objects import FileObjects
 
-
-def digest(value):
-    raw = (
-        value
-        if isinstance(value, bytes)
-        else json.dumps(
-            value, sort_keys=True, separators=(",", ":"), allow_nan=False
-        ).encode()
-    )
-    return hashlib.sha256(raw).hexdigest()
+__all__ = ["ResultStore", "ensure_record", "now"]
 
 
 def now():
     return datetime.now(UTC).isoformat()
-
-
-def finite(value):
-    if value is None:
-        return None
-    if (
-        isinstance(value, bool)
-        or not isinstance(value, (float, int))
-        or not math.isfinite(value)
-    ):
-        raise ValueError("Expected a finite measurement or null")
-    return value
-
-
-def media(name):
-    return {
-        ".gds": "application/octet-stream",
-        ".jsonl": "text/plain",
-        ".spice": "text/plain",
-        ".cdl": "text/plain",
-        ".md": "text/plain",
-    }.get(
-        Path(name).suffix, mimetypes.guess_type(name)[0] or "application/octet-stream"
-    )
-
-
-def normalize(raw):
-    """Read compact exports and disclosed protocol results without inventing identities."""
-    if raw.get("test_only"):
-        raise ValueError("Protocol fixtures are not model measurements")
-    if "evaluation" in raw:
-        if raw.get("format") != "participant-result" or raw.get("state") != "finished":
-            raise ValueError("Expected a finished supported compact result")
-        evaluation = raw["evaluation"]
-        identity, summary = raw.get("identity", {}), raw.get("summary", {})
-    elif raw.get("protocol") == "layout-http":
-        evaluation, identity, summary = raw, {}, {}
-    else:
-        raise ValueError(
-            "Unsupported result format"
-        )
-    if evaluation.get("test_only") or evaluation.get("state") not in {
-        "complete",
-        "error",
-    }:
-        raise ValueError("Expected a terminal model evaluation")
-    if evaluation.get("outcome") not in {"pass", "fail", "no_submission", "error"}:
-        raise ValueError("Unknown terminal outcome")
-    task_id = evaluation.get("task_id") or summary.get("task")
-    if not isinstance(task_id, str) or not task_id:
-        raise ValueError("Missing task identity")
-    plans = identity.get("plan") or [{}]
-    plan = next((p for p in plans if task_id in p.get("tasks", [])), plans[0])
-    resolved = plan.get("resolved") or {}
-    condition = dict(evaluation.get("condition") or {})
-    condition.update(
-        harness=plan.get("harness", condition.get("harness_id")),
-        cli_version=identity.get("cli_version"),
-        model=plan.get("model", condition.get("model")),
-        effort_requested=summary.get(
-            "effort_requested", resolved.get("effort_requested", plan.get("effort"))
-        ),
-        effort_resolved=summary.get(
-            "effort_resolved", resolved.get("effort_resolved", plan.get("effort"))
-        ),
-        provider_effective_effort=summary.get(
-            "provider_effective_effort", resolved.get("provider_effective_effort")
-        ),
-    )
-    tools = evaluation.get("tool_identity") or {}
-    if "evaluator" in tools:
-        condition["solver_image"] = tools.get("image_id")
-        condition["solver_resources"] = tools.get("solver_resources")
-    if "scheme" in plan:
-        from benchmarking.participants.scheme import identity as scheme_identity
-        condition["scheme"] = scheme_identity(plan["scheme"])
-        condition["scheme_name"] = plan.get("name")
-        condition["scheme_sha256"] = digest(condition["scheme"])
-    task_identity = {
-        "task_sha256": evaluation.get("task_sha256"),
-        "benchmark": identity.get("benchmark"),
-        "dataset": (identity.get("inputs", {}).get(task_id, {}).get("dataset")
-                    or plan.get("dataset")),
-    }
-    # Unknown task versions stay isolated by session; a release identity is an explicitly weaker fallback.
-    if not task_identity["task_sha256"] and not (
-        task_identity.get("benchmark") or {}
-    ).get("commit"):
-        task_identity["unknown_version_scope"] = evaluation.get("session_id") or digest(
-            raw
-        )
-    repetition = summary.get("repetition", 1)
-    if (
-        not isinstance(repetition, int)
-        or isinstance(repetition, bool)
-        or repetition < 1
-    ):
-        raise ValueError("Invalid repetition")
-    return evaluation, condition, task_id, task_identity, repetition
 
 
 def ensure_record(conn, table, key, values):
@@ -143,30 +33,6 @@ def ensure_record(conn, table, key, values):
     if result.rowcount:
         return None
     return conn.execute(select(table).where(*predicate)).mappings().one()
-
-
-class FileObjects:
-    """Content-addressed files; storage adapters implement put(bytes) and path(sha)."""
-
-    def __init__(self, root):
-        self.objects = Path(root)
-        self.objects.mkdir(parents=True, exist_ok=True, mode=0o700)
-
-    def path(self, sha):
-        if not re.fullmatch(r"[0-9a-f]{64}", sha):
-            raise ValueError("Invalid artifact identity")
-        return self.objects / sha[:2] / sha
-
-    def put(self, raw):
-        sha = digest(raw)
-        path = self.path(sha)
-        path.parent.mkdir(exist_ok=True, mode=0o700)
-        if path.exists():
-            if digest(path.read_bytes()) != sha:
-                raise ValueError("Stored artifact is corrupt: " + sha)
-        else:
-            atomic_write(path, raw)
-        return sha, len(raw)
 
 
 class ResultStore:
@@ -188,7 +54,7 @@ class ResultStore:
                 connection.execute("PRAGMA journal_mode=WAL")
 
         # Serialize table initialization across local CLI / web processes.
-        from benchmarking.engine.recorder import BatchLease
+        from benchmarking.locking import BatchLease
 
         with BatchLease(self.root), self.engine.begin() as conn:
             s.metadata.create_all(conn)
@@ -204,11 +70,10 @@ class ResultStore:
         namespace="local",
         reevaluation=False,
     ):
-        path = Path(path)
-        path = path / "result.json" if path.is_dir() else path
-        original = read_file(path.parent, path.name)
-        raw = json.loads(original)
-        evaluation, condition, task_id, identity, repetition = normalize(raw)
+        prepared = prepare_result(path, namespace)
+        raw, evaluation, condition = prepared.raw, prepared.evaluation, prepared.condition
+        task_id, identity, repetition = prepared.task_id, prepared.identity, prepared.repetition
+        run_data, files, missing = prepared.run_data, prepared.files, prepared.missing
         tid, cid = digest([task_id, identity]), digest(condition)
         sid = evaluation.get("session_id")
         endpoint = (raw.get("identity") or {}).get("endpoint")
@@ -220,65 +85,15 @@ class ResultStore:
         )
         fingerprint = digest(evaluation)
         eid = digest([rid, fingerprint])
-        run_data = {
-            "benchmark": (raw.get("identity") or {}).get("benchmark"),
-            "tool_identity": evaluation.get("tool_identity"),
-            "limits": evaluation.get("limits"),
-            "top_cell": raw.get("top_cell"),
-            "candidate_sha256": (evaluation.get("submission") or {}).get(
-                "candidate_sha256"
-            ),
-            "candidate_identity": "recorded"
-            if (evaluation.get("submission") or {}).get("candidate_sha256")
-            else "import_time_only",
-            "execution": raw.get("execution"),
-            "attempts": raw.get("attempts", []),
-            "image": raw.get("image"),
-            "namespace": namespace,
-        }
-        files = {"result.json": original}
-        missing = []
-        for name in dict.fromkeys(
-            list(raw.get("files", []))
-            + [
-                "final.gds",
-                "layout.png",
-                "evaluation/report.json",
-                "evaluation/plan.json",
-            ]
-        ):
-            # Never scan recovery/authentication directories, even if a supplied manifest lists one.
-            if any(p.startswith(".") for p in Path(name).parts) or name.startswith(
-                "participant/"
-            ):
-                raise ValueError("Private runtime files cannot be imported")
-            try:
-                content = read_file(path.parent, name)
-            except FileNotFoundError:
-                missing.append(name)
-                continue
-            if (
-                name == "final.gds"
-                and run_data["candidate_sha256"]
-                and digest(content) != run_data["candidate_sha256"]
-            ):
-                raise ValueError("Candidate differs from scored submission")
-            files[name] = content
-        if "evaluation/report.json" in files:
-            report = json.loads(files["evaluation/report.json"])
-            if report.get("score") != evaluation.get("score"):
-                raise ValueError("Evaluation report and service score disagree")
-        run_data["imported_candidate_sha256"] = (
-            digest(files["final.gds"]) if "final.gds" in files else None
-        )
         stored = {name: self.object_store.put(content) for name, content in files.items()}
         immutable = {
             k: v
             for k, v in run_data.items()
             if k not in {"image", "tool_identity", "limits"}
         }
-        score = evaluation.get("score") or {}
-        value = finite(score.get("value")) if evaluation["outcome"] != "error" else None
+        value = layout_score_value(evaluation.get("score"))
+        if evaluation["outcome"] == "error":
+            value = None
         xvalues = {"name": experiment, "schedule": []}
         xid = digest([namespace, experiment])
         with self.engine.begin() as conn:
@@ -336,13 +151,11 @@ class ResultStore:
                 {
                     "run_id": rid,
                     "fingerprint": fingerprint,
-                    "method": score.get("method"),
+                    "method": "layout",
                     "score": value,
                     "outcome": evaluation["outcome"],
                     "task_success": evaluation.get("task_success"),
-                    "verification_level": evaluation.get(
-                        "verification_level", "unknown"
-                    ),
+                    "evaluation_mode": evaluation_mode(evaluation),
                     "data": evaluation,
                     "imported_at": now(),
                 },
@@ -441,7 +254,7 @@ class ResultStore:
         *,
         model=None,
         task=None,
-        verification=None,
+        evaluation_mode=None,
         experiment=None,
         pdk=None,
         effort=None,
@@ -472,7 +285,7 @@ class ResultStore:
             ranked.c.id.label("evaluation_id"),
             ranked.c.score,
             ranked.c.outcome,
-            ranked.c.verification_level,
+            ranked.c.evaluation_mode,
             ranked.c.method,
             ranked.c.data.label("evaluation"),
             ranked.c.imported_at.label("evaluated_at"),
@@ -486,7 +299,7 @@ class ResultStore:
         for column, value in [
             (s.tasks.c.task_id, task),
             (s.tasks.c.pdk, pdk),
-            (ranked.c.verification_level, verification),
+            (ranked.c.evaluation_mode, evaluation_mode),
             (ranked.c.outcome, outcome),
         ]:
             if value:
@@ -626,6 +439,12 @@ class ResultStore:
                 )
         return sha
 
+    def update_task_presentation(self, task_version, *, title, pdk, metadata):
+        """Bind reader metadata without changing task identity or evaluations."""
+        with self.engine.begin() as conn:
+            conn.execute(s.tasks.update().where(s.tasks.c.id == task_version)
+                         .values(title=title, pdk=pdk, presentation=metadata))
+
     def artifact(self, sha):
         with self.engine.connect() as conn:
             row = (
@@ -642,46 +461,6 @@ class ResultStore:
 
     def comparison(self, **filters):
         rows = self.list_runs(limit=1_000_000, **filters)["items"]
-        groups, columns, tasks = {}, {}, {}
-        for row in rows:
-            # Budgets/tools may legitimately differ between circuits; record the full per-task profile.
-            context = {
-                "task": row["task_version"],
-                "tool": evaluation_tools(row["evaluation"]),
-                "limits": row["evaluation"].get("limits"),
-                "verification": row["verification_level"],
-                "method": row["method"],
-            }
-            task_key = digest(context)
-            tasks[task_key] = {
-                "key": task_key,
-                "task_id": row["task_id"],
-                "title": row["title"],
-                "context": context,
-            }
-            cid = row["condition_id"]
-            columns[cid] = {"id": cid, **row["condition"]}
-            groups.setdefault((task_key, cid), []).append(row)
-        cells = []
-        for (task_key, cid), members in groups.items():
-            values = [r["score"] for r in members if r["score"] is not None]
-            cells.append(
-                {
-                    "task_key": task_key,
-                    "condition_id": cid,
-                    "count": len(members),
-                    "measured": len(values),
-                    "mean": mean(values) if values else None,
-                    "stddev": stdev(values) if len(values) > 1 else None,
-                    "passed": sum(r["outcome"] == "pass" for r in members),
-                    "outcomes": {
-                        name: sum(r["outcome"] == name for r in members)
-                        for name in ("pass", "fail", "no_submission", "error")
-                    },
-                    "run_ids": [r["id"] for r in members],
-                }
-            )
-        # Planned but unexecuted circuits are visible and count against coverage.
         with self.engine.connect() as conn:
             schedule_query = select(s.experiments)
             if filters.get("experiment"):
@@ -693,76 +472,7 @@ class ResultStore:
                 for x in conn.execute(schedule_query).mappings()
                 for p in x["schedule"]
             ]
-        for plan in schedules:
-            if any(
-                filters.get(k) and filters[k] != plan.get(k)
-                for k in ("model", "harness", "effort")
-            ):
-                continue
-            matches = [
-                c
-                for c in columns.values()
-                if c.get("model") == plan.get("model")
-                and c.get("harness") == plan.get("harness")
-                and c.get("effort_resolved") == plan.get("effort")
-            ]
-            if not matches and not any(
-                filters.get(k) for k in ("verification", "pdk", "outcome")
-            ):
-                cid = digest(
-                    [
-                        "planned",
-                        plan.get("model"),
-                        plan.get("harness"),
-                        plan.get("effort"),
-                    ]
-                )
-                columns[cid] = {
-                    "id": cid,
-                    "model": plan.get("model"),
-                    "harness": plan.get("harness"),
-                    "effort_resolved": plan.get("effort"),
-                    "planned": True,
-                }
-            for task_id in plan.get("tasks", []):
-                if filters.get("task") and filters["task"] != task_id:
-                    continue
-                if not any(t["task_id"] == task_id for t in tasks.values()) and not any(
-                    filters.get(k) for k in ("verification", "pdk", "outcome")
-                ):
-                    key = digest(["unexecuted", task_id])
-                    tasks[key] = {
-                        "key": key,
-                        "task_id": task_id,
-                        "context": {"verification": "not_run"},
-                    }
-        common = set(tasks)
-        for cid in columns:
-            common &= {
-                c["task_key"]
-                for c in cells
-                if c["condition_id"] == cid and c["measured"] == c["count"]
-            }
-        totals = []
-        for cid in columns:
-            included = [
-                c for c in cells if c["condition_id"] == cid and c["task_key"] in common
-            ]
-            totals.append(
-                {
-                    "condition_id": cid,
-                    "common_tasks": len(common),
-                    "coverage": sum(c["condition_id"] == cid for c in cells),
-                    "total_tasks": len(tasks),
-                    "mean": mean(c["mean"] for c in included) if included else None,
-                }
-            )
-        return {
-            "tasks": list(tasks.values()),
-            "conditions": list(columns.values()),
-            "cells": cells,
-            "totals": totals,
-        }
+        return aggregate(rows, schedules, filters)
 
     def inventory(self):
         with self.engine.connect() as conn:

@@ -1,0 +1,10 @@
+harness = "codex"
+model = "gpt-6-astra"
+efforts = ["medium"]
+concurrency = 2
+repetitions = 1
+
+[dataset]
+source_env = "ICLAYOUT_BENCH_DATASET"
+name = "core"
+split = "test"

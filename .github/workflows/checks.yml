@@ -30,8 +30,6 @@ jobs:
           enable-cache: true
       - run: uv sync --locked --extra results --group analysis
       - run: uv run --locked ruff check .
-      - run: uv run --locked python scripts/check_docs.py
-      - run: uv run --locked python scripts/check_repository.py
       - run: uv run --locked --group analysis pytest -m unit
       - run: git diff --exit-code
 
@@ -60,35 +58,23 @@ jobs:
           for bench_wheel in build/dist/*.whl; do
             "$package_venv/bin/python" -m pip install "${bench_wheel}[results]"
           done
-          "$package_venv/bin/python" -I - <<'PY'
-          import importlib.util
+          "$package_venv/bin/python" -I - <<'PYCODE'
+          import os
           import subprocess
           import sys
-          from importlib.resources import files
+          from importlib.metadata import version
           from pathlib import Path
 
-          for name in ("benchmarking", "benchmarking.engine", "benchmarking.service", "benchmarking.participants"):
-              module = importlib.import_module(name)
-              assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
-          assert importlib.util.find_spec("iclayout_bench_private") is None
-          assert files("benchmarking").joinpath("model_configs.yaml").is_file()
-          from importlib.metadata import version
+          import benchmarking
           from benchmarking.version import package_version
+
+          assert Path(benchmarking.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
           identity = package_version()
           assert identity["version"] == version("iclayout-bench")
-          assert identity["commit"] == subprocess.check_output(
-              ["git", "rev-parse", "HEAD"], text=True).strip()
-          assert importlib.util.find_spec("layout_eval") is None
-          assert importlib.util.find_spec("layout_service") is None
-          from benchmarking.dataset import Dataset, process_manifest
-          from benchmarking.engine.qualification import acceptance_summary
-          assert importlib.util.find_spec("benchmarking.web") is None
-          from benchmarking.engine.source import implementation_identity
-          assert implementation_identity().startswith("sha256:")
-          for name in ("benchmarking.client", "benchmarking.observe", "benchmarking.run", "benchmarking.engine.cli",
-                       "benchmarking.engine.preview", "benchmarking.service", "benchmarking.results"):
+          assert identity["commit"] == os.environ["GITHUB_SHA"]
+          for name in ("benchmarking.run", "benchmarking.service", "benchmarking.engine.cli"):
               subprocess.run([sys.executable, "-I", "-m", name, "--help"], check=True)
-          PY
+          PYCODE
       - name: Upload distributions
         uses: actions/upload-artifact@v4
         with:

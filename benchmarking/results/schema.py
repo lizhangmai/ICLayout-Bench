@@ -66,7 +66,7 @@ evaluations = Table(
     Column("score", Float),
     Column("outcome", Text),
     Column("task_success", Boolean),
-    Column("verification_level", Text, nullable=False),
+    Column("evaluation_mode", Text, nullable=False),
     Column("data", JSON, nullable=False),
     Column("imported_at", Text, nullable=False),
     UniqueConstraint("run_id", "fingerprint"),

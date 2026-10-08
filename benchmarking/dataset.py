@@ -34,13 +34,18 @@ class Dataset:
         if name not in {"all", "core"}:
             raise ValueError("Dataset selection name must be all or core")
         download = DownloadConfig(local_files_only=True)
-        builder = load_dataset_builder(str(self.root), download_config=download)
+        # Restricted static datasets have no public Dataset card. Bind their
+        # canonical index to the benchmark split instead of HF's inferred train.
+        files = ({"test": str(index_path(self.root))}
+                 if not (self.root / "README.md").is_file() else None)
+        builder = load_dataset_builder(str(self.root), data_files=files, download_config=download)
         # Explicit resolved files bind HF's cache to this snapshot and file metadata;
         # a card's preconfigured name alone can reuse tables from another checkout.
         rows = hf_load_dataset(str(self.root), split=split,
                                data_files=builder.config.data_files, download_config=download)
         cases = {}
-        for row in rows:
+        positions = {}
+        for position, row in enumerate(rows):
             case_id = row["id"]
             if case_id in cases:
                 raise ValueError(f"Duplicate Dataset row: {case_id}")
@@ -50,6 +55,9 @@ class Dataset:
             case = tomllib.loads(raw.decode())
             if type(row["in_core"]) is not bool or row["in_core"] != core_membership(case):
                 raise ValueError(f"Dataset index has stale core membership: {case_id}")
+            if (row.get("core_order") != case.get("core_order")
+                    or type(row.get("core_order")) is not type(case.get("core_order"))):
+                raise ValueError(f"Dataset index has stale core order: {case_id}")
             if Asset(raw, "toml").sha256 != row["case_sha256"]:
                 raise ValueError(f"Dataset index has a stale case digest: {case_id}")
             if tomllib.loads(raw.decode())["id"] != case_id:
@@ -59,8 +67,10 @@ class Dataset:
                     or Asset(read_file(self.root, pdk_path), "toml").sha256 != row["pdk_sha256"]):
                 raise ValueError(f"Dataset index has a stale PDK binding: {case_id}")
             cases[case_id] = config
+            positions[case_id] = position
+        core = select_core(rows)
         if name == "core":
-            rows = rows.filter(lambda row: row["in_core"])
+            rows = rows.select([positions[row["id"]] for row in core])
             cases = {row["id"]: cases[row["id"]] for row in rows}
         if not cases:
             raise ValueError("Dataset selection is empty")
@@ -74,6 +84,33 @@ class Dataset:
         if len(matches) != 1:
             raise ValueError(f"Unknown or ambiguous dataset case: {name}; use its full ID")
         return matches[0]
+
+
+def select_core(rows):
+    """Select core rows in their declared order, retaining legacy row order."""
+    core = []
+    for row in rows:
+        order = row.get("core_order")
+        if order is not None and (row.get("in_core") is not True
+                                  or type(order) is not int or order < 1):
+            raise ValueError("core_order must be a positive integer on an in_core case")
+        if row.get("in_core") is True:
+            core.append(row)
+    orders = [row.get("core_order") for row in core]
+    if any(order is not None for order in orders):
+        if None in orders or len(set(orders)) != len(orders):
+            raise ValueError("Ordered core selection requires unique core_order values on every core case")
+        core.sort(key=lambda row: row["core_order"])
+    return core
+
+
+def index_path(root):
+    """Locate the native Parquet index, with JSONL support for older releases."""
+    for name in ("data.parquet", "data.jsonl"):
+        path = Path(root) / name
+        if path.is_file():
+            return path
+    raise ValueError("Dataset must contain data.parquet or a legacy data.jsonl index")
 
 
 def dataset_root(config):

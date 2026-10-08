@@ -8,46 +8,17 @@ The caller owns authorization and task/toolchain qualification.
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
 
-from benchmarking.evaluation import EvaluationPlan, Job, number
+from benchmarking.evaluation.contracts import EvaluationPlan, Job, number
+from benchmarking.evaluation.scoring import score_layout
 from benchmarking.files import Asset
-from benchmarking.scoring import score_layout
 
-from .source import source_path
+from .contracts import Backend, JobResult, Measurement
+from .source import EVALUATION_SOURCE_FILES, package_source
+from .tools.budget import tool_time_limits
 
-
-@dataclass(frozen=True)
-class Measurement:
-    value: float
-    unit: str
-
-
-@dataclass
-class JobResult:
-    status: str  # passed, failed (completed check), or error (no valid result)
-    reason: str = ""
-    measurements: dict[str, Measurement] = field(default_factory=dict)
-    outputs: dict[str, Asset] = field(default_factory=dict)
-    evidence: dict[str, Asset] = field(default_factory=dict)
-
-
-class Backend(Protocol):
-    """A trusted tool adapter. It must not read the solver's mutable workspace.
-
-    run receives only immutable declared inputs and fresh parameters. Return
-    failed only for a completed check rejecting the artifact; tool failures and
-    unsupported settings are errors. Evidence is returned as bytes for archival.
-    A backend may use a container, subprocess, remote worker or native library.
-    Reentrant backends may advertise max_parallel_jobs; other backends run serially.
-    """
-
-    @property
-    def identity(self) -> dict: ...
-
-    def run(self, job: Job, inputs: dict[str, Asset]) -> JobResult: ...
+__all__ = ["Backend", "JobResult", "Measurement", "run_evaluation"]
 
 
 def _validate_result(job: Job, result: JobResult) -> None:
@@ -79,7 +50,7 @@ def _validate_result(job: Job, result: JobResult) -> None:
             raise ValueError("Backend artifacts must be typed byte snapshots")
 
 
-def _execute_jobs(jobs, assets, backends, results, timings):
+def _execute_jobs(jobs, assets, backends, results, timings, limit_tools):
     """Batch ready jobs only for a backend explicitly supporting concurrent calls.
 
     Yield in plan order so archival and dependencies remain single-threaded.
@@ -92,7 +63,8 @@ def _execute_jobs(jobs, assets, backends, results, timings):
     def execute(job):
         started = time.monotonic()
         try:
-            result = backends[job.operation].run(job, {k: assets[v] for k, v in job.inputs})
+            with tool_time_limits(limit_tools):
+                result = backends[job.operation].run(job, {k: assets[v] for k, v in job.inputs})
             _validate_result(job, result)
             return result
         except Exception as error:  # noqa: BLE001 -- retain independent diagnostics
@@ -127,7 +99,8 @@ def _execute_jobs(jobs, assets, backends, results, timings):
 
 def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
                    backends: dict[str, Backend], destination: Path, *,
-                   task_sha256: str | None = None, task_witnessed: bool | None = None) -> dict:
+                   task_sha256: str | None = None, task_witnessed: bool | None = None,
+                   limit_tools: bool = True) -> dict:
     """Execute all independent jobs; block dependents of failed/error jobs.
 
     inputs is keyed by candidate, task or input:<role>. Backends are keyed by logical
@@ -140,7 +113,7 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
         raise ValueError(f"Missing evaluation inputs: {sorted(missing)}")
     for source in plan.pre_layout.values():
         for role, reference in source["inputs"].items():
-            if inputs[reference].sha256 != source["input_sha256"][role]:
+            if reference.startswith("input:") and inputs[reference].sha256 != source["input_sha256"][role]:
                 raise ValueError(f"Frozen pre-layout input changed: {reference}")
     operations = {job.operation for job in plan.jobs}
     if not operations <= backends.keys():
@@ -166,17 +139,17 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
         return {**asset.identity(), "path": f"artifacts/{asset.sha256}"}
 
     report = {
-        "mode": plan.mode, "task_sha256": task_sha256,
+        "mode": plan.mode, "task_sha256": task_sha256, "tool_time_limits": limit_tools,
         "task_witnessed": task_witnessed,
-        "engine_sha256": {name: Asset(source_path(name).read_bytes(), "python").sha256
-                          for name in ("evaluate.py", "evaluation.py", "files.py", "scoring.py")},
+        "engine_sha256": {name: Asset(package_source(name).read_bytes(), "python").sha256
+                          for name in EVALUATION_SOURCE_FILES},
         "plan": archive(Asset(plan.raw, plan.format)), "backends": identities,
         "inputs": {ref: archive(asset) for ref, asset in sorted(assets.items())},
         "jobs": {}, "metrics": {},
     }
     results: dict[str, JobResult] = {}
     timings = {}
-    for job, result in _execute_jobs(plan.jobs, assets, backends, results, timings):
+    for job, result in _execute_jobs(plan.jobs, assets, backends, results, timings, limit_tools):
         results[job.id] = result
         entry = {
             "status": result.status, "reason": result.reason,
@@ -223,6 +196,8 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
             "lower": metric.lower, "upper": metric.upper, "aggregation": metric.aggregation,
             "dimension": metric.dimension,
             "baseline": list(metric.baseline), "normalization": metric.normalization, "scale": metric.scale,
+            "quality_target": metric.quality_target,
+            "quality_target_rationale": metric.quality_target_rationale,
             "value": value, "status": status, "observations": observations,
         }
 
@@ -253,7 +228,7 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
         report["score"] = score_layout(plan, report["jobs"], report["metrics"], physical_valid)
         if plan.scoring.method == "layout" and report["score"]["value"] is None:
             report.update(outcome="error", task_success=None, quality_eligible=False)
-            report["scoring_error"] = "Cannot establish finite candidate/source normalization"
+            report["scoring_error"] = "Cannot establish finite candidate quality normalization"
 
     elif plan.mode == "post_layout":
         # Explicitly distinguish an unscored layout evaluation from the old

@@ -29,11 +29,13 @@ TOOLS = [
     tool("read", "Read a UTF-8 file at a relative workspace path. Use execute with cat for /task and /resources.", {"path": STRING}, ["path"]),
     tool("write", "Write model-authored UTF-8 content to a relative workspace path.",
          {"path": STRING, "content": STRING}, ["path", "content"]),
-    tool("execute", "Run a command in the remote EDA workspace and return its output. No host execution. Omit seconds to use the remaining service command allowance.",
+    tool("execute", "Run a command in the remote EDA workspace and return its output. No host execution. In a soft session, an already-started command may finish after the budget; omit seconds for no per-call timeout. At zero remaining time, submit immediately without another optimization round.",
          {"command": STRING, "seconds": {"type": "number", "exclusiveMinimum": 0}}, ["command"]),
     tool("submit", "Snapshot the declared GDS candidate for independent judging. Acceptance is not success.",
          {"path": STRING}, ["path"]),
-    tool("check", "Check the current declared GDS output with the final evaluator's full plan. Returns physical/electrical failures and diagnostics; does not submit. Uses the remaining solve budget; requires process-feedback capability.", {}),
+    tool("report", "Read diagnostic JSON for a check report_id. Concatenate content pages using next_offset while has_more is true. Report access is scoped to this session.",
+         {"report_id": STRING, "offset": {"type": "integer", "minimum": 0}}, ["report_id"]),
+    tool("check", "Check the current declared GDS output with the final evaluator's full plan. Returns physical/electrical diagnostics and candidate measurements, without scores or normalized quality factors; does not submit. Consumes solve time; a started soft-budget check may finish after expiry. Do not request a new check at zero remaining time; submit immediately. Requires process-feedback capability.", {}),
 ]
 
 
@@ -59,7 +61,7 @@ class Bridge:
         if set(args) - set(schema["properties"]) or set(schema["required"]) - set(args):
             raise ValueError("Invalid tool arguments")
         for key, value in args.items():
-            if key != "seconds" and not isinstance(value, str):
+            if key not in {"seconds", "offset"} and not isinstance(value, str):
                 raise ValueError("Expected string argument")
         mutation = name in {"write", "execute", "submit", "check"}
         if mutation and self.delivery_unknown:
@@ -81,15 +83,20 @@ class Bridge:
                 if name == "check" and "process-feedback" not in status.get("capabilities", []):
                     raise ValueError("Service does not advertise process-feedback")
                 remaining = status["remaining_seconds"]
-                seconds = args.get("seconds", min(remaining, self.command_seconds or remaining))
-                if type(seconds) not in (int, float) or not math.isfinite(seconds) or seconds <= 0:
+                soft = status.get('budget', {}).get('policy') == 'soft'
+                if soft and remaining <= 0:
+                    raise ClientError('budget_exhausted', 'Submit immediately without another optimization round')
+                seconds = args.get("seconds", None if soft else min(remaining, self.command_seconds or remaining))
+                if seconds is not None and (type(seconds) not in (int, float) or not math.isfinite(seconds) or seconds <= 0):
                     raise ValueError("Command seconds must be positive and finite")
-                pending["seconds"] = min(seconds, remaining, self.command_seconds or remaining)
+                pending["seconds"] = seconds if soft else min(seconds, remaining, self.command_seconds or remaining)
             atomic_write(self.pending, json.dumps(pending).encode())
         self.record({"tool": name, "arguments": args, "mutation": mutation, "key": key})
         client, sid = self.client, self.session
         if name == "status":
             result = client.session(sid)
+        elif name == "report":
+            result = client.report(sid, args["report_id"], offset=args.get("offset", 0))
         elif name == "read":
             raw = client.read(sid, args["path"])
             result = {"content": raw[:48000].decode(errors="replace"), "truncated": len(raw) > 48000}
@@ -103,7 +110,7 @@ class Bridge:
                        client.execute(sid, args["command"], seconds, key=key))
             offset, chunks, count = 0, [], 0
             limit = 128 * 1024 if name == "check" else 48000
-            deadline = time.monotonic() + seconds + 60
+            deadline = None if seconds is None else time.monotonic() + seconds + 60
             while True:
                 polled = client.poll(sid, started["execution_id"], offset=offset)
                 raw = base64.b64decode(polled["log_base64"], validate=True)
@@ -112,12 +119,15 @@ class Bridge:
                 offset = polled["next_offset"]
                 if polled["state"] != "running" and not raw:
                     break
-                if time.monotonic() >= deadline:
+                if deadline is not None and time.monotonic() >= deadline:
                     raise TimeoutError("Execution polling timed out; inspect session status")
                 time.sleep(.1)
             result = {"output": b"".join(chunks).decode(errors="replace"),
                       "state": polled["state"], "exit_code": polled["exit_code"],
                       "truncated": polled["truncated"] or count > limit}
+        budget = client.session(sid).get('budget')
+        if budget is not None:
+            result['budget'] = budget
         self.record({"tool": name, "key": key, "result": result})
         if mutation:
             atomic_write(self.delivery, json.dumps({"key": key, "tool": name, "result": result}).encode())
@@ -144,7 +154,10 @@ def dispatch(bridge, message):
         except (ClientError, ValueError, KeyError, OSError) as error:
             # Never expose HTTP headers, process environments or exception chains.
             detail = error.code if isinstance(error, ClientError) else type(error).__name__
-            if isinstance(error, ClientError) and error.status in {400, 401, 404, 413, 429}:
+            if detail == 'budget_exhausted':
+                detail += ': finish the current operation and submit immediately; do not start another optimization round'
+            if isinstance(error, ClientError) and (error.status in {400, 401, 404, 413, 429}
+                                                  or error.code == 'budget_exhausted'):
                 # Explicit rejection has no unknown side effect; a corrected call may proceed.
                 bridge.pending.unlink(missing_ok=True)
             bridge.record({"error": detail})

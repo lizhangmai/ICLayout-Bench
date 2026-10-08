@@ -18,6 +18,7 @@ from .protocol import (
     SESSION_STARTUP_RESPONSE_GRACE_SECONDS,
     SESSION_STARTUP_TIMEOUT_SECONDS,
 )
+from .retry import policy
 
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 _KEY = re.compile(r"[A-Za-z0-9_.-]{1,128}\Z")
@@ -67,7 +68,6 @@ class Client:
             raise ValueError("Expected a nonempty bearer token")
         if timeout <= 0 or max_response_bytes <= 0:
             raise ValueError("Timeout and response limit must be positive")
-        from .participants.recovery import policy
         self.retry_policy = policy(retry_policy)
         self.endpoint = endpoint.rstrip("/")
         self.token = token
@@ -171,12 +171,18 @@ class Client:
             raise ValueError("Offset must be a nonnegative integer")
         return self.session(session_id, f"executions/{_identifier(execution_id)}?offset={offset}")
 
+    def report(self, session_id, report_id, *, offset=0):
+        """Read a page of participant diagnostic JSON; offsets count characters."""
+        if type(offset) is not int or offset < 0:
+            raise ValueError("Offset must be a nonnegative integer")
+        return self.session(session_id, f"reports/{_identifier(report_id)}?offset={offset}")
+
     def check(self, session_id, timeout_seconds=None, *, key):
         """Start a frozen-candidate check through the normal replayable execution API."""
         status = self.session(session_id)
         if "process-feedback" not in status.get("capabilities", []):
             raise ValueError("Service does not advertise process-feedback")
-        seconds = status["remaining_seconds"] if timeout_seconds is None else timeout_seconds
+        seconds = (None if status.get('budget', {}).get('policy') == 'soft' else status["remaining_seconds"]) if timeout_seconds is None else timeout_seconds
         return self.execute(session_id, "python -I /protocol/process_check.py", seconds, key=key)
 
     def submit(self, session_id, path, *, key):
@@ -231,7 +237,7 @@ def command_main(argv):
     elif args.action == "result":
         result = client.result(sid)
         if args.export:
-            from .analysis import export_session_result
+            from .results.analysis import export_session_result
             export_session_result(result, args.export)
     else:
         result = client.session(sid)

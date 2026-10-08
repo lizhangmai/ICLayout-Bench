@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-FROM ghcr.io/astral-sh/uv:0.11.2 AS uv
-FROM ubuntu:24.04 AS common
+FROM ghcr.io/astral-sh/uv:0.11.2@sha256:c4f5de312ee66d46810635ffc5df34a1973ba753e7241ce3a08ef979ddd7bea5 AS uv
+FROM ubuntu:24.04@sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55 AS common
 
 ENV DEBIAN_FRONTEND=noninteractive \
     UV_PROJECT_ENVIRONMENT=/opt/iclayout-bench-tools \
@@ -30,8 +30,23 @@ WORKDIR /workspace
 CMD ["bash"]
 
 FROM common AS ngspice-build
-COPY scripts/build_ngspice.sh /tmp/build_ngspice.sh
-RUN sh /tmp/build_ngspice.sh
+ARG NGSPICE_COMMIT=86c78150b77ceea8488707565b3be2d2f4e7fbb9
+ARG NGSPICE_SHA256=dcc8f263bae8f3eb0717f36a6bf3b424f0531a33b9e51ce88aec0437694f0ad9
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential autoconf automake libtool bison flex libreadline-dev libsuitesparse-dev \
+    && curl --fail --show-error --silent --location --retry 3 \
+        "https://codeload.github.com/imr/ngspice/tar.gz/$NGSPICE_COMMIT" \
+        --output /tmp/ngspice.tar.gz \
+    && echo "$NGSPICE_SHA256  /tmp/ngspice.tar.gz" | sha256sum --check \
+    && tar -xzf /tmp/ngspice.tar.gz -C /tmp \
+    && cd "/tmp/ngspice-$NGSPICE_COMMIT" \
+    && ./autogen.sh \
+    && ./configure --prefix=/opt/ngspice --with-x=no --enable-xspice --enable-osdi \
+        --enable-klu --with-readline=yes \
+    && make -j4 \
+    && make install \
+    && install -D COPYING /opt/ngspice/share/doc/COPYING
 
 FROM common AS qucsator-build
 ARG QUCSATOR_COMMIT=e995f9acc71a8c7319286944e4a1692318b9dd80
@@ -64,9 +79,29 @@ RUN curl --fail --show-error --silent --location --retry 3 --retry-all-errors --
 USER ubuntu
 
 FROM common AS magic-build
-COPY scripts/build_magic.sh /tmp/build_magic.sh
+# MAGIC_VERSION is an upstream make variable containing only major.minor.
+ARG MAGIC_RELEASE=8.3.678
+ARG MAGIC_SHA256=3f47b68d3ca2c0ef1cdf18916581a5ac3a529ecc83c6ad0d7cd8e1800d2c3614
 COPY scripts/patches/magic-stable-device-order.patch /tmp/magic-stable-device-order.patch
-RUN sh /tmp/build_magic.sh
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential tcl-dev tk-dev libx11-dev zlib1g-dev libreadline-dev patch \
+    && curl --fail --show-error --silent --location --retry 3 \
+        --retry-all-errors --connect-timeout 20 \
+        "https://codeload.github.com/RTimothyEdwards/magic/tar.gz/refs/tags/$MAGIC_RELEASE" \
+        --output /tmp/magic.tar.gz \
+    && echo "$MAGIC_SHA256  /tmp/magic.tar.gz" | sha256sum --check \
+    && tar -xzf /tmp/magic.tar.gz -C /tmp \
+    && cd "/tmp/magic-$MAGIC_RELEASE" \
+    && python3 -c 'from pathlib import Path; p=Path("resis/ResRex.c"); s=p.read_text(); old="int\t\ttotWL, maxWL = 0;"; assert s.count(old)==1; p.write_text(s.replace(old,"float totWL, maxWL = 0.0;"))' \
+    && patch -p1 < /tmp/magic-stable-device-order.patch \
+    && ./configure --prefix=/opt/magic --without-opengl --without-cairo --disable-magic-builddate \
+    && make -j4 \
+    && make install \
+    && test "$(/opt/magic/bin/magic --version)" = "$MAGIC_RELEASE" \
+    && install -D LICENSE /opt/magic/share/doc/LICENSE \
+    && install -D /tmp/magic-stable-device-order.patch \
+        /opt/magic/share/doc/magic-stable-device-order.patch
 
 FROM common AS xschem-build
 # Release 3.4.7 supplies ev7, required by the pinned SG13G2 tap symbols.
@@ -87,11 +122,30 @@ RUN curl --fail --show-error --silent --location --retry 3 --retry-all-errors --
     && make install \
     && install -D LICENSE /opt/xschem/share/doc/LICENSE
 
+FROM common AS netgen-build
+ARG NETGEN_COMMIT=e1528a797cdb155d6ebf8d91c5a55ed7d1713156
+ARG NETGEN_SHA256=5d9de873dc354a0882fc9f67dbe0f80b65524330fbb34a08c232c75a38a27d67
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential tcl-dev tk-dev libx11-dev \
+    && curl --fail --show-error --silent --location --retry 3 \
+        --retry-all-errors --connect-timeout 20 \
+        "https://codeload.github.com/RTimothyEdwards/netgen/tar.gz/$NETGEN_COMMIT" \
+        --output /tmp/netgen.tar.gz \
+    && echo "$NETGEN_SHA256  /tmp/netgen.tar.gz" | sha256sum --check \
+    && tar -xzf /tmp/netgen.tar.gz -C /tmp \
+    && cd "/tmp/netgen-$NETGEN_COMMIT" \
+    && ./configure --prefix=/opt/netgen \
+    && make -j4 \
+    && make install \
+    && install -D Copying /opt/netgen/share/doc/Copying
+
 # The public development environment is one image. Every preparation, solver,
 # and judge container is an isolated invocation of this same EDA toolchain.
 # Harness runtimes are supplied by the harness (or its selected image); the
 # benchmark image does not install or privilege a particular Agent framework.
 FROM common AS tools
+LABEL org.opencontainers.image.title="ICLayout open EDA" \
+      org.iclayout.eda="open"
 USER root
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git jq make ripgrep \
@@ -121,6 +175,8 @@ COPY --from=magic-build /opt/magic /opt/magic
 ENV PATH=/opt/magic/bin:${PATH}
 COPY --from=xschem-build /opt/xschem /opt/xschem
 ENV PATH=/opt/xschem/bin:${PATH}
+COPY --from=netgen-build /opt/netgen /opt/netgen
+ENV PATH=/opt/netgen/bin:${PATH}
 # Keep frequently changed Python dependencies after native EDA build stages.
 # Lockfile changes must not invalidate tool downloads and compilation.
 COPY --from=uv /uv /usr/local/bin/uv

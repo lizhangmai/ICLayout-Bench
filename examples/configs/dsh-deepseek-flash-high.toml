@@ -1,0 +1,11 @@
+harness = "dsh"
+model = "deepseek-flash"
+efforts = ["high"]
+tasks = ["freepdk45.OpenRAM.cell_6t"]
+concurrency = 1
+repetitions = 1
+
+[dataset]
+source_env = "ICLAYOUT_BENCH_DATASET"
+name = "core"
+split = "test"

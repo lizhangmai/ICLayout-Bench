@@ -1,88 +1,85 @@
-"""Bind trusted evaluator tools from a standalone config or a circuit case."""
+"""Bind declared operations to selected, trusted evaluator implementations."""
 
-import tomllib
 from collections.abc import Callable
+from importlib import import_module
 from pathlib import Path
 
-from benchmarking.evaluation import identifier
-from benchmarking.files import keys, read_file
+from .contracts import Backend
+from .toolchain_config import load_toolchain_spec
 
-from .evaluate import Backend
-from .geometry import KLayoutGeometryDocker
-from .hbt import SG13G2HBTRCDocker
-from .klayout import KLayoutDocker
-from .kpex import SG13G2KpexCCDocker
-from .magic import MagicCapacitanceDocker, MagicRCDocker
-from .ngspice import NgspiceDocker
+# Only this installed registry names importable code. Task declarations select
+# registry keys and cannot supply module paths.
+_BUILTINS = {
+    "ngspice-docker": ("ngspice", "NgspiceDocker"),
+    "assura-drc-docker": ("assura", "AssuraDocker"),
+    "assura-lvs-docker": ("assura", "AssuraLvsDocker"),
+    "assura-rc-docker": ("assura", "AssuraRCDocker"),
+    "pvs-docker": ("pvs", "PvsDocker"),
+    "calibre-docker": ("calibre", "CalibreDocker"),
+    "spectre-docker": ("spectre", "SpectreDocker"),
+    "calibre-native": ("calibre", "CalibreNative"),
+    "calibre-quantus-native": ("calibre_quantus", "CalibreQuantusNative"),
+    "calibre-starrc-native": ("calibre_starrc", "CalibreStarRCNative"),
+    "spectre-aps-docker": ("spectre_aps", "SpectreAPSDocker"),
+    "spectre-x-docker": ("spectre_x", "SpectreXDocker"),
+    "spectre-x-native": ("spectre_native", "SpectreXNative"),
+    "icv-native": ("synopsys", "ICVNative"),
+    "hspice-native": ("synopsys", "HspiceNative"),
+    "magic-physical-docker": ("magic_checks", "MagicPhysicalDocker"),
+    "magic-capacitance-docker": ("magic", "MagicCapacitanceDocker"),
+    "magic-rc-docker": ("magic", "MagicRCDocker"),
+    "sg13g2-hbt-rc-docker": ("hbt.backend", "SG13G2HBTRCDocker"),
+    "klayout-docker": ("klayout", "KLayoutDocker"),
+    "sg13g2-kpex-cc-docker": ("kpex", "SG13G2KpexCCDocker"),
+    "klayout-geometry-docker": ("geometry", "KLayoutGeometryDocker"),
+}
 
 
-def load_toolchain(config: Path, *, profiles=None, image=None, factories: dict[str, Callable[..., Backend]] | None = None) -> dict[str, Backend]:
-    """Bind operations using trusted factories; never import code named by a task.
+def load_toolchain(config: Path, *, profiles=None, image=None, runtimes=None,
+                   factories: dict[str, Callable[..., Backend]] | None = None) -> dict[str, Backend]:
+    """Validate declarations before constructing only the bound backends.
 
-    Python callers can supply additional factories without changing evaluation.
-    Read either a standalone toolchain or the [toolchain] table of a
-    layout_case. Runtime profiles override support paths in memory;
-    the source configuration is never rewritten. The
-    optional backend-level ``support_profiles`` table is host metadata: it is
-    validated here and deliberately omitted from backend constructor kwargs.
-    Toolchain configuration is never a solver input.
+    The default registry imports selected built-ins lazily. Python callers may
+    supply their own trusted factory registry. Prepared resource paths, image
+    identities and external runtimes replace settings in memory only. Toolchain
+    declarations and their implementations never enter the solver workspace.
     """
-    config = config.absolute()
-    data = tomllib.loads(read_file(config.parent, config.name).decode("utf-8"))
-    if "kind" in data:
-        if (data["kind"] != "layout_case"):
-            raise ValueError("Embedded toolchains require a layout_case; supply --toolchain")
-        if "toolchain" not in data:
-            raise ValueError("Case does not declare a toolchain; supply --toolchain")
-        data = data["toolchain"]
-    keys(data, {"backends", "bindings"}, set(), "toolchain")
-    if not isinstance(data["backends"], dict) or not isinstance(data["bindings"], dict):
-        raise TypeError("Toolchain backends and bindings must be tables")
-    factories = {"ngspice-docker": NgspiceDocker,
-                 "magic-capacitance-docker": MagicCapacitanceDocker,
-                 "magic-rc-docker": MagicRCDocker,
-                 "sg13g2-hbt-rc-docker": SG13G2HBTRCDocker,
-                 "klayout-docker": KLayoutDocker,
-                 "sg13g2-kpex-cc-docker": SG13G2KpexCCDocker,
-                 "klayout-geometry-docker": KLayoutGeometryDocker} if factories is None else factories
-    for name, config_data in data["backends"].items():
-        keys(config_data, {"type", "settings"}, {"support_profiles"}, f"backend {name}")
-        if config_data["type"] not in factories or not isinstance(config_data["settings"], dict):
+    spec = load_toolchain_spec(config, require_declared=profiles is not None)
+    registry = _BUILTINS if factories is None else factories
+    for name, backend in spec.backends.items():
+        if backend.type not in registry:
             raise ValueError(f"Unknown or invalid backend: {name}")
-        _validate_support_profiles(name, config_data)
-    if not all(isinstance(value, str) and value in data["backends"] for value in data["bindings"].values()):
-        raise ValueError("Toolchain binding references an unknown backend")
-    for name, entry in data["backends"].items():
-        if profiles is not None:
-            from .preparation import support_bindings
+    if runtimes is None and spec.embedded and spec.path.name == 'case.toml' and any(
+            'runtime' in backend.settings for backend in spec.backends.values()):
+        from benchmarking.dataset import process_manifest
 
-            for setting, profile in support_bindings(name, entry):
+        from .external import ExternalRuntime
+
+        runtime = ExternalRuntime.from_manifest(process_manifest(spec.path))
+        runtimes = {runtime.name: runtime}
+    settings = {}
+    for name, backend in spec.backends.items():
+        selected = dict(backend.settings)
+        if profiles is not None:
+            for setting, profile in backend.support_profiles:
                 if profile not in profiles:
                     raise ValueError(f"Missing runtime profile: {profile}")
-                entry["settings"][setting] = str(profiles[profile])
-        if image is not None and "image" in entry["settings"]:
-            entry["settings"]["image"] = image
-    instances = {name: factories[entry["type"]](**entry["settings"])
-                 for name, entry in data["backends"].items() if name in data["bindings"].values()}
-    return {operation: instances[name] for operation, name in data["bindings"].items()}
-
-
-def _validate_support_profiles(name: str, config_data: dict) -> None:
-    """Validate host-only support profile metadata without exposing it to tools."""
-    if "support_profiles" not in config_data:
-        return
-    profiles = config_data["support_profiles"]
-    if not isinstance(profiles, dict) or not profiles:
-        raise ValueError(f"backend {name} support_profiles must be a nonempty table")
-    settings = config_data["settings"]
-    support_settings = {setting for setting in settings
-                        if setting == "support" or setting.endswith("_support")}
-    for setting, profile in profiles.items():
-        identifier(setting)
-        if setting not in support_settings:
-            raise ValueError(f"backend {name} support_profiles names a non-support setting: {setting}")
-        identifier(profile)
-    if set(profiles) != support_settings:
-        missing = sorted(support_settings - set(profiles))
-        detail = f"missing {missing}" if missing else "has no matching support setting"
-        raise ValueError(f"backend {name} support_profiles {detail}")
+                selected[setting] = str(profiles[profile])
+        if image is not None and "image" in selected:
+            selected["image"] = image
+        if runtimes is not None and "runtime" in selected:
+            runtime = selected["runtime"]
+            if runtime not in runtimes:
+                raise ValueError(f"Unknown external runtime: {runtime}")
+            selected["runtime"] = runtimes[runtime]
+        settings[name] = selected
+    instances = {}
+    for name in dict.fromkeys(spec.bindings.values()):
+        kind = spec.backends[name].type
+        if factories is None:
+            module, attribute = _BUILTINS[kind]
+            factory = getattr(import_module('.backends.' + module, __package__), attribute)
+        else:
+            factory = factories[kind]
+        instances[name] = factory(**settings[name])
+    return {operation: instances[name] for operation, name in spec.bindings.items()}

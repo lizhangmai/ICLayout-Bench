@@ -1,0 +1,10 @@
+harness = "kimi-code"
+model = "kimi-code/k3"
+efforts = ["high"]
+concurrency = 4
+repetitions = 1
+
+[dataset]
+source_env = "ICLAYOUT_BENCH_DATASET"
+name = "core"
+split = "test"

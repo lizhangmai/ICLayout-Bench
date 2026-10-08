@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from benchmarking.participants.dsh import prepare
+from benchmarking.participants.adapters.contracts import (
+    LaunchContext,
+    ParticipantSelection,
+)
+from benchmarking.participants.adapters.dsh import prepare
 
 pytestmark = pytest.mark.unit
 
@@ -23,7 +27,7 @@ class DshPatchTests(unittest.TestCase):
             env = {'ICLAYOUT_BENCH_TOKEN': 'scoped-fixture', 'ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS': '600',
                    'DEEPSEEK_API_KEY': 'provider-fixture'}
             condition = {'provider': 'deepseek-official', 'model': 'deepseek-flash', 'effort_resolved': None}
-            args = prepare(condition, settings, env, root, root / 'output', root / 'bridge.py', 'task')
+            args = prepare(LaunchContext(ParticipantSelection(condition, env, settings), root / 'mcp.json', root, root / 'output', root / 'bridge.py', 'task'))
             self.assertEqual(args[:3], ['dsh', '--profile', 'headless'])
             self.assertNotIn('provider-fixture', json.dumps(args))
             self.assertNotIn('private-a', json.dumps(args))
@@ -42,7 +46,7 @@ class DshPatchTests(unittest.TestCase):
             self.assertEqual((root / 'dsh-settings.json').stat().st_mode & 0o777, 0o600)
             self.assertEqual(json.dumps(settings, sort_keys=True), original)
             condition['effort_resolved'] = 'max'
-            prepare(condition, settings, env, root, root / 'output', root / 'bridge.py', 'task')
+            prepare(LaunchContext(ParticipantSelection(condition, env, settings), root / 'mcp.json', root, root / 'output', root / 'bridge.py', 'task'))
             config = json.loads((root / 'dsh-settings.json').read_text())
             self.assertEqual(config['agent-default-model']['reasoningEffort'], 'max')
 

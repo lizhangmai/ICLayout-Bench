@@ -1,0 +1,16 @@
+harness = "codex"
+model = "gpt-6.1-sol"
+efforts = ["xhigh"]
+concurrency = 2
+repetitions = 1
+
+[recovery]
+http_attempts = 3
+backoff_seconds = 1
+max_backoff_seconds = 8
+resume_session = false
+
+[dataset]
+source_env = "ICLAYOUT_BENCH_DATASET"
+name = "core"
+split = "test"

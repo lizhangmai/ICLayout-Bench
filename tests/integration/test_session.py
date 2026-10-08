@@ -14,22 +14,20 @@ import pytest
 from helpers.protocol import write_protocol_task
 
 from benchmarking.engine.inference import InferenceConfig, InferenceGateway
-from benchmarking.engine.model_config import RunConfig
-from benchmarking.engine.recorder import (
+from benchmarking.engine.sessions.config import RunConfig
+from benchmarking.engine.sessions.docker import CONSOLE_PREVIEW_BYTES, DockerSession
+from benchmarking.engine.sessions.environment import task_message
+from benchmarking.engine.sessions.recorder import (
     RecordingError,
     RunRecorder,
     recover_submissions,
 )
-from benchmarking.engine.session import (
-    CONSOLE_PREVIEW_BYTES,
-    DockerSession,
-    task_message,
-)
+from benchmarking.engine.tools.docker import DockerTool
 from benchmarking.files import Asset
 from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
 from benchmarking.tasks import load_task
 
-IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local")
+IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-eda-open:local")
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
@@ -118,8 +116,9 @@ def test_declared_pdks_are_usable_in_agent_container(tmp_path, manifest):
     runtime = load_case(cases[0], image=IMAGE)
     bundle = runtime.agent
     # Case metadata, rather than a process-wide wish list, owns runtime profiles.
-    from benchmarking.engine.preparation import support_bindings
+    from benchmarking.engine.toolchain_config import support_bindings
 
+    declaration = tomllib.loads(manifest.read_text())
     backends = tomllib.loads(cases[0].read_text())["toolchain"]["backends"]
     required = {profile for name, backend in backends.items() for _, profile in support_bindings(name, backend)}
     assert {name.split("/")[1] for name, _ in bundle.files if name.startswith("support/")} == required
@@ -128,11 +127,18 @@ def test_declared_pdks_are_usable_in_agent_container(tmp_path, manifest):
     from benchmarking.files import ReadOnlyMount
 
     roots = {name: value for name, value in bundle.files if name.startswith("pdks/")}
-    assert len(roots) == 1
-    assert all(isinstance(value, ReadOnlyMount) and value.path.is_dir() for value in roots.values())
+    # A reviewed source can expose individual files and directories through paths.
+    expected_roots = {
+        f"pdks/{name}" + (f"/{path}" if path else "")
+        for name, source in declaration["agent"]["sources"].items()
+        for path in source.get("paths", [""])
+    }
+    assert set(roots) == expected_roots
+    assert all(isinstance(value, ReadOnlyMount) and (value.path.is_dir() or value.path.is_file())
+               for value in roots.values())
     assert all(not item.path.startswith("reference/") for item in runtime.task.inputs)
     resources = {**dict(bundle.files), "manifest.json": bundle.manifest}
-    code = '''
+    code = f"pdk_mounts = {sorted(expected_roots)!r}\n" + '''
 info = json.loads(Path('/protocol/resources.json').read_text())
 assert os.environ['ICLAYOUT_BENCH_PDK'] == info['pdk']
 assert Path(os.environ['PDK_PATH']).is_dir()
@@ -140,9 +146,14 @@ assert not Path('/resources/tasks').exists()
 assert not Path('/task/reference').exists()
 assert not Path('/var/run/docker.sock').exists()
 assert not Path('/resources/tasks').exists()
-for source in Path('/resources/pdks').iterdir():
+for name in pdk_mounts:
+    source = Path('/resources', name)
     try:
-        (source / 'forbidden').write_text('must be read-only')
+        if source.is_dir():
+            (source / 'forbidden').touch()
+        else:
+            with source.open('r+b'):
+                pass
     except OSError:
         pass
     else:
@@ -310,15 +321,50 @@ time.sleep(30)
 
 @pytest.mark.acceptance
 @pytest.mark.acceptance_container
+@pytest.mark.parametrize('expires', [False, True])
+def test_feedback_eda_uses_remaining_session_budget(tmp_path, expires):
+    task = session_task()
+    config = replace(configuration('''
+output.write_bytes(b'accepted'); assert submit()['accepted']
+subprocess.run(['python', '-I', '/protocol/process_check.py'])
+output.write_bytes(b'final'); assert submit()['accepted']
+''', seconds=1.5 if expires else 6),
+        harness=HarnessSpec(capabilities=(PROCESS_FEEDBACK_CAPABILITY,)), soft_budget=True)
+    tool = DockerTool(IMAGE, ['python', '--version'], 60)
+    # Legacy per-tool limits must not truncate a call. A started operation may
+    # finish after the soft budget and deliver the final candidate.
+    tool.timeout_seconds = 10 if expires else .1
+    seen = []
+
+    def feedback(candidate, sequence):
+        result = tool.run(['python', '-c',
+            f'import time; print("started", flush=True); time.sleep({4 if expires else .4}); print("done")'],
+            {}, {})
+        seen.append(result)
+        return {'report': {'outcome': 'error' if result.reason else 'passed'}}
+
+    result = DockerSession(config.image).run(
+        task, config, {}, task_message(task, config),
+        recorder=RunRecorder(tmp_path / 'run'), feedback=feedback)
+    assert result.candidate.content == b'final'
+    assert len(seen) == 1
+    assert result.termination == 'completed'
+    assert result.process_feedback[-1]['outcome'] == 'passed', seen[0].reason
+    assert b'done' in seen[0].evidence['console'].content
+    assert result.submissions[-1]['after_budget'] is expires
+
+
+@pytest.mark.acceptance
+@pytest.mark.acceptance_container
 def test_process_feedback_is_opt_in_and_uses_a_frozen_snapshot(tmp_path):
     task = session_task()
     config = replace(configuration('''
 output.write_bytes(b'feedback-candidate')
-feedback = subprocess.run(['python', '-I', '/protocol/process_check.py'],
-                          capture_output=True, text=True, check=True)
-print(feedback.stdout, flush=True)
-feedback = subprocess.run(['python', '-I', '/protocol/process_check.py'],
-                          capture_output=True, text=True, check=True)
+# Regression: checks after the former sixteen-request ceiling remain available.
+for _ in range(18):
+    feedback = subprocess.run(['python', '-I', '/protocol/process_check.py'],
+                              capture_output=True, text=True, check=True)
+    assert json.loads(feedback.stdout)['accepted']
 print(feedback.stdout, flush=True)
 '''), harness=HarnessSpec(capabilities=(PROCESS_FEEDBACK_CAPABILITY,)))
     seen = []
@@ -336,14 +382,15 @@ print(feedback.stdout, flush=True)
         task, config, {}, task_message(task, config), recorder=recorder, feedback=feedback)
     assert result.termination == "completed", result.console.content
     assert result.candidate is None
-    assert seen == [(b"feedback-candidate", 1), (b"feedback-candidate", 2)]
+    assert seen == [(b"feedback-candidate", i) for i in range(1, 19)]
+    assert result.process_feedback[-1]["outcome"] == "failed"
     assert result.process_feedback[0]["accepted"] is True
     assert result.process_feedback[0]["candidate"]["sha256"] == Asset(b"feedback-candidate", "gds").sha256
     assert result.process_feedback[1]["outcome"] == "error"
     assert "synthetic feedback error" in result.process_feedback[1]["error"]
     assert recover_submissions(recorder.root)["candidate"] is None
     kinds = [json.loads(line)["kind"] for line in (recorder.root / "events.jsonl").read_text().splitlines()]
-    assert kinds.count("process_feedback.request") == kinds.count("process_feedback.result") == 2
+    assert kinds.count("process_feedback.request") == kinds.count("process_feedback.result") == len(seen)
 
 
 # The participant-opinion protocol must preserve arbitrary observed text without
@@ -410,8 +457,8 @@ def test_killed_host_retains_acknowledged_candidate(tmp_path):
     code = """
 import sys
 from pathlib import Path
-from benchmarking.engine.execution import run_session
-from benchmarking.engine.session import DockerSession
+from benchmarking.engine.sessions.execution import run_session
+from benchmarking.engine.sessions.docker import DockerSession
 from benchmarking.tasks import load_task
 sys.path.insert(0, str(Path.cwd() / "tests"))
 from integration.test_session import session_task, configuration
@@ -463,7 +510,7 @@ run_session(task, config, {}, {job.operation: object() for job in task.evaluatio
 @pytest.mark.acceptance
 @pytest.mark.acceptance_container
 def test_console_storage_ceiling_stops_with_incomplete_evidence(tmp_path, monkeypatch):
-    monkeypatch.setattr("benchmarking.engine.session.MAX_CONSOLE_BYTES", 8192)
+    monkeypatch.setattr("benchmarking.engine.sessions.docker.MAX_CONSOLE_BYTES", 8192)
     task = session_task()
     config = configuration("print('x'*100000, flush=True); time.sleep(30)")
     recorder = RunRecorder(tmp_path / "run")

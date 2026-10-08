@@ -12,6 +12,7 @@ import pytest
 
 from benchmarking.files import Asset
 from benchmarking.layout_preview import ensure_layout_preview, export_layout
+from benchmarking.participants.adapters.contracts import ParticipantSelection
 
 pytestmark = pytest.mark.unit
 
@@ -27,6 +28,7 @@ def preview_archive(tmp_path):
         return dict(asset.identity(), path=path)
     (archive / 'run.json').write_text(json.dumps({'candidate': persist(candidate), 'task': persist(task)}))
     result = {'state': 'complete', 'session_id': 'session', 'task_sha256': 'task-identity',
+              'evaluation_mode': 'self_run',
               'score': {'value': 75}, 'tool_identity': {'image_id': 'frozen-image'},
               'submission': {'candidate_sha256': candidate.sha256, 'submission_id': 'last'}}
     analysis = tmp_path / 'participant/analysis'
@@ -40,7 +42,7 @@ def exported_case(root):
     root.mkdir(parents=True, exist_ok=True)
     (root / 'final.gds').write_bytes(candidate.content)
     record = {'format': 'participant-result', 'state': 'finished', 'top_cell': 'TOP',
-              'files': ['final.gds'], 'evaluation': {'score': {'value': 75},
+              'files': ['final.gds'], 'evaluation': {'score': {'value': 75}, 'evaluation_mode': 'self_run',
               'tool_identity': {'image_id': 'frozen-image'},
               'submission': {'candidate_sha256': candidate.sha256, 'submission_id': 'last'}}}
     (root / 'result.json').write_text(json.dumps(record))
@@ -56,26 +58,29 @@ def renderer_fixture(monkeypatch):
     png += chunk(b'IDAT', zlib.compress(b'\x00\xff\x00\x00')) + chunk(b'IEND', b'')
     class Renderer:
         def __init__(self, image, *args):
-            self.image = image
+            self.image = self.image_id = image
         def run(self, command, files, exports):
             calls.append((self.image, files))
             return SimpleNamespace(returncode=0, reason='', files={
                 'layout.png': Asset(png, 'png'),
                 'image.json': Asset(b'{"width":1,"height":1,"top_cell":"TOP"}', 'json')})
-    monkeypatch.setattr('benchmarking.layout_preview.DockerTool', Renderer)
+    monkeypatch.setattr('benchmarking.results.preview.DockerTool', Renderer)
     return calls
 
 
-def test_preview_uses_scored_snapshot_and_reuses_image(tmp_path, monkeypatch):
+@pytest.mark.parametrize("renderer", [None, "independent-renderer"])
+def test_preview_uses_scored_snapshot_and_reuses_image(tmp_path, monkeypatch, renderer):
     candidate = exported_case(tmp_path)
     calls = renderer_fixture(monkeypatch)
-    metadata = export_layout(tmp_path)
-    assert calls[0][0] == 'frozen-image'
+    metadata = export_layout(tmp_path, image=renderer)
+    assert calls[0][0] == (renderer or 'frozen-image')
+    assert metadata['renderer_image_id'] == (renderer or 'frozen-image')
+    assert json.loads((tmp_path / 'result.json').read_text())['evaluation']['tool_identity']['image_id'] == 'frozen-image'
     assert calls[0][1]['candidate.gds'] == candidate
     assert export_layout(tmp_path) == metadata
     assert len(calls) == 1
     (tmp_path / 'layout.png').unlink()
-    assert export_layout(tmp_path) == metadata
+    assert export_layout(tmp_path, image=renderer) == metadata
     assert len(calls) == 2
     assert (tmp_path / 'final.gds').read_bytes() == candidate.content
 
@@ -95,7 +100,7 @@ def test_renderer_failure_does_not_change_score_and_can_retry(tmp_path, monkeypa
     before = json.loads(result.read_text())['evaluation']
     def unavailable(*args):
         raise RuntimeError('sensitive external diagnostics')
-    monkeypatch.setattr('benchmarking.layout_preview.DockerTool', unavailable)
+    monkeypatch.setattr('benchmarking.results.preview.DockerTool', unavailable)
     assert ensure_layout_preview(tmp_path)['status'] == 'error'
     assert 'sensitive' not in result.read_text()
     assert json.loads(result.read_text())['evaluation'] == before
@@ -123,20 +128,22 @@ def test_runner_automatically_renders_and_backfills_on_skip(tmp_path, monkeypatc
         native_calls.append(output)
         preview_archive(output.parent)
         return {'outcome': 'pass', 'score': 75, 'result': 'analysis/result.json'}
-    monkeypatch.setattr('benchmarking.run.resolve', lambda *args: ({}, {}, {}))
-    monkeypatch.setattr('benchmarking.run.run_one', run)
+    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection({}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.runner.run_one', run)
+    from benchmarking.participants.case import execute_owned_slot
+    monkeypatch.setattr('benchmarking.participants.worker.supervise_slot', execute_owned_slot)
     monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'fixture')
     calls = renderer_fixture(monkeypatch)
     args = ['--config', str(config), '--endpoint', 'https://fixture']
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr('benchmarking.run.harness_version', lambda _: ('1.2.3', 'codex 1.2.3'))
+    monkeypatch.setattr('benchmarking.participants.planning.harness_version', lambda _: ('1.2.3', 'codex 1.2.3'))
     assert main(args) == 0
     case = native_calls[0].parent.parent
     assert (case / 'layout.png').exists()
     summary_path = case / 'result.json'
     summary = summary_path.read_bytes()
     (case / 'layout.png').unlink()
-    assert main(args + ['--resume']) == 0
+    assert main(args + ['--output', str(case.parent), '--resume']) == 0
     assert (case / 'layout.png').exists()
     assert len(native_calls) == 1 and len(calls) == 2
     assert summary_path.read_bytes() == summary
@@ -144,7 +151,15 @@ def test_runner_automatically_renders_and_backfills_on_skip(tmp_path, monkeypatc
     import sys
 
     from benchmarking.layout_preview import main as preview_main
-    for target in (case, case.parent):
+    batch = case.parent
+    nested = batch / "pdk/library/cases/case"
+    nested.parent.mkdir(parents=True)
+    case.rename(nested)
+    case = nested
+    hidden = batch / ".runtime/analysis"
+    hidden.mkdir(parents=True)
+    (hidden / "result.json").write_text("{}")
+    for target in (case, batch):
         (case / 'layout.png').unlink()
         monkeypatch.setattr(sys, 'argv', ['layout_preview', str(target)])
         with pytest.raises(SystemExit) as stop:
@@ -173,7 +188,7 @@ def unfinished_case(root):
 
 
 def test_compact_export_preserves_results_and_redacted_trace_without_environment(tmp_path, monkeypatch):
-    from benchmarking.participants.results import finish_case
+    from benchmarking.participants.terminal import finish_case
     _archive, candidate = unfinished_case(tmp_path)
     original = json.loads((tmp_path / '.runtime/participant/analysis/result.json').read_text())
     renderer_fixture(monkeypatch)
@@ -197,7 +212,7 @@ def test_compact_export_preserves_results_and_redacted_trace_without_environment
 
 
 def test_compact_export_retains_runtime_until_commit_and_retries_without_duplicate_trace(tmp_path, monkeypatch):
-    from benchmarking.participants import results
+    from benchmarking.participants import terminal as results
     unfinished_case(tmp_path)
     renderer_fixture(monkeypatch)
     save = results.save
@@ -217,7 +232,7 @@ def test_compact_export_retains_runtime_until_commit_and_retries_without_duplica
 
 
 def test_compact_export_rejects_active_or_corrupt_evidence(tmp_path, monkeypatch):
-    from benchmarking.participants.results import finish_case
+    from benchmarking.participants.terminal import finish_case
     archive, candidate = unfinished_case(tmp_path)
     renderer_fixture(monkeypatch)
     summary = tmp_path / '.runtime/summary.json'

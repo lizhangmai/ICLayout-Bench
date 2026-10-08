@@ -20,6 +20,13 @@ HARNESS_MODES = frozenset({"opaque", "managed", "native"})
 PROCESS_FEEDBACK_CAPABILITY = "process-feedback"
 
 
+def scheme_identity(scheme):
+    """Project declared participant tools into their portable measurement identity."""
+    return {**{k: v for k, v in scheme.items() if k not in {'launch', 'mcp'}},
+            **({'launch': scheme['launch']['identity']} if 'launch' in scheme else {}),
+            'mcp': {k: v['identity'] for k, v in scheme.get('mcp', {}).items()}}
+
+
 @dataclass(frozen=True)
 class HarnessSpec:
     """The observable identity and semantics of one Agent harness."""

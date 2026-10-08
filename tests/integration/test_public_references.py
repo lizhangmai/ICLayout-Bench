@@ -19,7 +19,7 @@ CASES = [path for path in PUBLISHED_CASES for data in [read_case(path)]
 
 @pytest.fixture(scope='module')
 def prepare_case(tmp_path_factory):
-    image = os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-bench-tools:local')
+    image = os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-eda-open:local')
     environments = {}
 
     def prepare(case):

@@ -1,72 +1,117 @@
-"""Repeatability limits protect individual observations and ranking precision.
+"""Qualification retains a passing reference run and checks its input bytes."""
 
-Synthetic report values isolate the publication policy; native extraction
-repeatability is verified separately with Dataset witnesses.
-"""
 import json
+import tomllib
+from types import SimpleNamespace
 
 import pytest
+from test_evaluate import PLAN
 
-from benchmarking.engine.qualification import repeatability
-from benchmarking.evaluation import EvaluationPlan, Metric
+from benchmarking.engine.qualification import audit, run, verify
+from benchmarking.evaluation import parse_evaluation
+from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
 
 
-def fixture_reports():
-    metric = Metric('response', 'performance', ('a:value', 'b:value'), 'V',
-                    'maximize', 'max', -1, 1)
-    plan = EvaluationPlan('characterization', (), (metric,), b'{}', 'json', None, '{}')
-    reports = [{'metrics': {'response': {'value': 0.8}}, 'score': {'value': 50.0},
-                'jobs': {name: {'measurements': {'value': {'value': value, 'unit': 'V'}}}
-                         for name, value in [('a', 0.5), ('b', 0.8)]}} for _ in range(3)]
-    return reports, plan
+def test_qualification_verifies_reference_and_declared_inputs_without_tool_or_contract_bindings(tmp_path, monkeypatch):
+    reference, netlist = Asset(b"layout", "gds"), Asset(b"source", "spice")
+    task = SimpleNamespace(
+        evaluation=SimpleNamespace(external_inputs=lambda: {"candidate", "input:netlist"},
+                                   jobs=[SimpleNamespace(id="a-different-plan")],
+                                   metrics=(), scoring=None),
+        evaluation_inputs=lambda: {"input:netlist": netlist}, digest="task", witnessed=True,
+    )
+    runtime = SimpleNamespace(task=task, witness=lambda: reference, backends={})
+    raw_report = {
+        "outcome": "passed", "physical_valid": True, "specs_pass": True,
+        "task_success": True, "score": 1.0,
+        "engine_sha256": {"evaluate.py": "old"}, "backends": {"check": {"version": "old"}},
+        "inputs": {"candidate": {"sha256": reference.sha256},
+                   "input:netlist": {"sha256": netlist.sha256}},
+        "jobs": {"original-plan": {"status": "passed", "measurements": {}}}, "metrics": {},
+    }
+    monkeypatch.setattr("benchmarking.engine.qualification.run_evaluation", lambda *args, **kwargs: raw_report)
+    output = tmp_path / "qualification"
+    record = run(runtime, output)
+    report = record["report"]
+    assert set(record) == {"format", "report", "contract_review"}
+    assert "engine_sha256" not in report and "backend_sha256" not in report
+    path = output / "qualification.json"
+    assert verify(runtime, output) == record
+
+    # Older retained reports may carry bindings that are no longer freshness checks.
+    legacy = {**record, "contract": {"old": "plan"}, "pdk_sha256": "old"}
+    legacy["report"] = {**report, "engine_sha256": {"evaluate.py": "old"},
+                        "backend_sha256": {"check": "old"}}
+    path.write_text(json.dumps(legacy))
+    assert verify(runtime, output) == legacy
+
+    legacy["report"]["inputs"]["candidate"] = "changed"
+    path.write_text(json.dumps(legacy))
+    with pytest.raises(ValueError, match="Qualification input changed: candidate"):
+        verify(runtime, output)
 
 
-def test_repeatability_checks_each_corner_even_when_aggregate_and_score_are_unchanged():
-    reports, plan = fixture_reports()
-    initial = repeatability(reports, plan)
-    limit = initial['observations']['response/a:value']['limit']
-    reports[1]['jobs']['a']['measurements']['value']['value'] += limit / 2
-    accepted = repeatability(reports, plan)
-    assert accepted['within_limits'] and not accepted['observations_identical']
-    reports[1]['jobs']['a']['measurements']['value']['value'] += 2 * limit
-    rejected = repeatability(reports, plan)
-    assert not rejected['within_limits']
-    assert rejected['score_spread'] == 0
+# The synthetic plan already owns the observations. These cases protect the
+# authoring boundary: ambiguous limits must fail before any reference/tool access,
+# while explicit functional requirements and quality are independently visible.
+def test_qualification_rejects_implicit_limits_before_accessing_reference(tmp_path):
+    plan = parse_evaluation(PLAN)
+    runtime = SimpleNamespace(task=SimpleNamespace(evaluation=plan))
+    with pytest.raises(ValueError, match="Review the contract before changing the reference"):
+        run(runtime, tmp_path / "rejected")
+    assert not (tmp_path / "rejected").exists()
 
 
-def test_repeatability_score_budget_is_absolute_and_rejects_excess_even_with_stable_metrics():
-    reports, plan = fixture_reports()
-    limit = repeatability(reports, plan)['policy']['score_spread']
-    reports[1]['score']['value'] += limit
-    assert repeatability(reports, plan)['within_limits']
-    reports[1]['score']['value'] += 2 * limit
-    assert not repeatability(reports, plan)['within_limits']
+def test_explicit_requirements_are_audited_separately_from_weights():
+    data = tomllib.loads(PLAN.decode())
+    for metric in data['metrics']:
+        bounds = {key: metric.pop(key) for key in ('lower', 'upper') if key in metric}
+        if bounds:
+            metric['requirement'] = {**bounds, 'rationale': 'The output event must lie in its input cycle.'}
+    plan = parse_evaluation(json.dumps(data).encode(), file_format='json')
+    review = audit(plan)
+    assert review['minimum_score'] is None
+    assert set(review['requirements']) == {m.id for m in plan.metrics if m.is_requirement}
+    assert review['quality'] == {key: value for key, value in plan.scoring.weights if value > 0}
+    metric = next(m for m in data['metrics'] if 'requirement' in m)
+    for invalid in ({'lower': 0}, {'lower': 0, 'rationale': '  '}, {'rationale': 'function'}):
+        metric['requirement'] = invalid
+        with pytest.raises((ValueError, TypeError)):
+            parse_evaluation(json.dumps(data).encode(), file_format='json')
+    metric['requirement'] = {'lower': 0, 'rationale': 'function'}
+    metric['upper'] = 1
+    with pytest.raises(ValueError, match='Mixed legacy'):
+        parse_evaluation(json.dumps(data).encode(), file_format='json')
 
 
-def test_repeatability_uses_declared_scale_for_near_zero_measurements():
-    from dataclasses import replace
-    reports, plan = fixture_reports()
-    metric = replace(plan.metrics[0], lower=None, upper=None, scale=1e-6)
-    plan = replace(plan, metrics=(metric,))
-    for report in reports:
-        for job in report['jobs'].values():
-            job['measurements']['value']['value'] = 0.0
-    limit = repeatability(reports, plan)['observations']['response/a:value']['limit']
-    reports[1]['jobs']['a']['measurements']['value']['value'] = -limit / 2
-    assert repeatability(reports, plan)['within_limits']
-    assert repeatability(reports, plan)['observations']['response/a:value']['limit'] == limit
-    # A frozen source observation is also a dimensional reference.
-    metric = replace(metric, scale=None, baseline=('source:x', 'source:y'))
-    plan = replace(plan, metrics=(metric,), pre_layout_json=json.dumps({
-        'source': {'measurements': {'x': {'value': 1e-6}, 'y': {'value': 1e-6}}}}))
-    assert repeatability(reports, plan)['observations']['response/a:value']['limit'] == limit
+@pytest.mark.parametrize("failure", [None, "drc", "tool"])
+def test_retained_evaluation_survives_success_gate_failure_and_tool_error(tmp_path, failure):
+    from test_evaluate import Checks, Extractor, Simulator
 
-
-@pytest.mark.parametrize('invalid', [float('nan'), float('inf')])
-def test_repeatability_rejects_nonfinite_observations(invalid):
-    reports, plan = fixture_reports()
-    reports[1]['jobs']['a']['measurements']['value']['value'] = invalid
-    with pytest.raises(ValueError, match='finite'):
-        repeatability(reports, plan)
+    data = tomllib.loads(PLAN.decode())
+    for metric in data['metrics']:
+        bounds = {key: metric.pop(key) for key in ('lower', 'upper') if key in metric}
+        if bounds:
+            metric['requirement'] = {**bounds, 'rationale': 'Synthetic functional limit.'}
+    plan = parse_evaluation(json.dumps(data).encode(), file_format='json')
+    task = SimpleNamespace(evaluation=plan, digest='fixture', witnessed=True,
+                           evaluation_inputs=lambda: {'input:netlist': Asset(b'schematic', 'spice')})
+    runtime = SimpleNamespace(task=task, witness=lambda: Asset(b'synthetic-layout', 'gds'),
+                              backends={'check': Checks(reject=failure, crash='drc' if failure == 'tool' else None),
+                                        'extract': Extractor(), 'response': Simulator()})
+    output = tmp_path / 'qualification'
+    if failure:
+        with pytest.raises(ValueError, match='did not pass'):
+            run(runtime, output, retain_evaluation=True)
+    else:
+        run(runtime, output, retain_evaluation=True)
+        verify(runtime, output)
+    raw = output / 'evaluation'
+    report = json.loads((raw / 'report.json').read_text())
+    assert report['task_success'] is (None if failure == 'tool' else failure is None)
+    assert any(p.is_file() and p.read_bytes() == b'artifact' for p in raw.rglob('*'))
+    assert (output / 'qualification.json').exists() is (failure is None)
+    with pytest.raises(FileExistsError):
+        run(runtime, output, retain_evaluation=True)

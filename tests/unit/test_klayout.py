@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from benchmarking.engine.klayout import validate_drc_waivers
+from benchmarking.engine.backends.klayout import validate_drc_waivers
 
 pytestmark = pytest.mark.unit
 
@@ -44,7 +44,7 @@ def test_drc_waiver_schema_rejects_duplicate_marker_across_entries():
 def test_all_drc_decks_contribute_to_one_gate(monkeypatch, primary, extra, expected):
     # Exercise orchestration without substituting a real rule-check result.
     monkeypatch.setitem(sys.modules, "klayout", SimpleNamespace(db=None, rdb=None))
-    module = runpy.run_path(str(Path(__file__).resolve().parents[2] / "benchmarking/engine/klayout_runner.py"))
+    module = runpy.run_path(str(Path(__file__).resolve().parents[2] / "benchmarking/engine/container_scripts/klayout_runner.py"))
     main = module["main"]
     monkeypatch.setitem(main.__globals__, "artifact", lambda config: "")
     calls = []

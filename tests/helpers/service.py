@@ -117,7 +117,7 @@ class Simulator:
                 "condition": self.condition,
                 "limits": {},
                 "tool_identity": {},
-                "verification_level": "local_development",
+                "evaluation_mode": "self_run",
                 "provenance": {"usage": "unknown"},
                 "usage": dict.fromkeys(USAGE_FIELDS),
                 "submission": self.receipt,

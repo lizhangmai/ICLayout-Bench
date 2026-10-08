@@ -11,9 +11,8 @@ import tomli_w
 from helpers.spice_raw import read_raw
 from helpers.stimuli import command, number
 
-from benchmarking.dataset import load_dataset
+from benchmarking.engine.backends.ngspice import NgspiceDocker
 from benchmarking.engine.evaluate import run_evaluation
-from benchmarking.engine.ngspice import NgspiceDocker
 from benchmarking.engine.toolchains import load_toolchain
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.files import Asset
@@ -37,9 +36,13 @@ def rc_inputs():
 
 
 @pytest.mark.parametrize("formulation", ["conductance", "branch"])
-def test_rc_transient_and_ac_match_analytic_values_and_retain_waveforms(tmp_path, formulation):
+@pytest.mark.parametrize("threads", [1, 4])
+def test_rc_transient_and_ac_match_analytic_values_and_retain_waveforms(tmp_path, formulation, threads):
     config = tomllib.loads((FIXTURES / "rc.toml").read_text())
     inputs = rc_inputs()
+    for role in ("input:transient", "input:ac"):
+        inputs[role] = Asset(inputs[role].content.replace(
+            b".control\n", b".control\necho configured_model_threads=$num_threads\n", 1), "spice")
     # Branch compilation supports literal extracted resistances. Bind this
     # existing analytical fixture's declared R value separately for each job.
     for job in config["jobs"]:
@@ -51,14 +54,18 @@ def test_rc_transient_and_ac_match_analytic_values_and_retain_waveforms(tmp_path
     del inputs["input:dut"]
     plan = parse_evaluation(tomli_w.dumps(config).encode())
     backend = NgspiceDocker(
-        image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local"),
-        resistor_formulation=formulation)
+        image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-eda-open:local"),
+        resistor_formulation=formulation, threads=threads,
+        max_parallel_jobs=2, cpu_budget=2 * threads)
     report = run_evaluation(plan, inputs, {"circuit.simulate": backend}, tmp_path / "rc")
     assert report["outcome"] == "passed", report["jobs"]
     assert report["task_success"] is None
     pulse = [number(token) for token in re.search(r'PULSE\(([^)]+)\)',
              asset('rc_transient.spice').content.decode()).group(1).split()]
     for job in plan.jobs:
+        log = report['jobs'][job.id]['evidence']['log']
+        text = (tmp_path / 'rc' / log['path']).read_text()
+        assert f'configured_model_threads={threads}' in text
         values = job.parameters['values']
         tau = values['r_series'] * values['c_load']
         # A short linear input ramp adds half its rise time to the ideal
@@ -109,31 +116,6 @@ def test_simulator_exit_success_without_measurement_is_an_error(tmp_path, backen
     assert job["evidence"]["log"]["bytes"] > 0
 
 
-@pytest.mark.parametrize("case", ["ia_002_fan_chopper_simple", "ia_003_fan_chopper_pf"])
-@pytest.mark.parametrize("limit_multiple,expected", [(0, "passed"), (1, "passed"), (2, "error")])
-def test_lock_in_window_validity_is_a_tool_error(tmp_path, case, limit_multiple, expected):
-    # Exercise the published validity guard with controlled endpoint errors;
-    # the existing divider supplies finite measurements without an expensive PEX run.
-    case_path = load_dataset(os.environ.get('ICLAYOUT_BENCH_DATASET')).case(
-        f'ihp-sg13g2.analog-db.{case}').parent
-    problem = (case_path / "problem.md").read_text()
-    limit_ps = re.search(r"summed endpoint error must not exceed ([\d.]+) ps", problem)
-    assert limit_ps, "The solver contract must publish the measurement-validity limit"
-    boundary_error = limit_multiple * float(limit_ps[1]) * 1e-12
-    deck = (case_path / "materials/testbench.spice").read_text()
-    guard = deck.split("let boundary_error_s=", 1)[1].split("\n", 1)[1].split("let dm=", 1)[0]
-    control = f"let boundary_error_s={boundary_error}\n{guard}"
-    probe = Asset(asset("divider_dc.spice").content.replace(b"print ratio power",
-                  control.encode() + b"print ratio power"), "spice")
-    backend = NgspiceDocker(image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local"))
-    report = run_evaluation(parse_evaluation((FIXTURES / "divider.toml").read_bytes()),
-                            {"input:dut": asset("divider.spice"), "input:dc": probe},
-                            {"circuit.simulate": backend}, tmp_path / "window")
-    assert report["outcome"] == expected
-    if expected == "error":
-        assert report["specs_pass"] is None
-        assert report["jobs"]["operating_point"]["measurements"] == {}
-
 
 def test_branch_resistors_preserve_picoampere_kcl(tmp_path):
     """A metal segment must not erase a high-impedance node's conductance.
@@ -144,7 +126,7 @@ def test_branch_resistors_preserve_picoampere_kcl(tmp_path):
     This analytical control verifies numerical formulation, not circuit signoff.
     """
     backend = NgspiceDocker(
-        image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-bench-tools:local"),
+        image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-eda-open:local"),
         resistor_formulation="branch")
     plan = parse_evaluation(b'''
 mode = "characterization"

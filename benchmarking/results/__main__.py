@@ -39,7 +39,7 @@ def main(argv=None):
     commands.add_parser("list", help="List runs")
     args = parser.parse_args(argv)
     if args.command == "retry":
-        from benchmarking.participants.archive import retry
+        from .outbox import retry
 
         result = retry(args.data)
         print(json.dumps(result, indent=2))

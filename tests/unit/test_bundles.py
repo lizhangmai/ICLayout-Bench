@@ -2,7 +2,7 @@ import pytest
 import tomli_w
 
 from benchmarking.bundles import load_bundle, publish_bundle
-from benchmarking.engine.prepare_support import prepare_support
+from benchmarking.engine.resources.support import prepare_support
 from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
@@ -61,8 +61,8 @@ def test_support_preparation_binds_pinned_sources_and_reuses_profiles(tmp_path, 
 # Synthetic compiler outputs distinguish raw, adapted and compiled bytes. Only
 # the external compiler is replaced; this verifies storage/reuse, not model physics.
 def test_cases_share_derived_files_and_recompile_only_changed_inputs(tmp_path, monkeypatch):
-    from benchmarking.engine import prepare_support as module
-    from benchmarking.engine.docker import ToolResult
+    from benchmarking.engine.resources import support as module
+    from benchmarking.engine.tools.types import ToolResult
 
     monkeypatch.setenv("ICLAYOUT_BENCH_CACHE_DIR", str(tmp_path / "cache"))
     source = tmp_path / "source"
@@ -108,8 +108,8 @@ def test_cases_share_derived_files_and_recompile_only_changed_inputs(tmp_path, m
     assert len(calls) == 3
 
 
-def test_ciel_owns_installation_reuse_and_agent_mounts_the_process_root(tmp_path, monkeypatch):
-    """Protect whole-root mounts and reuse without duplicating ciel integrity tests."""
+def test_ciel_reuses_installation_and_agent_mounts_only_selected_paths(tmp_path, monkeypatch):
+    """Protect reviewed mounts and reuse without duplicating ciel integrity tests."""
     import tomllib
     from pathlib import Path
     from types import SimpleNamespace
@@ -118,8 +118,11 @@ def test_ciel_owns_installation_reuse_and_agent_mounts_the_process_root(tmp_path
     import ciel.source
     from ciel.common import Version
 
-    from benchmarking.engine.pdk_installation import cache_root, prepare_installation
-    from benchmarking.engine.pdk_resources import prepare_agent_resources
+    from benchmarking.engine.resources.agent import prepare_agent_resources
+    from benchmarking.engine.resources.installation import (
+        cache_root,
+        prepare_installation,
+    )
 
     monkeypatch.delenv('ICLAYOUT_BENCH_CACHE_DIR', raising=False)
     monkeypatch.delenv('XDG_CACHE_HOME', raising=False)
@@ -160,17 +163,31 @@ def test_ciel_owns_installation_reuse_and_agent_mounts_the_process_root(tmp_path
                                                         'format': 'spice'}}}},
         'notices': {'LICENSE': {'format': 'text', 'content': 'synthetic terms'}},
         'agent': {'id': 'gf180mcuD', 'support_profiles': ['models'],
-                  'sources': {'gf180mcuD': {'installation': True, 'path': 'gf180mcuD'}},
+                  'sources': {'gf180mcuD': {'installation': True, 'path': 'gf180mcuD',
+                                             'paths': ['libs.tech/model.spice']}},
                   'environment': {'PDK_ROOT': '/resources/pdks'}, 'checks': [['true']]}}))
-    bundle = prepare_agent_resources(manifest, tmp_path / 'export', root=tmp_path)
+    bundle = prepare_agent_resources(manifest, tmp_path / 'export')
     exported = dict(bundle.files)
-    assert (exported['pdks/gf180mcuD'].path / 'libs.tech/model.spice').read_bytes() == b'model'
-    assert (exported['pdks/gf180mcuD'].path / 'examples/answer.gds').is_file()
-    assert 'support/models/LICENSE' not in exported
-    assert 'pdks/gf180mcuD/examples/answer.gds' not in exported  # No per-file inventory.
-    assert dict(bundle.paths)['pdks/gf180mcuD'] == cache / 'gf180mcuD'
-    prepare_agent_resources(manifest, tmp_path / 'another-case', root=tmp_path)
+    assert exported['pdks/gf180mcuD/libs.tech/model.spice'].content == b'model'
+    assert not any('examples' in name for name in exported)
+    assert 'pdks/gf180mcuD' not in exported
+    assert dict(bundle.paths)['pdks/gf180mcuD/libs.tech/model.spice'] == cache / 'gf180mcuD/libs.tech/model.spice'
+    prepare_agent_resources(manifest, tmp_path / 'another-case')
     assert (tmp_path / 'export/resource.json').read_bytes() == (tmp_path / 'another-case/resource.json').read_bytes()
     # No second inventory or checksum audit on reuse of ciel's installation.
     (cache / 'gf180mcuD/libs.tech/model.spice').write_text('local edit')
     assert prepare_installation(source) == cache
+
+
+@pytest.mark.parametrize("paths", [[], "libs.tech", ["../examples"], ["/tmp"],
+                                  ["tech", "tech/model"], ["tech", "tech"]])
+def test_agent_rejects_invalid_selected_paths(tmp_path, paths):
+    from benchmarking.engine.resources.agent import agent_spec
+
+    manifest = tmp_path / 'pdk.toml'
+    manifest.write_text(tomli_w.dumps({'agent': {
+        'id': 'fixture', 'sources': {'fixture': {'installation': True, 'paths': paths}},
+        'environment': {}, 'checks': [['true']],
+    }}))
+    with pytest.raises(ValueError):
+        agent_spec(manifest)

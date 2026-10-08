@@ -9,10 +9,9 @@ from html import escape
 from pathlib import Path, PurePosixPath
 from xml.etree import ElementTree
 
-from sqlalchemy import select
+from benchmarking.engine.netlists.spice import logical_lines, tokens
 
-from . import schema as s
-from .store import digest
+from .normalization import digest
 
 
 def reader_summary(case):
@@ -23,23 +22,14 @@ def reader_summary(case):
 
 
 def parse_netlist(text, subcircuit):
-    lines = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("*"):
-            continue
-        if line.startswith("+") and lines:
-            lines[-1] += " " + line[1:]
-        else:
-            lines.append(line)
     active, ports, devices = False, [], []
-    for line in lines:
-        # CDL permits dollar signs in instance and node names (Q$1, $10).
-        # Only a standalone dollar comment marker terminates the card.
-        words = re.split(r"\s+\$(?:\s|$)", line, maxsplit=1)[0].split()
+    for line in logical_lines(text):
+        words = tokens(line, inline_comments=(";", "$"), preserve_parameters=True)
         if not words:
             continue
         if words[0].lower() == ".subckt":
+            if len(words) < 2:
+                raise ValueError("SPICE subcircuit has no name")
             active = words[1].lower() == subcircuit.lower()
             if active:
                 ports = [
@@ -64,7 +54,11 @@ def parse_netlist(text, subcircuit):
             "I": 2,
             "B": 2,
         }.get(kind)
-        words = [w for w in words if w != "/"]
+        parameter_start = next(
+            (i for i, w in enumerate(words) if "=" in w or w.lower() == "params:"), len(words)
+        )
+        # CDL's '/' separates pins from a model; division in parameters is data.
+        words = [w for i, w in enumerate(words) if w != "/" or i >= parameter_start]
         if kind in {"X", "Q", "R"}:
             end = next(
                 (i for i, w in enumerate(words) if "=" in w or w.lower() == "params:"),
@@ -278,16 +272,8 @@ class GitCatalog:
         store.attach(
             task["id"], "source.json", json.dumps(metadata).encode(), task=True
         )
-        with store.engine.begin() as conn:
-            conn.execute(
-                s.tasks.update()
-                .where(s.tasks.c.id == task["id"])
-                .values(
-                    title=data.get("title"),
-                    pdk=PurePosixPath(path).parts[1],
-                    presentation=metadata,
-                )
-            )
+        store.update_task_presentation(task["id"], title=data.get("title"),
+                                       pdk=PurePosixPath(path).parts[1], metadata=metadata)
         return {
             "task_id": task["task_id"],
             "status": "attached",
@@ -319,8 +305,7 @@ def attach_catalog(store, root, *, schematic_revision=None):
     schematic_catalog = (
         catalog_type(root, schematic_revision) if schematic_revision else None
     )
-    with store.engine.connect() as conn:
-        tasks = list(conn.execute(select(s.tasks)).mappings())
+    tasks = store.inventory()["tasks"]
     for task in tasks:
         revision = (task["identity"].get("dataset") or {}).get("commit")
         try:

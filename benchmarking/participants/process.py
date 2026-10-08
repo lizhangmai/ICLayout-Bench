@@ -12,7 +12,7 @@ def execute(argv, *, cwd, env, stdout, stderr, timeout, prompt=None, pass_fds=()
     timed_out = False
     try:
         try:
-            process.communicate(prompt, timeout=max(.001, timeout))
+            process.communicate(prompt, timeout=None if timeout is None else max(.001, timeout))
         except subprocess.TimeoutExpired:
             timed_out = True
         return process.returncode, timed_out

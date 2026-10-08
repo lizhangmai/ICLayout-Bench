@@ -64,7 +64,7 @@ def test_case_toolchain_default_and_explicit_override(executable_case, tmp_path,
         return {"mode": "physical", "outcome": "passed", "physical_valid": True,
                 "specs_pass": None, "task_success": None, "metrics": {},
                 "task_witnessed": False,
-                "score": {"method": "layout", "value": 90.0, "maximum": None, "reference": 100,
+                "score": {"method": "layout", "value": 90.0, "maximum": 100, "reference": 100,
                           "components": {"G": 1, "E": 0.9, "Q": 0.9}}}
 
     monkeypatch.setattr(_MODULE, "run_evaluation", evaluate)
@@ -76,6 +76,6 @@ def test_case_toolchain_default_and_explicit_override(executable_case, tmp_path,
     assert invoked == [output]
     if command == "evaluate":
         assert json.loads(capsys.readouterr().out)["score"] == {
-            "method": "layout", "value": 90.0, "maximum": None, "reference": 100,
+            "method": "layout", "value": 90.0, "maximum": 100, "reference": 100,
             "components": {"G": 1, "E": 0.9, "Q": 0.9},
         }

@@ -232,7 +232,7 @@ def test_malformed_http_200_response_keeps_upstream_status_and_hides_body():
 
 
 def test_request_and_response_persist_before_forwarding(tmp_path, monkeypatch):
-    from benchmarking.engine.recorder import RecordingError, RunRecorder
+    from benchmarking.engine.sessions.recorder import RecordingError, RunRecorder
 
     recorder = RunRecorder(tmp_path / "run")
     def transport(path, body, timeout):
@@ -261,7 +261,7 @@ def test_request_and_response_persist_before_forwarding(tmp_path, monkeypatch):
 # is the only fake. Protect terminal validation, usage accounting and isolation.
 @pytest.mark.parametrize('streaming', [False, True])
 def test_messages_terminal_usage_and_client_tool_isolation(streaming):
-    from benchmarking.engine.messages import MessagesWireAdapter
+    from benchmarking.engine.inference.messages import MessagesWireAdapter
 
     adapter = MessagesWireAdapter()
     request = {'model': 'test-model', 'max_tokens': 32,
@@ -306,10 +306,59 @@ def test_messages_terminal_usage_and_client_tool_isolation(streaming):
     ('tool_use', 'completed'),
 ])
 def test_messages_stop_reason_is_independent_of_http_success(reason, outcome):
-    from benchmarking.engine.messages import MessagesWireAdapter
+    from benchmarking.engine.inference.messages import MessagesWireAdapter
 
     body = json.dumps({'type': 'message', 'stop_reason': reason}).encode()
     assert MessagesWireAdapter().response_semantics('/v1/messages', 'application/json', body)['outcome'] == outcome
+
+
+def test_wire_adapter_registry_and_public_package_facade():
+    from benchmarking.engine.inference import (
+        available_wire_adapters,
+        register_wire_adapter,
+        unregister_wire_adapter,
+    )
+
+    class FixtureAdapter:
+        id = 'unit-fixture'
+
+        def validate_request(self, path, body, model):
+            return body
+
+        def prepare_request(self, path, body, model, credential):
+            raise AssertionError('The registry check must not make a provider request')
+
+        def response_semantics(self, path, content_type, body):
+            return {'outcome': 'completed', 'usage': None}
+
+    adapter = FixtureAdapter()
+    register_wire_adapter(adapter)
+    try:
+        assert {'responses', 'messages', 'unit-fixture'} <= set(available_wire_adapters())
+        from benchmarking.engine.inference import InferenceConfig, InferenceGateway
+
+        config = InferenceConfig('https://example.invalid/v1', 'test-model', 'UNUSED', 1, 5,
+                                 Asset(b'profile', 'text'), 'unit-fixture')
+        assert InferenceGateway(config, transport=lambda *args: None).wire_adapter is adapter
+    finally:
+        unregister_wire_adapter('unit-fixture')
+
+
+def test_inference_source_identity_changes_when_declared_source_changes(tmp_path):
+    from benchmarking.engine.inference import INFERENCE_SOURCE_FILES
+    from benchmarking.engine.inference.gateway import _inference_source_sha256
+
+    for name in INFERENCE_SOURCE_FILES:
+        (tmp_path / name).write_bytes(f'fixture source: {name}'.encode())
+
+    original_identity = _inference_source_sha256(tmp_path)
+    for name in INFERENCE_SOURCE_FILES:
+        path = tmp_path / name
+        original = path.read_bytes()
+        path.write_bytes(original + b' changed')
+        assert _inference_source_sha256(tmp_path) != original_identity
+        path.write_bytes(original)
+        assert _inference_source_sha256(tmp_path) == original_identity
 
 
 

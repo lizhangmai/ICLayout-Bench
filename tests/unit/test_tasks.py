@@ -169,18 +169,29 @@ def test_candidate_circuit_case_without_task_is_not_an_executable_task(circuit_c
         load_task(circuit_case)
 
 
+@pytest.mark.parametrize("visibility", ["public", "private", "restricted"])
+def test_case_visibility_accepts_only_public_or_private(executable_case, visibility):
+    executable_case.write_text(f'distribution = "{visibility}"\n' + executable_case.read_text())
+    if visibility == "restricted":
+        with pytest.raises(ValueError, match="public or private"):
+            load_task(executable_case)
+    else:
+        assert load_task(executable_case).id
+
+
 def test_case_metadata_does_not_supply_solver_inputs(executable_case, tmp_path):
     task = load_task(executable_case)
     # Attribution may point to a source that differs from the maintained circuit.
     replace(executable_case, "https://example.invalid/synthetic-circuit",
             "https://example.invalid/another-source")
-    executable_case.write_text(executable_case.read_text()
+    executable_case.write_text('in_core = true\ncore_order = 7\n' + executable_case.read_text()
                                + '\n[presentation]\ncategory="Fixture"\nsummary="Browsing only"\n')
     updated = load_task(executable_case)
     assert updated.digest != task.digest
     assert updated.inputs == task.inputs
     assert "origin" not in updated.description()
     assert "presentation" not in updated.description()
+    assert "core_order" not in updated.description()
     destination = tmp_path / "delivered"
     updated.materialize(destination)
     assert {p.relative_to(destination).as_posix(): p.read_bytes()

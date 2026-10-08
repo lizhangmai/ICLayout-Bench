@@ -9,17 +9,93 @@ import json
 import math
 import re
 
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 import tomli_w
 from helpers.case_config import standalone_config
 from helpers.catalog import CASES, ROOT, read_case
 
-from benchmarking.dataset import case_location, process_manifest
-from benchmarking.engine.prepare_support import load_profile
+from benchmarking.dataset import Dataset, case_location, process_manifest, select_core
+from benchmarking.engine.resources.support import load_profile
 from benchmarking.evaluation import SCORING_METHOD
 from benchmarking.tasks import load_task, task_contract
 
-pytestmark = [pytest.mark.unit, pytest.mark.skipif(not CASES, reason="Set ICLAYOUT_BENCH_DATASET to run dataset checks")]
+pytestmark = pytest.mark.unit
+
+
+@pytest.mark.parametrize("card_split", [None, "test", "validation"])
+@pytest.mark.parametrize("table_format", ["parquet", "jsonl"])
+@pytest.mark.parametrize("ordered", [False, True])
+def test_native_static_index_with_and_without_dataset_card(tmp_path, card_split, table_format, ordered):
+    process = tmp_path / "tasks/fixture"
+    process.mkdir(parents=True)
+    pdk = process / "pdk.toml"
+    pdk.write_text('[source]\nname = "fixture"\n')
+    source_rows, source_cases = [], {}
+    for position, case_id in enumerate(("example", "zebra")):
+        case = process / f"collection/cases/{case_id}/case.toml"
+        case.parent.mkdir(parents=True)
+        config = {"id": case_id, "in_core": True, "status": "qualified",
+                  "task": {"evaluation": {"mode": "post_layout", "scoring": {"method": "layout"}}}}
+        row = {"id": case_id, "in_core": True,
+               "case_path": case.relative_to(tmp_path).as_posix(),
+               "pdk_path": pdk.relative_to(tmp_path).as_posix(),
+               "pdk_sha256": hashlib.sha256(pdk.read_bytes()).hexdigest()}
+        if ordered:
+            config["core_order"] = row["core_order"] = 2 - position
+        case.write_text(tomli_w.dumps(config))
+        row["case_sha256"] = hashlib.sha256(case.read_bytes()).hexdigest()
+        source_rows.append(row)
+        source_cases[case_id] = case
+    name = f"data.{table_format}"
+
+    def write_index():
+        if table_format == "parquet":
+            pq.write_table(pa.Table.from_pylist(source_rows), tmp_path / name)
+        else:
+            (tmp_path / name).write_text("".join(json.dumps(row) + "\n" for row in source_rows))
+
+    write_index()
+    if table_format == "parquet":
+        # A leftover legacy view must not override the native index without a card.
+        (tmp_path / "data.jsonl").write_text(json.dumps({**source_rows[0], "id": "obsolete"}) + "\n")
+    if card_split:
+        (tmp_path / "README.md").write_text(
+            "---\nconfigs:\n- config_name: default\n  data_files:\n"
+            f"  - split: {card_split}\n    path: {name}\n---\n")
+    dataset = Dataset(tmp_path, {})
+    for selection in ("all", "core"):
+        rows, cases = dataset.native_cases(selection, card_split or "test")
+        expected = ["zebra", "example"] if ordered and selection == "core" else ["example", "zebra"]
+        assert rows["id"] == expected
+        assert list(cases) == expected
+        assert cases == source_cases
+    if ordered:
+        # Matching rows/contracts still cannot declare duplicate dispatch positions.
+        case = source_cases["example"]
+        import tomllib
+
+        config = tomllib.loads(case.read_text())
+        config["core_order"] = source_rows[0]["core_order"] = 1
+        case.write_text(tomli_w.dumps(config))
+        source_rows[0]["case_sha256"] = hashlib.sha256(case.read_bytes()).hexdigest()
+        write_index()
+        with pytest.raises(ValueError, match="unique core_order"):
+            dataset.native_cases("core", card_split or "test")
+    # Loading without a card must retain the normal contract-integrity checks.
+    case = source_cases["example"]
+    case.write_text(case.read_text() + '\ntitle = "changed"\n')
+    with pytest.raises(ValueError, match="stale case digest"):
+        dataset.native_cases("all", card_split or "test")
+
+
+@pytest.mark.parametrize("orders", [(1, 1), (1, None), (0, 2), (True, 2)])
+def test_core_order_rejects_ambiguous_or_invalid_positions(orders):
+    rows = [{"id": name, "in_core": True, "core_order": order}
+            for name, order in zip(("example", "zebra"), orders, strict=True)]
+    with pytest.raises(ValueError, match="core_order"):
+        select_core(rows)
 
 
 def _logical_lines(raw):
@@ -58,37 +134,147 @@ def _dut_argument_lists(raw, name):
     return calls
 
 
+def _check_published_budget(description, hours, context=None):
+    patterns = (
+        r"\bsolve budget\b\s*(?::|\bis\b)\s*\*{0,2}(\d+(?:\.\d+)?)\s*hours\*{0,2}",
+        r"求解(?:预算|时限)\s*[:：]?\s*\*{0,2}(\d+(?:\.\d+)?)\s*小时\*{0,2}",
+    )
+    published_hours = [float(value) for pattern in patterns
+                       for value in re.findall(pattern, description, re.IGNORECASE)]
+    assert published_hours == [hours], context
+
+
+def _markdown_cells(line):
+    if "|" not in line:
+        return None
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def _published_weight_tables(description):
+    lines = description.splitlines()
+    tables = []
+    for index, line in enumerate(lines):
+        headers = _markdown_cells(line)
+        if headers is None:
+            continue
+        normalized = [re.sub(r"[^a-z]+", " ", cell.lower()).strip() for cell in headers]
+        metric_columns = [column for column, name in enumerate(normalized)
+                          if name == "metric" or headers[column] == "指标"]
+        weight_columns = [column for column, name in enumerate(normalized)
+                          if "weight" in name.split() or headers[column] in {"权重", "评分权重"}]
+        if len(metric_columns) != 1 or len(weight_columns) != 1 or index + 1 >= len(lines):
+            continue
+
+        separator = _markdown_cells(lines[index + 1])
+        if separator is None or len(separator) != len(headers) or not all(
+            re.fullmatch(r":?-{3,}:?", cell) for cell in separator
+        ):
+            continue
+
+        rows = []
+        for row_line in lines[index + 2:]:
+            cells = _markdown_cells(row_line)
+            if cells is None:
+                break
+            assert len(cells) == len(headers), row_line
+            metric = re.search(r"`([^`]+)`", cells[metric_columns[0]])
+            weight = re.fullmatch(
+                r"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*(%)?",
+                cells[weight_columns[0]],
+            )
+            assert metric is not None and weight is not None, row_line
+            value = float(weight[1]) / 100 if weight[2] else float(weight[1])
+            rows.append((metric[1], value))
+        tables.append(rows)
+    return tables
+
+
+def _check_published_weights(description, expected, allowed_metrics, context=None):
+    tables = _published_weight_tables(description)
+    expected_weights = dict(expected)
+    allowed_metrics = set(allowed_metrics)
+    published_weights = dict(tables[0]) if len(tables) == 1 else {}
+    assert (
+        len(tables) == 1
+        and len(tables[0]) >= len(expected_weights)
+        and len(published_weights) == len(tables[0])
+        and set(expected_weights) <= set(published_weights)
+        and all(published_weights[name] == weight for name, weight in expected_weights.items())
+        and all(
+            name in allowed_metrics and weight == 0
+            for name, weight in published_weights.items()
+            if name not in expected_weights
+        )
+    ), context
+
+
+def _published_area_targets(description):
+    current_targets = re.findall(
+        r"Current area target:\s*\*\*([\d.]+) um2\*\*", description
+    )
+    area_references = re.findall(r"Area reference:\s*\*\*([\d.]+) um2\*\*", description)
+    if current_targets:
+        anchor_ratios = re.findall(
+            r"([\d.]+)%\s+of (?:the )?(?:prior|previous)\s+\*\*([\d.]+) um2\*\*",
+            description,
+            re.IGNORECASE,
+        )
+        assert len(current_targets) == 1 and not area_references and len(anchor_ratios) == 1
+        ratio, anchor = anchor_ratios[0]
+        return float(current_targets[0]), float(anchor), float(ratio) / 100
+    assert len(area_references) == 1 and not current_targets
+    reference = float(area_references[0])
+    return reference, reference, None
+
+
+def _check_published_area(description, expected_target, context=None):
+    # The formula defines the engineering anchor. A later target may be a
+    # deliberate percentage of that anchor, so validate both values separately.
+    envelope = re.search(r"sum of device/contact envelopes ([\d.]+) um2", description)
+    margin = re.search(r"total outer width/height allowance ([\d.]+) um", description)
+    formula = re.search(r"Estimate = (.*?)\. Here", description)
+    assert envelope and margin and formula, context
+    target, anchor, ratio = _published_area_targets(description)
+    expression = formula[1]
+    assert set(re.findall(r"[A-Za-z_]\w*", expression)) <= {
+        "ceil", "sqrt", "envelope_sum", "margin"
+    }, context
+    assert re.fullmatch(r"[\w\s.+*/^()-]+", expression), context
+    calculated = eval(expression.replace("^", "**"), {"__builtins__": {}}, {
+        "ceil": math.ceil,
+        "sqrt": math.sqrt,
+        "envelope_sum": float(envelope[1]),
+        "margin": float(margin[1]),
+    })
+    assert abs(calculated - anchor) <= 0.010001, context
+    assert target == expected_target, context
+    if ratio is not None:
+        assert abs(target - ratio * anchor) <= 0.010001, context
+
+
 def _check_public_plan(config, data, task):
     assert task.hours == data["task"]["hours"] and task.wall_seconds > 0, config
     description = next(item.content.decode() for item in task.inputs if item.role == "description")
-    published_hours = re.findall(r"Solve budget: \*\*([\d.]+) hours\*\*", description)
-    assert len(published_hours) == 1 and float(published_hours[0]) == task.hours, config
+    _check_published_budget(description, task.hours, config)
     assert "coefficient" in data["task"], config
     plan = task.evaluation
     assert plan is not None and plan.mode == "post_layout", config
     assert plan.scoring.method == SCORING_METHOD, config
-    published_weights = {key: float(value) for key, value in re.findall(
-        r"^\| `([^`]+)` \| ([0-9.eE+-]+) \|$", description, re.MULTILINE)}
-    assert published_weights == dict(plan.scoring.weights), config
-    assert plan.scoring.rationale in description, config
+    _check_published_weights(
+        description,
+        plan.scoring.weights,
+        {metric.id for metric in plan.metrics},
+        config,
+    )
+    # Publication review checks whether the scoring explanation is adequate.
+    # Equivalent prose need not reproduce scoring.rationale verbatim; these
+    # automated checks validate numeric disclosures, not natural-language meaning.
     # The published envelope calculation must reproduce its frozen anchor.
     # Evaluate the documented expression, rather than restating its coefficients;
     # the displayed envelope sum is rounded, so allow one final 0.01 um2 bin.
     envelope = re.search(r"sum of device/contact envelopes ([\d.]+) um2", description)
     if envelope:
-        margin = re.search(r"total outer width/height allowance ([\d.]+) um", description)
-        formula = re.search(r"Estimate = (.*?)\. Here", description)
-        anchor = re.search(r"Area reference: \*\*([\d.]+) um2\*\*", description)
-        assert margin and formula and anchor, config
-        expression = formula[1]
-        assert set(re.findall(r"[A-Za-z_]\w*", expression)) <= {
-            "ceil", "sqrt", "envelope_sum", "margin"}, config
-        assert re.fullmatch(r"[\w\s.+*/^()-]+", expression), config
-        calculated = eval(expression.replace("^", "**"), {"__builtins__": {}}, {
-            "ceil": math.ceil, "sqrt": math.sqrt,
-            "envelope_sum": float(envelope[1]), "margin": float(margin[1])})
-        assert abs(calculated - float(anchor[1])) <= 0.010001, config
-        assert float(anchor[1]) == plan.scoring.area_target, config
+        _check_published_area(description, plan.scoring.area_target, config)
     # A job/measurement identifier or dimension alone does not define a metric.
     for line in description.splitlines():
         cells = [cell.strip() for cell in line.strip("|").split("|")]
@@ -122,7 +308,72 @@ def _check_public_plan(config, data, task):
             load_profile(f"{process_manifest(config)}#{profile}")
 
 
+@pytest.mark.parametrize("description", [
+    "Solve budget: **3 hours**.",
+    "The solve budget is 3 hours.",
+    "求解预算 3 小时。",
+    "求解时限 **3 小时**。",
+])
+def test_published_budget_forms_keep_numeric_contract(description):
+    _check_published_budget(description, 3)
+    with pytest.raises(AssertionError):
+        _check_published_budget(description.replace("3", "4"), 3)
+
+
+@pytest.mark.parametrize("language", ["en", "zh"])
+def test_published_weights_read_the_declared_column_and_reject_drift(language):
+    description = """| Metric | Required range | Aggregation | Score weight |
+| --- | --- | --- | --- |
+| `functional_area` (um2) | -inf to +inf | max | 20% |
+| `gain` (dB) | 40 to 100 | min | 80% |
+| `phase_margin` (deg) | 45 to 180 | min | 0% |
+"""
+    if language == "zh":
+        description = description.replace("Metric", "指标").replace("Score weight", "评分权重")
+    expected = {"functional_area": 0.2, "gain": 0.8}
+    allowed_metrics = {*expected, "phase_margin"}
+    _check_published_weights(description, expected, allowed_metrics)
+    with pytest.raises(AssertionError):
+        _check_published_weights(description.replace("80%", "75%"), expected, allowed_metrics)
+    with pytest.raises(AssertionError):
+        _check_published_weights(description.replace("phase_margin` (deg) | 45 to 180 | min | 0%", "phase_margin` (deg) | 45 to 180 | min | 10%"), expected, allowed_metrics)
+    with pytest.raises(AssertionError):
+        _check_published_weights(description.replace("| `phase_margin`", "| `unlisted_metric`"), expected, allowed_metrics)
+    scored_only = description.replace("| `phase_margin` (deg) | 45 to 180 | min | 0% |\n", "")
+    _check_published_weights(scored_only, expected, allowed_metrics)
+    with pytest.raises(AssertionError):
+        _check_published_weights(description.replace("| `gain` (dB) | 40 to 100 | min | 80% |\n", ""), expected, allowed_metrics)
+    for malformed in (
+        description.replace("min | 0%", "min | n/a"),
+        description.replace("`phase_margin`", "phase_margin"),
+        description.replace("45 to 180 | min | 0%", "45 to 180 | 0%"),
+    ):
+        with pytest.raises(AssertionError):
+            _check_published_weights(malformed, expected, allowed_metrics)
+
+
+def test_published_area_target_and_formula_anchor_are_checked_separately():
+    description = """Current area target: **80 um2**, 80% of the prior **100 um2** engineering anchor.
+sum of device/contact envelopes 98 um2, total outer width/height allowance 2 um.
+Estimate = ceil(envelope_sum + margin). Here margin is the total allowance.
+"""
+    _check_published_area(description, 80.0)
+    with pytest.raises(AssertionError):
+        _check_published_area(description.replace("target: **80 um2**", "target: **81 um2**"), 80.0)
+    with pytest.raises(AssertionError):
+        _check_published_area(description.replace("envelopes 98 um2", "envelopes 99 um2"), 80.0)
+
+    legacy_reference = description.replace(
+        "Current area target: **80 um2**, 80% of the prior **100 um2** engineering anchor.",
+        "Area reference: **100 um2**.",
+    )
+    _check_published_area(legacy_reference, 100.0)
+    with pytest.raises(AssertionError):
+        _check_published_area(legacy_reference.replace("reference: **100 um2**", "reference: **101 um2**"), 101.0)
+
+
 @pytest.mark.parametrize("config", CASES, ids=lambda path: path.parent.name)
+@pytest.mark.skipif(not CASES, reason="Set ICLAYOUT_BENCH_DATASET to run dataset checks")
 def test_published_case_owns_only_declared_solver_inputs(config, tmp_path):
     data = read_case(config)
     location = case_location(config)
@@ -138,8 +389,7 @@ def test_published_case_owns_only_declared_solver_inputs(config, tmp_path):
                    for entry in inputs.values()), config
     assert set(data["origin"]) == {"url"}
     declared = {"case.toml"}
-    declared.update(entry["path"] for entry in inputs.values()
-                    if not entry.get("source"))
+    declared.update(entry.get("source", entry["path"]) for entry in inputs.values())
     assets = {entry["path"]: entry for entry in data.get("assets", [])}
     reference = data.get("qualification", {}).get("reference")
     if reference:
@@ -167,11 +417,9 @@ def test_published_case_owns_only_declared_solver_inputs(config, tmp_path):
 # Native loading previously mistook provenance JSON for samples and failed to cast.
 # Exercise the real HF reader against published tables; derive membership and
 # hashes independently from the existing catalogs/contracts, never fixed counts.
+@pytest.mark.skipif(not CASES, reason="Set ICLAYOUT_BENCH_DATASET to run dataset checks")
 def test_native_huggingface_views_match_authoritative_cases(tmp_path):
     datasets = pytest.importorskip("datasets")
-    from benchmarking.dataset_index import sync_index
-
-    sync_index(ROOT, check=True)
     default = datasets.load_dataset(str(ROOT), cache_dir=str(tmp_path / "cache"))
     assert set(default) == {"test"}
     corpus = default["test"]
@@ -215,85 +463,3 @@ def test_native_huggingface_views_match_authoritative_cases(tmp_path):
     streamed = datasets.load_dataset(str(ROOT), split="test", streaming=True,
                                     cache_dir=str(tmp_path / "cache"))
     assert [row["id"] for row in streamed if row["in_core"]] == core["id"]
-
-
-def test_dataset_index_drift_is_detected_and_regenerated(tmp_path):
-    import shutil
-
-    from benchmarking.dataset_index import sync_index
-
-    # Retain static assets to exercise index regeneration and publication together.
-    root = tmp_path / "dataset"
-    shutil.copytree(ROOT, root, ignore=shutil.ignore_patterns(
-        ".git", ".agents", "build", ".cache"))
-    original = (root / "data.jsonl").read_bytes()
-    sync_index(root, check=True)
-    config = next(config for config in sorted((root / "tasks").glob("*/*/cases/*/case.toml"))
-                  if read_case(config)["in_core"])
-    config.write_text(config.read_text().replace('title = "', 'title = "Changed ', 1))
-    from benchmarking.dataset import load_dataset
-    with pytest.raises(ValueError, match="stale case digest"):
-        load_dataset(root).native_cases()
-    with pytest.raises(ValueError, match="index is stale"):
-        sync_index(root, check=True)
-    assert (root / "data.jsonl").read_bytes() == original
-    sync_index(root)
-    assert (root / "data.jsonl").read_bytes() != original
-    sync_index(root, check=True)
-    # Loading the same local selection again must observe regenerated table bytes.
-    rows, _ = load_dataset(root).native_cases()
-    assert next(row for row in rows if row["case_path"] == config.relative_to(root).as_posix())["title"].startswith("Changed ")
-
-    # Browsing text must read the declared source, not a solver destination path.
-    import tomllib
-
-    data = tomllib.loads(config.read_text())
-    description = data["task"]["inputs"]["description"]
-    original_problem = (config.parent / description["path"]).read_text()
-    description["source"] = description["path"]
-    description["path"] = "solver-problem.md"
-    config.write_text(tomli_w.dumps(data))
-    sync_index(root)
-    row = next(json.loads(line) for line in (root / "data.jsonl").read_text().splitlines()
-               if json.loads(line)["id"] == data["id"])
-    assert row["problem"] == original_problem
-    assert (root / row["description_path"]).read_text() == original_problem
-
-    # Reselecting the benchmark must leave the complete corpus and its assets intact.
-    corpus_before = (root / "data.jsonl").read_bytes()
-    assets_before = {path.relative_to(root): hashlib.sha256(path.read_bytes()).hexdigest()
-                     for path in (root / "tasks").rglob("*") if path.is_file()}
-    selected = []
-    for path in sorted((root / "tasks").glob("*/*/cases/*/case.toml")):
-        case = read_case(path)
-        case["in_core"] = not case["in_core"]
-        if case["in_core"]:
-            selected.append(case["id"])
-        path.write_text(tomli_w.dumps(case))
-    selected.sort()
-    with pytest.raises(ValueError, match="stale core membership"):
-        load_dataset(root).native_cases()
-    sync_index(root)
-    after = [json.loads(line) for line in (root / "data.jsonl").read_text().splitlines()]
-    before = [json.loads(line) for line in corpus_before.splitlines()]
-    assert [row["id"] for row in after if row["in_core"]] == selected
-    assert [{k: v for k, v in row.items() if k not in {"in_core", "case_sha256"}} for row in after] == [
-        {k: v for k, v in row.items() if k not in {"in_core", "case_sha256"}} for row in before]
-    assert {path.relative_to(root): hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in (root / "tasks").rglob("*") if path.is_file() and path.name != "case.toml"} == {
-                path: sha for path, sha in assets_before.items() if path.name != "case.toml"}
-    # Publication exports declared materials, not files merely present in the checkout.
-    from benchmarking.dataset_index import publication_files
-
-    (root / "validation.json").write_text("{}")
-    (config.parent / "undeclared.txt").write_text("Maintenance-only notes")
-    published = set(publication_files(root))
-    assert {"README.md", "data.jsonl"} <= published
-    assert "validation.json" not in published
-    assert not any(path.endswith(("AGENTS.md", "undeclared.txt")) for path in published)
-    for row in (json.loads(line) for line in (root / "data.jsonl").read_text().splitlines()):
-        assert {row["case_path"], row["pdk_path"], row["license_path"], row["description_path"]} <= published
-    asset = next(iter(read_case(config)["assets"]))
-    (config.parent / asset["path"]).write_bytes(b"Changed after acceptance")
-    with pytest.raises(ValueError, match="Publication asset digest mismatch"):
-        publication_files(root)

@@ -1,11 +1,16 @@
 """Validated, content-addressed files shared by preparation and evaluation."""
 
 import hashlib
+import json
 import os
 import re
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+
+
+class EvidenceError(ValueError):
+    """Retained evidence is malformed or differs from its recorded identity."""
 
 
 def keys(value: dict, required: set[str], optional: set[str], name: str) -> None:
@@ -63,6 +68,19 @@ def read_file(root: Path, name: str) -> bytes:
     return path.read_bytes()
 
 
+def checked(root, reference):
+    """Read a declared file and verify the content identity of its snapshot."""
+    try:
+        raw = read_file(Path(root), reference['path'])
+        valid = (hashlib.sha256(raw).hexdigest() == reference['sha256']
+                 and ('bytes' not in reference or len(raw) == reference['bytes']))
+    except (ValueError, TypeError, KeyError, FileNotFoundError) as error:
+        raise EvidenceError('Invalid result evidence reference') from error
+    if not valid:
+        raise EvidenceError('Result evidence identity mismatch: ' + reference['path'])
+    return raw
+
+
 @dataclass(frozen=True)
 class Asset:
     """A snapshot, not a pointer back into a mutable solver workspace."""
@@ -98,9 +116,6 @@ class ReadOnlyMount:
     def sha256(self) -> str:
         return self.provenance.sha256
 
-    def docker_args(self, target: str) -> list[str]:
-        return ["--mount", f"type=bind,src={self.path},dst={target},readonly"]
-
 
 def sync_directory(path):
     descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
@@ -124,3 +139,9 @@ def atomic_write(path, content, mode=0o600):
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+
+
+def write_json(path, value):
+    """Atomically persist a participant record without changing its JSON encoding."""
+    path = Path(path)
+    atomic_write(path, (json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode())

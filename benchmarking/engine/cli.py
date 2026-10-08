@@ -11,10 +11,11 @@ from benchmarking.engine.inference import (
     load_inference_config,
     validate_harness_wire,
 )
-from benchmarking.engine.model_config import load_run_config
-from benchmarking.engine.recorder import recover_submissions
+from benchmarking.engine.sessions.config import load_run_config
+from benchmarking.engine.sessions.recorder import recover_submissions
 from benchmarking.engine.toolchains import load_toolchain
-from benchmarking.evaluation import identifier, parse_evaluation
+from benchmarking.evaluation.contracts import identifier
+from benchmarking.evaluation.parsing import parse_evaluation
 from benchmarking.files import Asset, read_file
 from benchmarking.tasks import load_task
 

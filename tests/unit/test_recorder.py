@@ -8,13 +8,14 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from benchmarking.engine.recorder import (
-    BatchLease,
+from benchmarking.engine.sessions.recorder import (
     RecordingError,
     RunRecorder,
     recover_submissions,
 )
 from benchmarking.files import Asset
+from benchmarking.locking import BatchLease
+from benchmarking.service.state import ServiceState
 
 pytestmark = [pytest.mark.unit, pytest.mark.acceptance, pytest.mark.acceptance_fast]
 
@@ -24,7 +25,8 @@ def test_process_exit_keeps_committed_submission_but_not_orphan(tmp_path):
     code = '''
 import os, sys
 from benchmarking.files import Asset
-from benchmarking.engine.recorder import RunRecorder
+from benchmarking.locking import BatchLease
+from benchmarking.engine.sessions.recorder import RunRecorder
 r = RunRecorder(sys.argv[1])
 a = Asset(b"accepted", "gds")
 ref = r.archive(a)
@@ -90,6 +92,34 @@ def test_corruption_and_concurrent_event_order(tmp_path):
         recover_submissions(recorder.root)
 
 
+@pytest.mark.parametrize('tail', ['incomplete', 'complete_json', 'malformed_line', 'sequence_gap'])
+def test_all_readers_agree_on_committed_events(tmp_path, tail):
+    recorder = RunRecorder(tmp_path / 'session' / 'run')
+    recorder.event('test', value='committed')
+    next_event = {'sequence': 2, 'kind': 'test', 'data': {'value': 'pending'}}
+    suffix = {
+        'incomplete': b'{',
+        'complete_json': json.dumps(next_event).encode(),
+        'malformed_line': b'{malformed}\n' + json.dumps(next_event).encode() + b'\n',
+        'sequence_gap': json.dumps(dict(next_event, sequence=3)).encode() + b'\n',
+    }[tail]
+    with (recorder.root / 'events.jsonl').open('ab') as stream:
+        stream.write(suffix)
+    state = ServiceState.__new__(ServiceState)
+    state.root = tmp_path
+    if tail in {'incomplete', 'complete_json'}:
+        assert [e['data']['value'] for e in state.run_events('session', partial=True)] == ['committed']
+        recovered = recover_submissions(recorder.root)
+        assert recovered['journal_events'] == 1 and recovered['incomplete_tail']
+    else:
+        with pytest.raises(ValueError):
+            state.run_events('session', partial=True)
+        with pytest.raises(ValueError):
+            recover_submissions(recorder.root)
+    with pytest.raises(ValueError):
+        RunRecorder.resume(recorder.root)
+
+
 def test_finished_report_binds_a_sealed_journal(tmp_path):
     recorder = RunRecorder(tmp_path / "run")
     report = {"termination": "completed", "outcome": "no_submission", "events": {"path": "events.jsonl"}}
@@ -106,7 +136,7 @@ def test_batch_lease_is_exclusive_across_processes(tmp_path):
     RunRecorder(root)
     holder = subprocess.Popen(
         [sys.executable, "-c", """
-from benchmarking.engine.recorder import BatchLease
+from benchmarking.locking import BatchLease
 import sys
 with BatchLease(sys.argv[1]):
     print('ready', flush=True)
@@ -116,7 +146,7 @@ with BatchLease(sys.argv[1]):
         assert holder.stdout.readline().strip() == "ready"
         attempt = subprocess.run(
             [sys.executable, "-c", """
-from benchmarking.engine.recorder import BatchLease
+from benchmarking.locking import BatchLease
 import sys
 try:
     with BatchLease(sys.argv[1]):

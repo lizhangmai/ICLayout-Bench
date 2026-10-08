@@ -10,9 +10,11 @@ execution and independent scoring implementation. Local results are development
 evidence; formal results require operator-controlled conditions and verification.
 Operators may add hidden tasks, admission, controlled reruns and reviewed releases.
 
-Current tasks use source simulation as the 100-point electrical reference and a
-frozen compact-area reference with circuit-specific metric weights (`layout`);
-scores may exceed 100. See
+Tasks use declared electrical and area quality targets with circuit-specific
+metric weights (`layout`). Same-condition source simulation remains required;
+its measurements supply the electrical targets when none are declared explicitly.
+Scores range from 0 to 100 after capping each metric at its target; feasible
+reference layouts may score well below 100. See
 [scoring and task design](docs/tasks.md#task-scoring).
 
 ## Install and run
@@ -27,7 +29,7 @@ see [image setup](docs/tools.md#prebuilt-images-and-local-builds). With that ima
 
 ```bash
 python -m benchmarking.engine.preview --dataset /path/to/ICLayout-Bench-Dataset \
-  run --case NAND2_X1 --image iclayout-bench-tools:local --output build/reference-check
+  run --case NAND2_X1 --image iclayout-eda-open:local --output build/reference-check
 python -m benchmarking.run --config experiment.toml \
   --dataset /path/to/ICLayout-Bench-Dataset --output results/new-experiment
 ```

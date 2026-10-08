@@ -23,7 +23,7 @@ from benchmarking.dataset import (
 
 CODE_ROOT = Path(benchmarking.__file__).resolve().parents[1]
 ROOT = None
-IMAGE = "iclayout-bench-tools:local"
+IMAGE = "iclayout-eda-open:local"
 RUNS = "build/runs"
 
 def call(*command, expected=0, log=None):
@@ -209,14 +209,14 @@ def _executable_case(case):
 
 
 def ensure_case_pdks(case):
-    from benchmarking.engine.pdk_installation import prepare_installation
-    from benchmarking.engine.preparation import case_resources
-    from benchmarking.engine.prepare_support import load_profile
+    from benchmarking.engine.resources.installation import prepare_installation
+    from benchmarking.engine.resources.support import load_profile
+    from benchmarking.engine.runtime import case_resources
 
     record = _executable_case(case)
     manifest = process_manifest(record["config"])
     prepare_installation(tomllib.loads(manifest.read_text())["source"])
-    for *_, spec, _ in case_resources(record["config"], ROOT):
+    for *_, spec in case_resources(record["config"]):
         prepare_installation(json.loads(load_profile(spec).content)["source"])
 
 

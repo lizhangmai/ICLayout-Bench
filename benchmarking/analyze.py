@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .analysis import export_results
+from .results.analysis import export_results
 
 
 def main():

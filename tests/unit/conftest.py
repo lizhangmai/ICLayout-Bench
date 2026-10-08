@@ -1,8 +1,18 @@
-"""Synthetic case metadata shared by loader and CLI tests."""
+"""Shared synthetic case metadata and native tool resource fixtures."""
 
 import hashlib
+import tempfile
+from pathlib import Path
 
 import pytest
+
+
+@pytest.fixture
+def native_tmp_path():
+    run_dir = Path(__file__).resolve().parents[2] / 'build' / 'runs'
+    run_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='native-test-', dir=run_dir) as directory:
+        yield Path(directory)
 
 
 @pytest.fixture

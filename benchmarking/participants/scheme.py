@@ -7,7 +7,9 @@ import shutil
 from pathlib import Path
 
 from benchmarking.files import read_file
+from benchmarking.harnesses import scheme_identity as identity
 
+__all__ = ["check", "identity", "mcp_servers", "resolve_scheme"]
 
 def launch_spec(value, base):
     """Freeze an argv executable and explicitly declared local files."""
@@ -57,12 +59,6 @@ def resolve_scheme(value, base, harness):
             raise ValueError("Invalid or reserved MCP name: " + name)
         result["mcp"][name] = launch_spec(spec, base)
     return result
-
-
-def identity(scheme):
-    return {**{k: v for k, v in scheme.items() if k not in {"launch", "mcp"}},
-            **({"launch": scheme["launch"]["identity"]} if "launch" in scheme else {}),
-            "mcp": {k: v["identity"] for k, v in scheme.get("mcp", {}).items()}}
 
 
 def check(scheme):

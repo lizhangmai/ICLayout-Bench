@@ -42,13 +42,13 @@ jobs:
           target: tools
           platforms: linux/amd64
           load: true
-          tags: iclayout-bench-tools:ci
+          tags: iclayout-eda-open:ci
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=tools
           cache-to: type=gha,scope=tools,mode=max,ignore-error=true
       - name: Check installed tools
         run: |
-          docker run --rm --network none iclayout-bench-tools:ci bash -euc '
+          docker run --rm --network none iclayout-eda-open:ci bash -euc '
             test "$(id -u)" != 0
             klayout -v
             ngspice --version

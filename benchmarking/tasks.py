@@ -13,6 +13,7 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+from .dataset import select_core
 from .evaluation import EvaluationPlan, identifier, parse_evaluation
 from .files import Asset, is_hub_file
 from .files import keys as _keys
@@ -131,9 +132,12 @@ class Task:
 def _validate_case(data: dict) -> None:
     """Validate maintained case metadata and source attribution."""
     _keys(data, {"kind", "id", "title", "status", "origin"},
-          {"role", "task", "toolchain", "assets", "qualification", "screening", "presentation", "in_core"}, "case")
+          {"role", "task", "toolchain", "assets", "qualification", "screening", "presentation", "in_core", "core_order", "distribution"}, "case")
+    if data.get("distribution", "public") not in {"public", "private"}:
+        raise ValueError("Case distribution must be public or private")
     if "in_core" in data and type(data["in_core"]) is not bool:
         raise ValueError("case.in_core must be boolean")
+    select_core([data])
     if data["kind"] != "layout_case":
         raise ValueError("Only layout_case cases are supported")
     if "toolchain" in data and not isinstance(data["toolchain"], dict):
@@ -241,7 +245,7 @@ def _load_task_data(data: dict, config: Path, raw: bytes, *, label: str) -> Task
         identities = {f"input:{item.role}": item.sha256 for item in inputs}
         for source in evaluation.pre_layout.values():
             for role, reference in source["inputs"].items():
-                if identities.get(reference) != source["input_sha256"][role]:
+                if reference.startswith("input:") and identities.get(reference) != source["input_sha256"][role]:
                     raise ValueError(f"Frozen pre-layout input changed: {reference}")
     output = data["output"]
     subcircuit = _text(data["inputs"]["netlist"]["subcircuit"], "inputs.netlist.subcircuit")

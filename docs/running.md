@@ -5,12 +5,12 @@
 Use the [README workflow](../README.md#install-and-run) with an HF Dataset repo ID
 or an explicitly supplied local Dataset working copy. The installed engine loads
 the selected snapshot and binds resources automatically; it creates no prepared
-case directory. Local results are `local_development`.
+case directory. Local results are `self_run`.
 
 ```bash
 python -m benchmarking.service --dataset /path/to/ICLayout-Bench-Dataset \
   --case freepdk45.nangate45-pdk.NAND2_X1 --data build/local-service \
-  --image iclayout-bench-tools:local --token-env ICLAYOUT_BENCH_TOKEN
+  --image iclayout-eda-open:local --token-env ICLAYOUT_BENCH_TOKEN
 ```
 
 Set the named token environment variable securely before starting the service.
@@ -23,7 +23,7 @@ For an independent reference check without model calls:
 
 ```bash
 python -m benchmarking.engine.preview --dataset /path/to/ICLayout-Bench-Dataset \
-  run --case NAND2_X1 --image iclayout-bench-tools:local --output build/candidate-check
+  run --case NAND2_X1 --image iclayout-eda-open:local --output build/candidate-check
 ```
 
 Inspect the printed failure summary and `build/candidate-check/reference/report.json`, plus
@@ -47,34 +47,17 @@ is supplied. Cases without embedded bindings require that option.
 from the launch directory. See [result analysis](#analysis) for statistics
 and treatment of incomplete runs.
 
-## Dataset publication files
+## Static Dataset inputs
 
-Generate a read-only JSON allowlist from the final Dataset:
-
-```bash
-python -m benchmarking.dataset_index --dataset /path/to/dataset --publication-files
-```
-
-The list includes the Dataset card, root licensing, selection, generated tables,
-PDK declarations and scope notes, collection licenses/notices, and declared case
-inputs/assets. Maintenance instructions, authoring evidence, caches and undeclared
-files are excluded. An operator uses these exact relative paths when uploading;
-the command does not upload, stage a second Dataset or change remote state.
-Dataset loading never requires authoring reports or acceptance maps.
-
-Check the generated native table without changing it:
-
-```bash
-python -m benchmarking.dataset_index --dataset /path/to/dataset --check
-```
-
-The selected Dataset owns its table/asset publication procedure and selection
-rationale. See [experiment configuration](#multiple-combinations-and-repetitions) for selecting
+Read an independently supplied Dataset through its explicit path or repository ID.
+The Dataset owns its static files, index, selection and publication procedure.
+Running the evaluator does not require authoring tools or qualification evidence.
+See [experiment configuration](#multiple-combinations-and-repetitions) for selecting
 native Dataset rows.
 
 ## Experiment runner
 
-Use the same entry point for `dsh`, `claude-code`, `codex` or a custom `command`.
+Use the same entry point for `dsh`, `claude-code`, `codex`, `kimi-code` or a custom `command`.
 `benchmarking.participants` supplies launch/configuration adapters and a scoped
 MCP bridge. These adapters configure and supervise native processes; they do not
 choose the next Agent action. Native harnesses retain their own conversation/tool
@@ -87,13 +70,13 @@ selected vendor CLI separately; the Public wheel does not install vendor CLIs.
 Preview a condition without creating a session or making model calls:
 
 ```bash
-python -m benchmarking.run --config configs/codex-gpt-6-astra.toml --dry-run
+python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml --dry-run
 ```
 
 Run it against locally Dataset resources:
 
 ```bash
-python -m benchmarking.run --config configs/codex-gpt-6-astra.toml \
+python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
   --dataset /path/to/ICLayout-Bench-Dataset --output results/codex-xhigh-1
 ```
 
@@ -101,15 +84,15 @@ For an operator service, replace `--dataset ...` with `--endpoint https://...`
 and supply its creation credential as `ICLAYOUT_BENCH_TOKEN`. Each run gets a
 fresh scoped session and exports the independent result. By default the runner
 closes on completion/failure; explicit recovery settings can retain an interrupted
-remote session until its original deadline. Select explicit `tasks` or a `[dataset]` table in the TOML. Omitting `--output` uses
-`results/<harness>-<CLI-version>-<model>-<effort>/` and prints its path. A compatible output
-directory can be reused: completed cases are skipped, and selected unfinished
-cases require `--resume`. Use a fresh directory for changed experiment identities. Create the configuration using the example below first.
+remote session under its original budget policy. Select explicit `tasks` or a `[dataset]` table in the TOML. Omitting `--output` uses
+`results/<config-stem>/<timestamp>/` and prints its path. Each invocation creates
+a fresh directory. Specify an existing directory with `--output` to reuse it: completed cases are skipped, and selected unfinished
+cases require `--resume` together with `--output`. Use a fresh directory for changed experiment identities. Create the configuration using the example below first.
 
 For a small experiment, reuse a saved configuration and select a case directly:
 
 ```bash
-python -m benchmarking.run --config configs/codex-gpt-6-astra.toml \
+python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
   --case NAND2_X1 --repetitions 1 --concurrency 1 --output results/nand2-trial
 ```
 
@@ -146,6 +129,12 @@ An existing case directory is also accepted. The command holds the case lock;
 image failures are recorded in `result.json` without changing the score. Remote
 services currently expose no candidate-download endpoint, so remote-only results
 may have neither `final.gds` nor a PNG.
+
+Layout previews can use an independent rendering image with
+`python -m benchmarking.layout_preview /path/to/terminal/results --image IMAGE`.
+This is useful when a solver image requires external installations at startup.
+The preview records its renderer image ID without changing the recorded solver,
+evaluator, candidate or score. An existing complete preview is reused.
 
 ### Participant tool schemes
 
@@ -231,14 +220,14 @@ provide scoped HTTP access; `ICLAYOUT_BENCH_TASK_FILE` points to session metadat
 `ICLAYOUT_BENCH_MODEL` / `ICLAYOUT_BENCH_EFFORT` record requested settings.
 The command starts in a fresh private directory. A container/remote launcher
 must explicitly forward these inputs and preserve its own version identity.
-Public enforces the existing session deadline, captures stdout/stderr, cleans up
+Public follows the service's budget policy, captures stdout/stderr, cleans up
 its process group and collects the terminal result. Custom commands do not
 support native same-session continuation; use `resume_session = false`.
 
 Scheme outputs append their name and content digest to the normal condition
 path. Changed declared tools, instructions or images cannot reuse an old case.
 Archive comparisons distinguish schemes while matching the service's evaluator
-identity, limits and verification level. The website exposes the scheme name and
+identity, limits and evaluation mode. The website exposes the scheme name and
 digest; arbitrary instructions, commands and local paths remain internal metadata.
 Unknown usage stays unknown, and adding tools grants no new time or repetitions.
 
@@ -264,6 +253,7 @@ not establish equal computation across providers.
 | `dsh` | Headless composed profile and `$DSH_HOME/settings.yaml` | Reuses the selected provider/credential store; private invocation patch selects model/effort and exposes the layout MCP tools |
 | `claude-code` | Claude user provider environment, model, effort and optional key helper | Reuses authentication with an isolated invocation; passes the configured effort explicitly |
 | `codex` | Codex user model/effort, including its selected profile | Uses existing authentication and explicitly resolved model/effort with the layout MCP tools |
+| `kimi-code` | `$KIMI_CODE_HOME/config.toml` (default `~/.kimi-code`) model aliases and provider credentials | Private home, explicit supported effort, MCP-only custom agent and stream-JSON print mode |
 
 Personal hooks, skills, host shell tools and subagents are excluded from these
 experimental native harness conditions. Custom provider deployments requiring
@@ -275,8 +265,15 @@ Flash as of September 16, 2026 ([DeepSeek announcement](https://www.deepseek.com
 
 ### Failures, retry ownership and recovery
 
-Recovery is opt-in in each experiment TOML (or `[defaults.recovery]` in a matrix).
-All four fields must be declared together; there are no CLI policy overrides:
+Codex and Claude Code automatically continue after recognized capacity errors by
+default, with up to five additional launches in the same session and deadline.
+No `[recovery]` table is needed. Adapters without native continuation support
+(DSH, Kimi Code and command) keep capacity continuation disabled.
+
+HTTP retries and manual continuation remain opt-in in each experiment TOML
+(or `[defaults.recovery]` in a matrix). To override recovery settings, declare
+the four transport/manual-continuation fields together; capacity fields are
+optional. There are no CLI policy overrides:
 
 ```toml
 [recovery]
@@ -286,8 +283,64 @@ max_backoff_seconds = 8
 resume_session = true
 ```
 
-Without this table, HTTP requests have one attempt and native continuation is
-disabled. `http_attempts` includes the original request (1–10); delays double from
+These are the default capacity settings for supported harnesses. Add them to
+that table only to override the defaults (keep `resume_session = false` for
+local mode):
+
+```toml
+capacity_resumes = 5
+capacity_backoff_seconds = 30
+capacity_max_backoff_seconds = 300
+capacity_cooldown_seconds = 300
+```
+
+`capacity_resumes` defaults to five for Codex and Claude Code, accepts 0–10,
+and bounds additional native launches across this service session. Set it to zero
+to disable automatic capacity continuation. Explicitly enabling it for an
+unsupported harness is rejected before dispatch. The remaining capacity fields
+default to 30/300/300 seconds and accept finite values from 0–3600; the maximum
+backoff must be at least the initial backoff. Delays grow exponentially with up
+to 20% positive jitter, capped by the maximum. Native numeric `retry_after` is a
+minimum delay; a hint above that maximum ends automatic recovery.
+
+Only recognized `provider_overloaded` events authorize automatic continuation:
+the native codes `model_at_capacity`, `overloaded_error`, `server_overloaded` and
+`server_is_overloaded`, or the exact message
+`Selected model is at capacity. Please try a different model.` in a native
+`error` or `turn.failed` event. Assistant text, tool output, mixed failures and
+arbitrary messages cannot authorize one. Authentication/quota errors and
+unresolved tool operations stop automatic recovery.
+
+The runner keeps the original service workspace, scoped token, native history,
+model, effort and deadline. It waits before using the saved conversation ID,
+rechecks the active service and pending tool operations, and sends this English
+prompt:
+
+> Continue working on the current task in the same service session. Check status and review the work already completed before continuing unfinished work. The original deadline still applies.
+
+The original wall budget includes every launch and wait. No new attempt,
+repetition or model is introduced. Exhausted retries, an insufficient remaining
+budget, missing native state or a changed error end automatic recovery and run
+the existing final submission/evaluation procedure, even when manual continuation
+was also enabled. A candidate's independent score remains separate from the
+participant interruption. Independent case workers survive a scheduler exit and
+finish their existing solve, settlement and export. Untouched cases need explicit
+batch recovery. If a case worker itself is interrupted, use the collection
+procedure below to settle its retained session without continuing the model.
+
+Two consecutively collected case results with capacity interruptions trigger a
+`capacity_cooldown_seconds` pause before new dispatch for the same
+harness/provider/model, including recovered interruptions. Already running cases
+continue; other model conditions do not inherit the pause. A case without these
+interruptions resets the consecutive count; zero cooldown disables the pause.
+`CAPACITY_RETRY` and `CAPACITY_COOLDOWN` report live actions. Final
+`execution.capacity_recovery` and the case summary retain interruption history,
+resume count and recovery outcome. `agent.jsonl` retains all launches in order
+with the existing credential redaction.
+
+Without this table, HTTP requests have one attempt and manual continuation is
+disabled; automatic capacity continuation remains enabled for supported harnesses.
+`http_attempts` includes the original request (1–10); delays double from
 `backoff_seconds`, capped by `max_backoff_seconds` (both 0–60 seconds). Numeric
 `Retry-After` is respected; a value beyond the cap stops retries. Only transport
 loss and explicitly retryable HTTP 503 responses are automatically retried.
@@ -315,23 +368,54 @@ artifacts before arranging a distinct replacement attempt. A successful creation
 still replays its original response after a lost HTTP reply.
 
 The client owns service-transport retries. Native harnesses own their provider/SDK
-retry loops; the benchmark never wraps them in automatic model-call or process
-retries. Provider-native retry limits are not normalized across vendors. Explicit
-manual continuation is bounded by the original server deadline, not a renewed
-three-hour allowance. No tool-call count limit is imposed.
+retry loops. Opt-in capacity continuation starts another turn only after the
+native process has stopped; it does not replay individual model or tool requests.
+Provider-native retry limits are not normalized across vendors. Both manual and
+automatic continuation use the original server deadline, not a renewed three-hour
+allowance. No tool-call count limit is imposed.
 
 `failure` records a category, evidence source, sanitized code, retryability and
 whether dispatch must stop. Categories distinguish `network_transient`,
-`rate_limit`, `quota_exhausted`, `authentication`, `harness_crash`,
+`rate_limit`, `provider_overloaded`, `quota_exhausted`, `authentication`, `harness_crash`,
 `service_failure`, `evaluation_tool_error`, `harness_configuration`, `budget_exhausted`, `task_failure`
-and `unknown`. Only structured recognized harness error codes establish provider
-failures; free-form text or a positive exit code alone remains unknown. A process
+and `unknown`. Structured recognized codes and the exact native capacity event
+above establish provider failures; other free-form text or a positive exit code
+alone remains unknown. A process
 signal establishes a harness crash, not a model failure. Unrecognized provider
 wrappers (including free-form DSH headless errors) remain unknown. Independent
 scoring is retained separately from harness failures. Quota/authentication stop
 subsequent slots for the same harness/provider/model in that invocation; service
 failures stop all subsequent dispatch. Blocked slots remain in their case summaries.
 Credentials shared across differently named models cannot be inferred reliably.
+
+Session settlement is shared by every harness, including custom commands. After
+a participant stops, the runner waits for existing service executions and drains
+their logs before submitting the declared output and closing the session. Waiting
+uses the original wall clock. Soft sessions drain already-started work and accept
+the final submission even after expiry. Hard sessions close without a late
+submission when their budget expires, retaining the previously accepted candidate.
+A submission returning HTTP 409 is reconciled only when a status query identifies
+an active execution, then retried with the same key and path after execution ends.
+An unrelated conflict is retained as an error. The runner attempts close even if
+settlement fails; it never launches or replays an execution to finish cleanup.
+
+`finalization.json` records execution state, offsets, elapsed settlement time,
+submission outcome and separate settlement/close errors. Drained logs use
+`finalization-<execution-id>.log`; both follow normal trace retention and credential
+redaction. Failed settlement keeps the original harness error and failure evidence,
+with a separate `finalization_error` in the suspended case summary. Cleanup does
+not convert a harness interruption into an evaluator verdict or change its score.
+
+Codex connection errors and recognized native `Reconnecting... N/M (stream
+disconnected before completion: ...)` events remain diagnostic when the same
+started turn subsequently emits `turn.completed`, the process exits zero, and
+the service permits completion under its budget policy. A later turn cannot clear an earlier unfinished turn's
+errors. Unrecognized errors, terminal turn failures, provider authentication or
+quota failures, and unresolved MCP failures retain their existing classification.
+The original event trace is preserved, including recovered connection errors.
+Recognized native capacity errors recovered within that same successful turn are
+also diagnostic and do not launch a continuation. Capacity recovery across native
+launches is recorded separately in `capacity_recovery`.
 
 A structured Codex `layout` MCP failure reporting that approval is required while
 approval policy is `never` is `harness_configuration`, even if the CLI exits zero.
@@ -347,7 +431,7 @@ configuration failures. Existing archived batches are not rewritten by an upgrad
 Recover using the **same TOML and endpoint/input arguments**:
 
 ```bash
-python -m benchmarking.run --config configs/codex-gpt-6-astra.toml \
+python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
   --endpoint https://evaluation.example.org --output results/my-batch --resume
 ```
 
@@ -355,25 +439,73 @@ The directory in this example must have been generated by your original run.
 Case recovery compares resolved conditions, the ICLayout-Bench release
 (version and Git commit), endpoint and Dataset revision and input content. Started participants also compare CLI version,
 native storage location and frozen launch conditions. Atomic state writes and an
-exclusive local case lease prevent concurrent owners; the native child inherits
-the lease so an orphaned live process also blocks a second runner. Use local
+exclusive local case lease prevent concurrent owners; both the independent case
+worker and native child inherit the lease. Closing the scheduler's descriptor
+does not release their ownership, so a live orphan also blocks a second runner. Use local
 filesystems with reliable `flock`/atomic rename semantics. Completed slots are
 skipped; unfinished exports can be collected again without relaunching the Agent.
 Unfinished cases retain logs, launch diagnostics and incomplete exports in `.runtime/`; completed cases use the retention rules below.
 
-These are three different operations:
+### Collect interrupted sessions without model calls
+
+To settle existing sessions after a case worker exits, use their recorded output:
+
+```bash
+python -m benchmarking.run --collect-only --output results/my-batch \
+  --case rdac3v_8bit --case samplehold
+```
+
+`--case` is optional; collection otherwise selects recorded cases and skips
+unstarted ones. No TOML or harness installation is required. All selected case
+leases are acquired before mutation; live case workers and native processes
+prevent collection. Already finished results are verified and retained.
+
+The command uses the saved scoped token, service location, task and conditions,
+checks the service's session/task/condition identity, drains existing executions,
+and closes while retaining the last accepted candidate. It never submits mutable
+workspace output, replays an execution, launches a model or resets a deadline.
+An interrupted runner with no known exit outcome is recorded as
+`runner_interrupted`; this does not imply a model failure or alter the evaluator
+verdict. Original harness failures remain separate from settlement failures.
+
+Collection can run after a framework upgrade because it only consumes the
+original session; its original release, condition and evaluation modes remain
+unchanged. The ordinary `--resume` identity checks still apply to native
+continuation and new dispatch. Collection does not start pending cases.
+
+Local services persist their endpoint and process start identity in the private
+ownership journal before announcing readiness. Collection adopts that same live
+service using its recorded identity. A missing local service is reported
+without provisioning a new solve. Remote collection uses the recorded endpoint.
+Unfinished `.runtime/` remains the recovery source if close, export or service
+shutdown fails. Completed local stores are removed after their service releases
+ownership and verified terminal artifacts have committed.
+
+Recovery distinguishes these operations:
 
 - **Batch recovery:** skip completed slots, recover started slots, then dispatch
   untouched slots. An existing batch cannot be converted to different conditions.
+- **Collection:** settle and export existing sessions through `--collect-only`,
+  retaining accepted candidates and original identities without model calls.
 - **New attempt:** a fresh solve/workspace/budget. The Public participant runner
-  does not automatically create replacement attempts. the operator's operator policy
-  owns its separately frozen infrastructure replacement allowance.
+  does not automatically create replacement attempts. Explicit replacement uses
+  `--replace-unfinished --output <batch> --case <case>` with the experiment config.
+  It accepts only pending, blocked or suspended cases; collect running/finalizing
+  sessions first. It preserves failed attempts and unused prior plans in the same
+  case directory. Model, effort, Dataset inputs, image, endpoint and repetitions
+  must match; repaired runner/CLI versions and recovery settings are recorded on
+  the new attempt. Finished cases cannot be replaced. Controlled evaluations
+  still follow the operator's separately frozen replacement allowance.
 - **Same-session continuation:** with `resume_session = true`, Codex or Claude
   can resume a failed/interrupted launch against the same still-active remote
   service workspace, scoped token and deadline. It requires no active execution,
   no unresolved mutation/reply and persisted native session state. This option
   requires `--endpoint`, with a service that outlives the runner; the runner-owned
   `--dataset` service cannot preserve a live workspace after it exits.
+- **Automatic capacity continuation:** enabled by default (`capacity_resumes = 5`),
+  Codex or Claude continues while the runner and original local or remote service are
+  alive. It shares the same safety checks and deadline, and does not require
+  `resume_session = true` or an external endpoint.
 
 Codex uses `codex exec ... resume <thread-id> -`; Claude uses
 `claude -p ... --resume <session-id>`. Both persist native histories in
@@ -458,8 +590,8 @@ For machine-specific sources, replace `source` with
 Dataset path or HF ID. Exactly one of `source` and `source_env` is required;
 missing or empty variables fail before Dataset loading. Relative paths resolve
 against the configuration file in both forms. The resolved Dataset identity is
-recorded, not the variable name. See the [dotenv examples](../examples/README.md)
-for loading `.env` without importing the source checkout.
+recorded, not the variable name. See the [participant examples](../examples/README.md)
+for setting the Dataset source without importing the source checkout.
 
 `ICLAYOUT_BENCH_IMAGE` and `ICLAYOUT_BENCH_OUTPUT` supply defaults for `--image`
 and `--output`; explicit flags take precedence. An empty output variable retains
@@ -467,8 +599,16 @@ the normal per-condition `results/` layout. A nonempty output requires one condi
 
 The runner calls `datasets.load_dataset()` on the local directory or the pinned
 HF snapshot's single default table. `name` defaults to `core`, and `split` to
-`test`. Here `name` is a runner selection: `core` filters rows where `in_core` is
+`test`. Dataset Cards retain their declared splits. For a static Dataset without
+a root `README.md`, the installed reader binds `data.parquet` explicitly to `test`,
+falling back to `data.jsonl` for older releases;
+restricted datasets do not need a public Dataset Card. Here `name` is a runner
+selection: `core` filters rows where `in_core` is
 true, while `all` keeps the complete corpus. These are not HF configuration names.
+The default core order comes from the Dataset's `core_order` field. Configurations
+that select `core` inherit it without a `tasks` list. An explicit `tasks` list
+overrides the dispatch order; older Dataset releases without `core_order` keep
+their original table order.
 A top-level `tasks` list further filters IDs; IDs outside the selection are rejected.
 Native HF browsing loads every task by default. Without `[dataset]`, specify
 explicit `tasks` IDs for a remote evaluation service.
@@ -486,8 +626,8 @@ output for overlapping cases.
 Select one or several files (shell wildcards also work):
 
 ```bash
-python -m benchmarking.run --config configs/codex-gpt-6-astra.toml --dry-run
-python -m benchmarking.run --config configs/codex-gpt-6-astra.toml \
+python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml --dry-run
+python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
   --dataset /path/to/ICLayout-Bench-Dataset --output results/comparison-1
 ```
 
@@ -536,31 +676,58 @@ Local mode reads the Dataset case. Remote mode reads the service's published
 task contract and checks `limits.wall_seconds == task.description.hours * 3600`
 before model calls; participants do not need the operator's case files. Dry-run
 resolves participant selections without contacting a service and therefore does
-not resolve the task budget. The service enforces wall-clock time, including
-model, network and EDA time. Budget changes change task identity: prepare fresh
+not resolve the task budget. The service measures wall-clock time, including
+model, network and EDA time. Participant sessions use a **soft solve budget**:
+`status.budget` and every layout MCP reply report the remaining time and remind
+the Agent to submit immediately when it reaches zero. An operation started before
+expiry may finish, including its complete process-feedback evaluation. After
+expiry, the service rejects new commands, checks and file writes with
+`budget_exhausted`; final submission, diagnostics, cancellation and closure remain
+available. The Agent must finish and submit without another optimization round.
+Actual elapsed time, budget overrun and whether a submission arrived after the
+budget are retained. Overrun alone does not zero an otherwise completed attempt.
+Budget changes change task identity: prepare fresh
 inputs and start a new batch rather than modifying a batch's frozen conditions.
 The runner follows the remaining service time without a separate CLI cap or
-an early cleanup reservation. At expiry, the service judges the last accepted
-submission, so submit candidates while the session is active. On earlier CLI
-exit, the runner attempts a final snapshot before closing the session.
+an early cleanup reservation. The service judges the final accepted submission
+when the session closes. Submit candidates early so an interruption still retains
+a candidate. On CLI exit, the runner drains started work, attempts a final snapshot
+and closes the session. Independent final judging runs after the solve and does
+not grant another model optimization round.
 
 There is no MCP mutation-count cap. Calls remain observable as efficiency data,
-not an additional quality score. MCP `execute` defaults to the remaining service
-command allowance; the Agent can request a shorter positive timeout with `seconds`.
-The local service allows a command to use the entire remaining session. Remote
-services may advertise a smaller `max_command_seconds`, which the adapter honors.
-Codex, Claude Code and DSH transport waits are set from the service wall budget
-plus a response-draining allowance; this adds no execution time beyond the server
-deadline. There are no fixed 120/180-second MCP caps or 300-second local command cap.
+not an additional quality score. In a soft session, MCP `execute` and `check`
+default to no per-call execution timeout. The Agent may explicitly bound an
+exploratory command with a positive `seconds`. Backend `timeout_seconds` settings
+still bound startup probes and standalone evaluations; they do not truncate EDA
+jobs in participant checks or independent final judging. Generic standalone
+solver configurations remain hard-bounded unless `soft_budget = true` is declared.
+For a remote hard session, the adapter honors the remaining command allowance
+and any advertised smaller `max_command_seconds`.
+Codex, Claude Code, Kimi Code and DSH transport waits are set from the service wall budget
+plus a response-draining allowance. These native transport waits are separate
+from the server's soft execution budget; a disconnected client does not cancel
+already-started server work. There are no fixed 120/180-second MCP caps or
+300-second local command cap.
 
 ### Output layout
 
-Default results contain only case directories beneath the harness/model condition.
+Dataset-backed results mirror `tasks/<pdk>/<collection>/cases/<case>/` beneath
+the timestamp directory, omitting the `tasks/` prefix and any `experiment/` layer. Paths come from the
+Dataset directories, not from splitting stable task IDs. Remote experiments
+without a Dataset use the escaped task ID as the case directory.
+Timestamps use local time as `YYYYMMDD-HHMMSS-microseconds`. A single-condition
+`--config` uses the exact filename stem as its group (path-escaped if necessary).
+A config with multiple efforts uses `results/<config-stem>/<effort>/<timestamp>/`;
+a `--matrix` uses `results/<matrix-stem>/<run-name>/<timestamp>/`.
+CLI versions and resolved conditions remain recorded in each result. Explicit
+`--output` paths are used verbatim and require one condition.
+
 A completed local case contains:
 
 ```text
-results/codex-0.154.0-gpt-6-astra-medium/
-  freepdk45.OpenRAM.cell_6t/
+results/codex-gpt-6-astra-medium/20260922-120000-123456/
+  freepdk45/OpenRAM/cases/cell_6t/
     report.md                  # outcome, score formula, thresholds and measurements
     result.json                # conditions, state, measurement identities and result
     final.gds                  # candidate used by the independent evaluator
@@ -595,6 +762,8 @@ except for credential redaction and may contain tool-generated hashes. This is a
 operator evidence bundle. It cannot replace the operator's formal provenance archive.
 Single-repetition cases with archived failures keep their failure summaries in
 `result.json`, and any failed-attempt candidate/traces under `attempts/`.
+Each retained attempt lists its sessions; candidates and checks are stored under
+`attempts/<attempt>/sessions/<session>/` so distinct sessions cannot overwrite one another.
 
 The runner checks source evidence during export, writes artifacts atomically,
 checks their presence and atomically commits `result.json`
@@ -616,6 +785,23 @@ benchmark release is rejected before dispatch. Selected unfinished cases require
 `--resume`. A different benchmark release cannot skip or resume existing results. Compact results do not provide
 post-export tamper detection.
 
+To explicitly complete selected unfinished cases after a framework repair:
+
+```bash
+python -m benchmarking.run --config configs/my-experiment.toml \
+  --output results/my-batch --case interrupted-case --case pending-case \
+  --replace-unfinished
+```
+
+This starts fresh sessions with fresh task budgets. Original attempt identities,
+conditions, failures, redacted traces and available check candidates/reports are
+retained under `attempts/`; pending cases retain their unused plans separately.
+The case result records the actual new framework version. Other cases remain
+untouched, so an experiment completed across a framework repair can contain
+multiple recorded framework versions. This is explicit replacement, not native
+continuation or selection of the best attempt. An interrupted replacement move
+is journaled and completed by repeating the same replacement command.
+
 An explicit `--output` uses the same case/repetition layout and recovery rules.
 Multiple conditions use their default condition directories. Dry-run launches
 neither a harness nor a service.
@@ -635,7 +821,7 @@ trial exports `participant/observation/`: service events and result are separate
 from CLI/tool traces marked `participant_reported`. DSH JSONL session records are
 also collected when available. These exports are local; they do not send raw
 participant logs to the operator. They preserve unknown usage and the service's
-trust label; model-internal reasoning may be unavailable.
+evaluation mode; model-internal reasoning may be unavailable.
 
 Use `benchmarking.results` for compact terminal exports and comparisons.
 `benchmarking.analyze` consumes service observation analysis records produced by
@@ -689,9 +875,25 @@ python -m benchmarking.client check --key check-1
 ```
 
 It returns the checked candidate digest, evaluator identity, physical/electrical
-outcomes and bounded per-job reasons/log excerpts. Omitted diagnostics are marked.
+outcomes, metric values/units/bounds and worst-observation shortfalls/excesses,
+and bounded per-job reasons/log excerpts. Process feedback contains candidate
+measurements and functional diagnostics only: no total score, scoring weights,
+normalized quality factors, source-paired scoring breakdown, or `G/E/Q` components.
+Job `status: passed` means execution succeeded; metric status and `specs_pass`
+determine electrical acceptance. Omitted summary entries and truncated log
+excerpts are marked. Use MCP `report` with the returned `report_id` (or
+`Client.report`) to read every metric, job summary, and candidate observation.
+Concatenate `content` pages, advancing the character offset
+to `next_offset` until `has_more` is false. Reports remain readable after
+session closure under the same session token; they are not workspace paths.
+The final result retains the complete score after the session ends. Public task
+objectives and scoring rules remain available; withholding the computed score
+does not prevent a participant from inferring it from disclosed measurements.
 Check execution uses the ordinary HTTP execution/polling and idempotency rules,
-consumes solve time and the advertised diagnostic allowance, and does not submit.
+consumes solve time, has no request-count limit, and does not submit.
+Session status and results expose `diagnostics.requests`, `completed`, and
+`elapsed_seconds` for checks, separately from model token usage. Unobserved model
+usage remains unknown; evaluation time is not a token estimate.
 Submit the chosen candidate explicitly afterward. A successful command exit means
 the check was accepted; inspect `feedback.outcome` for its verdict. Final judging
 runs independently on the last submitted snapshot. A remote service that does not
@@ -730,7 +932,7 @@ uv run --locked --group analysis python -m benchmarking.analyze \
 Multiple result files or a disclosed operator `verified-results.json` are accepted.
 The command generates `results.json`, `runs.csv`, `tasks.csv`, a digest manifest
 and optional SVG/PDF figures. Directories must be new. Conditions, tool identities,
-budgets and verification levels form separate cohorts; task digests remain distinct.
+budgets and evaluation modes form separate cohorts; task digests remain distinct.
 Tables show per-task mean and sample standard deviation only over known scores,
 alongside measured/unknown counts and distinct outcome counts. A lone sample has
 no sample standard deviation. Error or incomplete scores are missing, not zero;
@@ -759,7 +961,7 @@ terminal collections to the operator as described in
 
 For offline archive processing, install `iclayout-bench[results]`. The importer
 accepts `participant-result` exports and terminal `layout-http` results. It
-preserves recorded verification levels; importing a local run does not certify it.
+preserves recorded evaluation modes; importing a local run does not certify it.
 A protocol-only import has no inferred CLI, effort, timing or local candidate.
 
 ```bash
@@ -774,10 +976,11 @@ These optional commands create `results/archive/`; no results ship with the pack
 The operator platform imports terminal collections into its own storage and applies
 publication permissions independently of an offline archive.
 
-Current `layout` scores use explicit task weights and 100 as a source/area
-reference; scores may exceed 100. Plots and comparisons preserve these values.
+`layout` caps each metric at quality 1 before aggregation with explicit task
+weights, giving a maximum of 100. Result imports require this single score
+contract; reports, plots and comparisons use the recorded 0–100 values.
 
-The matrix keeps task version, tool identity, budget, verification level and score
+The matrix keeps task version, tool identity, budget, evaluation mode, score
 method separate. Columns distinguish model, harness, CLI and effort as well as
 recorded prompt/configuration identities. Cells show all repetitions, measured
 counts, failures and missing scores. An error remains unknown, not zero. Overall
@@ -823,7 +1026,7 @@ The recorded task and netlist are still read and validated at the experiment's
 original revision. A later drawing is accepted only for the identical case ID
 and netlist bytes; its separate commit, path and digest are retained in
 `source.json`. This changes presentation only, not scores, task versions or
-verification levels. Editing uses a standalone Analog Canvas installation; the platform consumes
+evaluation modes. Editing uses a standalone Analog Canvas installation; the platform consumes
 exported drawings without an editor connection.
 
 Generate optional interactive geometry once, in an environment with the pinned
@@ -964,5 +1167,26 @@ to 8 MiB. These are transfer limits, not evaluation budgets.
 Website ownership and origin come from the authenticated server context, never
 from fields in the package. Different participants' session IDs and repetition
 cohorts remain isolated even if their declared model conditions match. Public's
-recorded scores, methods and verification metadata remain intact. Operator review
+recorded scores, methods and evaluation mode metadata remain intact. Operator review
 still controls score and file publication independently.
+
+
+### Kimi Code
+
+Authenticate with `kimi login` and configure the desired model alias before
+running `harness = "kimi-code"`. The K3 example uses `model = "kimi-code/k3"`
+and explicit `efforts = ["high"]`. The adapter rejects efforts missing from the
+model's effective `support_efforts`, rather than allowing the CLI to fall back.
+It targets Kimi Code's `kimi -p` interface, not the older Python `kimi-cli`.
+
+Each attempt receives a private Kimi home containing only the selected model,
+provider and referenced file OAuth credential. Provider `api_key_env` is supported.
+The original configuration, hooks, plugins, skills and unrelated MCP servers are
+not copied. A custom agent and global tool allowlist expose only the evaluation
+MCP and explicitly declared scheme servers. Tool timeouts follow the task budget.
+Native same-session continuation is not supported; `resume_session = true` is
+rejected for this harness. Native traces remain subject to normal export redaction.
+
+See Kimi's [configuration reference](https://www.kimi.com/code/docs/en/kimi-code-cli/configuration/config-files),
+[agent tool policy](https://www.kimi.com/code/docs/en/kimi-code-cli/customization/agents)
+and [MCP reference](https://www.kimi.com/code/docs/en/kimi-code-cli/customization/mcp.html).

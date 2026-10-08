@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .client import Client
 from .files import Asset, atomic_write
-from .protocol import json_bytes
+from .protocol import evaluation_mode, json_bytes
 
 
 def export_observation(client, session_id, destination, *, participant_files=()):
@@ -48,7 +48,7 @@ def export_observation(client, session_id, destination, *, participant_files=())
     manifest = {'session_id': session_id,
                 'service': {'provenance': 'server_observed', 'available': page['available'],
                             'next_offset': offset, 'state': result['state'],
-                            'verification_level': result['verification_level'],
+                            'evaluation_mode': evaluation_mode(result),
                             'files': {name: Asset((output / name).read_bytes(), 'binary').identity()
                                       for name in ('service-events.jsonl', 'service-result.json')}},
                 'participant': {'provenance': 'participant_reported', 'files': traces,

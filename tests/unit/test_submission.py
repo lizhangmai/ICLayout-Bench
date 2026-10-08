@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-from benchmarking.engine.model_config import load_run_config
-from benchmarking.engine.snapshot import snapshot
+from benchmarking.engine.container_scripts.snapshot import snapshot
+from benchmarking.engine.sessions.config import load_run_config
 
 pytestmark = pytest.mark.unit
 
@@ -50,7 +50,7 @@ def test_run_config_freezes_declared_code_and_rejects_changes(tmp_path):
     config = tmp_path / "agent.toml"
     config.write_text(f'''
 id = "offline-test"
-image = "iclayout-bench-tools:local"
+image = "iclayout-eda-open:local"
 command = ["python", "/agent/cli.py"]
 wall_seconds = 10
 memory_mb = 128
