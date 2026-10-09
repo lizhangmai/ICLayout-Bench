@@ -512,3 +512,80 @@ def test_local_service_records_ownership_before_announcing_readiness(tmp_path):
         stop(process)
         process.stdout.close()
         process.stderr.close()
+
+
+def test_detached_coordinator_refills_slots_after_the_launcher_exits(host, tmp_path):
+    """Real installed coordinator/workers refill while another native solve is gated."""
+    import signal
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    import tomli_w
+
+    from benchmarking.service.process import process_start
+
+    service, _ = host
+    test_python = os.environ.get('ICLAYOUT_BENCH_TEST_PYTHON', sys.executable)
+    ready, release = tmp_path / 'ready', tmp_path / 'release'
+    ready.mkdir()
+    release.mkdir()
+    script = '''import os, time
+from pathlib import Path
+sid = os.environ['ICLAYOUT_BENCH_SESSION']
+Path(READY, sid).write_text(str(os.getpid()))
+deadline = time.monotonic() + 60
+while not Path(RELEASE, sid).exists() and time.monotonic() < deadline:
+    time.sleep(.05)
+'''.replace('READY', repr(str(ready))).replace('RELEASE', repr(str(release)))
+    config = tmp_path / 'command.toml'
+    config.write_text(tomli_w.dumps({'harness': 'command', 'model': 'protocol-fixture', 'effort': 'off',
+        'tasks': [service.controller.task.id], 'concurrency': 2, 'repetitions': 3,
+        'scheme': {'version': 'fixture', 'launch': {'command': [test_python, '-c', script], 'files': []}}}))
+    output = tmp_path / 'batch'
+    launcher = subprocess.run([test_python, '-I', '-m', 'benchmarking.run', '--config', str(config),
+        '--dataset', DATASET, '--image', os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-eda-open:local'),
+        '--output', str(output), '--detach'],
+        env=dict(os.environ, ICLAYOUT_BENCH_TOKEN='operator-test'), capture_output=True, text=True,
+        timeout=30, check=False, umask=0o077)
+    assert launcher.returncode == 0, launcher.stderr
+    receipt = json.loads(launcher.stdout)
+    try:
+        assert process_start(receipt['pid']) == receipt['start']
+        deadline = time.monotonic() + 30
+        while len(list(ready.iterdir())) < 2 and time.monotonic() < deadline:
+            time.sleep(.05)
+        first = sorted(ready.iterdir())
+        assert len(first) == 2, Path(receipt['log']).read_text()
+        (release / first[0].name).touch()
+        while len(list(ready.iterdir())) < 3 and time.monotonic() < deadline:
+            time.sleep(.05)
+        assert len(list(ready.iterdir())) == 3, Path(receipt['log']).read_text()
+        assert not (release / first[1].name).exists()
+        status = subprocess.run([test_python, '-I', '-m', 'benchmarking.run', '--status', '--output', str(output)],
+                                capture_output=True, text=True, timeout=10, check=False)
+        assert status.returncode == 0, status.stderr
+        assert json.loads(status.stdout)['scheduler_alive']
+        for native in ready.iterdir():
+            (release / native.name).touch()
+        deadline = time.monotonic() + 30
+        while process_start(receipt['pid']) is not None and time.monotonic() < deadline:
+            time.sleep(.05)
+        assert process_start(receipt['pid']) is None, Path(receipt['log']).read_text()
+        records = list(output.rglob('result.json'))
+        assert len(records) == 3
+        assert all(json.loads(path.read_text())['state'] == 'finished' for path in records)
+        for path in records:
+            record = json.loads(path.read_text())
+            assert {'worker-events.jsonl', 'service-http.jsonl', 'service-lifecycle.jsonl', 'service-launch.jsonl'} <= set(record['files'])
+            lifecycle = [json.loads(line)['event'] for line in (path.parent / 'service-lifecycle.jsonl').read_text().splitlines()]
+            assert lifecycle == ['service_started', 'service_stopped']
+            assert 'operator-test' not in (path.parent / 'service-http.jsonl').read_text()
+        events = (output / '.scheduler/events.jsonl').read_text()
+        assert 'operator-test' not in events
+        assert json.loads((output / '.scheduler/owner.json').read_text())['exit_code'] == 0
+    finally:
+        for native in ready.iterdir():
+            (release / native.name).touch()
+        if process_start(receipt['pid']) == receipt['start']:
+            os.kill(receipt['pid'], signal.SIGTERM)

@@ -5,11 +5,16 @@ import sys
 import tomllib
 from pathlib import Path
 
+from . import codex_events
 from .contracts import EFFORTS, HarnessMetadata, LaunchContext, ParticipantSelection
 
 METADATA = HarnessMetadata('codex', 'CODEX_HOME', '.codex', 'auth.json')
 
 CAPABILITIES = {"resume_session": True, "capacity_resumes": True}
+
+
+def harness_failure(output, exit_code=None, timed_out=False):
+    return codex_events.harness_failure(output, exit_code, timed_out)
 
 
 def resolve(model, effort, env):

@@ -47,4 +47,10 @@ def stage_inputs(root, task, config, resources, message, resource_info, *, infer
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(asset.content)
             destination.chmod(0o444)
+    # Bind mounts expose these approved inputs to a different rootless UID.
+    # Keep the enclosing host session private; its mounted directories need
+    # explicit traversal permissions independent of the caller's umask.
+    for group in ("task", *groups):
+        for directory in [root / group, *(p for p in (root / group).rglob('*') if p.is_dir())]:
+            directory.chmod(0o755)
     return resource_mounts

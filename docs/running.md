@@ -304,10 +304,12 @@ to 20% positive jitter, capped by the maximum. Native numeric `retry_after` is a
 minimum delay; a hint above that maximum ends automatic recovery.
 
 Only recognized `provider_overloaded` events authorize automatic continuation:
-the native codes `model_at_capacity`, `overloaded_error`, `server_overloaded` and
-`server_is_overloaded`, or the exact message
-`Selected model is at capacity. Please try a different model.` in a native
-`error` or `turn.failed` event. Assistant text, tool output, mixed failures and
+the structured codes `model_at_capacity`, `overloaded_error`, `server_overloaded` and
+`server_is_overloaded`. The Codex adapter also recognizes the exact message
+`Selected model is at capacity. Please try a different model.` in its native
+`error` or `turn.failed` event. Other adapters do not inherit Codex message rules.
+Adapters normalize native evidence; shared classification and recovery policy
+consume that evidence without interpreting vendor prose. Assistant text, tool output, mixed failures and
 arbitrary messages cannot authorize one. Authentication/quota errors and
 unresolved tool operations stop automatic recovery.
 
@@ -368,7 +370,7 @@ artifacts before arranging a distinct replacement attempt. A successful creation
 still replays its original response after a lost HTTP reply.
 
 The client owns service-transport retries. Native harnesses own their provider/SDK
-retry loops. Opt-in capacity continuation starts another turn only after the
+retry loops. Automatic capacity continuation starts another turn only after the
 native process has stopped; it does not replay individual model or tool requests.
 Provider-native retry limits are not normalized across vendors. Both manual and
 automatic continuation use the original server deadline, not a renewed three-hour
@@ -406,8 +408,9 @@ redaction. Failed settlement keeps the original harness error and failure eviden
 with a separate `finalization_error` in the suspended case summary. Cleanup does
 not convert a harness interruption into an evaluator verdict or change its score.
 
-Codex connection errors and recognized native `Reconnecting... N/M (stream
-disconnected before completion: ...)` events remain diagnostic when the same
+The Codex adapter handles its native connection errors and reconnect messages
+for disconnected streams, request timeouts, workspace routing timeouts,
+upstream 503 connection failures and waiting for network. These remain diagnostic when the same
 started turn subsequently emits `turn.completed`, the process exits zero, and
 the service permits completion under its budget policy. A later turn cannot clear an earlier unfinished turn's
 errors. Unrecognized errors, terminal turn failures, provider authentication or
@@ -416,6 +419,10 @@ The original event trace is preserved, including recovered connection errors.
 Recognized native capacity errors recovered within that same successful turn are
 also diagnostic and do not launch a continuation. Capacity recovery across native
 launches is recorded separately in `capacity_recovery`.
+When that same reconnect loop ends with a definitive capacity `turn.failed` and
+a positive process exit, its recognized transient reconnect events do not mask
+the capacity classification. Unknown errors, earlier failed turns, permanent
+provider errors and unresolved MCP failures still prevent automatic continuation.
 
 A structured Codex `layout` MCP failure reporting that approval is required while
 approval policy is `never` is `harness_configuration`, even if the CLI exits zero.
@@ -441,10 +448,37 @@ Case recovery compares resolved conditions, the ICLayout-Bench release
 native storage location and frozen launch conditions. Atomic state writes and an
 exclusive local case lease prevent concurrent owners; both the independent case
 worker and native child inherit the lease. Closing the scheduler's descriptor
-does not release their ownership, so a live orphan also blocks a second runner. Use local
-filesystems with reliable `flock`/atomic rename semantics. Completed slots are
+does not release their ownership. A batch coordinator lease excludes competing
+schedulers. After its owner exits, `--resume` can observe surviving case workers
+through their recorded PID/start identity and committed results. It never takes
+their leases, restarts their models or changes their deadlines. Workers outside a
+`--case` selection also count toward the batch's concurrency cap. Their newly
+observed provider or service failures retain the shared policy for stopping
+dispatch and capacity cooldowns. Each finished slot makes room for the next
+pending case while other workers continue. Pending
+repetitions of a still-owned case wait for that case's shared lease to be released.
+An interrupted case worker requires `--collect-only`; an unverified owner remains
+blocked. Use local filesystems with reliable `flock`/atomic rename semantics. Completed slots are
 skipped; unfinished exports can be collected again without relaunching the Agent.
 Unfinished cases retain logs, launch diagnostics and incomplete exports in `.runtime/`; completed cases use the retention rules below.
+
+For a long single-condition experiment, run the installed coordinator independently
+of the launching terminal or agent session:
+
+```bash
+python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
+  --dataset /path/to/dataset --output results/my-batch --detach
+python -m benchmarking.run --status --output results/my-batch
+```
+
+`--detach` prints a JSON launch receipt with PID/start identity and log location.
+It uses the same frozen plan, environment and queue as foreground execution;
+private launch settings travel over an inherited pipe. It does not supervise a
+host reboot or restart a failed coordinator. Resume with the original arguments
+and `--resume --detach` after such an interruption. Inspect
+`.scheduler/runner.log`, `owner.json` and `events.jsonl` for startup, dispatch,
+worker adoption, completion, interruption and cooldown events. `--status` is
+read-only and requires no configuration, provider login or service calls.
 
 ### Collect interrupted sessions without model calls
 
@@ -633,7 +667,9 @@ python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
 
 The second command makes real model calls for every selected effort and repetition.
 Conditions execute in order. Within each condition, `concurrency` bounds the
-number of independent case/repetition sessions running at once. Condition names
+number of independent case/repetition sessions running at once.
+Each completion immediately frees a slot for the next queued task; dispatch does
+not wait for every task in a pair or group to finish. Condition names
 use the file stem (or optional `name`) plus the effort; names must be unique.
 Harness/model/effort/tasks selection and `repetitions` belong in the experiment
 TOML. For example, `repetitions = 3` creates three independent runs per condition.
@@ -727,6 +763,7 @@ A completed local case contains:
 
 ```text
 results/codex-gpt-6-astra-medium/20260922-120000-123456/
+  .scheduler/                  # coordinator ownership and scheduling events
   freepdk45/OpenRAM/cases/cell_6t/
     report.md                  # outcome, score formula, thresholds and measurements
     result.json                # conditions, state, measurement identities and result
@@ -734,6 +771,10 @@ results/codex-gpt-6-astra-medium/20260922-120000-123456/
     layout.png
     agent.jsonl                # native launch traces, in order, known credentials redacted
     evaluation/                # frozen plan, measurements, logs and diagnostic outputs
+    worker-events.jsonl        # independent worker lifecycle, when available
+    service-http.jsonl         # local HTTP operation/status/timing, when available
+    service-lifecycle.jsonl    # local service start/stop, when available
+    service-launch.jsonl       # launcher readiness/exit, when available
     .case.lock                 # concurrent-owner exclusion
 ```
 
@@ -777,8 +818,14 @@ an active session checkpoint.
 For multiple repetitions, each case has `repetition-N/` directories containing
 these same files; the case lock remains at the case root. Model/case characters
 unsafe in paths are percent-escaped. Each selected case/repetition owns its frozen
-identity in `result.json`; there is no condition-wide index, summary or log.
-All selected cases are locked and validated before dispatch. Repeating a command
+identity in `result.json`; there is no condition-wide result index or summary.
+The condition's `.scheduler/` directory records scheduling and ownership only;
+it does not aggregate or replace case results. Local HTTP journals contain fixed
+operation names, status codes and elapsed times, excluding credentials, request
+and response bodies, paths, queries and native histories. Terminal export retains
+these journals before deleting runtime stores, including prior attempts when present.
+All selected identities are validated before dispatch. Mutated cases are locked;
+adopted workers and their results are observed read-only. Repeating a command
 skips finished cases and prints result paths. A subset or new cases may be selected
 and concurrency changed; changing an existing case's conditions, repetitions or
 benchmark release is rejected before dispatch. Selected unfinished cases require

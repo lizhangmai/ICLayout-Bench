@@ -8,7 +8,7 @@ from pathlib import Path
 from benchmarking.dataset import load_dataset
 from benchmarking.engine.runtime import load_case
 from benchmarking.engine.source import implementation_identity
-from benchmarking.files import write_json
+from benchmarking.files import append_event, write_json
 
 from .process import process_start
 from .server import LocalService, serve
@@ -45,9 +45,10 @@ revision = implementation_identity()
 service = LocalService(args.data, runtime.task, {} if solver_runtime else runtime.agent_resources(),
                        runtime.backends, args.solver_image or (solver_runtime.image if solver_runtime else args.image),
                        token, revision=revision, solver_runtime=solver_runtime)
-server = serve(service,args.port)
+server = serve(service, args.port, audit=args.data / 'http.jsonl')
 endpoint = f'http://127.0.0.1:{server.server_port}'
 try:
+    append_event(args.data / 'lifecycle.jsonl', 'service_started', durable=True, pid=os.getpid())
     if args.owner_record:
         args.owner_record.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         write_json(args.owner_record, {'pid': os.getpid(), 'start': process_start(os.getpid()),
@@ -59,3 +60,4 @@ except KeyboardInterrupt:
 finally:
     server.server_close()
     service.shutdown()
+    append_event(args.data / 'lifecycle.jsonl', 'service_stopped', durable=True, pid=os.getpid())

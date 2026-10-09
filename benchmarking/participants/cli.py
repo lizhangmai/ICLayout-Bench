@@ -5,7 +5,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from . import batch, case
+from . import batch, case, scheduler
 from .planning import ExperimentRequest, plan_conditions, prepare_batch
 
 
@@ -33,8 +33,17 @@ def main(argv=None):
     parser.add_argument("--collect-only", action="store_true",
                         help="Settle existing sessions at --output without launching models or changing their identity")
     parser.add_argument("--dry-run", action="store_true", help="Resolve combinations without service/model calls")
+    parser.add_argument("--detach", action="store_true", help="Run one condition in an independent coordinator; print its PID and log")
+    parser.add_argument("--status", action="store_true", help="Read scheduling state at --output without model or service calls")
     args = parser.parse_args(argv)
     try:
+        if args.status:
+            if not args.output or args.config or args.matrix or args.resume or args.replace_unfinished or args.dry_run or args.detach or args.collect_only:
+                raise ValueError('--status requires --output and no execution options')
+            print(json.dumps(scheduler.status(args.output), indent=2))
+            return 0
+        if args.detach and (args.collect_only or args.dry_run):
+            raise ValueError('--detach cannot be combined with --collect-only or --dry-run')
         if args.collect_only:
             if not args.output or args.config or args.matrix or args.resume or args.replace_unfinished or args.dry_run:
                 raise ValueError("--collect-only requires --output and no config, matrix, resume or dry-run")
@@ -47,6 +56,10 @@ def main(argv=None):
                               for c in experiment.conditions], indent=2, ensure_ascii=False))
             return 0
         options, slots = prepare_batch(request, experiment)
+        if args.detach:
+            if len(slots) != 1:
+                raise ValueError('--detach requires exactly one condition')
+            return scheduler.detach(options, slots[0])
         code = 0
         blocked = set()
         for slot in slots:

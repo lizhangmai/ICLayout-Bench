@@ -7,11 +7,10 @@ from benchmarking.retry import DEFAULTS as TRANSPORT_DEFAULTS
 from benchmarking.retry import policy as transport_policy
 
 from . import adapters
-from .adapters.events import CAPACITY_CODES, CAPACITY_MESSAGE, harness_failure
 from .credentials import credential_values
 from .failures import classify, failure
 
-__all__ = ['CAPACITY_CODES', 'CAPACITY_DEFAULTS', 'CAPACITY_MESSAGE', 'DISABLED', 'CapacityDecision', 'capacity_delay', 'capacity_ready', 'classify', 'continuation_id', 'credential_values', 'failure', 'harness_failure', 'plan_capacity_resume', 'policy']
+__all__ = ['CAPACITY_DEFAULTS', 'DISABLED', 'CapacityDecision', 'capacity_delay', 'capacity_ready', 'classify', 'continuation_id', 'credential_values', 'failure', 'plan_capacity_resume', 'policy']
 
 DISABLED = TRANSPORT_DEFAULTS | {"resume_session": False}
 CAPACITY_DEFAULTS = {"capacity_resumes": 5, "capacity_backoff_seconds": 30,

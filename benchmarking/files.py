@@ -6,6 +6,7 @@ import os
 import re
 import tempfile
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
 
@@ -145,3 +146,18 @@ def write_json(path, value):
     """Atomically persist a participant record without changing its JSON encoding."""
     path = Path(path)
     atomic_write(path, (json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode())
+
+
+def append_event(path, event, *, durable=False, **fields):
+    """Append one caller-sanitized runtime event without replacing history."""
+    value = {"timestamp": datetime.now(UTC).isoformat(), "event": event, **fields}
+    raw = (json.dumps(value, ensure_ascii=False, allow_nan=False) + '\n').encode()
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
+    try:
+        if os.write(descriptor, raw) != len(raw):
+            raise OSError('Incomplete runtime journal write')
+        if durable:
+            os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    return value

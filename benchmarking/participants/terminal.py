@@ -9,6 +9,7 @@ from benchmarking.locking import BatchLease
 from benchmarking.results.export import (
     compact_result,
     load,
+    put,
     verify,
 )
 from benchmarking.results.outbox import archive_result
@@ -66,6 +67,21 @@ def _finish_case(record, state):
                   'summary': dict(summary, result='result.json'), 'files': []}
         files = result['files']
         export_run(root, read_participant_evidence(runtime), result)
+        # These journals contain fixed lifecycle/HTTP fields, never credentials
+        # or request bodies. Keep them before removing private runtime stores.
+        journals = [('worker-events.jsonl', 'worker-events.jsonl'),
+                    ('service/service-store/http.jsonl', 'service-http.jsonl'),
+                    ('service/service-store/lifecycle.jsonl', 'service-lifecycle.jsonl'),
+                    ('service/lifecycle.jsonl', 'service-launch.jsonl')]
+        for source, target in journals:
+            path = runtime / source
+            if path.is_file():
+                put(root, target, path.read_bytes(), files)
+        for attempt in sorted((runtime / 'attempts').glob('*')):
+            for source, target in journals:
+                path = attempt / source
+                if path.is_file():
+                    put(root, f'attempts/{attempt.name}/{target}', path.read_bytes(), files)
         result['prior_plans'] = [load(p) for p in sorted((runtime / 'plans').glob('*/record.json'))]
         attempts = [read_attempt_evidence(path) for path in sorted((runtime / "attempts").glob('*')) if path.is_dir()]
         result["attempts"] = export_attempts(root, attempts, files)

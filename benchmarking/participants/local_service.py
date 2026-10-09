@@ -10,7 +10,7 @@ import time
 from contextlib import contextmanager
 
 from benchmarking.client import Client
-from benchmarking.files import write_json
+from benchmarking.files import append_event, write_json
 from benchmarking.service.process import process_start
 
 from .config import clean_env
@@ -69,6 +69,7 @@ def service(case, output, image):
         write_json(token_file, {"token": token})
     owner = local_service_owner(output)
     if owner is not None:
+        append_event(output / 'lifecycle.jsonl', 'service_reused', durable=True, pid=owner['pid'])
         try:
             yield Client(owner["endpoint"], token, timeout=60)
         finally:
@@ -88,6 +89,7 @@ def service(case, output, image):
             "--owner-record", str(private / "owner.json"),
             "--image", image, "--token-env", "ICLAYOUT_BENCH_LOCAL_TOKEN",
         ], cwd=output, env=env, stdout=subprocess.PIPE, stderr=log, text=True, start_new_session=True)
+        append_event(output / 'lifecycle.jsonl', 'service_spawned', durable=True, pid=process.pid)
         ready = False
         try:
             with selectors.DefaultSelector() as selector:
@@ -99,8 +101,11 @@ def service(case, output, image):
             if not line.startswith(prefix):
                 raise RuntimeError("Local service failed; see service.log")
             ready = True
+            append_event(output / 'lifecycle.jsonl', 'service_ready', durable=True, pid=process.pid)
             yield Client(line.removeprefix(prefix), token, timeout=60)
         finally:
             if not ready or (output.parent / "participant/analysis/manifest.json").exists():
                 stop(process, signal.SIGINT)
+                append_event(output / 'lifecycle.jsonl', 'service_exit', durable=True, pid=process.pid,
+                             exit_code=process.returncode, ready=ready)
             process.stdout.close()

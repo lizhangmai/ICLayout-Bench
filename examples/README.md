@@ -75,7 +75,14 @@ This preserves old attempts and records the actual new runner version while
 requiring unchanged model, effort, task inputs, image and repetitions. Finished
 cases are never replaced; see the [replacement guide](../docs/running.md#failures-retry-ownership-and-recovery).
 Dispatched cases have independent workers that finish settlement and export if
-the scheduler exits. To collect a retained session after its worker also exits,
+the scheduler exits. `--resume` observes surviving workers and automatically
+fills each free slot; it does not wait for a whole pair to finish. Use `--detach`
+with one condition to keep the coordinator independent of the launching session.
+The command prints a PID and `.scheduler/runner.log` location. Inspect progress
+with `python -m benchmarking.run --status --output <batch>`; scheduler events
+remain in `.scheduler/events.jsonl`. Local HTTP/lifecycle journals are retained
+with terminal case results without credentials or request bodies.
+To collect a retained session after its worker also exits,
 use `python -m benchmarking.run --collect-only --output <batch> --case <case>`.
 This uses recorded identities and accepted candidates without any model calls;
 it does not dispatch pending cases. See the [recovery guide](../docs/running.md#collect-interrupted-sessions-without-model-calls).

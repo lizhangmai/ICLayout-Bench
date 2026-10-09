@@ -11,6 +11,7 @@ import pytest
 
 from benchmarking.client import ClientError
 from benchmarking.participants.adapters.contracts import (
+    HARNESSES,
     LaunchContext,
     ParticipantSelection,
 )
@@ -453,7 +454,7 @@ if __name__ == '__main__':
     ({}, -9, 'harness_crash'),
 ])
 def test_failure_uses_evidence_not_exit_code_or_assistant_text(tmp_path, event, exit_code, category):
-    from benchmarking.participants.recovery import harness_failure
+    from benchmarking.participants.adapters.codex import harness_failure
     (tmp_path / 'harness.jsonl').write_text(json.dumps(event) + '\n')
     assert harness_failure(tmp_path, exit_code)['category'] == category
 
@@ -462,6 +463,7 @@ def test_failure_uses_evidence_not_exit_code_or_assistant_text(tmp_path, event, 
     *[('codex', stop) for stop in ('success', 'limit', 'deadline', 'insufficient_budget', 'pending_tool', 'pending_after_wait',
                                  'missing_thread', 'authentication', 'retry_after', 'service_error', 'disabled')],
     ('claude-code', 'success'),
+    ('codex', 'reconnect_then_capacity'),
 ])
 def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, monkeypatch, harness, stop):
     """Run real child processes emitting native events; only the service/provider boundaries are fixtures."""
@@ -470,6 +472,10 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
 
     from benchmarking.participants.recovery import DISABLED
     from benchmarking.participants.runner import CONTINUE_PROMPT, run_one
+
+    reconnect_then_capacity = stop == 'reconnect_then_capacity'
+    if reconnect_then_capacity:
+        stop = 'success'
 
     fixture = ServiceFixture()
     fixture.remaining = 20 if stop == 'insufficient_budget' else 1000
@@ -486,6 +492,8 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
     clock = [0]
     native_id = 'original-native-thread'
     capacity = {'type': 'turn.failed', 'error': {'message': 'Selected model is at capacity. Please try a different model.'}}
+    if harness == 'claude-code':
+        capacity = {'type': 'error', 'error': {'type': 'overloaded_error'}}
     if stop == 'retry_after':
         capacity['error']['retry_after'] = 400
 
@@ -499,6 +507,11 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
             native_id = env['ICLAYOUT_BENCH_NATIVE_ID']
         events = [] if stop == 'missing_thread' else [{'type': 'thread.started', 'thread_id': native_id}]
         if len(launches) == 1 or stop == 'limit':
+            if reconnect_then_capacity:
+                events.extend([{'type': 'turn.started'},
+                               {'type': 'error', 'message': 'Reconnecting... 2/5 (request timed out)'},
+                               {'type': 'error', 'message': 'Reconnecting... waiting for network (Connection failed: error sending request)'},
+                               {'type': 'error', 'message': 'Selected model is at capacity. Please try a different model.'}])
             events.append(capacity)
             exit_code = 1
             if stop == 'pending_tool':
@@ -1318,7 +1331,7 @@ def test_native_mcp_approval_failure_is_not_a_zero_score_and_stops_dispatch(tmp_
 
 @pytest.mark.parametrize('mode,category', [('prose', None), ('unknown', 'unknown'), ('recovered', None)])
 def test_mcp_failure_requires_structured_unrecovered_evidence(tmp_path, mode, category):
-    from benchmarking.participants.recovery import harness_failure
+    from benchmarking.participants.adapters.codex import harness_failure
     message = 'MCP tool call requires approval, but approval policy is never'
     item = {'type': 'mcp_tool_call', 'server': 'layout', 'tool': 'read', 'status': 'failed',
             'error': {'message': message}}
@@ -1354,7 +1367,7 @@ def test_timestamped_results_and_explicit_case_reuse(tmp_path, monkeypatch, caps
             for repetition in range(1, repetitions + 1):
                 slot = directory if repetitions == 1 else directory / f'repetition-{repetition}'
                 assert json.loads((slot / 'result.json').read_text())['summary']['task'] == task
-        assert {p.name for p in root.iterdir()} == {'library.cell', 'other.cell'}
+        assert {p.name for p in root.iterdir() if not p.name.startswith(".")} == {'library.cell', 'other.cell'}
         from benchmarking.participants.storage import CaseLease
         count = launch.call_count
         with CaseLease(root / 'library.cell'), pytest.raises(SystemExit):
@@ -1435,7 +1448,7 @@ def test_append_cases_skips_original_and_runs_new_cases_concurrently(tmp_path, m
     assert sorted(calls) == ['new-a', 'new-b', 'old']
     assert original == {str(p.relative_to(root / 'old/fixture/cases/old')): p.read_bytes() for p in (root / 'old/fixture/cases/old').rglob('*') if p.is_file()}
     assert (root / 'old/fixture/cases/old/result.json').read_bytes() == manifest
-    assert {p.name for p in root.iterdir()} == {'old', 'new-a', 'new-b'}
+    assert {p.name for p in root.iterdir() if not p.name.startswith(".")} == {'old', 'new-a', 'new-b'}
     assert main(args) == 0
     assert len(calls) == 3
     import shutil
@@ -1547,7 +1560,7 @@ def test_default_case_storage_retains_blocked_dispatch_without_batch_summary(tmp
         assert main(['--config', str(config), '--endpoint', 'https://fixture']) == 1
         assert launch.call_count == 1
     root, = (tmp_path / 'results/trial').iterdir()
-    assert {p.name for p in root.iterdir()} == {'first', 'second'}
+    assert {p.name for p in root.iterdir() if not p.name.startswith(".")} == {'first', 'second'}
     assert json.loads((root / 'second/result.json').read_text())['state'] == 'blocked'
     assert not (root / 'second/.runtime').exists()
 
@@ -1700,7 +1713,7 @@ def test_reconnect_recovery_requires_successful_same_turn(tmp_path, ending, exit
     consumes minimized native events; unrelated failures and turn boundaries
     must retain failure evidence. No model or EDA behavior is asserted.
     """
-    from benchmarking.participants.recovery import harness_failure
+    from benchmarking.participants.adapters.codex import harness_failure
 
     events = [{'type': 'turn.started'}, {'type': 'error',
               'message': 'Reconnecting... 2/5 (stream disconnected before completion: tls handshake eof)'}] + ending
@@ -1720,7 +1733,7 @@ def test_reconnect_recovery_requires_successful_same_turn(tmp_path, ending, exit
       'error': {'code': 'insufficient_quota'}}, False),
 ])
 def test_reconnect_recognition_preserves_other_error_evidence(tmp_path, event, recovered):
-    from benchmarking.participants.recovery import harness_failure
+    from benchmarking.participants.adapters.codex import harness_failure
 
     events = [{'type': 'turn.started'}, event, {'type': 'turn.completed'}]
     (tmp_path / 'harness.jsonl').write_text('\n'.join(json.dumps(e) for e in events))
@@ -1728,12 +1741,147 @@ def test_reconnect_recognition_preserves_other_error_evidence(tmp_path, event, r
 
 
 def test_capacity_error_cannot_hide_another_failure(tmp_path):
-    from benchmarking.participants.recovery import CAPACITY_MESSAGE, harness_failure
+    from benchmarking.participants.adapters.codex_events import (
+        CAPACITY_MESSAGE,
+        harness_failure,
+    )
 
     events = [{'type': 'error', 'message': 'unrecognized failure'},
               {'type': 'turn.failed', 'error': {'message': CAPACITY_MESSAGE}}]
     (tmp_path / 'harness.jsonl').write_text('\n'.join(json.dumps(event) for event in events))
     assert harness_failure(tmp_path, exit_code=1)['category'] == 'unknown'
+
+
+@pytest.mark.parametrize('message', [
+    'Reconnecting... 2/5 (request timed out)',
+    'Reconnecting... 2/5 (workspace routing discovery timed out)',
+    'Reconnecting... waiting for network (Connection failed: error sending request)',
+    'Reconnecting... 2/5 (unexpected status 503 Service Unavailable: upstream connect error)',
+])
+@pytest.mark.parametrize('completed', [False, True])
+def test_observed_reconnect_variants_require_successful_completion(tmp_path, message, completed):
+    from benchmarking.participants.adapters.codex import harness_failure
+
+    events = [{'type': 'turn.started'}, {'type': 'error', 'message': message},
+              {'type': 'turn.completed' if completed else 'turn.failed'}]
+    raw = '\n'.join(json.dumps(e) for e in events)
+    (tmp_path / 'harness.jsonl').write_text(raw)
+    problem = harness_failure(tmp_path, exit_code=0 if completed else 1)
+    assert (problem is None) == completed
+    assert (tmp_path / 'harness.jsonl').read_text() == raw
+
+
+@pytest.mark.parametrize('scoped,stop_dispatch', [(False, False), (True, False), (True, True)])
+def test_resume_observes_orphans_and_refills_before_the_slow_case_finishes(tmp_path, monkeypatch, scoped, stop_dispatch):
+    """Inherited locks reproduce supervisor loss; no provider or EDA calls occur."""
+    import subprocess
+    import sys
+    import threading
+    import time
+
+    from benchmarking.participants.storage import CaseLease, CaseRecord
+    from benchmarking.run import main
+
+    config = tmp_path / 'trial.toml'
+    config.write_text('harness="codex"\nmodel="fixture"\neffort="medium"\n'
+                      'tasks=["fast", "slow", "next"]\nconcurrency=2\nrepetitions=1\n')
+    monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'fixture')
+    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *a: ParticipantSelection({}, {}, {}))
+    next_started = threading.Event()
+    launches = []
+
+    def run(access, row, output, selection):
+        launches.append(row['task'])
+        if row['task'] == 'next':
+            next_started.set()
+        return terminal_files(output)
+
+    monkeypatch.setattr('benchmarking.participants.runner.run_one', run)
+    output = tmp_path / 'batch'
+    args = ['--config', str(config), '--endpoint', 'https://fixture', '--output', str(output)]
+    assert main(args) == 0
+    launches.clear()
+    next_started.clear()
+    pending = json.loads((output / 'next/result.json').read_text())
+    pending.update(state='pending')
+    pending.pop('summary')
+    (output / 'next/result.json').write_text(json.dumps(pending))
+    owners = []
+    failures = []
+    script = '''import json, os, sys, time
+from pathlib import Path
+from benchmarking.files import write_json
+from benchmarking.service.process import process_start
+p = json.load(sys.stdin)
+root = Path(p['root'])
+write_json(root / '.runtime/worker.json', {'pid': os.getpid(), 'start': process_start(os.getpid()),
+    'scheduler': {'pid': 99999999, 'start': {'ticks': '0', 'boot': 'absent'}}})
+Path(p['ready']).touch()
+until = time.monotonic() + 20
+while not Path(p['release']).exists() and time.monotonic() < until:
+    time.sleep(.01)
+write_json(root / 'result.json', p['finished'])
+'''
+    try:
+        for task in ('fast', 'slow'):
+            root = output / task
+            finished = json.loads((root / 'result.json').read_text())
+            if task == 'fast' and stop_dispatch:
+                finished['summary']['failure'] = {'category': 'quota_exhausted', 'stop_dispatch': True}
+            running = dict(finished, state='running')
+            running.pop('summary')
+            (root / 'result.json').write_text(json.dumps(running))
+            (root / '.runtime').mkdir()
+            with CaseLease(root) as lease:
+                child = subprocess.Popen([sys.executable, '-I', '-c', script], stdin=subprocess.PIPE,
+                                         text=True, pass_fds=(lease.fileno(),))
+                owners.append(child)
+                child.stdin.write(json.dumps({'root': str(root), 'finished': finished,
+                    'ready': str(tmp_path / (task + '.ready')), 'release': str(tmp_path / (task + '.release'))}))
+                child.stdin.close()
+                until = time.monotonic() + 3
+                while not (tmp_path / (task + '.ready')).exists() and time.monotonic() < until:
+                    time.sleep(.01)
+                assert (tmp_path / (task + '.ready')).exists()
+
+        def recover():
+            try:
+                assert main(args + ['--resume'] + (['--case', 'next'] if scoped else [])) == int(stop_dispatch)
+            except BaseException as error:  # noqa: BLE001 -- propagate thread failures to the test owner
+                failures.append(error)
+
+        recovering = threading.Thread(target=recover)
+        recovering.start()
+        until = time.monotonic() + 3
+        journal = output / '.scheduler/events.jsonl'
+        while time.monotonic() < until and recovering.is_alive():
+            events = [json.loads(line) for line in journal.read_text().splitlines(keepends=True)
+                      if line.endswith('\n')]
+            if any(event['event'] == 'worker_adopted' and event['case'] == 'fast' for event in events):
+                break
+            time.sleep(.01)
+        else:
+            pytest.fail('Recovered scheduler did not observe the fast worker: ' + repr(failures))
+        (tmp_path / 'fast.release').touch()
+        if stop_dispatch:
+            recovering.join(3)
+            assert not recovering.is_alive() and not failures
+            assert CaseRecord(output / 'next').read()['state'] == 'blocked'
+        else:
+            assert next_started.wait(3), failures
+        assert not (tmp_path / 'slow.release').exists()
+        assert launches == ([] if stop_dispatch else ['next'])
+        if scoped:
+            recovering.join(3)
+            assert not recovering.is_alive() and not failures
+        (tmp_path / 'slow.release').touch()
+        recovering.join(5)
+        assert not recovering.is_alive() and not failures
+    finally:
+        for task in ('fast', 'slow'):
+            (tmp_path / (task + '.release')).touch()
+        for child in owners:
+            child.wait(timeout=5)
 
 
 def test_capacity_delay_is_bounded_and_respects_exponential_intervals(monkeypatch):
@@ -1795,3 +1943,89 @@ def test_collect_only_waits_for_the_shared_case_lease(tmp_path, repetitions):
             if owner.poll() is None:
                 owner.terminate()
                 owner.wait(timeout=5)
+
+
+@pytest.mark.parametrize("harness", HARNESSES)
+@pytest.mark.parametrize("structured", [False, True])
+def test_capacity_messages_are_interpreted_only_by_the_owning_adapter(tmp_path, harness, structured):
+    from benchmarking.participants import adapters
+
+    event = {"type": "error", "message": "Selected model is at capacity. Please try a different model."}
+    if structured:
+        event["error"] = {"type": "overloaded_error", "retry_after": 45}
+    (tmp_path / "harness.jsonl").write_text(json.dumps(event))
+    problem = adapters.harness_failure(harness, tmp_path, exit_code=1)
+    assert problem["category"] == ("provider_overloaded" if structured or harness == "codex" else "unknown")
+    if structured:
+        assert problem["retry_after"] == 45
+
+
+@pytest.mark.parametrize("harness", HARNESSES)
+def test_reconnect_turn_semantics_are_specific_to_codex(tmp_path, harness):
+    from benchmarking.participants import adapters
+
+    events = [{"type": "turn.started"},
+              {"type": "error", "message": "Reconnecting... 2/5 (request timed out)"},
+              {"type": "turn.completed"}]
+    (tmp_path / "harness.jsonl").write_text("\n".join(json.dumps(event) for event in events))
+    problem = adapters.harness_failure(harness, tmp_path, exit_code=0)
+    assert (problem is None) == (harness == "codex")
+
+
+def test_status_requires_no_provider_and_excludes_private_record_fields(tmp_path, capsys):
+    import os
+
+    from benchmarking.files import write_json
+    from benchmarking.run import main
+    from benchmarking.service.process import process_start
+
+    root = tmp_path / 'batch'
+    case = root / 'fixture'
+    case.mkdir(parents=True)
+    control = root / '.scheduler'
+    control.mkdir()
+    secret = 'status-private-regression-secret'
+    write_json(case / 'result.json', {'identity': {'plan': [{'tasks': ['fixture']}], 'endpoint': secret},
+        'state': 'running', 'summary': {'score': None, 'outcome': None, 'session_token': secret}})
+    write_json(control / 'owner.json', {'pid': os.getpid(), 'start': process_start(os.getpid()),
+        'state': 'running', 'concurrency': 2, 'private': secret})
+    assert main(['--status', '--output', str(root)]) == 0
+    raw = capsys.readouterr().out
+    status = json.loads(raw)
+    assert secret not in raw
+    assert status['scheduler_alive'] and status['states'] == {'running': 1}
+    assert status['cases'][0]['task'] == 'fixture'
+
+
+def test_live_scheduler_prevents_orphan_adoption_and_pid_reuse_does_not_authorize_it(tmp_path):
+    import os
+
+    from benchmarking.files import write_json
+    from benchmarking.locking import BatchLeaseError
+    from benchmarking.participants.scheduler import live_worker
+    from benchmarking.service.process import process_start
+
+    runtime = tmp_path / '.runtime'
+    runtime.mkdir()
+    owner = {'pid': os.getpid(), 'start': process_start(os.getpid()),
+             'scheduler': {'pid': os.getpid(), 'start': process_start(os.getpid())}}
+    write_json(runtime / 'worker.json', owner)
+    with pytest.raises(BatchLeaseError, match='live scheduler'):
+        live_worker(tmp_path)
+    owner['start'] = {'ticks': '0', 'boot': 'wrong-boot'}
+    write_json(runtime / 'worker.json', owner)
+    assert live_worker(tmp_path) is None
+
+
+def test_resume_rejects_an_unverified_live_owner_outside_the_selected_cases(tmp_path):
+    from benchmarking.files import write_json
+    from benchmarking.locking import BatchLeaseError
+    from benchmarking.participants.scheduler import live_slots
+    from benchmarking.participants.storage import CaseLease
+
+    case = tmp_path / 'unselected'
+    case.mkdir()
+    write_json(case / 'result.json', {'identity': {'plan': [{'tasks': ['unselected'], 'repetitions': 1}]},
+        'state': 'running'})
+    with CaseLease(case), pytest.raises(BatchLeaseError, match='Unverified live case owner'):
+        live_slots(tmp_path)

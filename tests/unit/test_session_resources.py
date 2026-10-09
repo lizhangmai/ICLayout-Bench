@@ -22,6 +22,32 @@ def test_generic_resources_do_not_get_pdk_environment_or_reference_material():
                     "bundles": [], "python_imports": []}
 
 
+def test_solver_mounts_remain_readable_under_a_private_umask(tmp_path, executable_case):
+    import os
+    from types import SimpleNamespace
+
+    from benchmarking.engine.sessions.staging import stage_inputs
+    from benchmarking.tasks import load_task
+
+    root = tmp_path / 'private-session'
+    root.mkdir(mode=0o700)
+    harness = SimpleNamespace(capabilities=[], identity=dict)
+    config = SimpleNamespace(harness=harness, files={'nested/run.py': Asset(b'# fixture', 'python')})
+    old = os.umask(0o077)
+    try:
+        stage_inputs(root, load_task(executable_case), config,
+                     {'nested/resource.txt': Asset(b'resource', 'text')}, 'fixture', {})
+    finally:
+        os.umask(old)
+    assert root.stat().st_mode & 0o777 == 0o700
+    for group in ('task', 'agent', 'resources', 'protocol'):
+        for path in [root / group, *(root / group).rglob('*')]:
+            if path.is_dir():
+                assert path.stat().st_mode & 0o005 == 0o005, path
+            else:
+                assert path.stat().st_mode & 0o777 == 0o444, path
+
+
 def test_external_resources_publish_container_paths_and_modules_without_host_or_credential_paths():
     from types import SimpleNamespace
 

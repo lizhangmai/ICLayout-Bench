@@ -231,3 +231,51 @@ def test_injected_runtime_serves_a_scoped_session_over_http(tmp_path, executable
         server.server_close()
         service.shutdown()
         thread.join(timeout=1)
+
+
+@pytest.mark.parametrize('response_status', [200, 503, 500])
+def test_http_audit_retains_diagnostics_without_request_or_response_secrets(tmp_path, response_status):
+    import threading
+    import urllib.error
+    import urllib.request
+
+    from benchmarking.service.server import serve
+
+    secret = 'private-audit-regression-secret'
+
+    def handle(*args):
+        if response_status == 500:
+            raise RuntimeError(secret)
+        return response_status, {'error': {'code': 'unavailable', 'message': secret}, 'candidate': secret}
+
+    journal = tmp_path / 'http.jsonl'
+    server = serve(SimpleNamespace(handle=handle), audit=journal)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        request = urllib.request.Request(
+            f'http://127.0.0.1:{server.server_port}/sessions/{secret}/files?path={secret}',
+            data=json.dumps({'candidate': secret}).encode(),
+            headers={'Authorization': 'Bearer ' + secret, 'Idempotency-Key': secret}, method='POST')
+        try:
+            response = urllib.request.build_opener(urllib.request.ProxyHandler({})).open(request, timeout=3)
+        except urllib.error.HTTPError as error:
+            response = error
+        with response:
+            assert response.status == response_status
+            assert (secret in response.read().decode()) == (response_status != 500)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(3)
+    raw = journal.read_text()
+    assert secret not in raw
+    event, = [json.loads(line) for line in raw.splitlines()]
+    assert event['operation'] == 'files' and event['method'] == 'POST'
+    assert event['status'] == response_status
+    assert event['error_code'] == ('infrastructure_error' if response_status == 500 else 'unavailable')
+    if response_status == 500:
+        assert event['exception_type'] == 'RuntimeError'
+        assert event['exception_frames'][-1]['function'] == 'handle'
+    assert event['elapsed_seconds'] >= 0 and event['timestamp']
+    assert journal.stat().st_mode & 0o777 == 0o600
