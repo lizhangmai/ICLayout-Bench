@@ -13,6 +13,7 @@ from .export import evaluation_export, put, without_hashes
 class TraceEvidence:
     agent: bytes = field(repr=False)
     stderr: str = field(repr=False)
+    native: dict[str, bytes] = field(default_factory=dict, repr=False)
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,8 @@ class AttemptEvidence:
 def traces(evidence: TraceEvidence, root, files, prefix=''):
     if evidence.agent:
         put(root, prefix + 'agent.jsonl', evidence.agent, files)
+    for name, raw in evidence.native.items():
+        put(root, prefix + 'native/' + name, raw, files)
     return evidence.stderr
 
 

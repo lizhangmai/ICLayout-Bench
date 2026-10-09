@@ -1644,14 +1644,17 @@ def test_kimi_isolates_native_configuration_and_delivers_task_via_mcp(tmp_path, 
                 'hooks': [{'event': 'PreToolUse', 'command': 'must-not-run'}]}
     if credential == 'oauth':
         original['providers']['fixture'] = {'type': 'kimi', 'oauth': {'storage': 'file', 'key': 'oauth/fixture'}}
-        (home / 'oauth').mkdir()
-        (home / 'oauth/fixture').write_text('{"access_token":"private-oauth-token"}')
+        (home / 'credentials').mkdir()
+        (home / 'credentials/fixture.json').write_text('{"access_token":"private-oauth-token"}')
     (home / 'config.toml').write_text(tomli_w.dumps(original))
     (home / 'mcp.json').write_text('{"mcpServers":{"unrelated":{}}}')
     monkeypatch.setenv('KIMI_CODE_HOME', str(home))
     monkeypatch.setenv('KIMI_FIXTURE_API_KEY', 'private-provider-key')
     monkeypatch.setenv('KIMI_MODEL_THINKING_EFFORT', 'low')
     selection = resolve('kimi-code', 'fixture/k3', 'high')
+    # The real batch transports this private selection through both coordinator
+    # and worker JSON pipes. Direct runner tests previously skipped that seam.
+    selection = ParticipantSelection(**json.loads(json.dumps(selection.launch_payload())))
     selected, env, settings = selection.condition, selection.environment, selection.settings
     with pytest.raises(ValueError, match='explicitly supported'):
         resolve('kimi-code', 'fixture/k3', 'xhigh')
@@ -1674,8 +1677,8 @@ def test_kimi_isolates_native_configuration_and_delivers_task_via_mcp(tmp_path, 
         if credential == 'api_key_env':
             assert env['KIMI_FIXTURE_API_KEY'] == 'private-provider-key'
         else:
-            assert (isolated / 'oauth/fixture').read_bytes() == (home / 'oauth/fixture').read_bytes()
-            assert (isolated / 'oauth/fixture').stat().st_mode & 0o777 == 0o600
+            assert (isolated / 'credentials/fixture.json').read_bytes() == (home / 'credentials/fixture.json').read_bytes()
+            assert (isolated / 'credentials/fixture.json').stat().st_mode & 0o777 == 0o600
             assert 'KIMI_FIXTURE_API_KEY' not in env
         servers = json.loads((isolated / 'mcp.json').read_text())['mcpServers']
         assert set(servers) == {'layout'}

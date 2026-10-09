@@ -1,13 +1,16 @@
 """Terminal result, observation and redacted trace exports."""
+import io
 import json
 import time
 import uuid
+import zipfile
 
 from benchmarking.files import atomic_write
 from benchmarking.observe import export_observation
 from benchmarking.results.analysis import export_session_result
 
 from .attempt import ParticipantAttempt
+from .evidence import read_traces
 
 
 def collect_result(client, sid, output):
@@ -39,6 +42,15 @@ def collect_result(client, sid, output):
                         content = content.replace(secret.encode(), b"<REDACTED>")
                     destination = export_traces / source.name
                     atomic_write(destination, content)
+                    redacted.append(destination)
+                native = read_traces(output).native
+                if native:
+                    archive = io.BytesIO()
+                    with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as bundle:
+                        for name, raw in native.items():
+                            bundle.writestr(name, raw)
+                    destination = export_traces / 'native-traces.zip'
+                    atomic_write(destination, archive.getvalue())
                     redacted.append(destination)
                 export_observation(client, sid, output / 'observation', participant_files=redacted)
             break

@@ -31,10 +31,8 @@ def read_events(output):
             yield event
 
 
-def harness_failure(output, exit_code=None, timed_out=False):
-    """Fallback for structured error codes; messages never authorize recovery."""
-    if timed_out:
-        return classify_evidence(ErrorEvidence(), exit_code, timed_out)
+def structured_evidence(output):
+    """Read explicit protocol errors without interpreting harness-specific text."""
     codes = []
     retry_after = None
     for event in read_events(output):
@@ -48,7 +46,13 @@ def harness_failure(output, exit_code=None, timed_out=False):
         hint = event.get("retry_after", detail.get("retry_after") if isinstance(detail, dict) else None)
         if type(hint) in (int, float) and math.isfinite(hint) and hint >= 0:
             retry_after = max(retry_after or 0, hint)
-    return classify_evidence(ErrorEvidence(tuple(codes), retry_after), exit_code, timed_out)
+    return ErrorEvidence(tuple(codes), retry_after)
+
+
+def harness_failure(output, exit_code=None, timed_out=False):
+    """Fallback for structured error codes; messages never authorize recovery."""
+    evidence = ErrorEvidence() if timed_out else structured_evidence(output)
+    return classify_evidence(evidence, exit_code, timed_out)
 
 
 def classify_evidence(evidence, exit_code=None, timed_out=False):

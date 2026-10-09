@@ -265,10 +265,10 @@ Flash as of September 16, 2026 ([DeepSeek announcement](https://www.deepseek.com
 
 ### Failures, retry ownership and recovery
 
-Codex and Claude Code automatically continue after recognized capacity errors by
+Codex, Claude Code and Kimi Code automatically continue after recognized capacity errors by
 default, with up to five additional launches in the same session and deadline.
 No `[recovery]` table is needed. Adapters without native continuation support
-(DSH, Kimi Code and command) keep capacity continuation disabled.
+(DSH and command) keep capacity continuation disabled.
 
 HTTP retries and manual continuation remain opt-in in each experiment TOML
 (or `[defaults.recovery]` in a matrix). To override recovery settings, declare
@@ -294,7 +294,7 @@ capacity_max_backoff_seconds = 300
 capacity_cooldown_seconds = 300
 ```
 
-`capacity_resumes` defaults to five for Codex and Claude Code, accepts 0–10,
+`capacity_resumes` defaults to five for Codex, Claude Code and Kimi Code, accepts 0–10,
 and bounds additional native launches across this service session. Set it to zero
 to disable automatic capacity continuation. Explicitly enabling it for an
 unsupported harness is rejected before dispatch. The remaining capacity fields
@@ -312,6 +312,10 @@ Adapters normalize native evidence; shared classification and recovery policy
 consume that evidence without interpreting vendor prose. Assistant text, tool output, mixed failures and
 arbitrary messages cannot authorize one. Authentication/quota errors and
 unresolved tool operations stop automatic recovery.
+Kimi's adapter reads its terminal `error: failed to run prompt:` stderr only
+after a failed native exit. It recognizes `provider.overloaded` and the Kimi
+429 engine-overload response, distinguishes account quota from transient rate
+limits, and maps native authentication and connection failures independently.
 
 The runner keeps the original service workspace, scoped token, native history,
 model, effort and deadline. It waits before using the saved conversation ID,
@@ -1227,12 +1231,26 @@ model's effective `support_efforts`, rather than allowing the CLI to fall back.
 It targets Kimi Code's `kimi -p` interface, not the older Python `kimi-cli`.
 
 Each attempt receives a private Kimi home containing only the selected model,
-provider and referenced file OAuth credential. Provider `api_key_env` is supported.
+provider and referenced file OAuth credential. OAuth keys are native logical
+token names: `oauth/kimi-code` resolves to `credentials/kimi-code.json`.
+Credentials cross private coordinator/worker pipes as JSON-compatible text and
+are staged with mode `0600`. Provider `api_key_env` is supported.
 The original configuration, hooks, plugins, skills and unrelated MCP servers are
 not copied. A custom agent and global tool allowlist expose only the evaluation
 MCP and explicitly declared scheme servers. Tool timeouts follow the task budget.
-Native same-session continuation is not supported; `resume_session = true` is
-rejected for this harness. Native traces remain subject to normal export redaction.
+Same-session continuation uses the single persisted conversation in that
+attempt's private home, including after failures that omit a resume hint.
+The adapter checks its saved model, effort and MCP-only agent binding before
+passing `--session`; it omits `--agent-file` because Kimi restores the bound
+agent. Rotated private OAuth tokens are retained across launches. Manual
+`resume_session = true` requires an independently running remote service, as
+with other supported harnesses; capacity continuation also works in local mode.
+Kimi's session state, wire records (including native thinking) and diagnostic
+logs are retained under terminal `native/kimi/` files, and in the observation
+export's `native-traces.zip`, before runtime cleanup. Configuration and
+credential stores are excluded; original and refreshed credentials are redacted.
+Print mode already selects Kimi's non-interactive permission mode; adding
+`--auto` or `--yolo` would conflict with `--prompt`.
 
 See Kimi's [configuration reference](https://www.kimi.com/code/docs/en/kimi-code-cli/configuration/config-files),
 [agent tool policy](https://www.kimi.com/code/docs/en/kimi-code-cli/customization/agents)

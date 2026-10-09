@@ -333,7 +333,7 @@ def test_bridge_restart_does_not_assume_last_reply_was_delivered(tmp_path):
 
 
 @pytest.mark.parametrize('harness,expected', [
-    ('codex', 5), ('claude-code', 5), ('dsh', 0), ('kimi-code', 0), ('command', 0),
+    ('codex', 5), ('claude-code', 5), ('dsh', 0), ('kimi-code', 5), ('command', 0),
 ])
 @pytest.mark.parametrize('configured', [False, True])
 def test_capacity_defaults_follow_harness_support(harness, expected, configured):

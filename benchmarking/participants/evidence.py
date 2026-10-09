@@ -11,6 +11,7 @@ from benchmarking.results.participant_export import (
     TraceEvidence,
 )
 
+from . import adapters
 from .attempt import ParticipantAttempt
 
 
@@ -30,7 +31,10 @@ def read_traces(participant):
     agent = b''.join(redact(path.read_bytes()).rstrip(b'\n') + b'\n'
                      for path in paths if path.is_file())
     stderr = b'\n'.join(redact(path.read_bytes()) for path in sorted(participant.glob('*harness.stderr')))
-    return TraceEvidence(agent, stderr.decode('utf-8', errors='replace'))
+    condition = _optional(participant / 'conditions.json') or {}
+    harness = condition.get('selection', {}).get('harness')
+    native = {name: redact(raw) for name, raw in adapters.native_traces(harness, participant).items()} if harness else {}
+    return TraceEvidence(agent, stderr.decode('utf-8', errors='replace'), native)
 
 
 def _optional(path):

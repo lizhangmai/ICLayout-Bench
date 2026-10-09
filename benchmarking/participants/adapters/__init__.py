@@ -9,7 +9,7 @@ from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from benchmarking.files import atomic_write
+from benchmarking.files import atomic_write, relative
 
 from ..credentials import credential_values
 from .contracts import EFFORTS as EFFORTS
@@ -97,3 +97,9 @@ def session_id(harness: str, output: Path, state: AttemptState) -> str | None:
     adapter = get(harness)
     provider_session_id = getattr(adapter, "session_id", None)
     return provider_session_id(output, state) if provider_session_id else None
+
+
+def native_traces(harness: str, output: Path) -> dict[str, bytes]:
+    """Optional adapter-owned records; callers apply attempt-wide redaction."""
+    collector = getattr(get(harness), 'native_traces', None)
+    return {relative(name, 'native trace name'): raw for name, raw in collector(output).items()} if collector else {}

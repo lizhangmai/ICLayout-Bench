@@ -306,6 +306,14 @@ Analysis retains task/tool identities, budgets, conditions, provenance, candidat
 receipt and nullable outcome data. Simulator runs are protocol tests, never model
 scores. Hidden-task result export requires disclosure review.
 
+Participant adapters may supply named native trace bytes through the optional
+`native_traces` hook. The adapter selects its own native records and excludes
+configuration and credential stores; participant export applies attempt-wide
+secret redaction and retains those records under `native/` before runtime
+cleanup. Observation exports carry the same records in `native-traces.zip`.
+Native contents remain participant-reported and never change evaluation trust
+or scores. Shared export and recovery modules do not interpret vendor logs.
+
 
 <a id="ownership"></a>
 

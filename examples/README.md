@@ -25,7 +25,7 @@ environment before experiments, using an explicitly supplied wheel when the pack
 is not available from your index. The run command does not create an environment,
 install dependencies or upgrade packages.
 
-Codex and Claude Code runs default to up to five automatic continuations after
+Codex, Claude Code and Kimi Code runs default to up to five automatic continuations after
 recognized capacity errors, without requiring a recovery table in the TOML.
 They preserve the original conversation, workspace, model and deadline. See
 [recovery settings](../docs/running.md#failures-retry-ownership-and-recovery)
