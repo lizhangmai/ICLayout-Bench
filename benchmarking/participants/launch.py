@@ -23,12 +23,13 @@ class ParticipantLaunch:
         self.private = output / ".private"
 
     def _configure(self, endpoint, settings_policy, attempt):
-        """Refresh credentials and bind only the scoped session to the CLI."""
+        """Stage native credentials and bind only the scoped session to the CLI."""
         private, env, output = self.private, self.env, self.output
         created, condition = self.created, self.condition
         sid = created["session_id"]
         # Native histories belong to the attempt, alongside (but outside) shareable exports.
-        # Refresh only credentials at launch; never copy user hooks, rules or session history.
+        # Seed only authentication; continuations preserve native token refreshes.
+        # Never copy user hooks, rules or session history.
         attempt.add_redactions(adapters.stage_credentials(self.harness, private, env))
         env["ICLAYOUT_BENCH_NATIVE_ID"] = attempt.state.native_id
         # The bridge owns service transport only; native continuation stays in this supervisor.

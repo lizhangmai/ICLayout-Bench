@@ -26,6 +26,10 @@ def native_error(event):
     codes = explicit or [None]
     if event.get("type") in {"error", "turn.failed"} and not explicit and message == CAPACITY_MESSAGE:
         codes = ["model_at_capacity"]
+    if (event.get('type') in {'error', 'turn.failed'} and not explicit
+            and isinstance(message, str)
+            and re.fullmatch(r'unexpected status 401 Unauthorized: [^\r\n]+, url: https?://[^\s]+', message)):
+        codes = ['authentication_error']
     return codes, explicit, message, detail
 
 

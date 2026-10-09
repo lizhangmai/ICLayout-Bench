@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from helpers.harness import native_session
 
 from benchmarking.client import ClientError
 from benchmarking.participants.adapters.contracts import (
@@ -464,6 +465,8 @@ def test_failure_uses_evidence_not_exit_code_or_assistant_text(tmp_path, event, 
                                  'missing_thread', 'authentication', 'retry_after', 'service_error', 'disabled')],
     ('claude-code', 'success'),
     ('codex', 'reconnect_then_capacity'),
+    ('codex', 'rotated_credentials'),
+    ('claude-code', 'rotated_credentials'),
 ])
 def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, monkeypatch, harness, stop):
     """Run real child processes emitting native events; only the service/provider boundaries are fixtures."""
@@ -474,7 +477,8 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
     from benchmarking.participants.runner import CONTINUE_PROMPT, run_one
 
     reconnect_then_capacity = stop == 'reconnect_then_capacity'
-    if reconnect_then_capacity:
+    rotated_credentials = stop == 'rotated_credentials'
+    if reconnect_then_capacity or rotated_credentials:
         stop = 'success'
 
     fixture = ServiceFixture()
@@ -505,6 +509,8 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
         launches.append(dict(env))
         if harness == 'claude-code':
             native_id = env['ICLAYOUT_BENCH_NATIVE_ID']
+        if stop != 'missing_thread':
+            native_session(output, harness, native_id)
         events = [] if stop == 'missing_thread' else [{'type': 'thread.started', 'thread_id': native_id}]
         if len(launches) == 1 or stop == 'limit':
             if reconnect_then_capacity:
@@ -523,8 +529,13 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
             events.append({'type': 'turn.completed'})
             exit_code = 0
         raw = '\n'.join(json.dumps(e) for e in events)
+        rotate = ''
+        if rotated_credentials:
+            secret = f'rotated-native-secret-{len(launches)}'
+            credential = output / '.private/native-home' / ('auth.json' if harness == 'codex' else '.credentials.json')
+            rotate = f'Path({str(credential)!r}).write_text({json.dumps({"access_token": secret})!r}); print({secret!r}); '
         return [sys.executable, '-c',
-                f'import sys; from pathlib import Path; Path("prompt.txt").write_text(sys.stdin.read()); print({raw!r}); sys.exit({exit_code})']
+                f'import sys; from pathlib import Path; {rotate}Path("prompt.txt").write_text(sys.stdin.read()); print({raw!r}); sys.exit({exit_code})']
 
     from benchmarking.participants.process import execute as actual_execute
 
@@ -559,6 +570,12 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
         summary = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
     assert create.call_count == 1
     assert fixture.closed == ['fixture-session']
+    if rotated_credentials:
+        for path in (output / 'observation').rglob('*'):
+            if path.is_file():
+                assert b'rotated-native-secret-1' not in path.read_bytes()
+                assert b'rotated-native-secret-2' not in path.read_bytes()
+        assert b'rotated-native-secret-1' in (output / 'launch-1-harness.jsonl').read_bytes()
     assert summary['state'] == 'finished'
     assert summary['session_id'] == 'fixture-session'
     if stop == 'success':
@@ -622,6 +639,7 @@ def test_local_capacity_recovery_exports_both_launches_before_removing_runtime(t
     def launch(context):
         env = context.selection.environment
         launches.append(dict(env))
+        native_session(context.output, 'codex', 'original-thread')
         event = ({'type': 'error', 'message': 'Selected model is at capacity. Please try a different model.'}
                  if len(launches) == 1 else {'type': 'turn.completed'})
         thread = json.dumps({'type': 'thread.started', 'thread_id': 'original-thread'})
@@ -699,6 +717,7 @@ def test_same_session_resume_preserves_budget_and_private_credentials(tmp_path):
     def launch(context):
         env = context.selection.environment
         observed.append(dict(env))
+        native_session(output, 'claude-code', env['ICLAYOUT_BENCH_NATIVE_ID'])
         if len(observed) == 1:
             return [sys.executable, '-c', f'import sys; print({events!r}); sys.exit(1)']
         return [sys.executable, '-c', 'import os; print(os.environ["ICLAYOUT_BENCH_TOKEN"]); print(os.environ["PROVIDER_API_KEY"])']

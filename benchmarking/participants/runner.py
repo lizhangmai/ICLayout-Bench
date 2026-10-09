@@ -160,6 +160,9 @@ def run_participant(access, row, output, selection: ParticipantSelection):
                 exit_code, timed_out = execute(args, cwd=context.directory, env=env, stdout=out, stderr=err,
                                               prompt=context.prompt, timeout=None if created['limits'].get('budget_policy') == 'soft' else remaining,
                                               pass_fds=tuple(int(env[k]) for k in ["ICLAYOUT_BENCH_LEASE_FD"] if k in env))
+            # Retain each launch's refreshed secrets even if a later launch
+            # rotates the native credential store again before terminal export.
+            attempt.add_redactions(adapters.credential_redactions(row['harness'], output))
             if timed_out:
                 error = "harness_timeout"
             elif exit_code:

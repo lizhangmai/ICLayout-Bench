@@ -1,13 +1,20 @@
 """Claude Code configuration and isolated command construction."""
 
 import json
+import uuid
 from pathlib import Path
 
+from . import claude_events
 from .contracts import EFFORTS, HarnessMetadata, LaunchContext, ParticipantSelection
+from .native import confined_files, json_events, traces
 
 METADATA = HarnessMetadata('claude', 'CLAUDE_CONFIG_DIR', '.claude', '.credentials.json')
 
 CAPABILITIES = {"resume_session": True, "capacity_resumes": True}
+
+
+def harness_failure(output, exit_code=None, timed_out=False):
+    return claude_events.harness_failure(output, exit_code, timed_out)
 
 
 def resolve(model, effort, env):
@@ -61,6 +68,8 @@ def prepare(context: LaunchContext) -> list[str]:
     env = context.selection.environment
     settings = context.selection.settings
     mcp = context.mcp
+    debug = context.output / '.private/native-home/debug'
+    debug.mkdir(parents=True, mode=0o700, exist_ok=True)
     args = [
         "claude",
         "-p",
@@ -85,16 +94,41 @@ def prepare(context: LaunchContext) -> list[str]:
         "--output-format",
         "stream-json",
         "--verbose",
+        "--debug-file",
+        str(debug / (uuid.uuid4().hex + '.log')),
     ]
     # Omitting effort preserves the resolved user environment, not a common default.
     if condition["effort_requested"] is not None:
         args += ["--effort", condition["effort_resolved"]]
     if env.get("ICLAYOUT_BENCH_RESUME_ID"):
+        if _session(context.output, env['ICLAYOUT_BENCH_RESUME_ID']) is None:
+            raise ValueError('Claude Code native session is missing or ambiguous; refusing a new session')
         args += ["--resume", env["ICLAYOUT_BENCH_RESUME_ID"]]
     elif env.get("ICLAYOUT_BENCH_NATIVE_ID"):
         args += ["--session-id", env["ICLAYOUT_BENCH_NATIVE_ID"]]
     return args
 
 
+def _session(output, native_id):
+    if not isinstance(native_id, str) or not native_id or '/' in native_id or '\\' in native_id:
+        return None
+    home = Path(output) / '.private/native-home'
+    cwd = str((home.parent / 'workspace').resolve())
+    found = []
+    for path in confined_files(home, 'projects/*/*.jsonl'):
+        if path.stem != native_id:
+            continue
+        records = [e for e in json_events(path) if e.get('type') in {'user', 'assistant'}]
+        if records and all(e.get('sessionId') == native_id and e.get('cwd') == cwd
+                           and e.get('isSidechain') is False for e in records):
+            found.append(path)
+    return found[0] if len(found) == 1 else None
+
+
 def session_id(output, state):
-    return state.native_id
+    return state.native_id if _session(output, state.native_id) is not None else None
+
+
+def native_traces(output):
+    return traces(Path(output) / '.private/native-home', 'claude',
+                  'projects/*/*.jsonl', 'projects/*/*/subagents/*.jsonl', 'debug/*.log')

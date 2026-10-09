@@ -33,9 +33,14 @@ def read_events(output):
 
 def structured_evidence(output):
     """Read explicit protocol errors without interpreting harness-specific text."""
+    return structured_errors(read_events(output))
+
+
+def structured_errors(events):
+    """Normalize only explicit, vendor-neutral error fields from an event stream."""
     codes = []
     retry_after = None
-    for event in read_events(output):
+    for event in events:
         if event.get("type") not in {"error", "turn.failed"} and event.get("is_error") is not True:
             continue
         detail = event.get("error")

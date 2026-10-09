@@ -168,8 +168,7 @@ def session_id(output, state):
     return root.name if root is not None else None
 
 
-def native_traces(output):
-    """Select native records, excluding configuration and credential stores."""
+def credential_redactions(output):
     home = Path(output) / '.private/kimi-home'
     secrets = set()
     for path in (home / 'credentials').glob('*.json'):
@@ -178,6 +177,12 @@ def native_traces(output):
                 secrets.update(credential_values(json.loads(path.read_bytes())))
             except (ValueError, UnicodeError):
                 pass
+    return secrets
+
+
+def native_traces(output):
+    """Select native records, excluding configuration and credential stores."""
+    home = Path(output) / '.private/kimi-home'
     paths = [home / 'logs/kimi-code.log', home / 'session_index.jsonl']
     sessions = home / 'sessions'
     paths.extend(sessions.glob('*/*/state.json'))
@@ -186,8 +191,5 @@ def native_traces(output):
     traces = {}
     for path in sorted(paths):
         if path.is_file() and path.resolve().is_relative_to(home.resolve()):
-            raw = path.read_bytes()
-            for secret in sorted(secrets, key=len, reverse=True):
-                raw = raw.replace(secret.encode(), b'<REDACTED>')
-            traces['kimi/' + path.relative_to(home).as_posix()] = raw
+            traces['kimi/' + path.relative_to(home).as_posix()] = path.read_bytes()
     return traces

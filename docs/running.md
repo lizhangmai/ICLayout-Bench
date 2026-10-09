@@ -250,7 +250,7 @@ not establish equal computation across providers.
 
 | Harness | Configuration read | Invocation behavior |
 | --- | --- | --- |
-| `dsh` | Headless composed profile and `$DSH_HOME/settings.yaml` | Reuses the selected provider/credential store; private invocation patch selects model/effort and exposes the layout MCP tools |
+| `dsh` | Headless composed profile and `$DSH_HOME/settings.yaml` | Private native home and credential store; explicit model/effort, MCP-only tools and JSON headless output; requires `--json` and `--session-id` support |
 | `claude-code` | Claude user provider environment, model, effort and optional key helper | Reuses authentication with an isolated invocation; passes the configured effort explicitly |
 | `codex` | Codex user model/effort, including its selected profile | Uses existing authentication and explicitly resolved model/effort with the layout MCP tools |
 | `kimi-code` | `$KIMI_CODE_HOME/config.toml` (default `~/.kimi-code`) model aliases and provider credentials | Private home, explicit supported effort, MCP-only custom agent and stream-JSON print mode |
@@ -316,6 +316,14 @@ Kimi's adapter reads its terminal `error: failed to run prompt:` stderr only
 after a failed native exit. It recognizes `provider.overloaded` and the Kimi
 429 engine-overload response, distinguishes account quota from transient rate
 limits, and maps native authentication and connection failures independently.
+Claude's adapter reads native `assistant.error` fields and terminal results.
+It distinguishes authentication, billing and rate limits, and recognizes HTTP
+529 only inside its native `server_error` message. Native retries followed by a
+successful result do not trigger continuation. Codex's native HTTP 401 error
+format is classified as authentication without granting automatic recovery.
+DSH's headless JSON `turn_end` error codes distinguish authentication, quota,
+rate limits and transport failures. Its `SERVER` code also covers ordinary
+server faults, so it does not authorize automatic capacity continuation.
 
 The runner keeps the original service workspace, scoped token, native history,
 model, effort and deadline. It waits before using the saved conversation ID,
@@ -534,14 +542,15 @@ Recovery distinguishes these operations:
   must match; repaired runner/CLI versions and recovery settings are recorded on
   the new attempt. Finished cases cannot be replaced. Controlled evaluations
   still follow the operator's separately frozen replacement allowance.
-- **Same-session continuation:** with `resume_session = true`, Codex or Claude
+- **Same-session continuation:** with `resume_session = true`, Codex, Claude,
+  Kimi Code or DSH
   can resume a failed/interrupted launch against the same still-active remote
   service workspace, scoped token and deadline. It requires no active execution,
   no unresolved mutation/reply and persisted native session state. This option
   requires `--endpoint`, with a service that outlives the runner; the runner-owned
   `--dataset` service cannot preserve a live workspace after it exits.
 - **Automatic capacity continuation:** enabled by default (`capacity_resumes = 5`),
-  Codex or Claude continues while the runner and original local or remote service are
+  Codex, Claude or Kimi Code continues while the runner and original local or remote service are
   alive. It shares the same safety checks and deadline, and does not require
   `resume_session = true` or an external endpoint.
 
@@ -549,12 +558,16 @@ Codex uses `codex exec ... resume <thread-id> -`; Claude uses
 `claude -p ... --resume <session-id>`. Both persist native histories in
 `participant/.private/native-home/` within the run storage (`.runtime/` for default
 cases) and reuse the same private working directory.
-File-backed native authentication is refreshed from the caller's CLI home at
-launch; API environment variables remain runtime-only. OS-keychain/custom login
-flows that cannot use this isolated home need an adapter extension. DSH's current
-headless implementation always creates a fresh UUID/session: it preserves logs,
-but cannot continue a native session through this adapter. Its configurations
-reject `resume_session = true` before dispatch.
+File-backed native authentication is copied from the caller's CLI home at
+the first launch. Later launches preserve refreshed private credentials;
+API environment variables remain runtime-only. OS-keychain/custom login flows
+that cannot use this isolated home need an adapter extension. Codex and Claude
+require persisted main-session histories in the original private workspace,
+rather than trusting an announced session ID alone. DSH uses an isolated
+`DSH_HOME`, copies its native `.credentials.yaml` and home `.env` credential
+fallback, and resumes with `--session-id <session-id>` only when exactly one
+persisted main session matches the original working directory. All adapters
+retain refreshed credential values for export redaction after each launch.
 
 Reproduce the CLI capability inspection without model calls:
 
@@ -567,12 +580,20 @@ dsh --version
 dsh --profile headless --help
 ```
 
-Inspection with Codex 0.154.0, Claude Code 2.1.270 and DSH 0.1.5-rc.1 found those
-interfaces. For DSH, inspect the installed `@deepseek-ai/dsh-headless/lib/index.js`:
-its runner calls `agents.create` with `session-${randomUUID()}`; its schema accepts
-`task`, not a resume ID. Recheck installed versions before extending support.
-Offline regression tests simulate native processes; they do not certify a paid
-provider's continuation behavior.
+Inspection with Codex 0.161.0, Claude Code 2.1.285 and DSH 0.2.0-rc.2 verified
+these interfaces. DSH 0.1.5-rc.1 always created fresh sessions; the adapter now
+requires headless `--json` and `--session-id` options and rejects older CLIs
+before dispatch. Installed-CLI regression checks use a local HTTP provider
+fixture, including failed authentication followed by native same-session resume:
+
+```bash
+.venv/bin/pytest tests/integration/test_native_harness_adapters.py
+```
+
+These checks require the respective installed native CLIs and use no paid model
+calls. Missing CLIs are skipped.
+Unit tests simulate native processes. Installed-CLI checks use local provider
+fixtures; neither certifies a paid provider's continuation behavior.
 
 The service's `created_at`/`deadline` are authoritative. Normal execution, native
 provider retries, HTTP backoff, disconnection and human billing/authentication
@@ -590,6 +611,12 @@ unfinished, preserve the complete case including `.runtime/` for local recovery.
 It contains service tokens, native authentication and launch diagnostics. Do not
 share that live state. Terminal export combines native launch traces into one
 `agent.jsonl`, redacts known runtime credentials and removes the native home.
+Selected native histories and diagnostics are also retained under `native/codex/`,
+`native/claude/`, `native/dsh/` or `native/kimi/` and in the observation export's
+`native-traces.zip`. Claude records a separate debug log for each launch.
+DSH's compressed native records are fully decoded to JSONL before credential
+redaction; this retains reasoning and tool records that its JSON stdout truncates.
+Configuration, credential stores and native caches are excluded from exports.
 Unknown secrets in arbitrary model/tool output still require review before sharing.
 Historical batches retain their original protected raw traces.
 
@@ -774,6 +801,7 @@ results/codex-gpt-6-astra-medium/20260922-120000-123456/
     final.gds                  # candidate used by the independent evaluator
     layout.png
     agent.jsonl                # native launch traces, in order, known credentials redacted
+    native/                    # selected native histories and diagnostics, credentials redacted
     evaluation/                # frozen plan, measurements, logs and diagnostic outputs
     worker-events.jsonl        # independent worker lifecycle, when available
     service-http.jsonl         # local HTTP operation/status/timing, when available

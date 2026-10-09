@@ -45,6 +45,8 @@ def _code(detail):
 
 
 def harness_failure(output, exit_code=None, timed_out=False):
+    if timed_out:
+        return classify_evidence(ErrorEvidence(), exit_code, timed_out)
     evidence = structured_evidence(output)
     if timed_out or not exit_code:
         return classify_evidence(evidence, exit_code, timed_out)

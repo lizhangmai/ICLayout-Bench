@@ -1107,8 +1107,10 @@ dependencies = [
     { name = "datasets" },
     { name = "huggingface-hub" },
     { name = "markdown-it-py" },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "tomli-w" },
+    { name = "zstandard" },
 ]
 
 [package.optional-dependencies]
@@ -1142,9 +1144,11 @@ requires-dist = [
     { name = "huggingface-hub", specifier = ">=1.0,<2" },
     { name = "markdown-it-py", specifier = ">=4,<5" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.2,<4" },
+    { name = "python-dotenv", specifier = ">=1,<2" },
     { name = "pyyaml", specifier = ">=6,<7" },
     { name = "sqlalchemy", marker = "extra == 'results'", specifier = ">=2.0,<3" },
     { name = "tomli-w", specifier = ">=1.2.0" },
+    { name = "zstandard", specifier = ">=0.25,<1" },
 ]
 provides-extras = ["results", "postgres"]
 

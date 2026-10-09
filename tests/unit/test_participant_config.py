@@ -310,12 +310,16 @@ def test_unresolved_tool_blocks_other_mutations_and_replays_original_timeout(tmp
 
 
 def test_native_resume_keeps_sandbox_and_explicit_session(tmp_path):
+    from helpers.harness import native_session
+
     selected = {'harness': 'codex', 'model': 'fixture', 'effort_resolved': 'high', 'effort_requested': 'high'}
     env = {'ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS': '600', 'ICLAYOUT_BENCH_RESUME_ID': 'session-identity'}
+    native_session(tmp_path, 'codex', 'session-identity')
     args = prepare_harness_args(selected, env, {}, tmp_path / 'mcp.json', tmp_path)
     assert args[-3:] == ['resume', 'session-identity', '-']
     assert '--ephemeral' not in args
     assert args[args.index('--sandbox') + 1] == 'read-only'
+    native_session(tmp_path, 'claude-code', 'session-identity')
     args = prepare_harness_args(selected | {'harness': 'claude-code'}, env, {}, tmp_path / 'mcp.json', tmp_path)
     assert args[args.index('--resume') + 1] == 'session-identity'
     assert '--no-session-persistence' not in args
@@ -350,13 +354,15 @@ def test_capacity_defaults_follow_harness_support(harness, expected, configured)
     assert settings['resume_session'] is False
 
 
-def test_dsh_rejects_unsupported_native_resume_before_dispatch():
+def test_dsh_supports_manual_resume_but_not_ambiguous_capacity_recovery():
     from benchmarking.participants.config import validate
     from benchmarking.participants.recovery import DISABLED
-    with pytest.raises(ValueError, match='does not support resume_session'):
-        validate({'name': 'fixture', 'harness': 'dsh', 'model': 'fixture', 'effort': 'high',
-                  'tasks': ['fixture'], 'concurrency': 1, 'repetitions': 1,
-                  'recovery': DISABLED | {'resume_session': True}})
+    row = {'name': 'fixture', 'harness': 'dsh', 'model': 'fixture', 'effort': 'high',
+           'tasks': ['fixture'], 'concurrency': 1, 'repetitions': 1,
+           'recovery': DISABLED | {'resume_session': True}}
+    validate(row)
+    with pytest.raises(ValueError, match='capacity'):
+        validate(row | {'recovery': row['recovery'] | {'capacity_resumes': 1}})
 
 
 @pytest.mark.parametrize('harness,recovery', [
@@ -384,7 +390,10 @@ def test_codex_preapproves_layout_tools_without_granting_host_execution(tmp_path
                 'effort_resolved': 'high', 'effort_requested': 'high'}
     env = {'ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS': '600'}
     if resume:
+        from helpers.harness import native_session
+
         env['ICLAYOUT_BENCH_RESUME_ID'] = 'existing-session'
+        native_session(tmp_path, 'codex', 'existing-session')
     args = prepare_harness_args(selected, env, {}, tmp_path / 'mcp.json', tmp_path)
     overrides = dict(args[i + 1].split('=', 1) for i, arg in enumerate(args) if arg == '-c')
     config = {key: json.loads(value) for key, value in overrides.items()}

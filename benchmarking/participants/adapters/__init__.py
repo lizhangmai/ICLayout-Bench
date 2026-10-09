@@ -56,7 +56,11 @@ def harness_version(harness):
 
 
 def stage_credentials(harness, private, env):
-    metadata = get(harness).METADATA
+    adapter = get(harness)
+    stage = getattr(adapter, 'stage_credentials', None)
+    if stage:
+        return stage(private, env)
+    metadata = adapter.METADATA
     filename = metadata.credential_file
     if filename is None:
         return set()
@@ -67,13 +71,33 @@ def stage_credentials(harness, private, env):
     redactions = set()
     if credential.is_file():
         raw = credential.read_bytes()
-        atomic_write(target / filename, raw)
+        if not (target / filename).exists():
+            atomic_write(target / filename, raw)
         try:
             redactions = credential_values(json.loads(raw))
         except ValueError:
             pass  # Native CLI owns validation of its opaque credential format.
     env[metadata.home_environment] = str(target.resolve())
-    return redactions
+    return redactions | credential_redactions(harness, private.parent)
+
+
+def credential_redactions(harness, output):
+    """Include native token refreshes in every exported trace, not only native files."""
+    adapter = get(harness)
+    reader = getattr(adapter, 'credential_redactions', None)
+    if reader:
+        return reader(output)
+    filename = adapter.METADATA.credential_file
+    if filename is None:
+        return set()
+    home = Path(output) / '.private/native-home'
+    path = home / filename
+    if path.is_file() and path.resolve().is_relative_to(home.resolve()):
+        try:
+            return credential_values(json.loads(path.read_bytes()))
+        except (ValueError, UnicodeError):
+            pass
+    return set()
 
 
 def harness_failure(harness, output, exit_code=None, timed_out=False):

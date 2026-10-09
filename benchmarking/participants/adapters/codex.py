@@ -7,6 +7,7 @@ from pathlib import Path
 
 from . import codex_events
 from .contracts import EFFORTS, HarnessMetadata, LaunchContext, ParticipantSelection
+from .native import confined_files, json_events, traces
 
 METADATA = HarnessMetadata('codex', 'CODEX_HOME', '.codex', 'auth.json')
 
@@ -114,6 +115,8 @@ def prepare(context: LaunchContext) -> list[str]:
     for key, value in values.items():
         args += ["-c", key + "=" + json.dumps(value)]
     if env.get("ICLAYOUT_BENCH_RESUME_ID"):
+        if _session(context.output, env['ICLAYOUT_BENCH_RESUME_ID']) is None:
+            raise ValueError('Codex native session is missing or ambiguous; refusing a new session')
         args += ["resume", env["ICLAYOUT_BENCH_RESUME_ID"]]
     return args + ["-"]
 
@@ -130,5 +133,25 @@ def session_id(output, state):
             except ValueError:
                 continue
             if isinstance(event, dict) and event.get("type") == "thread.started":
-                return event.get("thread_id")
+                native_id = event.get('thread_id')
+                return native_id if _session(output, native_id) is not None else None
     return None
+
+
+def _session(output, native_id):
+    home = Path(output) / '.private/native-home'
+    cwd = str((home.parent / 'workspace').resolve())
+    found = []
+    for path in confined_files(home, 'sessions/**/*.jsonl'):
+        event = next(json_events(path), {})
+        payload = event.get('payload')
+        if (event.get('type') == 'session_meta' and isinstance(payload, dict)
+                and isinstance(native_id, str) and payload.get('id') == native_id
+                and payload.get('cwd') == cwd):
+            found.append(path)
+    return found[0] if len(found) == 1 else None
+
+
+def native_traces(output):
+    return traces(Path(output) / '.private/native-home', 'codex',
+                  'sessions/**/*.jsonl', 'log/*.log')
