@@ -18,7 +18,6 @@ pytest.importorskip("sqlalchemy")
 
 from benchmarking.results import ResultStore
 from benchmarking.results.normalization import digest
-from benchmarking.results.presentation import parse_netlist, schematic_svg
 
 pytestmark = pytest.mark.unit
 
@@ -307,33 +306,6 @@ def test_outbox_retries_without_reexecuting_model(tmp_path, monkeypatch):
     assert real(archive).list_runs()["total"] == 1
 
 
-def test_schematic_keeps_ordered_pins_models_and_escapes_labels():
-    circuit = parse_netlist(
-        ".subckt top a b c d\nM1 a b c d / nmos\n+ W={base / 2} L=0.1u AD='0.18u / W'\nR1 a b 1k\n.ends\n", "top"
-    )
-    assert circuit["ports"] == ["a", "b", "c", "d"]
-    assert circuit["devices"][0]["nodes"] == ["a", "b", "c", "d"]
-    assert circuit["devices"][0]["model"] == "nmos"
-    assert circuit["devices"][0]["parameters"] == "W={base / 2} L=0.1u AD='0.18u / W'"
-    # Maintained CDL includes dollar-bearing identifiers and substrate terminals.
-    # Explicit pin expectations protect display binding, not electrical evaluation.
-    cdl = parse_netlist(
-        ".subckt top c b e bulk\nQ$1 $10 b e $1 npn13G2 m=1\n"
-        "R$2 c e $1 rsil w=4u $ author's comment: \"\nQplain c b e npn 2\n.ends\n", "top"
-    )
-    assert cdl["devices"][0]["name"] == "Q$1"
-    assert cdl["devices"][0]["nodes"] == ["$10", "b", "e", "$1"]
-    assert cdl["devices"][0]["model"] == "npn13G2"
-    assert cdl["devices"][1]["nodes"] == ["c", "e", "$1"]
-    assert cdl["devices"][1]["model"] == "rsil"
-    assert cdl["devices"][1]["parameters"] == "w=4u"
-    assert cdl["devices"][2]["nodes"] == ["c", "b", "e"]
-    assert cdl["devices"][2]["parameters"] == "2"
-    circuit["subcircuit"] = "<script>"
-    svg = schematic_svg(circuit)
-    assert b"<script>" not in svg and b"&lt;script&gt;" in svg
-    with pytest.raises(ValueError, match="Unsupported"):
-        parse_netlist(".subckt top a b\nZbad a b\n.ends", "top")
 
 
 def test_drc_overlay_reads_klayout_polygon_and_box_coordinates():
@@ -420,96 +392,71 @@ def test_reevaluation_cannot_replace_the_imported_candidate(tmp_path):
     assert store.detail(imported["run_id"])["evaluation"]["score"] == 80
 
 
-def test_authored_schematic_requires_matching_source_and_artifact_digests(tmp_path):
-    """A later drawing may illustrate an old result only for identical source bytes.
-
-    Existing archive tests do not cover authored assets. A tiny independent Git
-    catalog protects against silently displaying the wrong circuit or modified SVG.
-    """
+def test_catalog_preserves_netlist_bytes_without_drawings_and_rejects_mismatches(tmp_path):
     import subprocess
-    from html import escape
 
     from benchmarking.results.presentation import GitCatalog, attach_catalog
 
-    root = tmp_path / "catalog"
-    case = root / "tasks/pdk.library.gate"
+    root = tmp_path / "dataset"
+    case = root / "tasks" / "pdk" / "collection" / "cases" / "gate"
     case.mkdir(parents=True)
-    subprocess.run(["git", "init", str(root)], check=True, capture_output=True)
-    raw = b".subckt gate a z\nR1 a z 1k\n.ends\n"
-    metadata = {
-        "format": "iclayout-schematic",
-        "case_id": "gate",
-        "netlist_sha256": digest(raw),
-    }
-    svg = (
-        '<svg xmlns="http://www.w3.org/2000/svg"><metadata>'
-        + escape(json.dumps(metadata))
-        + "</metadata><text>gate</text></svg>"
-    ).encode()
-    (case / "schematic.svg").write_bytes(svg)
+    (case.parents[1] / 'LICENSE').write_text('Fixture collection license')
+    subprocess.run(['git', 'init', str(root)], check=True, capture_output=True)
+    # Catalog decoration must not depend on schematic syntax or an old missing SVG.
+    raw = b'.subckt gate a b\nZcustom a b unsupported-by-drawing-renderer\n.ends\n'
     config = (
         'id = "gate"\n[[assets]]\nrole = "schematic"\nformat = "svg"\n'
-        'path = "schematic.svg"\nsha256 = "' + digest(svg) + '"\n'
+        'path = "schematic.svg"\nsha256 = "' + '0' * 64 + '"\n'
         '[task.inputs.netlist]\nsha256 = "' + digest(raw) + '"\n'
+        'path = "circuit.spice"\nsubcircuit = "gate"\n'
     )
-    config += 'path = "circuit.spice"\nsubcircuit = "gate"\n'
-    (case / "circuit.spice").write_bytes(raw)
-    (case / "case.toml").write_text(config)
+    (case / 'circuit.spice').write_bytes(raw)
+    (case / 'case.toml').write_text(config)
 
     def snapshot():
-        subprocess.run(["git", "-C", str(root), "add", "."], check=True)
-        subprocess.run(
-            [
-                "git",
-                "-C",
-                str(root),
-                "-c",
-                "user.name=Test",
-                "-c",
-                "user.email=test@example.invalid",
-                "commit",
-                "-m",
-                "Catalog",
-            ],
-            check=True,
-            capture_output=True,
-        )
-        revision = subprocess.check_output(
-            ["git", "-C", str(root), "rev-parse", "HEAD"], text=True
-        ).strip()
+        subprocess.run(['git', '-C', str(root), 'add', '.'], check=True)
+        subprocess.run(['git', '-C', str(root), '-c', 'user.name=Test', '-c',
+                        'user.email=test@example.invalid', 'commit', '-m', 'Catalog'],
+                       check=True, capture_output=True)
+        revision = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip()
         return GitCatalog(root, revision)
 
+    def imported(store, label, catalog, contract):
+        source = result(tmp_path / label, label, task='gate')
+        export = json.loads(source.read_text())
+        export['identity']['inputs'] = {'gate': {'dataset': {'source': str(root), 'commit': catalog.revision}}}
+        export['evaluation']['task_sha256'] = digest(contract.encode())
+        source.write_text(json.dumps(export))
+        return store.import_result(source)['run_id']
+
     catalog = snapshot()
-    # The evaluator commit deliberately differs: presentation must use Dataset provenance.
-    source = result(tmp_path / "source", task="gate")
-    export = json.loads(source.read_text())
-    export["identity"]["inputs"] = {"gate": {"dataset": {"source": str(root), "commit": catalog.revision}}}
-    export["evaluation"]["task_sha256"] = digest(config.encode())
-    source.write_text(json.dumps(export))
-    store = ResultStore(tmp_path / "archive")
+    store = ResultStore(tmp_path / 'archive')
     try:
-        store.import_result(source)
-        assert attach_catalog(store, root)[0]["status"] == "attached"
+        rid = imported(store, 'valid', catalog, config)
+        assert attach_catalog(store, root) == [{'task_id': 'gate', 'status': 'attached'}]
+        detail = store.detail(rid)
+        artifacts = {a['name']: a for a in detail['task']['artifacts']}
+        assert set(artifacts) == {'circuit.spice', 'source.json', 'LICENSE'}
+        assert store.artifact(artifacts['circuit.spice']['sha256']).read_bytes() == raw
+        assert detail['evaluation']['score'] == 80
+        assert detail['task']['presentation']['kind'] == 'catalog'
+        assert detail['task']['presentation']['commit'] == catalog.revision
+        task = store.inventory()['tasks'][0]
+        with pytest.raises(ValueError, match='Recorded task hash differs'):
+            catalog.attach(store, {**task, 'identity': {**task['identity'], 'task_sha256': '0' * 64}})
+        broken = config.replace(digest(raw), digest(raw + b'changed'))
+        (case / 'case.toml').write_text(broken)
+        newer = snapshot()
+        bad = imported(store, 'bad-netlist', newer, broken)
+        outcomes = attach_catalog(store, root)
+        assert sorted(r['status'] for r in outcomes) == ['attached', 'unavailable']
+        assert any('netlist digest mismatch' in r.get('reason', '') for r in outcomes)
+        assert store.detail(bad)['evaluation']['score'] == 80
+        assert not store.detail(bad)['task']['presentation']
+        assert store.detail(rid)['task']['presentation']['commit'] == catalog.revision
     finally:
         store.close()
-    drawing, provenance = catalog.schematic("gate", digest(raw))
-    assert drawing == svg
-    assert provenance["kind"] == "authored"
-    assert provenance["schematic_commit"] == catalog.revision
-    assert catalog.schematic("unknown-case", digest(raw)) is None
-    with pytest.raises(ValueError, match="different netlist"):
-        catalog.schematic("gate", digest(raw + b"* changed source"))
-    (case / "schematic.svg").write_bytes(svg + b"<!-- changed -->")
-    with pytest.raises(ValueError, match="digest mismatch"):
-        snapshot().schematic("gate", digest(raw))
-    # Updating the asset hash alone cannot bless a drawing for another circuit.
-    wrong = svg.replace(b"gate</text>", b"other</text>").replace(
-        b"gate&quot;", b"other&quot;"
-    )
-    (case / "schematic.svg").write_bytes(wrong)
-    (case / "case.toml").write_text(config.replace(digest(svg), digest(wrong)))
-    with pytest.raises(ValueError, match="provenance does not match"):
-        snapshot().schematic("gate", digest(raw))
+
 
 # Delivery is a separate public contract: packages must preserve terminal bytes,
 # exclude live credentials and reject attacker-controlled archive paths. Existing

@@ -135,6 +135,49 @@ class Bridge:
         return result
 
 
+def reconcile_restarted_tools(client, session, output):
+    """Observe interrupted mutations after a proven workspace rollback; never replay."""
+    status = client.session(session)
+    if not status.get('recovery', {}).get('workspace_restored') or status.get('active_execution_id'):
+        raise ValueError('No idle checkpoint-restored workspace')
+    bridge = Bridge(client, session, output / 'tools.jsonl')
+    resolved = []
+    for path in (bridge.delivery, bridge.pending):
+        if not path.exists():
+            continue
+        entry = json.loads(path.read_bytes())
+        name, key = entry['tool'], entry['key']
+        if path == bridge.delivery:
+            result = entry['result']
+        else:
+            operation = {'write': 'files', 'execute': 'executions', 'check': 'executions', 'submit': 'submissions'}[name]
+            observed = client.request('GET', f'/sessions/{session}/requests/{operation}/{key}')
+            result = observed['response'] if observed['known'] else {'state': 'not_committed', 'workspace_rolled_back': True}
+            if observed['known'] and operation == 'executions':
+                eid = result['execution_id']
+                offset, chunks, count = 0, [], 0
+                while True:
+                    polled = client.poll(session, eid, offset=offset)
+                    if polled['state'] == 'running':
+                        raise ValueError('Interrupted execution is still running')
+                    raw = base64.b64decode(polled['log_base64'], validate=True)
+                    chunks.append(raw[:max(0, 48000 - count)])
+                    count += len(raw)
+                    offset = polled['next_offset']
+                    if not raw:
+                        break
+                result = {'state': polled['state'], 'exit_code': polled['exit_code'],
+                          'output': b''.join(chunks).decode(errors='replace'),
+                          'truncated': polled['truncated'] or count > 48000}
+        recovered = {'tool': name, 'key': key, 'result': result, 'recovery': 'checkpoint_resume'}
+        history = output / ('reconciled-' + uuid.uuid4().hex + '.json')
+        atomic_write(history, json.dumps({'original': entry, 'observed': recovered}).encode())
+        bridge.record(recovered)
+        path.unlink()
+        resolved.append(recovered)
+    return resolved
+
+
 def dispatch(bridge, message):
     if "id" not in message:
         return None

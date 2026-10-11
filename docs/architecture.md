@@ -31,6 +31,13 @@ and result formats as integration surfaces. Deployment policy, accounts,
 authorization, resource capacity and disclosure remain responsibilities of the
 service operator. Local identities and successful protocol exchanges do not by
 themselves certify a participant or grant rights to publish task materials.
+The framework owns structured result exports, shared statistics and EDA layout
+preview assets. The consuming website owns result charts, interactive comparisons
+and report presentation. Local analysis exports JSON/CSV without rendering
+statistical figures or deciding whether the supplied data may be published.
+Private experiments and credentials remain with the operator; importing or
+visualizing results does not authorize publishing them.
+
 Tool images, PDK resources and local preparation are described in the
 [tool guide](tools.md).
 
@@ -182,11 +189,24 @@ pause it. Expiry closes the session, cancels execution, selects the last accepte
 candidate and evaluates it. Explicit close uses the same selection rule. Queries
 remain available until the creation response's `retained_until`. After closure,
 new mutations return `410`; identical acknowledged retries still return their
-original response. A restart losing a live workspace marks the session `error`
-and retains acknowledged snapshots and receipts; running execution records become
-`error` with no inferred exit code. Interrupted work is not success. A creation
+original response. A restart without a recoverable workspace marks the session
+`error` and retains acknowledged snapshots and receipts; running execution records
+become `error` with no inferred exit code. Interrupted work is not success. A creation
 interrupted before its durable response returns `500 infrastructure_error` on
 same-key replay instead of creating a replacement.
+
+The isolated local service saves workspace checkpoints by default; use
+`--no-recoverable` to disable them. The participant runner enables checkpoints
+and same-session continuation by default for supported native harnesses; its
+frozen `resume_session` policy can explicitly disable both. A checkpoint atomically
+binds workspace bytes to HTTP state after a file write or command completion.
+Restart restores that checkpoint in a new isolated container with the original session ID, scoped
+token, conditions, identities and deadline. Downtime consumes the budget.
+Command effects beyond the checkpoint are rolled back; their execution receipts
+remain queryable as errors. Accepted candidate snapshots remain authoritative
+in the run journal. Neither workspace recovery nor receipt lookup replays a
+command. External solver runtimes are excluded because their side effects
+cannot be restored from the isolated workspace.
 
 The authoritative solve budget is `[task].hours` in the case definition.
 The service publishes it in `task.description.hours` and derives
@@ -228,6 +248,7 @@ also includes the common `protocol` field.
 | `POST /sessions` | `task_id`, `condition` | `session_id`, `session_token`, status fields, `task`, `capabilities`, `limits`, `tool_identity`, `retained_until` |
 | `GET /sessions/{sid}/reports/{report_id}?offset=N` | None | Participant diagnostic JSON `content`, character `next_offset`, `has_more`; session-token scoped, available after closure |
 | `GET /sessions/{sid}` | None | `session_id`, `state`, `created_at`, `deadline`, `remaining_seconds`, `active_execution_id` (nullable), `last_submission` (nullable receipt), `diagnostics` (request/completion counts and elapsed seconds), `opinions_remaining` |
+| `GET /sessions/{sid}/requests/{operation}/{key}` | None; `operation` is `files`, `executions` or `submissions` | `known`, original `response` or null; read-only and session-token scoped |
 | `GET /sessions/{sid}/file?path=...` | URL-encoded relative path | `path`, `content_base64`, `sha256`, `size_bytes` |
 | `POST /sessions/{sid}/files` | `path`, `content_base64` | `path`, `sha256`, `size_bytes` |
 | `POST /sessions/{sid}/executions` | `command` (shell string), `timeout_seconds` | `execution_id`, `state` |
@@ -412,3 +433,28 @@ checks and compares their observations against those frozen baselines; it does
 not generate new author baselines during a participant run. See
 [electrical quality](tasks.md#electrical-quality) for contract and invalidation
 rules.
+
+### Shared execution and evidence interfaces
+
+`benchmarking.participants.command.run_command` supervises a caller-selected
+argv, working directory and declared condition through the public service. Its
+configuration mapping contains `command`, `cwd` and `condition`; additional frozen
+file bindings are retained as evidence, not interpreted by the runner. The caller
+owns configuration freezing and experiment scheduling. Command and native runners
+share budget interpretation, session settlement and terminal result waiting.
+Arbitrary commands are not automatically restarted after interruption.
+
+`benchmarking.results.verification.verify_frozen_run` checks one run against
+explicit frozen task, agent, execution and implementation bindings. The caller
+supplies the run directory and frozen asset root; the verifier owns archive paths,
+event interpretation and evaluation input checks. `verify_service_result` checks
+an HTTP result against the retained service store and frozen task/tool bindings.
+Neither interface schedules batches or authorizes publication.
+`benchmarking.results.scoring.verified_run_score` recomputes verified evidence and
+applies the same attempt termination rules as execution.
+
+`benchmarking.results.finalization.attach_session_evidence` attaches the exact
+scored candidate, independent evaluation and optional EDA preview to a terminal
+participant export using an explicit service-store path. It does not call a model.
+New exports do not generate Markdown reports. Consumers render structured results;
+legacy report assets remain readable without changing their scores or identities.

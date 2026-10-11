@@ -131,6 +131,27 @@ def test_finished_report_binds_a_sealed_journal(tmp_path):
     assert (recorder.root / "events.jsonl").read_bytes() == journal
 
 
+def test_resume_discards_only_uncommitted_tail_and_keeps_elapsed_clock(tmp_path, monkeypatch):
+    from datetime import datetime
+
+    recorder = RunRecorder(tmp_path / 'run')
+    first = recorder.event('committed')
+    recorder.save({'phase': 'running'})
+    journal = recorder.root / 'events.jsonl'
+    prefix = journal.read_bytes()
+    with journal.open('ab') as stream:
+        stream.write(b'{unfinished')
+    original_time = datetime.fromisoformat(first['time']).timestamp()
+    monkeypatch.setattr('benchmarking.engine.sessions.recorder.time.time', lambda: original_time + 120)
+    resumed = RunRecorder.resume(recorder.root, discard_incomplete_tail=True)
+    event = resumed.event('resumed')
+    assert journal.read_bytes().startswith(prefix)
+    assert event['sequence'] == 3 and event['elapsed_seconds'] >= first['elapsed_seconds'] + 120
+    recovered = json.loads(journal.read_text().splitlines()[1])
+    assert recovered['kind'] == 'journal.recovered'
+    assert (recorder.root / recovered['data']['incomplete_tail']['path']).read_bytes() == b'{unfinished'
+
+
 def test_batch_lease_is_exclusive_across_processes(tmp_path):
     root = tmp_path / "run"
     RunRecorder(root)

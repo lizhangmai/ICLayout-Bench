@@ -15,7 +15,6 @@ from .adapters import harness_version
 from .adapters.contracts import ParticipantSelection
 from .batch import path_component
 from .config import digest, read_configs, read_matrix, resolve, validate
-from .recovery import policy
 
 __all__ = ["ExperimentPlan", "ExperimentRequest", "default_output", "harness_version", "plan_conditions", "prepare_batch"]
 
@@ -128,8 +127,6 @@ def prepare_batch(request: ExperimentRequest, experiment: ExperimentPlan):
                [default_output(c.group).resolve() for c in conditions])
     if len(set(outputs)) != len(outputs):
         raise ValueError("Duplicate harness/model/effort output directories")
-    if not request.endpoint and any(policy(c.row.get("recovery"), harness=c.row["harness"])["resume_session"] for c in conditions):
-        raise ValueError("resume_session requires an independently running --endpoint service")
     if not request.endpoint:
         images = {c.row.get("scheme", {}).get("solver_image", image) for c in conditions}
         pinned = {image: DockerSession(image).image_id for image in sorted(images)}

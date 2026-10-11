@@ -21,13 +21,9 @@ def main(argv=None):
     importer.add_argument("--namespace", default="local")
     importer.add_argument("--reevaluation", action="store_true")
     catalog = commands.add_parser(
-        "catalog", help="Attach schematics from each recorded Dataset revision"
+        "catalog", help="Attach task materials from each recorded Dataset revision"
     )
     catalog.add_argument("--dataset", required=True)
-    catalog.add_argument(
-        "--schematic-revision",
-        help="Full Git commit containing authored SVGs; must match each recorded netlist digest",
-    )
     geometry = commands.add_parser(
         "geometry", help="Generate optional layer geometry (requires klayout)"
     )
@@ -56,9 +52,7 @@ def main(argv=None):
         elif args.command == "catalog":
             from .presentation import attach_catalog
 
-            result = attach_catalog(
-                store, args.dataset, schematic_revision=args.schematic_revision
-            )
+            result = attach_catalog(store, args.dataset)
         elif args.command == "geometry":
             from .geometry import attach_geometry
 

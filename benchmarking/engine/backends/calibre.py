@@ -12,7 +12,7 @@ from benchmarking.files import Asset, keys
 from ..contracts import JobResult
 from ..external import ExternalRuntime
 from ..netlists.dspf import adapt_dspf
-from ..netlists.spice import number
+from ..netlists.spice import expand_mos_multiplicity, number
 from ..source import package_source
 from ..tools.docker import DockerTool
 from ..tools.native import NativeTool
@@ -189,7 +189,12 @@ class CalibreBackend:
             controls['LVS EXECUTE ERC'] = 'YES'
         controls['MASK SVDB DIRECTORY'] = '"/workspace/svdb" QUERY' + query
         if self.configuration.lvs.finfet:
-            controls.update({'LVS RECOGNIZE GATES': 'NONE', 'LVS REDUCE PARALLEL MOS': 'NO',
+            controls.update({'LVS RECOGNIZE GATES': 'NONE',
+                             'LVS REDUCE PARALLEL MOS': 'YES [ TOLERANCE L 0\n'
+                             'EFFECTIVE W, L, nfin, ADEJ, ASEJ, PDEJ, PSEJ\n'
+                             'W = sum(W)\nL = min(L)\nnfin = sum(nfin)\n'
+                             'ADEJ = sum(ADEJ)\nASEJ = sum(ASEJ)\n'
+                             'PDEJ = sum(PDEJ)\nPSEJ = sum(PSEJ)\n]',
                              'LVS REDUCE SERIES MOS': 'NO', 'LVS REDUCE SEMI SERIES MOS': 'NO',
                              'LVS REDUCE SPLIT GATES': 'NO', 'LVS STRICT SUBTYPES': 'YES'})
         return controls
@@ -258,7 +263,9 @@ class CalibreBackend:
             keys(job.parameters, {'ports'} if self.check == 'rc' else set(), set(), 'Calibre parameters')
             if inputs['netlist'].format != 'spice':
                 raise ValueError('Calibre requires a SPICE source')
-            files['source.spice'] = inputs['netlist']
+            files['source.spice'] = (Asset(expand_mos_multiplicity(
+                inputs['netlist'].content.decode()).encode(), 'spice')
+                if self.configuration.lvs.finfet else inputs['netlist'])
             controls = self._lvs_controls(top)
             command = ('calibre -lvs -hier -spice '+shlex.quote('/workspace/svdb/'+top+'.sp')+
                        (' -hcell '+shlex.quote(self.runtime.pdk_file(self.configuration.lvs.hcell_file)[1])

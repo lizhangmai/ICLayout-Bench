@@ -10,7 +10,7 @@ From `examples/`:
 
 ```bash
 bench_python=/path/to/existing/environment/bin/python
-export ICLAYOUT_BENCH_DATASET=/path/to/ICLayout-Bench-Dataset
+export ICLAYOUT_BENCH_DATASET=/path/to/dataset
 "$bench_python" -I -m benchmarking.run \
   --config configs/codex-gpt-6-astra-medium.toml --dry-run
 ```
@@ -31,6 +31,12 @@ They preserve the original conversation, workspace, model and deadline. See
 [recovery settings](../docs/running.md#failures-retry-ownership-and-recovery)
 for backoff, dispatch cooldown and supported harnesses. Fresh invocations use
 this policy; existing experiment records retain their original settings.
+
+Codex, Claude Code, DSH and Kimi Code also enable same-session recovery and local
+workspace checkpoints by default. After interruption, use the same configuration
+and `--output` with `--resume`; the original deadline still applies. Preserve the
+complete result directory, including `.runtime/`, while a case is unfinished.
+Set `resume_session = false` in an explicit recovery table to disable this behavior.
 
 Choose another TOML in `configs/` for Claude Code, DSH or Kimi Code. Remove `--dry-run` to
 make real model calls. Local evaluation requires Docker and a compatible EDA

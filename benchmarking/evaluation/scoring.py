@@ -309,3 +309,18 @@ def recompute_score(plan: EvaluationPlan, report: Mapping[str, Any]) -> dict | N
     if not isinstance(jobs, Mapping):
         raise TypeError("Evaluation report jobs must be a mapping")
     return score_layout(plan, jobs, {}, None)
+
+
+def attempt_score(termination, outcome, candidate_score, *, method="layout"):
+    """Apply solve termination semantics to an independently evaluated candidate.
+
+    Infrastructure interruption is unknown. An incomplete solve or no submission
+    is zero for a scored layout task, even when a candidate was evaluated.
+    """
+    if termination == "infrastructure_error":
+        return None
+    if method == "layout" and (termination in {"agent_error", "budget_exhausted"}
+                               or outcome == "no_submission"):
+        return {"method": method, "value": 0.0, "maximum": 100, "reference": 100,
+                "components": {"G": 0.0, "E": None, "Q": None}}
+    return candidate_score

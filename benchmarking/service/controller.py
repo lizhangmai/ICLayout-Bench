@@ -31,7 +31,11 @@ class SessionController:
     """Session operations shared by the HTTP adapter, under one runtime lock."""
 
     def __init__(self, root, task, resources, backends, image, token, *, seconds=None,
-                 revision='unknown', solver_runtime=None, session_control=None):
+                 revision='unknown', solver_runtime=None, session_control=None, recoverable=None):
+        if recoverable is None:
+            recoverable = solver_runtime is None
+        if recoverable and solver_runtime is not None:
+            raise ValueError('Recoverable workspaces require the isolated local solver runtime')
         self.solver_runtime = solver_runtime
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -42,9 +46,15 @@ class SessionController:
         self.evaluator_identity = evaluation_identity(task, backends)
         self.lock = threading.RLock()
         self.limits = session_limits(task, seconds)
-        self.state = ServiceState(self.root, task)
         self.session_control = session_control if session_control is not None else SessionControl()
-        self.session_control.reap_abandoned(self.state.abandoned_containers)
+        try:
+            self.state = ServiceState(self.root, task, recoverable=recoverable)
+            self.session_control.reap_abandoned(self.state.abandoned_containers)
+            for sid, checkpoint in self.state.resumptions.items():
+                self._start_session(self.state.runs[sid], resume=checkpoint)
+        except Exception:
+            self.lease.__exit__(None, None, None)
+            raise
 
 
     def create(self, token, body, key):
@@ -59,6 +69,7 @@ class SessionController:
                         raise APIError(409, 'conflict', 'Idempotency key conflict')
                     if 'creation_response' not in data:
                         raise APIError(500, 'infrastructure_error', 'Session creation was interrupted')
+                    self._checkpoint_available(data)
                     return 201, data['creation_response']
             status, response = self._create(body, key)
             self._observe(self.state.runs[response['session_id']], 'session.created',
@@ -86,6 +97,7 @@ class SessionController:
         """Replay, execute and persist a mutation as one locked operation."""
         with self.lock:
             data = self._session(sid, token)
+            self._checkpoint_available(data)
             namespace = (operation or '') if target is None else f'{operation}/{target}'
             cached = data['requests'].get(namespace + ':' + key)
             if cached:
@@ -100,12 +112,18 @@ class SessionController:
             if operation == 'executions':
                 detail.update(command=body['command'], timeout_seconds=body['timeout_seconds'])
             self._observe(data, namespace, detail)
+            if operation == 'files':
+                self._checkpoint(data)
             return status, result
 
     def _read(self, data, operation, target, offset):
         sid = data['session_id']
         if operation == 'status':
             return self._status(data)
+        if operation == 'request':
+            namespace, key = target
+            cached = data['requests'].get(namespace + ':' + key)
+            return {'known': cached is not None, 'response': cached['response'] if cached else None}
         if operation == 'result':
             return self._result(data)
         if operation == 'report':
@@ -186,6 +204,21 @@ class SessionController:
         # Only API-visible material belongs here; internal judge journals stay private.
         self.state.observe(data, kind, detail, utc(time.time()))
 
+    @staticmethod
+    def _checkpoint_available(data):
+        if data.get('checkpoint_error'):
+            raise APIError(500, 'infrastructure_error', 'Workspace checkpoint failed; restart from retained recovery material')
+
+    def _checkpoint(self, data):
+        try:
+            self.state.checkpoint(data, self.session_control.workspace(data['session_id']))
+        except Exception:
+            # Do not return successful cached mutations after their filesystem
+            # checkpoint failed. The previous committed checkpoint stays intact.
+            data.update(interrupted=True, checkpoint_error=True)
+            self.state.save(data)
+            raise
+
 
     def _active(self, data, idle=False, allow_expired=False):
         status = self._status(data)
@@ -213,6 +246,17 @@ class SessionController:
         data.update(created_at=None, deadline=None, deadline_epoch=0,
                     retained_epoch=time.time()+7*86400, tool_identity={})
         self.state.register(data)
+        return self._start_session(data)
+
+    def _start_session(self, data, *, resume=None):
+        """Attach a fresh or checkpointed workspace under the original session ID."""
+        sid, cond = data['session_id'], data['condition']
+        if resume is not None:
+            expected = data['tool_identity']
+            if (data['limits'] != self.limits or expected['public_revision'] != self.revision
+                    or expected['evaluator'] != self.evaluator_identity
+                    or expected['solver_resources'] != {k: v.sha256 for k, v in self.resources.items()}):
+                raise ValueError('Cannot resume changed solver or evaluator identity or limits')
         started = time.monotonic()
         startup = {'state': 'starting', 'timeout_seconds': SESSION_STARTUP_TIMEOUT_SECONDS}
         self.state.write_startup(sid, startup)
@@ -223,6 +267,11 @@ class SessionController:
                                        capabilities=(PROCESS_FEEDBACK_CAPABILITY,)), soft_budget=True)
         def ready(workspace, recorder, session):
             now = time.time()
+            if resume is not None:
+                expected = data['tool_identity']
+                if expected['image_id'] != session.image_id:
+                    raise ValueError('Cannot resume changed solver image')
+                return
             data.update(created_at=utc(now), deadline=utc(now+workspace.remaining()),
                         deadline_epoch=now+workspace.remaining(), retained_epoch=now+7*86400,
                         retained_until=utc(now+7*86400),
@@ -251,6 +300,7 @@ class SessionController:
             solver_runtime=self.solver_runtime,
             execution={'interface': PROTOCOL, 'condition': cond},
             on_ready=ready, on_complete=completed, on_error=failed,
+            **({'resume': resume} if resume is not None else {}),
         )
         signaled, attached = self.session_control.await_ready(
             handle, SESSION_STARTUP_TIMEOUT_SECONDS)
@@ -273,6 +323,9 @@ class SessionController:
             'tool_identity': data['tool_identity'], 'retained_until': data['retained_until']}
         data['creation_response'] = response
         self.state.save(data)
+        if resume is not None:
+            self._observe(data, 'session.resumed', dict(data['recovery'], workspace_sha256=resume['sha256']))
+        self._checkpoint(data)
         return 201, response
 
 
@@ -333,6 +386,12 @@ class SessionController:
                 )
                 self._observe(data, 'execution.completed', dict(data['executions'][eid]))
                 self.state.save(data)
+                try:
+                    self._checkpoint(data)
+                except Exception:
+                    data['executions'][eid].update(state='error', exit_code=None)
+                    self.state.save(data)
+                    raise
 
         self.session_control.start_execution(
             sid, eid, command, timeout,

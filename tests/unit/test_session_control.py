@@ -39,6 +39,22 @@ def _session_factory(image, ready, *, runtime=None):
     return SimpleNamespace(image_id='synthetic-image', ready=ready)
 
 
+def test_resume_rejects_changed_image_before_provisioning(monkeypatch):
+    import json
+
+    from benchmarking.engine.sessions.docker import DockerSession
+
+    calls = []
+    def inspect(command, **kwargs):
+        calls.append(command)
+        return json.dumps([{'Id': 'changed-image', 'Config': {}}])
+    monkeypatch.setattr('benchmarking.engine.sessions.docker.subprocess.check_output', inspect)
+    checkpoint = {'state': {'tool_identity': {'image_id': 'original-image'}}}
+    with pytest.raises(ValueError, match='changed solver image'):
+        DockerSession('image', resume=checkpoint)
+    assert all(command[:3] == ['docker', 'image', 'inspect'] for command in calls)
+
+
 def test_session_control_passes_attached_session_and_reports_readiness():
     workspace = FakeWorkspace()
     completed = threading.Event()

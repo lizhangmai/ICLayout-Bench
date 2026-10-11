@@ -26,6 +26,8 @@ parser.add_argument('--solver-image', help='Separate solver image; evaluator kee
 parser.add_argument('--solver-runtime', help='Explicit operator external runtime for solver mounts')
 parser.add_argument('--port', type=int, default=8765)
 parser.add_argument('--owner-record', type=Path, help=argparse.SUPPRESS)
+parser.add_argument('--recoverable', action=argparse.BooleanOptionalAction, default=None,
+                    help='Checkpoint the local workspace for restart recovery (default: enabled for isolated solvers)')
 parser.add_argument('--token-env', default='ICLAYOUT_BENCH_ACCESS_TOKEN')
 args = parser.parse_args()
 token = os.environ.get(args.token_env)
@@ -44,7 +46,7 @@ if args.solver_runtime:
 revision = implementation_identity()
 service = LocalService(args.data, runtime.task, {} if solver_runtime else runtime.agent_resources(),
                        runtime.backends, args.solver_image or (solver_runtime.image if solver_runtime else args.image),
-                       token, revision=revision, solver_runtime=solver_runtime)
+                       token, revision=revision, solver_runtime=solver_runtime, recoverable=args.recoverable)
 server = serve(service, args.port, audit=args.data / 'http.jsonl')
 endpoint = f'http://127.0.0.1:{server.server_port}'
 try:

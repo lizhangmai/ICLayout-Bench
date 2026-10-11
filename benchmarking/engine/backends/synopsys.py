@@ -9,7 +9,7 @@ from pathlib import Path
 from benchmarking.files import Asset, keys
 
 from ..contracts import JobResult, Measurement
-from ..netlists.spice import number
+from ..netlists.spice import expand_mos_multiplicity, number
 from ..source import package_source
 from ..tools.native import NativeTool
 
@@ -30,7 +30,9 @@ def strict_lvs_deck(text):
         r'recognize_gate\(state = compare_settings, type = ALL\);':
             'recognize_gate_off(state = compare_settings);',
         r'merge_parallel\(state = compare_settings, device_type = (NMOS|PMOS),[^;]+;':
-            r'merge_parallel_off(state = compare_settings, device_type = \1);',
+            r'merge_parallel(state = compare_settings, device_type = \1, '
+            r'exclude_tolerances = {{"L", [0, 0], ABSOLUTE}}, '
+            r'property_functions = {{"logical_parallel_mos_props"}});',
         r'short_equivalent_nodes\(state = compare_settings, device_type = (NMOS|PMOS),[^;]+;': '',
     }
     for pattern, replacement in replacements.items():
@@ -186,8 +188,31 @@ class ICVNative:
         else:
             if inputs['netlist'].format != 'spice':
                 raise ValueError('ICV requires a SPICE source')
-            files['source.spice'] = inputs['netlist']
+            files['source.spice'] = Asset(expand_mos_multiplicity(
+                inputs['netlist'].content.decode()).encode(), 'spice')
             raw = strict_lvs_deck(raw)
+            # The native comparison calls these functions from a separate file.
+            # Retain upstream functions for passive devices and add a MOS reducer
+            # that preserves total sheet/fin count and the actual junction sums.
+            match = re.search(r'user_functions_file = search_include_path\("([^"/]+)"\)', raw)
+            if match is None:
+                raise ValueError('ICV needs an explicit native property-functions file')
+            functions = (self.deck.parent / match[1]).read_text()
+            functions += '''
+logical_parallel_mos_props : entrypoint function (void) returning void
+{
+    vDEV_ID = lvs_current_device();
+    if (lvs_sum(vDEV_ID, "W", vW)) { lvs_save_double_property("W", vW); }
+    if (lvs_min(vDEV_ID, "L", vL)) { lvs_save_double_property("L", vL); }
+    if (lvs_sum(vDEV_ID, "nfin", vN)) { lvs_save_double_property("nfin", vN); }
+    if (lvs_sum(vDEV_ID, "ADEJ", vAD)) { lvs_save_double_property("ADEJ", vAD); }
+    if (lvs_sum(vDEV_ID, "ASEJ", vAS)) { lvs_save_double_property("ASEJ", vAS); }
+    if (lvs_sum(vDEV_ID, "PDEJ", vPD)) { lvs_save_double_property("PDEJ", vPD); }
+    if (lvs_sum(vDEV_ID, "PSEJ", vPS)) { lvs_save_double_property("PSEJ", vPS); }
+}
+'''
+            files['logical-properties.rs'] = Asset(functions.encode(), 'text')
+            raw = raw.replace(match[0], 'user_functions_file = "logical-properties.rs"')
             command += ['-s', 'source.spice', '-sf', 'SPICE', '-stc', top]
             exports[top + '.LVS_ERRORS'] = 'text'
         command.append('control.rs')
@@ -205,6 +230,9 @@ class ICVNative:
         result = self.tool.run(self.runtime.module_command('icv', ['bash', 'run.sh']), files, exports,
                                evidence_patterns=('Star*.log', '*.LAYOUT_ERRORS'))
         evidence = result.evidence | result.files | {'control': files['control.rs']}
+        if self.check != 'drc':
+            evidence.update({'lvs_source': files['source.spice'],
+                             'property_functions': files['logical-properties.rs']})
         if result.reason or result.returncode:
             return JobResult('error', result.reason or 'ICV/StarRC did not finish', evidence=evidence)
         try:

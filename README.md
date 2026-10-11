@@ -28,10 +28,10 @@ local Dataset working copy for development. The Dataset source and revision are 
 see [image setup](docs/tools.md#prebuilt-images-and-local-builds). With that image:
 
 ```bash
-python -m benchmarking.engine.preview --dataset /path/to/ICLayout-Bench-Dataset \
+python -m benchmarking.engine.preview --dataset /path/to/dataset \
   run --case NAND2_X1 --image iclayout-eda-open:local --output build/reference-check
 python -m benchmarking.run --config experiment.toml \
-  --dataset /path/to/ICLayout-Bench-Dataset --output results/new-experiment
+  --dataset /path/to/dataset --output results/new-experiment
 ```
 
 Reference evaluation makes no model calls. The experiment runner starts the local
@@ -39,6 +39,10 @@ service and the selected participant harness. It records the dataset commit,
 input digests and tool identities. HF manages downloaded task caches; resource
 installation and derived PDK caches are automatic. There is no prepared case
 export. Only declared inputs enter the isolated solver workspace.
+
+Supported native harnesses save local workspace checkpoints by default. Resume an
+interrupted experiment with the same inputs and `--output` plus `--resume`; its
+original deadline still applies. See [recovery](docs/running.md#failures-retry-ownership-and-recovery).
 
 For remote participation, use `--endpoint` and operator credentials instead of a
 local Dataset. Docker and PDK resources are not needed on the participant host.

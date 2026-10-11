@@ -146,7 +146,16 @@ class RunArchive:
     def final_evidence(self, result):
         candidate, top_cell, evaluation = None, None, None
         if result.get('submission'):
-            candidate = checked(self.root, self.report['candidate'])
+            reference = self.report.get('candidate')
+            if reference is None and result.get('state') == 'error':
+                # Interrupted runs retain accepted candidates in the durable
+                # journal before the final run report records their reference.
+                from .recorder import recover_submissions
+
+                reference = recover_submissions(self.root)['candidate']
+            if reference is None:
+                raise EvidenceError('Accepted submission has no archived candidate')
+            candidate = checked(self.root, reference)
             if hashlib.sha256(candidate).hexdigest() != result['submission']['candidate_sha256']:
                 raise EvidenceError('Final candidate differs from scored submission')
             task = _report(checked(self.root, self.report['task']))

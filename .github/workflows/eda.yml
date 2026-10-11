@@ -25,7 +25,7 @@ jobs:
         with:
           version: '0.11.2'
           python-version: '3.12'
-      - run: uv sync --locked --group analysis --group eda
+      - run: uv sync --locked --group eda
       - run: docker build -t iclayout-eda-open:dev .
       - env:
           ICLAYOUT_BENCH_TEST_IMAGE: iclayout-eda-open:dev

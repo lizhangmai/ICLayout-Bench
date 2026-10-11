@@ -10,6 +10,46 @@ _SUFFIXES = {
 }
 
 
+def expand_mos_multiplicity(text):
+    """Give native LVS explicit copies of MOS cards with literal integer m.
+
+    Native planar reducers scale W by m but do not necessarily scale custom
+    fin/sheet properties. Explicit copies preserve every per-unit parameter,
+    including nfin, so the same property reducer handles source and layout.
+    Simulation and extracted device cards remain unchanged.
+    """
+    rows = logical_lines(text)
+    occupied = {line.text.split()[0].lower() for line in rows if line.text.split()}
+    output = []
+    for line in rows:
+        raw = line.text
+        if not re.match(r'\s*[mM]\S+\s', raw):
+            output.append(raw)
+            continue
+        matches = list(re.finditer(r'(?i)\bm\s*=\s*([^\s]+)', raw))
+        if not matches:
+            output.append(raw)
+            continue
+        if len(matches) != 1:
+            raise ValueError('MOS multiplicity must be specified once')
+        match = matches[0]
+        count = number(match[1])
+        if count < 1 or count != int(count):
+            raise ValueError('Native LVS requires positive integer MOS multiplicity')
+        if count == 1:
+            output.append(raw)
+            continue
+        card = (raw[:match.start()] + raw[match.end():]).strip()
+        name, tail = card.split(None, 1)
+        for index in range(int(count)):
+            ident = name + '_parallel_' + str(index)
+            while ident.lower() in occupied:
+                ident += '_'
+            occupied.add(ident.lower())
+            output.append(ident + ' ' + tail)
+    return '\n'.join(output) + '\n'
+
+
 @dataclass(frozen=True)
 class LogicalLine:
     text: str

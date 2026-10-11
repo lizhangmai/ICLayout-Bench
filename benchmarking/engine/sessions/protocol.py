@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from benchmarking.engine.container_scripts import benchmark_feedback as opinions
 from benchmarking.engine.tools.budget import tool_time_limits
-from benchmarking.files import Asset
+from benchmarking.files import Asset, read_file
 from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY
 
 from .recorder import RecordingError
@@ -26,6 +26,25 @@ class SessionProtocol:
         self.submission_keys = {}
         self.candidate = None
         self.remote_closed = self.expired = False
+
+    def restore(self):
+        """Restore committed receipt/candidate counters before accepting requests."""
+        from .archive import read_journal
+        from .recorder import recover_submissions
+
+        recovered = recover_submissions(self.recorder.root)
+        self.submissions = recovered['submissions']
+        if recovered['candidate'] is not None:
+            self.candidate = Asset(read_file(self.recorder.root, recovered['candidate']['path']), 'gds')
+        self.submission_keys = {r['idempotency_key']: r for r in self.submissions if 'idempotency_key' in r}
+        for event in read_journal(self.recorder.root).events:
+            entry = event['data']
+            if event['kind'] == 'process_feedback.request':
+                self.feedback_sequence = max(self.feedback_sequence, entry['sequence'])
+            elif event['kind'] == 'process_feedback.result':
+                self.process_feedback.append(entry)
+            elif event['kind'] == 'benchmark_feedback.submitted':
+                self.benchmark_feedback.append(entry)
 
     def snapshot_candidate(self, remaining):
         return Asset(self.workspace.read(self.task.output.path, self.task.output.max_bytes), "gds")

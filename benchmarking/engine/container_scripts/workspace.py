@@ -5,9 +5,46 @@ import signal
 import stat
 import subprocess
 import sys
+import tarfile
 import time
 import uuid
 from pathlib import Path
+
+
+def checkpoint(limit):
+    """Stream workspace data without following links or copying special files."""
+    total = 0
+
+    def regular(member):
+        nonlocal total
+        if not (member.isfile() or member.isdir() or member.issym() or member.islnk()):
+            raise ValueError('Workspace contains a special file')
+        total += member.size
+        if total > limit:
+            raise ValueError('Workspace checkpoint exceeds allocation')
+        return member
+
+    with tarfile.open(fileobj=sys.stdout.buffer, mode='w|gz', dereference=False) as archive:
+        for entry in sorted(Path('/workspace').iterdir()):
+            archive.add(entry, arcname=entry.name, filter=regular)
+
+
+def restore(limit):
+    """Extract only inside the empty, isolated workspace, under its tmpfs cap."""
+    total, links = 0, []
+    with tarfile.open(fileobj=sys.stdin.buffer, mode='r|gz') as archive:
+        for member in archive:
+            total += member.size
+            if total > limit or not (member.isfile() or member.isdir() or member.issym() or member.islnk()):
+                raise ValueError('Invalid workspace checkpoint')
+            if member.issym() or member.islnk():
+                links.append(member)
+            else:
+                archive.extract(member, '/workspace', filter='data')
+        # External symlinks may point at declared read-only resources. Restore
+        # them last so no archive data can be written through such a link.
+        for member in sorted(links, key=lambda entry: entry.issym()):
+            archive.extract(member, '/workspace', filter='tar' if member.issym() else 'data')
 
 
 def write_file(path, content):
@@ -94,6 +131,10 @@ if __name__ == '__main__':
             if not path.isalnum():
                 raise ValueError('Invalid execution ID')
             (Path('/tmp')/('lb-cancel-'+path)).touch()
+        elif action == 'checkpoint':
+            checkpoint(int(path))
+        elif action == 'restore':
+            restore(int(path))
         else:
             raise ValueError('Unknown operation')
     except (OSError, ValueError) as error:

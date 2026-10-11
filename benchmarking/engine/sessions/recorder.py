@@ -51,17 +51,32 @@ class RunRecorder:
         self._closed = False
 
     @classmethod
-    def resume(cls, destination):
+    def resume(cls, destination, *, discard_incomplete_tail=False):
         """Reopen an unfinished evidence directory without replacing its journal."""
         self = cls.__new__(cls)
         self.root = Path(destination).absolute()
         if not self.root.is_dir() or not (self.root / "artifacts").is_dir():
             raise FileNotFoundError(self.root)
         self._lock = threading.RLock()
-        self._sequence = len(read_journal(self.root).events)
+        journal = read_journal(self.root, partial=discard_incomplete_tail)
+        self._sequence = len(journal.events)
         self._started = time.monotonic()
+        if journal.events:
+            last = journal.events[-1]
+            elapsed = last.get('elapsed_seconds', 0)
+            if last.get('time'):
+                elapsed += max(0, time.time() - datetime.fromisoformat(last['time']).timestamp())
+            self._started -= elapsed
         self.error = None
         self._closed = False
+        if journal.incomplete_tail:
+            path = self.root / 'events.jsonl'
+            raw = path.read_bytes()
+            committed = raw.rfind(b'\n') + 1
+            # Archive the uncommitted bytes; they remain evidence, not events.
+            tail = self.archive(Asset(raw[committed:], 'binary'))
+            atomic_write(path, raw[:committed])
+            self.event('journal.recovered', incomplete_tail=tail)
         return self
 
     def _write(self, operation):

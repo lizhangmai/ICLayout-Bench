@@ -3,7 +3,6 @@
 import shutil
 from contextlib import ExitStack
 
-from benchmarking.files import atomic_write
 from benchmarking.files import write_json as save
 from benchmarking.locking import BatchLease
 from benchmarking.results.export import (
@@ -18,7 +17,6 @@ from benchmarking.results.participant_export import (
     export_run,
 )
 from benchmarking.results.preview import ensure_layout_preview
-from benchmarking.results.report import report_text
 
 from . import local_service
 from .evidence import read_attempt_evidence, read_participant_evidence
@@ -97,9 +95,6 @@ def _commit_terminal(root, result):
     if ((root / 'layout.png').exists() and result.get('image', {}).get('status') == 'complete'
             and 'layout.png' not in result['files']):
         result['files'].append('layout.png')
-    text = report_text(result)
-    atomic_write(root / 'report.md', text)
-    result['files'].append('report.md')
     verify(root, result)
     result['state'] = 'finished'
     save(root / 'result.json', result)

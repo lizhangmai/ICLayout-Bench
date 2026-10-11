@@ -28,9 +28,9 @@ jobs:
           version: '0.11.2'
           python-version: ${{ matrix.python }}
           enable-cache: true
-      - run: uv sync --locked --extra results --group analysis
+      - run: uv sync --locked --extra results
       - run: uv run --locked ruff check .
-      - run: uv run --locked --group analysis pytest -m unit
+      - run: uv run --locked pytest -m unit
       - run: git diff --exit-code
 
   package:

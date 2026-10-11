@@ -8,6 +8,7 @@ from dataclasses import replace
 
 from benchmarking.client import Client, ClientError
 from benchmarking.files import write_json as save
+from benchmarking.participants.lifecycle import participant_timeout
 from benchmarking.protocol import evaluation_mode
 
 from . import adapters, exports
@@ -127,9 +128,19 @@ def run_participant(access, row, output, selection: ParticipantSelection):
         return exports.collect_result(client, sid, output), "harness_timeout"
     if state.phase == "finalizing":
         return finalize_session(client, sid, created, output), state.error
+    continuation_prompt = CONTINUE_PROMPT
     if state.launches:
         if not settings_policy["resume_session"]:
             raise ValueError("Session continuation was not enabled in frozen TOML")
+        if status.get('recovery', {}).get('workspace_restored'):
+            from .bridge import reconcile_restarted_tools
+            recovered = reconcile_restarted_tools(client, sid, output)
+            continuation_prompt += (
+                '\nThe EDA workspace was restored from its last committed checkpoint. '
+                'Commands interrupted before checkpoint commit were rolled back and were not replayed. '
+                'Review status and these recovered tool observations before choosing further actions:\n'
+                + json.dumps(recovered, ensure_ascii=False)
+            )
         env["ICLAYOUT_BENCH_RESUME_ID"] = continuation_id(output, row, state, status)
     launch = ParticipantLaunch(row, selection, output, created)
     error, exit_code, receipt, problem = None, None, None, None
@@ -137,13 +148,13 @@ def run_participant(access, row, output, selection: ParticipantSelection):
     try:
         context = launch.prepare(access.endpoint, settings_policy, attempt, instructions)
         if state.launches:
-            context = replace(context, prompt=CONTINUE_PROMPT)
+            context = replace(context, prompt=continuation_prompt)
         args = adapters.prepare(context)
         first_launch = True
         while True:
             error, problem = None, None
             if state.launches:
-                context = replace(context, prompt=CONTINUE_PROMPT)
+                context = replace(context, prompt=continuation_prompt)
                 if not first_launch:
                     args = adapters.prepare(context)
                 for filename in ("harness.jsonl", "harness.stderr", "harness-summary.json"):
@@ -158,7 +169,7 @@ def run_participant(access, row, output, selection: ParticipantSelection):
             first_launch = False
             with (output / "harness.jsonl").open("w") as out, (output / "harness.stderr").open("w") as err:
                 exit_code, timed_out = execute(args, cwd=context.directory, env=env, stdout=out, stderr=err,
-                                              prompt=context.prompt, timeout=None if created['limits'].get('budget_policy') == 'soft' else remaining,
+                                              prompt=context.prompt, timeout=participant_timeout(created, {'remaining_seconds': remaining}),
                                               pass_fds=tuple(int(env[k]) for k in ["ICLAYOUT_BENCH_LEASE_FD"] if k in env))
             # Retain each launch's refreshed secrets even if a later launch
             # rotates the native credential store again before terminal export.
@@ -187,6 +198,7 @@ def run_participant(access, row, output, selection: ParticipantSelection):
         problem = classify(exc)
     # Persist before cleanup/transport calls, which can themselves fail.
     suspend = (error and settings_policy["resume_session"] and error != "harness_timeout"
+               and not (problem and problem["category"] == "harness_configuration")
                and not state.capacity_interruptions)
     recovery = attempt.complete(error, suspended=bool(suspend))
     save(output / "failure.json", problem)

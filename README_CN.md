@@ -10,15 +10,19 @@
 配置与命令见[镜像指南](docs/tools.md#prebuilt-images-and-local-builds)。
 
 ```bash
-python -m benchmarking.engine.preview --dataset /path/to/ICLayout-Bench-Dataset \
+python -m benchmarking.engine.preview --dataset /path/to/dataset \
   run --case NAND2_X1 --image iclayout-eda-open:local --output build/reference-check
 python -m benchmarking.run --config experiment.toml \
-  --dataset /path/to/ICLayout-Bench-Dataset --output results/new-experiment
+  --dataset /path/to/dataset --output results/new-experiment
 ```
 
 HF 管理题目下载缓存；库自动加载 PDK 和派生资源，不需要 prepared 目录。
 参考评测不调用模型；参评命令会启动真实 Agent。仅声明的题目输入进入求解环境。
 远程参评使用 `--endpoint`，无需本地 EDA 环境。
+
+支持原生会话恢复的参评工具默认保存本地工作区检查点。实验中断后，使用相同
+输入和 `--output`，加上 `--resume` 即可继续；仍遵守原会话截止时间。详见
+[恢复说明](docs/running.md#failures-retry-ownership-and-recovery)。
 
 详细说明见 [英文入口](README.md)、[运行指南](docs/running.md)、
 [资源指南](docs/tools.md) 和 [架构](docs/architecture.md)。框架采用 MIT；题目和

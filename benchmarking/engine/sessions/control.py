@@ -16,8 +16,8 @@ from benchmarking.engine.sessions.execution import run_session
 class AttachedSession(DockerSession):
     """Docker session that reports when its workspace becomes available."""
 
-    def __init__(self, image, ready, *, runtime=None):
-        super().__init__(image, runtime=runtime)
+    def __init__(self, image, ready, *, runtime=None, resume=None):
+        super().__init__(image, runtime=runtime, resume=resume)
         self.ready = ready
 
     def run(self, *args, **kwargs):
@@ -70,7 +70,7 @@ class SessionControl:
 
     def start(self, sid, *, task, config, resources, backends, destination,
               image, solver_runtime=None, execution=None, on_ready,
-              on_complete, on_error):
+              on_complete, on_error, resume=None):
         """Start one evaluator thread and return its readiness handle."""
         thread_module = self._threading_provider()
         handle = SessionHandle(sid, thread_module.Event(), thread_module.Event(),
@@ -89,10 +89,11 @@ class SessionControl:
 
         def run():
             try:
-                handle.session = self._session_factory(image, attach, runtime=solver_runtime)
+                recovery = {'resume': resume} if resume is not None else {}
+                handle.session = self._session_factory(image, attach, runtime=solver_runtime, **recovery)
                 report = self._runner(
                     task, config, resources, backends, Path(destination),
-                    session=handle.session, execution=execution,
+                    session=handle.session, execution=execution, **({'resume': True} if resume is not None else {}),
                 )
                 if handle.workspace is not None:
                     on_complete(report)

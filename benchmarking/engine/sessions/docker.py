@@ -64,8 +64,9 @@ class ConsoleCapture:
 class DockerSession:
     """Isolated solver; optional operator-reviewed installation and license mounts."""
 
-    def __init__(self, image, *, runtime=None):
+    def __init__(self, image, *, runtime=None, resume=None):
         self.runtime = runtime
+        self.resume = resume
         if runtime:
             reserved = tuple(Path(p) for p in ('/task', '/agent', '/resources', '/protocol', '/usr', '/bin', '/lib', '/lib64', '/etc'))
             for mount in runtime.mounts:
@@ -80,6 +81,8 @@ class DockerSession:
         if inspected["Config"].get("Volumes"):
             raise ValueError("Session images must not declare writable volumes outside the bounded workspace")
         self.image_id = inspected["Id"]
+        if resume and self.image_id != resume['state']['tool_identity']['image_id']:
+            raise ValueError('Cannot resume changed solver image')
         security = json.loads(subprocess.check_output(
             ["docker", "info", "--format", "{{json .SecurityOptions}}"], text=True, timeout=30))
         self.rootless = "name=rootless" in (security or [])
@@ -105,6 +108,8 @@ class DockerSession:
         ], check=True, capture_output=True, timeout=30)
 
     def run(self, task, config, resources, message, *, inference=None, recorder=None, feedback=None, on_ready=None):
+        if self.resume and on_ready is None:
+            raise ValueError('Workspace recovery requires an attached local session')
         if inference and recorder:
             inference.recorder = recorder
         console_limit = MAX_CONSOLE_BYTES
@@ -158,6 +163,7 @@ class DockerSession:
             reader_env = [arg for k in agent_environment for arg in ("--env", f"{k}=")]
             cid, process, reader, workspace = None, None, None, None
             protocol = None
+            attached = False
             try:
                 cid = subprocess.check_output([
                     "docker", "create", "--network", self.runtime.network if self.runtime else "none", "--read-only", "--cap-drop", "ALL",
@@ -170,8 +176,11 @@ class DockerSession:
                     *env, *mounts, "--entrypoint", config.command[0], self.image_id, *config.command[1:],
                 ], text=True, stderr=subprocess.PIPE, timeout=30).strip()
                 record("session.created", container_id=cid, environment=identity)
-                started = time.monotonic()
-                deadline = started + config.wall_seconds
+                now = time.monotonic()
+                started = (now - max(0, time.time() - (self.resume['state']['deadline_epoch'] - config.wall_seconds))
+                           if self.resume else now)
+                deadline = (now + self.resume['state']['deadline_epoch'] - time.time()
+                            if self.resume else started + config.wall_seconds)
                 if inference:
                     inference.start(root / INFERENCE_SOCKET.lstrip("/"), deadline, uid=uid)
                 if self.rootless:
@@ -184,16 +193,24 @@ class DockerSession:
                 workspace = SessionWorkspace(cid, root, reader_env, deadline, soft_budget=config.soft_budget)
                 if on_ready is not None:
                     # Docker attach may not have completed the start yet.
-                    while process.poll() is None and time.monotonic() < deadline:
+                    while process.poll() is None and (config.soft_budget or time.monotonic() < deadline):
                         running = subprocess.check_output([
                             "docker", "inspect", "--format", "{{.State.Running}}", cid], text=True).strip()
                         if running == "true":
                             break
                         time.sleep(.02)
-                    on_ready(workspace, recorder)
+                    if self.resume:
+                        workspace.restore(Path(self.resume['workspace_archive']), config.workspace_mb * 1024 * 1024)
+                        record('session.resumed', deadline_epoch=self.resume['state']['deadline_epoch'],
+                               workspace_sha256=self.resume['sha256'])
 
                 protocol = SessionProtocol(task, config, workspace, started, deadline,
                     recorder=recorder, record=record, feedback=feedback, on_ready=on_ready)
+                if self.resume:
+                    protocol.restore()
+                if on_ready is not None:
+                    on_ready(workspace, recorder)
+                    attached = True
 
                 while process.poll() is None:
                     if console.failed.is_set() or (recorder and recorder.error):
@@ -243,6 +260,9 @@ class DockerSession:
                         reason = ("OOM killed" if state.get("OOMKilled") else
                                   f"Agent exited with code {code}" if code else "")
             except (OSError, ValueError, subprocess.SubprocessError) as error:
+                if self.resume and not attached:
+                    # Failed restoration must not seal or replace the retained run.
+                    raise
                 termination, reason = "infrastructure_error", str(error)
             finally:
                 elapsed = time.monotonic() - started if started else 0.0

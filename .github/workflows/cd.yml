@@ -28,9 +28,9 @@ jobs:
           version: '0.11.2'
           python-version: '3.12'
           enable-cache: true
-      - run: uv sync --locked --extra results --group analysis
+      - run: uv sync --locked --extra results
       - run: uv run --locked ruff check .
-      - run: uv run --locked --group analysis pytest -m unit
+      - run: uv run --locked pytest -m unit
       - name: Check release tag
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         run: |

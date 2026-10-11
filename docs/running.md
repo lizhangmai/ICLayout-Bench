@@ -8,7 +8,7 @@ the selected snapshot and binds resources automatically; it creates no prepared
 case directory. Local results are `self_run`.
 
 ```bash
-python -m benchmarking.service --dataset /path/to/ICLayout-Bench-Dataset \
+python -m benchmarking.service --dataset /path/to/dataset \
   --case freepdk45.nangate45-pdk.NAND2_X1 --data build/local-service \
   --image iclayout-eda-open:local --token-env ICLAYOUT_BENCH_TOKEN
 ```
@@ -22,7 +22,7 @@ resource caches. See [tools](tools.md).
 For an independent reference check without model calls:
 
 ```bash
-python -m benchmarking.engine.preview --dataset /path/to/ICLayout-Bench-Dataset \
+python -m benchmarking.engine.preview --dataset /path/to/dataset \
   run --case NAND2_X1 --image iclayout-eda-open:local --output build/candidate-check
 ```
 
@@ -77,14 +77,14 @@ Run it against locally Dataset resources:
 
 ```bash
 python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
-  --dataset /path/to/ICLayout-Bench-Dataset --output results/codex-xhigh-1
+  --dataset /path/to/dataset --output results/codex-xhigh-1
 ```
 
 For an operator service, replace `--dataset ...` with `--endpoint https://...`
 and supply its creation credential as `ICLAYOUT_BENCH_TOKEN`. Each run gets a
 fresh scoped session and exports the independent result. By default the runner
 closes on completion/failure; explicit recovery settings can retain an interrupted
-remote session under its original budget policy. Select explicit `tasks` or a `[dataset]` table in the TOML. Omitting `--output` uses
+local or remote session under its original budget policy. Select explicit `tasks` or a `[dataset]` table in the TOML. Omitting `--output` uses
 `results/<config-stem>/<timestamp>/` and prints its path. Each invocation creates
 a fresh directory. Specify an existing directory with `--output` to reuse it: completed cases are skipped, and selected unfinished
 cases require `--resume` together with `--output`. Use a fresh directory for changed experiment identities. Create the configuration using the example below first.
@@ -173,7 +173,7 @@ env_vars = []
 ```
 
 Run `python -m benchmarking.run --matrix contrast.toml --dry-run` to inspect
-resolved conditions, then replace `--dry-run` with `--dataset /path/to/ICLayout-Bench-Dataset`
+resolved conditions, then replace `--dry-run` with `--dataset /path/to/dataset`
 to execute. These files and A are participant-owned; Public does not install an
 unspecified A package. Matrix defaults are shallow: each run's `scheme` is a
 complete declaration, not a partial merge. Conditions execute in listed order;
@@ -270,7 +270,12 @@ default, with up to five additional launches in the same session and deadline.
 No `[recovery]` table is needed. Adapters without native continuation support
 (DSH and command) keep capacity continuation disabled.
 
-HTTP retries and manual continuation remain opt-in in each experiment TOML
+Same-session continuation is enabled by default for Codex, Claude Code, DSH and
+Kimi Code. Their local services save workspace checkpoints automatically, so
+an interrupted batch can continue with `--resume` under its original deadline.
+Custom `command` harnesses keep native continuation disabled.
+
+HTTP retries remain opt-in in each experiment TOML
 (or `[defaults.recovery]` in a matrix). To override recovery settings, declare
 the four transport/manual-continuation fields together; capacity fields are
 optional. There are no CLI policy overrides:
@@ -284,8 +289,7 @@ resume_session = true
 ```
 
 These are the default capacity settings for supported harnesses. Add them to
-that table only to override the defaults (keep `resume_session = false` for
-local mode):
+that table only to override the defaults:
 
 ```toml
 capacity_resumes = 5
@@ -352,8 +356,10 @@ interruptions resets the consecutive count; zero cooldown disables the pause.
 resume count and recovery outcome. `agent.jsonl` retains all launches in order
 with the existing credential redaction.
 
-Without this table, HTTP requests have one attempt and manual continuation is
-disabled; automatic capacity continuation remains enabled for supported harnesses.
+Without this table, HTTP requests have one attempt and same-session continuation
+is enabled for supported native harnesses; automatic capacity continuation remains
+enabled for harnesses that support it. Set `resume_session = false` explicitly
+to disable native continuation and local workspace checkpoints.
 `http_attempts` includes the original request (1–10); delays double from
 `backoff_seconds`, capped by `max_backoff_seconds` (both 0–60 seconds). Numeric
 `Retry-After` is respected; a value beyond the cap stops retries. Only transport
@@ -469,8 +475,9 @@ observed provider or service failures retain the shared policy for stopping
 dispatch and capacity cooldowns. Each finished slot makes room for the next
 pending case while other workers continue. Pending
 repetitions of a still-owned case wait for that case's shared lease to be released.
-An interrupted case worker requires `--collect-only`; an unverified owner remains
-blocked. Use local filesystems with reliable `flock`/atomic rename semantics. Completed slots are
+After an interrupted case worker exits, `--resume` can continue its original
+session when its frozen recovery policy permits continuation; otherwise use
+`--collect-only`. An unverified owner remains blocked. Use local filesystems with reliable `flock`/atomic rename semantics. Completed slots are
 skipped; unfinished exports can be collected again without relaunching the Agent.
 Unfinished cases retain logs, launch diagnostics and incomplete exports in `.runtime/`; completed cases use the retention rules below.
 
@@ -544,15 +551,40 @@ Recovery distinguishes these operations:
   still follow the operator's separately frozen replacement allowance.
 - **Same-session continuation:** with `resume_session = true`, Codex, Claude,
   Kimi Code or DSH
-  can resume a failed/interrupted launch against the same still-active remote
-  service workspace, scoped token and deadline. It requires no active execution,
-  no unresolved mutation/reply and persisted native session state. This option
-  requires `--endpoint`, with a service that outlives the runner; the runner-owned
-  `--dataset` service cannot preserve a live workspace after it exits.
+  can resume a failed/interrupted launch against the same service workspace,
+  scoped token and deadline. It requires persisted native session state and no
+  active execution. Remote continuation requires a service that outlives the
+  runner and no unresolved mutation/reply. Local `--dataset` sessions also
+  recover from committed workspace checkpoints after service or host restart,
+  resolving interrupted tool calls through recorded receipts without replaying them.
 - **Automatic capacity continuation:** enabled by default (`capacity_resumes = 5`),
   Codex, Claude or Kimi Code continues while the runner and original local or remote service are
   alive. It shares the same safety checks and deadline, and does not require
   `resume_session = true` or an external endpoint.
+
+Supported native harnesses enable `resume_session` by default, without a
+`[recovery]` table. The runner starts its isolated service with
+`--recoverable`, saving `/workspace` and matching HTTP receipts after each file
+write and completed command, before acknowledging their completion. Preserve
+the whole case directory, including `.runtime/`, after interruption. With the
+same TOML, Dataset, image, framework release and native CLI, continue using:
+
+```bash
+python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
+  --dataset /path/to/dataset --output results/my-batch --resume --detach
+```
+
+Recovery recreates the bounded, network-isolated container from the original
+image and restores its last committed workspace. The session ID, token,
+accepted candidate, native conversation and deadline stay the same; downtime
+consumes the original budget. Partial command writes after that checkpoint are
+discarded, and those executions become `error` with no inferred exit code.
+The continuation prompt reports recovered tool outcomes so the Agent can decide
+its next action. Recovery never automatically replays a command. `/tmp` and live
+processes are transient. Workspace checkpoints add disk and execution overhead
+and do not support external solver runtimes with writable mounts or network side
+effects. Sessions created without checkpoints and already terminal results
+cannot gain this capability by changing the TOML after interruption.
 
 Codex uses `codex exec ... resume <thread-id> -`; Claude uses
 `claude -p ... --resume <session-id>`. Both persist native histories in
@@ -598,10 +630,11 @@ fixtures; neither certifies a paid provider's continuation behavior.
 The service's `created_at`/`deadline` are authoritative. Normal execution, native
 provider retries, HTTP backoff, disconnection and human billing/authentication
 repair **all consume the original wall budget**. Evaluation/result collection
-occurs after solve closure and grants no further solve time. Service restart
-currently loses the live workspace: it terminates running execution records as
-errors, retains acknowledged receipts and returns `service_interrupted`. Recovery
-collects that failure; it never recreates a workspace or resets a deadline.
+occurs after solve closure and grants no further solve time. A service restart
+restores a committed workspace checkpoint when available. Without checkpoints,
+restart terminates running execution records as errors, retains acknowledged
+receipts and returns `service_interrupted`; recovery can only collect that failure.
+Neither path resets a deadline.
 Unresolved MCP operations, missing native state and expired/removed service records
 cannot be turned into a fresh solve by `--resume`.
 
@@ -645,7 +678,7 @@ To select native Dataset rows, omit `tasks` and use:
 
 ```toml
 [dataset]
-source = "/path/to/ICLayout-Bench-Dataset"
+source = "/path/to/dataset"
 name = "core"
 split = "test"
 ```
@@ -693,7 +726,7 @@ Select one or several files (shell wildcards also work):
 ```bash
 python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml --dry-run
 python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
-  --dataset /path/to/ICLayout-Bench-Dataset --output results/comparison-1
+  --dataset /path/to/dataset --output results/comparison-1
 ```
 
 The second command makes real model calls for every selected effort and repetition.
@@ -796,7 +829,6 @@ A completed local case contains:
 results/codex-gpt-6-astra-medium/20260922-120000-123456/
   .scheduler/                  # coordinator ownership and scheduling events
   freepdk45/OpenRAM/cases/cell_6t/
-    report.md                  # outcome, score formula, thresholds and measurements
     result.json                # conditions, state, measurement identities and result
     final.gds                  # candidate used by the independent evaluator
     layout.png
@@ -885,7 +917,7 @@ An explicit `--output` uses the same case/repetition layout and recovery rules.
 Multiple conditions use their default condition directories. Dry-run launches
 neither a harness nor a service.
 
-Keep optional plots and standalone candidate rechecks in their owning experiment
+Keep standalone candidate rechecks in their owning experiment
 directory. Prepared resources are reusable inputs under `build/`, separate from
 `results/`; keep pinned HF snapshots and required resource caches available. `build/`
 is rebuildable scratch space. `results/` is persistent experiment evidence,
@@ -1003,14 +1035,18 @@ upgrade service results. Use a new output directory for each snapshot.
 ## Analysis
 
 ```bash
-uv run --locked --group analysis python -m benchmarking.analyze \
+uv run --locked python -m benchmarking.analyze \
   results/custom-result/result.json \
-  --output results/analysis --plots
+  --output results/analysis
 ```
 
-Multiple result files or a disclosed operator `verified-results.json` are accepted.
+Multiple local result files or a collection with a `results` array (such as an
+operator `verified-results.json`) are accepted. A collection's dataset label is
+metadata, not permission to disclose its contents.
 The command generates `results.json`, `runs.csv`, `tasks.csv`, a digest manifest
-and optional SVG/PDF figures. Directories must be new. Conditions, tool identities,
+only. Result charts and report presentation belong to the consuming website;
+these local exports remain subject to the operator's disclosure review.
+Directories must be new. Conditions, tool identities,
 budgets and evaluation modes form separate cohorts; task digests remain distinct.
 Tables show per-task mean and sample standard deviation only over known scores,
 alongside measured/unknown counts and distinct outcome counts. A lone sample has
@@ -1044,11 +1080,11 @@ preserves recorded evaluation modes; importing a local run does not certify it.
 A protocol-only import has no inferred CLI, effort, timing or local candidate.
 
 ```bash
-uv sync --locked --extra results --group analysis
+uv sync --locked --extra results
 uv run --locked --extra results python -m benchmarking.results --data results/archive \
   import /path/to/participant/results --experiment my-experiment
 uv run --locked --extra results python -m benchmarking.results --data results/archive \
-  catalog --dataset /path/to/ICLayout-Bench-Dataset
+  catalog --dataset /path/to/dataset
 ```
 
 These optional commands create `results/archive/`; no results ship with the package.
@@ -1057,7 +1093,7 @@ publication permissions independently of an offline archive.
 
 `layout` caps each metric at quality 1 before aggregation with explicit task
 weights, giving a maximum of 100. Result imports require this single score
-contract; reports, plots and comparisons use the recorded 0–100 values.
+contract; reports and comparisons use the recorded 0–100 values.
 
 The matrix keeps task version, tool identity, budget, evaluation mode, score
 method separate. Columns distinguish model, harness, CLI and effort as well as
@@ -1077,36 +1113,11 @@ objects. It verifies the netlist's declared digest and, when present, the record
 task digest. Missing revisions or mismatched task definitions are reported as
 unavailable rather than matched to today's circuit.
 
-The importer generates a net-label schematic from the target SPICE/CDL subcircuit:
-equal labels are connected, MOS body pins are explicit, and subcircuit instances
-retain ordered pins. It is not an artist-authored schematic or a topology
-qualification result. Unsupported device syntax produces an explicit unavailable
-result. Netlists, source metadata and available collection license/notice files
-are retained with the drawing, outside solver inputs. Catalog import never edits
-case definitions or changes task identity.
-
-Cases may declare a maintainer `schematic` asset in SVG format. The importer
-prefers that drawing when its declared SHA-256 and embedded
-`iclayout-schematic` metadata match the case ID and authoritative netlist
-SHA-256. Otherwise cases without a drawing retain the generated view. Invalid
-or mismatched drawings are reported as unavailable, never silently accepted.
-These diagrams are analysis assets and are not added to solver inputs.
-
-To use reviewed drawings added after a recorded experiment, select their full
-Git commit explicitly (replace the placeholder with the desired commit):
-
-```bash
-uv run --locked --extra results python -m benchmarking.results \
-  --data results/archive catalog --dataset /path/to/ICLayout-Bench-Dataset \
-  --schematic-revision <full-drawing-commit>
-```
-
-The recorded task and netlist are still read and validated at the experiment's
-original revision. A later drawing is accepted only for the identical case ID
-and netlist bytes; its separate commit, path and digest are retained in
-`source.json`. This changes presentation only, not scores, task versions or
-evaluation modes. Editing uses a standalone Analog Canvas installation; the platform consumes
-exported drawings without an editor connection.
+The catalog attaches the authoritative SPICE/CDL netlist, source metadata and
+available collection license/notice files. It preserves netlist bytes without
+requiring a schematic renderer or interpreting device syntax for presentation.
+These materials remain outside solver inputs. Catalog import never edits case
+definitions, changes task identity or regenerates schematic drawings.
 
 Generate optional interactive geometry once, in an environment with the pinned
 KLayout dependency:
@@ -1121,7 +1132,7 @@ polygons and labels for platform presentation. Extraction has a 200,000-shape li
 their PNG and downloadable GDS. This bounds browser work rather than silently
 truncating geometry. KLayout DRC reports can supply top-cell marker overlays.
 Hierarchical markers without transforms remain in the report and are counted as
-not overlaid. Cross-highlighting schematic nets against layout connectivity and
+not overlaid. Cross-highlighting netlist nets against layout connectivity and
 large-design multiresolution tiles are not implemented.
 
 ### Automatic indexing and recovery
@@ -1270,9 +1281,10 @@ Same-session continuation uses the single persisted conversation in that
 attempt's private home, including after failures that omit a resume hint.
 The adapter checks its saved model, effort and MCP-only agent binding before
 passing `--session`; it omits `--agent-file` because Kimi restores the bound
-agent. Rotated private OAuth tokens are retained across launches. Manual
-`resume_session = true` requires an independently running remote service, as
-with other supported harnesses; capacity continuation also works in local mode.
+agent. Rotated private OAuth tokens are retained across launches. Same-session
+continuation is enabled by default and supports an independently running remote
+service or a checkpointed local session, as with other supported harnesses;
+capacity continuation also works in local mode.
 Kimi's session state, wire records (including native thinking) and diagnostic
 logs are retained under terminal `native/kimi/` files, and in the observation
 export's `native-traces.zip`, before runtime cleanup. Configuration and

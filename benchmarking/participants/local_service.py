@@ -59,7 +59,7 @@ def stop_local_service(output):
 
 
 @contextmanager
-def service(case, output, image):
+def service(case, output, image, recoverable=True):
     """Local mode starts the installed service; remote mode needs no evaluator."""
     private = output / ".private"
     private.mkdir(mode=0o700, exist_ok=True)
@@ -88,6 +88,7 @@ def service(case, output, image):
             "--data", str(output / "service-store"), "--port", "0",
             "--owner-record", str(private / "owner.json"),
             "--image", image, "--token-env", "ICLAYOUT_BENCH_LOCAL_TOKEN",
+            "--recoverable" if recoverable else "--no-recoverable",
         ], cwd=output, env=env, stdout=subprocess.PIPE, stderr=log, text=True, start_new_session=True)
         append_event(output / 'lifecycle.jsonl', 'service_spawned', durable=True, pid=process.pid)
         ready = False

@@ -136,7 +136,7 @@ def _dut_argument_lists(raw, name):
 
 def _check_published_budget(description, hours, context=None):
     patterns = (
-        r"\bsolve budget\b\s*(?::|\bis\b)\s*\*{0,2}(\d+(?:\.\d+)?)\s*hours\*{0,2}",
+        r"\bsolve budget\b\s*(?::|\bis\b)\s*\*{0,2}(\d+(?:\.\d+)?)\s*hours?\*{0,2}",
         r"求解(?:预算|时限)\s*[:：]?\s*\*{0,2}(\d+(?:\.\d+)?)\s*小时\*{0,2}",
     )
     published_hours = [float(value) for pattern in patterns
@@ -192,14 +192,15 @@ def _published_weight_tables(description):
 def _check_published_weights(description, expected, allowed_metrics, context=None):
     tables = _published_weight_tables(description)
     expected_weights = dict(expected)
+    scored_metrics = {name for name, weight in expected_weights.items() if weight > 0}
     allowed_metrics = set(allowed_metrics)
     published_weights = dict(tables[0]) if len(tables) == 1 else {}
     assert (
         len(tables) == 1
-        and len(tables[0]) >= len(expected_weights)
         and len(published_weights) == len(tables[0])
-        and set(expected_weights) <= set(published_weights)
-        and all(published_weights[name] == weight for name, weight in expected_weights.items())
+        and scored_metrics <= set(published_weights)
+        and all(weight == expected_weights[name] for name, weight in published_weights.items()
+                if name in expected_weights)
         and all(
             name in allowed_metrics and weight == 0
             for name, weight in published_weights.items()
@@ -212,6 +213,9 @@ def _published_area_targets(description):
     current_targets = re.findall(
         r"Current area target:\s*\*\*([\d.]+) um2\*\*", description
     )
+    quality_targets = re.findall(
+        r"The area quality target is\s*\*\*([\d.]+) um2\*\*", description
+    )
     area_references = re.findall(r"Area reference:\s*\*\*([\d.]+) um2\*\*", description)
     if current_targets:
         anchor_ratios = re.findall(
@@ -219,12 +223,13 @@ def _published_area_targets(description):
             description,
             re.IGNORECASE,
         )
-        assert len(current_targets) == 1 and not area_references and len(anchor_ratios) == 1
+        assert len(current_targets) == 1 and not area_references and not quality_targets and len(anchor_ratios) == 1
         ratio, anchor = anchor_ratios[0]
         return float(current_targets[0]), float(anchor), float(ratio) / 100
-    assert len(area_references) == 1 and not current_targets
+    assert len(area_references) == 1 and not current_targets and len(quality_targets) <= 1
     reference = float(area_references[0])
-    return reference, reference, None
+    target = float(quality_targets[0]) if quality_targets else reference
+    return target, reference, None
 
 
 def _check_published_area(description, expected_target, context=None):
@@ -341,6 +346,8 @@ def test_published_weights_read_the_declared_column_and_reject_drift(language):
         _check_published_weights(description.replace("| `phase_margin`", "| `unlisted_metric`"), expected, allowed_metrics)
     scored_only = description.replace("| `phase_margin` (deg) | 45 to 180 | min | 0% |\n", "")
     _check_published_weights(scored_only, expected, allowed_metrics)
+    # Diagnostic bounds remain required; their zero weight need not be repeated in the score table.
+    _check_published_weights(scored_only, {**expected, "phase_margin": 0}, allowed_metrics)
     with pytest.raises(AssertionError):
         _check_published_weights(description.replace("| `gain` (dB) | 40 to 100 | min | 80% |\n", ""), expected, allowed_metrics)
     for malformed in (
@@ -370,6 +377,13 @@ Estimate = ceil(envelope_sum + margin). Here margin is the total allowance.
     _check_published_area(legacy_reference, 100.0)
     with pytest.raises(AssertionError):
         _check_published_area(legacy_reference.replace("reference: **100 um2**", "reference: **101 um2**"), 101.0)
+
+    integration_budget = legacy_reference + "The area quality target is **80 um2**. It is an integration budget.\n"
+    _check_published_area(integration_budget, 80.0)
+    with pytest.raises(AssertionError):
+        _check_published_area(integration_budget.replace("target is **80 um2**", "target is **81 um2**"), 80.0)
+    with pytest.raises(AssertionError):
+        _check_published_area(integration_budget.replace("envelopes 98 um2", "envelopes 99 um2"), 80.0)
 
 
 @pytest.mark.parametrize("config", CASES, ids=lambda path: path.parent.name)
@@ -451,7 +465,7 @@ def test_native_huggingface_views_match_authoritative_cases(tmp_path):
     source = f'\n[dataset]\nsource="{ROOT}"\nname="core"\nsplit="test"\n'
     config.write_text(base + source)
     plan = read_configs([config])[0]
-    assert plan["tasks"] == core["id"]
+    assert plan["tasks"] == [row["id"] for row in sorted(core, key=lambda row: row["core_order"])]
     assert plan["dataset"]["index_sha256"]
     config.write_text(base + f'tasks=["{core[0]["id"]}"]\n' + source)
     assert read_configs([config])[0]["tasks"] == [core[0]["id"]]

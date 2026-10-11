@@ -19,6 +19,32 @@ from benchmarking.participants.config import read_configs, read_matrix, resolve
 pytestmark = pytest.mark.unit
 
 
+@pytest.mark.parametrize('name,known', [('execute', True), ('check', True), ('submit', True), ('write', False)])
+def test_checkpoint_tool_reconciliation_observes_without_replaying(tmp_path, name, known):
+    from benchmarking.participants.bridge import reconcile_restarted_tools
+
+    client = Mock()
+    client.session.return_value = {'recovery': {'workspace_restored': True}, 'active_execution_id': None}
+    response = {'execution_id': 'interrupted'} if name in {'execute', 'check'} else {'submission_id': 'accepted'}
+    client.request.return_value = {'known': known, 'response': response if known else None}
+    client.poll.return_value = {'state': 'error', 'exit_code': None, 'log_base64': '', 'next_offset': 0, 'truncated': False}
+    pending = tmp_path / 'tools.pending.json'
+    pending.write_text(json.dumps({'tool': name, 'key': 'original-key', 'arguments': {}}))
+    result, = reconcile_restarted_tools(client, 'same-session', tmp_path)
+    assert not pending.exists()
+    namespace = {'execute': 'executions', 'check': 'executions', 'submit': 'submissions', 'write': 'files'}[name]
+    client.request.assert_called_once_with('GET', f'/sessions/same-session/requests/{namespace}/original-key')
+    if name in {'execute', 'check'}:
+        assert result['result']['state'] == 'error' and result['result']['exit_code'] is None
+    elif known:
+        assert result['result']['submission_id'] == 'accepted'
+    else:
+        assert result['result'] == {'state': 'not_committed', 'workspace_rolled_back': True}
+    for mutation in (client.execute, client.write, client.submit, client.check):
+        mutation.assert_not_called()
+    assert json.loads((tmp_path / 'tools.jsonl').read_text()) == result
+
+
 def test_editable_package_identity_tracks_loaded_source(tmp_path, monkeypatch):
     from benchmarking.participants.config import package_identity
 
@@ -340,7 +366,7 @@ def test_bridge_restart_does_not_assume_last_reply_was_delivered(tmp_path):
     ('codex', 5), ('claude-code', 5), ('dsh', 0), ('kimi-code', 5), ('command', 0),
 ])
 @pytest.mark.parametrize('configured', [False, True])
-def test_capacity_defaults_follow_harness_support(harness, expected, configured):
+def test_recovery_defaults_follow_harness_support(harness, expected, configured):
     from benchmarking.participants.config import validate
     from benchmarking.participants.recovery import DISABLED, policy
 
@@ -351,7 +377,7 @@ def test_capacity_defaults_follow_harness_support(harness, expected, configured)
     validate(row)
     settings = policy(row.get('recovery'), harness=harness)
     assert settings['capacity_resumes'] == expected
-    assert settings['resume_session'] is False
+    assert settings['resume_session'] is (not configured and harness != 'command')
 
 
 def test_dsh_supports_manual_resume_but_not_ambiguous_capacity_recovery():

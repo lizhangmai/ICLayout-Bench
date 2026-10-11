@@ -10,15 +10,18 @@ from . import adapters
 from .credentials import credential_values
 from .failures import classify, failure
 
-__all__ = ['CAPACITY_DEFAULTS', 'DISABLED', 'CapacityDecision', 'capacity_delay', 'capacity_ready', 'classify', 'continuation_id', 'credential_values', 'failure', 'plan_capacity_resume', 'policy']
+__all__ = ['CAPACITY_DEFAULTS', 'DEFAULTS', 'DISABLED', 'CapacityDecision', 'capacity_delay', 'capacity_ready', 'classify', 'continuation_id', 'credential_values', 'failure', 'plan_capacity_resume', 'policy']
 
+DEFAULTS = TRANSPORT_DEFAULTS | {"resume_session": True}
 DISABLED = TRANSPORT_DEFAULTS | {"resume_session": False}
 CAPACITY_DEFAULTS = {"capacity_resumes": 5, "capacity_backoff_seconds": 30,
                      "capacity_max_backoff_seconds": 300, "capacity_cooldown_seconds": 300}
 
 
 def policy(value=None, *, harness=None):
-    defaults = DISABLED | CAPACITY_DEFAULTS
+    defaults = DEFAULTS | CAPACITY_DEFAULTS
+    if harness is not None and not adapters.supports(harness, "resume_session"):
+        defaults["resume_session"] = False
     if harness is not None and not adapters.supports(harness, "capacity_resumes"):
         defaults["capacity_resumes"] = 0
     if value is None:

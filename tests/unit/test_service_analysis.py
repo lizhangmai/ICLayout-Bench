@@ -6,6 +6,7 @@ copying generated CSVs. Synthetic input scores exercise statistics only.
 
 import csv
 import json
+import sys
 
 import pytest
 
@@ -77,30 +78,6 @@ def test_protocol_simulator_cannot_be_analyzed_as_measurement(tmp_path):
         export_results([sample("simulation") | {"test_only": True}], tmp_path / "out")
 
 
-@pytest.mark.parametrize("score", [100, None])
-def test_figures_preserve_scores_and_missing_values(tmp_path, monkeypatch, score):
-    from matplotlib.figure import Figure
-
-    figures = []
-    savefig = Figure.savefig
-
-    def capture(figure, *args, **kwargs):
-        figures.append(figure)
-        return savefig(figure, *args, **kwargs)
-
-    monkeypatch.setattr(Figure, "savefig", capture)
-    output = export_results([sample("high", score=score)], tmp_path / "out", plots=True)
-    axis = figures[0].axes[0]
-    if score is None:
-        assert not axis.patches
-        assert any(label.get_text() == "NA" for label in axis.texts)
-    else:
-        assert axis.patches[0].get_height() == score
-        assert axis.get_ylim()[1] > score + 2
-    assert (output / "scores.svg").is_file()
-    assert (output / "scores.pdf").is_file()
-
-
 def test_observation_is_read_only_and_keeps_participant_claims_separate(tmp_path):
     """Protect source labels and pagination, absent from existing result-table tests.
 
@@ -129,3 +106,21 @@ def test_observation_is_read_only_and_keeps_participant_claims_separate(tmp_path
     assert (tmp_path / 'observation/participant/agent.jsonl').read_bytes() == trace.read_bytes()
     result = json.loads((tmp_path / 'observation/service-result.json').read_bytes())
     assert result == sample('s')
+
+
+@pytest.mark.parametrize("scope", ["public_development", "private_development"])
+def test_local_collection_analysis_preserves_data_without_disclosure_policy(tmp_path, monkeypatch, scope):
+    from benchmarking.analyze import main
+
+    results = [sample("known", score=100), sample("missing", score=None)]
+    source = tmp_path / "verified-results.json"
+    source.write_text(json.dumps({"dataset": scope, "results": results}))
+    output = tmp_path / "analysis"
+    monkeypatch.setattr(sys, "argv", ["analyze", str(source), "--output", str(output)])
+    main()
+    assert json.loads((output / "results.json").read_text()) == results
+    with (output / "tasks.csv").open() as stream:
+        row = next(csv.DictReader(stream))
+    assert float(row["mean"]) == 100
+    assert row["measured"] == "1" and row["unknown"] == "1"
+    assert all(path.suffix in {".json", ".csv"} for path in output.iterdir())

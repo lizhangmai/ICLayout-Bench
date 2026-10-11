@@ -54,6 +54,11 @@ def _execute_condition(options, row, selection, output, identity, blocked, coord
     """Each case owns its identity and lock; Dataset paths group cases beneath the condition root."""
     leases, new_manifests, replacements = {}, [], []
     active = scheduler.live_slots(output) if options.resume else {}
+    # Record existence before acquiring leases, which can create directories.
+    existing_slots = {output / slot_name(row, task, rep, options.case_paths)
+                      for task in row['tasks'] for rep in range(1, row['repetitions'] + 1)
+                      if (output / slot_name(row, task, rep, options.case_paths)).exists()}
+
     with ExitStack() as stack, ExitStack() as store_leases:
         # Acquire every selected case before validating or dispatching. Nonblocking
         # locks prevent competing invocations from executing any overlapping case.
@@ -108,6 +113,8 @@ def _execute_condition(options, row, selection, output, identity, blocked, coord
                 else:
                     if options.replace_unfinished:
                         raise ValueError('Replacement requires an existing recorded case: ' + task)
+                    if options.resume and slot in existing_slots:
+                        raise ValueError("Existing case lacks result identity: " + task)
                     if slot.exists() and any(p.name != CaseLease.filename for p in slot.iterdir()):
                         raise ValueError("Existing case lacks result identity: " + task)
                     new_manifests.append((manifest, {"identity": current, "state": "pending"}))

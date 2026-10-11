@@ -35,7 +35,8 @@ def status(data, workspace, events, now):
                 'last_submission': max(subs.values(), key=lambda s:s['sequence']) if subs else None,
                 'capabilities': [PROCESS_FEEDBACK_CAPABILITY],
                 'diagnostics': {'requests': checks, 'completed': completed, 'elapsed_seconds': evaluation_seconds},
-                'opinions_remaining': 0}
+                'opinions_remaining': 0,
+                **({'recovery': data['recovery']} if 'recovery' in data else {})}
 
 
 

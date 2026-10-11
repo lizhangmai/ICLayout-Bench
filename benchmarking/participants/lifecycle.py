@@ -116,3 +116,21 @@ def settle_session(client, sid, path, output, *, snapshot=True):
         finally:
             persist()
     return record.get("receipt")
+
+
+def participant_timeout(created, status):
+    """Use the service budget without reserving an arbitrary shutdown margin."""
+    return None if created['limits'].get('budget_policy') == 'soft' else max(0, status['remaining_seconds'])
+
+
+def wait_result(client, sid):
+    """Wait for terminal evaluation, including completion of soft-budget work."""
+    deadline = time.monotonic() + 600
+    while deadline is None or time.monotonic() < deadline:
+        result = client.result(sid)
+        if result.get('limits', {}).get('budget_policy') == 'soft':
+            deadline = None
+        if result['state'] in {'complete', 'error'}:
+            return result
+        time.sleep(.5)
+    raise TimeoutError('Evaluation remains pending; session ID retained in session.json')

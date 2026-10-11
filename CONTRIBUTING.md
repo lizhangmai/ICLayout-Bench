@@ -25,7 +25,7 @@ Keep declarations, execution and presentation with their owning modules:
 | `harnesses.py` | Shared harness declarations and portable participant-tool scheme identities, independent of result storage and participant execution. |
 | `participants/adapters/contracts.py` and `adapters/__init__.py` | One declaration of installed harness modules derives the accepted harness names; lazy lookup and adapter operations share that declaration. |
 | `engine/backends/hbt/` | Connectivity and passive proofs produce a validated replacement plan; merge only applies approved cards and preserves distributed RC. |
-| `engine/netlists/spice.py` and `dspf.py` | Shared SPICE continuation handling, source line indices, quoted tokens and scalar values; strict native DSPF interface adaptation, respectively. HBT extraction and result schematics share lexical rules while owning their device/model interpretation. |
+| `engine/netlists/spice.py` and `dspf.py` | Shared SPICE continuation handling, source line indices, quoted tokens and scalar values; strict native DSPF interface adaptation, respectively. HBT extraction owns device/model interpretation on top of these lexical rules. |
 | `files.py` and `engine/tools/docker.py` | Validated asset snapshots and installed-resource provenance; Docker execution and read-only bind arguments, respectively. Solver staging and evaluator tools use the same Docker transport without putting container arguments on the shared resource type. |
 | `engine/backends/calibre_config.py` and `calibre.py` | Typed rule, DRC, LVS and RC declarations and operation validation; shared rule binding, strict LVS/CCI controls and result acceptance. Docker and native adapters own execution. StarRC and Quantus select CCI extraction from construction and reuse the same controls/deck preparation. Backend identities include the grouped configuration and its implementation. |
 | `engine/backends/spectre.py`, `spectre_x.py`, `spectre_aps.py` and `spectre_native.py` | Shared simulation and measurement acceptance; explicit X/APS command options; Docker or native tool construction. Docker owns its memory allocation, while native construction accepts only host execution settings. |
@@ -65,9 +65,9 @@ the only copy of experiment evidence.
 From Public, the full offline checks need neither Docker nor operator applications:
 
 ```bash
-uv sync --locked --extra results --group analysis
+uv sync --locked --extra results
 uv run --locked ruff check .
-uv run --locked --group analysis pytest -m unit
+uv run --locked pytest -m unit
 uv build --out-dir build/dist
 git diff --check
 ```
@@ -134,7 +134,7 @@ Reuse a compatible image for container and shared evaluator changes:
 
 ```bash
 ICLAYOUT_BENCH_TEST_IMAGE=iclayout-eda-open:local uv run --locked pytest -m acceptance_container
-export ICLAYOUT_BENCH_DATASET=/path/to/ICLayout-Bench-Dataset
+export ICLAYOUT_BENCH_DATASET=/path/to/dataset
 ICLAYOUT_BENCH_TEST_IMAGE=iclayout-eda-open:local \
   uv run --locked pytest tests/test_http.py
 ICLAYOUT_BENCH_TEST_IMAGE=iclayout-eda-open:local uv run --locked --group eda pytest \
@@ -145,7 +145,7 @@ For the native Dataset table, use the locked environment and
 run the catalog checks against an explicit local Dataset directory:
 
 ```bash
-ICLAYOUT_BENCH_DATASET=/path/to/ICLayout-Bench-Dataset \
+ICLAYOUT_BENCH_DATASET=/path/to/dataset \
   uv run --locked pytest tests/unit/test_catalogs.py
 ```
 
@@ -257,12 +257,12 @@ Run it to establish feasibility for a selected reference and evaluation plan:
 
 ```bash
 python -m benchmarking.engine.qualification audit \
-  --dataset /path/to/ICLayout-Bench-Dataset --case CASE_ID
+  --dataset /path/to/dataset --case CASE_ID
 python -m benchmarking.engine.qualification run \
-  --dataset /path/to/ICLayout-Bench-Dataset --case CASE_ID \
+  --dataset /path/to/dataset --case CASE_ID \
   --output /path/to/new-qualification
 python -m benchmarking.engine.qualification verify \
-  --dataset /path/to/ICLayout-Bench-Dataset --case CASE_ID \
+  --dataset /path/to/dataset --case CASE_ID \
   --output /path/to/new-qualification
 ```
 
@@ -410,7 +410,7 @@ installed. No replacement environment or source-path injection is needed.
 Install the optional result-storage dependencies:
 
 ```bash
-uv sync --locked --extra results --group analysis
+uv sync --locked --extra results
 uv run --locked --extra results pytest tests/unit/test_results_archive.py tests/unit/test_layout_preview.py tests/unit/test_participant_runner.py
 ```
 

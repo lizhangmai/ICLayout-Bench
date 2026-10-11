@@ -31,9 +31,8 @@ R$3 OUT VEE VEE rppd w=2u l=3u ps=0u b=0 m=1
     assert "rppd w=2u l=3u ps=0u b=0 m=1" in converted
 
 
-def test_hbt_and_schematic_read_escaped_nets_continuations_and_comments():
+def test_hbt_reads_escaped_nets_continuations_and_comments():
     from benchmarking.engine.backends.hbt.netlist import parse_spice_netlist
-    from benchmarking.results.presentation import parse_netlist
 
     raw = r'''* the extractor's comment may contain an unmatched quote: "
 .SUBCKT AMP OUT IN
@@ -54,26 +53,19 @@ Rwire \$10 wire# 1
     assert device.nets == ('$10', 'IN', 'GND', 'GND')
     assert device.parameters == (('we', '70n'), ('le', '900n'), ('Nx', '5'), ('m', '1'))
     assert device.line.physical_lines == (4, 6)
-    drawing = parse_netlist(raw, 'AMP')
-    assert drawing['ports'] == ['OUT', 'IN', 'GND']
-    assert drawing['devices'][0]['nodes'] == ['$10', 'IN', 'GND', 'GND']
-    assert drawing['devices'][1]['nodes'] == ['$10', 'wire#']
     with pytest.raises(ValueError, match='Invalid SPICE line at 5'):
         parse_spice_netlist(raw.replace('"IN"', '"IN').replace('author\'s comment: "', 'comment'))
 
 
-@pytest.mark.parametrize('reader', ['hbt', 'schematic', 'dspf'])
+@pytest.mark.parametrize('reader', ['hbt', 'dspf'])
 def test_netlist_readers_reject_orphan_continuations(reader):
     from benchmarking.engine.backends.hbt.netlist import parse_spice_netlist
     from benchmarking.engine.netlists.dspf import adapt_dspf
-    from benchmarking.results.presentation import parse_netlist
 
     raw = '+ OUT IN GND\n.SUBCKT AMP OUT IN GND\n.ENDS AMP\n'
     with pytest.raises(ValueError, match='continuation.*line at 1'):
         if reader == 'hbt':
             parse_spice_netlist(raw)
-        elif reader == 'schematic':
-            parse_netlist(raw, 'AMP')
         else:
             adapt_dspf(raw, 'AMP', ['OUT', 'IN', 'GND'], {})
 

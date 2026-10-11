@@ -1,25 +1,73 @@
 """Durable HTTP metadata and restart reconciliation for the local service.
 
 Run journals remain authoritative for accepted submissions. This module stores
-only the service's credentials, idempotency responses and execution summaries.
+the service's credentials, idempotency responses, execution summaries and
+workspace checkpoint commits.
 """
 
+import hashlib
 import json
+import uuid
 from pathlib import Path
 
 from benchmarking.engine.sessions.archive import RunArchive
-from benchmarking.files import atomic_write
+from benchmarking.files import atomic_write, sync_directory
 from benchmarking.protocol import PROTOCOL, json_bytes
 
 
 class ServiceState:
     """Own the on-disk HTTP records for one service root."""
 
-    def __init__(self, root, task):
+    def __init__(self, root, task, *, recoverable=True):
         self.root = Path(root)
         self.task = task
         self.abandoned_containers = []
+        self.recoverable = recoverable
+        self.resumptions = {}
         self.runs = self._reconcile()
+
+    def checkpoint(self, data, workspace):
+        """Commit workspace bytes and the matching HTTP state before acknowledgment."""
+        if not self.recoverable:
+            return
+        root = self.root / data['session_id'] / '.private'
+        root.mkdir(mode=0o700, exist_ok=True)
+        manifest = root / 'checkpoint.json'
+        previous = json.loads(manifest.read_bytes()) if manifest.exists() else None
+        archive = root / (uuid.uuid4().hex + '.tar.gz')
+        try:
+            workspace.checkpoint(archive, data['limits']['workspace_mb'] * 1024 * 1024)
+        except Exception:
+            archive.unlink(missing_ok=True)
+            raise
+        with archive.open('rb') as stream:
+            digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+        atomic_write(manifest, json_bytes({'archive': archive.name, 'sha256': digest, 'state': data}))
+        if previous is not None:
+            (root / previous['archive']).unlink(missing_ok=True)
+        sync_directory(root)
+
+    def _checkpoint(self, sid):
+        root = self.root / sid / '.private'
+        path = root / 'checkpoint.json'
+        if not path.exists():
+            return None
+        if path.is_symlink():
+            raise ValueError('Invalid workspace checkpoint manifest link')
+        frozen = json.loads(path.read_bytes())
+        name = frozen['archive']
+        if not isinstance(name, str) or Path(name).name != name or not name.endswith('.tar.gz'):
+            raise ValueError('Invalid workspace checkpoint path')
+        archive = root / name
+        if archive.is_symlink():
+            raise ValueError('Invalid workspace checkpoint link')
+        with archive.open('rb') as stream:
+            digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+        if digest != frozen['sha256']:
+            raise ValueError('Workspace checkpoint integrity mismatch')
+        if frozen['state']['session_id'] != sid:
+            raise ValueError('Workspace checkpoint session changed')
+        return frozen | {'workspace_archive': str(archive)}
 
     def archive(self, sid):
         return RunArchive(self.root / sid / 'run')
@@ -84,7 +132,40 @@ class ServiceState:
             finished = 'report' in data
             if not finished:
                 # Never restart a model or infer that a running command succeeded.
-                data['interrupted'] = True
+                checkpoint = self._checkpoint(data['session_id']) if self.recoverable and not data.get('closing') else None
+                if checkpoint is not None:
+                    restored = checkpoint['state']
+                    if restored['task_sha256'] != self.task.digest:
+                        raise ValueError('Recovery task changed')
+                    if any(restored.get(key) != data.get(key) for key in
+                           ('session_id', 'task_sha256', 'token', 'condition', 'limits',
+                            'created_at', 'deadline', 'deadline_epoch', 'tool_identity')):
+                        raise ValueError('Recovery session identity or deadline changed')
+                    interrupted = []
+                    # A command beyond the last checkpoint has no committed
+                    # workspace effects. Keep its creation receipt and error.
+                    for eid, execution in data.get('executions', {}).items():
+                        if eid not in restored['executions'] or restored['executions'][eid]['state'] == 'running':
+                            entry = dict(execution, state='error', exit_code=None, rolled_back=True)
+                            log = self.root / data['session_id'] / (eid + '.log')
+                            log.touch(mode=0o600, exist_ok=True)
+                            entry['log_size'] = log.stat().st_size
+                            restored['executions'][eid] = entry
+                            interrupted.append(eid)
+                    for key, request in data['requests'].items():
+                        if key.startswith('executions:'):
+                            restored['requests'][key] = request
+                    if 'creation_response' in data:
+                        restored['creation_response'] = data['creation_response']
+                    if 'observations' in data:
+                        restored['observations'] = data['observations']
+                    restored['recovery'] = {'workspace_restored': True, 'interrupted_executions': interrupted}
+                    restored.pop('interrupted', None)
+                    data.clear()
+                    data.update(restored)
+                    self.resumptions[data['session_id']] = checkpoint
+                else:
+                    data['interrupted'] = True
                 for execution in data.get('executions', {}).values():
                     if execution['state'] == 'running':
                         execution.update(state='error', exit_code=None)

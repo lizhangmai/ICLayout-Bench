@@ -56,6 +56,115 @@ def complete(client,sid,eid):
     pytest.fail('Execution did not finish')
 
 
+def test_local_service_restart_restores_workspace_budget_and_accepted_candidate(tmp_path):
+    """Kill a real service process while its isolated command has partial writes."""
+    import base64
+    import multiprocessing
+    from unittest.mock import patch
+
+    from benchmarking.service.contracts import APIError
+
+    dataset = load_dataset(DATASET)
+    image = os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-eda-open:local')
+    runtime = load_case(dataset.case(CASE), image=image)
+    store = tmp_path / 'store'
+    receiver, sender = multiprocessing.get_context('fork').Pipe(duplex=False)
+
+    def host_process():
+        service = LocalService(store, runtime.task, runtime.agent_resources(), runtime.backends,
+                               image, 'original-operator')
+        server = serve(service)
+        sender.send(f'http://127.0.0.1:{server.server_port}')
+        sender.close()
+        server.serve_forever()
+
+    process = multiprocessing.get_context('fork').Process(target=host_process)
+    process.start()
+    sender.close()
+    recovered = None
+    server = thread = None
+    try:
+        assert receiver.poll(60), 'Local recoverable service did not start'
+        endpoint = receiver.recv()
+        created = Client(endpoint, 'original-operator', timeout=60).create(runtime.task.id, CONDITION, key='create')
+        sid = created['session_id']
+        client = Client(endpoint, created['session_token'], timeout=60)
+        client.write(sid, 'saved.py', b'committed work', key='saved')
+        done = client.execute(sid, 'cp saved.py link-source; ln link-source hardlink; ln -s /resources resource-link; printf generated > generated.txt',
+                              None, key='completed')
+        assert complete(client, sid, done['execution_id'])['exit_code'] == 0
+        output = runtime.task.output.path
+        client.write(sid, output, b'accepted candidate', key='candidate')
+        accepted = client.submit(sid, output, key='submission')
+        client.write(sid, output, b'unsubmitted candidate', key='mutated')
+        pending = client.execute(sid, 'printf partial > saved.py; printf uncommitted > partial.txt; echo partial-written; sleep 60',
+                                 None, key='interrupted')
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            log = client.poll(sid, pending['execution_id'])
+            if b'partial-written' in base64.b64decode(log['log_base64']):
+                break
+            time.sleep(.05)
+        else:
+            pytest.fail('Interrupted command did not produce partial work')
+        before = client.session(sid)
+        process.kill()
+        process.join(timeout=10)
+        time.sleep(.1)  # Downtime must consume the original deadline.
+        with pytest.raises(ValueError, match='identity'):
+            LocalService(store, runtime.task, runtime.agent_resources(), runtime.backends,
+                         image, 'original-operator', revision='changed-implementation')
+        with patch('benchmarking.engine.sessions.workspace.SessionWorkspace.restore', side_effect=OSError('transient restore failure')):
+            with pytest.raises(APIError) as unavailable:
+                LocalService(store, runtime.task, runtime.agent_resources(), runtime.backends,
+                             image, 'original-operator')
+            assert unavailable.value.code == 'infrastructure_error'
+        assert json.loads((store / sid / 'run/run.json').read_text())['phase'] == 'running'
+        recovered = LocalService(store, runtime.task, runtime.agent_resources(), runtime.backends,
+                                 image, 'original-operator')
+        server = serve(recovered)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        client = Client(f'http://127.0.0.1:{server.server_port}', created['session_token'], timeout=60)
+        status = client.session(sid)
+        assert status['state'] == 'active' and status['session_id'] == sid
+        assert status['created_at'] == before['created_at'] and status['deadline'] == before['deadline']
+        assert status['remaining_seconds'] < before['remaining_seconds']
+        assert status['recovery']['interrupted_executions'] == [pending['execution_id']]
+        assert status['last_submission']['candidate_sha256'] == accepted['candidate_sha256']
+        assert client.read(sid, 'saved.py') == b'committed work'
+        assert client.read(sid, 'generated.txt') == b'generated'
+        assert client.read(sid, output) == b'unsubmitted candidate'
+        with pytest.raises(ClientError):
+            client.read(sid, 'partial.txt')
+        assert client.poll(sid, pending['execution_id'])['state'] == 'error'
+        assert client.submit(sid, output, key='submission') == accepted
+        observed = client.request('GET', f'/sessions/{sid}/requests/executions/interrupted')
+        assert observed['known'] and observed['response']['execution_id'] == pending['execution_id']
+        with pytest.raises(ClientError) as denied:
+            Client(client.endpoint, 'original-operator').request('GET', f'/sessions/{sid}/requests/executions/interrupted')
+        assert denied.value.status == 404
+        links = client.execute(sid, 'test "$(readlink resource-link)" = /resources && test link-source -ef hardlink', None, key='links')
+        assert complete(client, sid, links['execution_id'])['exit_code'] == 0
+        client.close(sid, key='close')
+        recovered.controller.session_control.join(sid, timeout=30)
+        result = client.result(sid)
+        assert result['submission']['candidate_sha256'] == hashlib.sha256(b'accepted candidate').hexdigest()
+        assert (store / sid / 'run/run.json').exists()
+    finally:
+        receiver.close()
+        if process.is_alive():
+            process.kill()
+            process.join(timeout=10)
+        if server is not None:
+            server.shutdown()
+            server.server_close()
+        if recovered is not None:
+            recovered.shutdown()
+        if thread is not None:
+            thread.join(timeout=2)
+
+
 def test_soft_budget_drains_work_reminds_and_accepts_final_submission(host):
     service, _ = host
     client, sid = create(host)

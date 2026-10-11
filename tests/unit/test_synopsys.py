@@ -14,10 +14,34 @@ from benchmarking.engine.backends.synopsys import (
     star_spice,
 )
 from benchmarking.engine.external import ExternalRuntime
+from benchmarking.engine.netlists.spice import expand_mos_multiplicity
 from benchmarking.engine.tools.native import NativeTool
 from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
+
+
+def test_lvs_multiplicity_preserves_per_unit_fin_count_and_body_nets():
+    source = '''.subckt TOP D G S B
+MP D G S pmos W=21n L=15n nfin=1 m=2
+MN D G S B nfet W=48n L=20n
++ nfin=2 m=3
+.ends TOP
+'''
+    expanded = expand_mos_multiplicity(source)
+    cards = [line.split() for line in expanded.splitlines() if line.startswith('M')]
+    assert len(cards) == 5
+    assert [tokens[1:] for tokens in cards[:2]] == [
+        ['D', 'G', 'S', 'pmos', 'W=21n', 'L=15n', 'nfin=1']] * 2
+    assert [tokens[1:] for tokens in cards[2:]] == [
+        ['D', 'G', 'S', 'B', 'nfet', 'W=48n', 'L=20n', 'nfin=2']] * 3
+    assert len({tokens[0] for tokens in cards}) == 5
+    # The translator must not mutate the simulation input or accept a fractional
+    # physical device inventory during source comparison.
+    assert 'm=2' in source and 'm=3' in source
+    for count in ('0', '-1', '1.5'):
+        with pytest.raises(ValueError, match='positive integer'):
+            expand_mos_multiplicity(source.replace('m=2', 'm=' + count))
 
 
 def test_icv_drc_requires_declared_top_completion_and_rule_coverage():

@@ -385,21 +385,14 @@ def test_weight_schema_rejects_incomplete_or_ambiguous_policies(weights):
         parse_evaluation(json.dumps(data).encode(), file_format='json')
 
 
-def test_weighted_evaluation_and_report_rendering(tmp_path, inputs, bindings):
-    from benchmarking.engine.sessions.execution import _zero_attempt_score
-    from benchmarking.results.report import report_text
+def test_weighted_evaluation_and_attempt_scoring(tmp_path, inputs, bindings):
+    from benchmarking.evaluation.scoring import attempt_score
 
     plan = parse_evaluation(json.dumps(weighted_plan()).encode(), file_format='json')
     report = run_evaluation(plan, inputs, {**bindings, 'response': ReferenceSimulator()}, tmp_path / 'weighted')
     assert report['task_success'] is True
     assert report['score'] == recompute_score(plan, report)
-    rendered = report_text({'evaluation': dict(report, evaluation_mode='self_run'),
-                            'summary': {'score': report['score']['value']},
-                            'identity': {'plan': [{}]}}).decode()
-    assert 'product(min(1, q_i) ** w_i)' in rendered and '| delay | 0.6 |' in rendered
-    assert 'maximum = 100' in rendered
-    assert 'Credited quality' in rendered
-    zero = _zero_attempt_score('layout')
+    zero = attempt_score('agent_error', 'failed', report['score'])
     assert zero['method'] == 'layout' and zero['value'] == 0 and zero['maximum'] == 100
 
 
@@ -476,3 +469,26 @@ def test_candidate_recomputes_calibration_without_source_artifact(tmp_path, inpu
                             tmp_path / 'calibrated')
     assert report['task_success'] is True
     assert not (plan.pre_layout.keys() & report['jobs'].keys())
+
+
+@pytest.mark.parametrize('termination,outcome,expected', [
+    ('infrastructure_error', 'error', None),
+    ('agent_error', 'passed', 0),
+    ('budget_exhausted', 'passed', 0),
+    ('completed', 'no_submission', 0),
+    ('completed', 'passed', 73),
+])
+def test_attempt_score_distinguishes_failures_from_unknown(termination, outcome, expected):
+    from benchmarking.evaluation.scoring import attempt_score
+    from benchmarking.protocol import layout_score_value
+
+    candidate = {'method': 'layout', 'value': 73, 'maximum': 100, 'reference': 100}
+    assert layout_score_value(attempt_score(termination, outcome, candidate)) == expected
+
+
+@pytest.mark.parametrize('value', [-1, 101, float('inf'), float('nan'), True])
+def test_shared_layout_score_rejects_invalid_values(value):
+    from benchmarking.protocol import layout_score_value
+
+    with pytest.raises(ValueError):
+        layout_score_value({'method': 'layout', 'maximum': 100, 'reference': 100, 'value': value})

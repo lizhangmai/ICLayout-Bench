@@ -1,6 +1,7 @@
 """Bounded host access to a live isolated solver workspace."""
 
 import json
+import os
 import subprocess
 import time
 
@@ -69,3 +70,21 @@ class SessionWorkspace:
         response = subprocess.run([*self.reader(), "-c", code], input=json.dumps(action).encode(),
                                   capture_output=True, timeout=self.access_timeout(), check=True)
         return json.loads(response.stdout)
+
+    def checkpoint(self, destination, limit):
+        """Write an fsync-backed archive; no solver directory reaches the host."""
+        with destination.open('wb') as stream:
+            os.chmod(destination, 0o600)
+            subprocess.run([*self.reader(), '/protocol/workspace.py', 'checkpoint', str(limit)],
+                           stdout=stream, stderr=subprocess.PIPE, check=True,
+                           timeout=self.access_timeout())
+            stream.flush()
+            os.fsync(stream.fileno())
+        if destination.stat().st_size > 2 * limit + 16 * 1024 * 1024:
+            raise ValueError('Workspace checkpoint exceeds allocation')
+
+    def restore(self, source, limit):
+        with source.open('rb') as stream:
+            subprocess.run([*self.reader(), '/protocol/workspace.py', 'restore', str(limit)],
+                           stdin=stream, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                           check=True, timeout=self.access_timeout())

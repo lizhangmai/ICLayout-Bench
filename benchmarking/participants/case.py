@@ -43,7 +43,8 @@ def execute_owned_slot(request: SlotRequest, row, selection, repetition, name, o
     service_dir = run_dir / "service"
     if not request.endpoint:
         service_dir.mkdir(mode=0o700, exist_ok=True)
-        context = local_service.service(request.cases[row["task"]], service_dir, row.get("scheme", {}).get("solver_image", request.image))
+        arguments = (request.cases[row["task"]], service_dir, row.get("scheme", {}).get("solver_image", request.image))
+        context = local_service.service(*arguments, settings['resume_session'])
     else:
         context = nullcontext(Client(request.endpoint, os.environ.get(request.token_env, ""), timeout=60,
                                      retry_policy=settings))

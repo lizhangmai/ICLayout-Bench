@@ -22,7 +22,7 @@ def export_session_result(result, destination):
     """Export service-reported data, preserving its evaluation mode and missing values.
 
     This is not local cryptographic verification of the private judge's evidence.
-    The complete response and its digest accompany plotting tables.
+    The complete response and its digest accompany analysis tables.
     """
     from benchmarking.protocol import PROTOCOL, json_bytes
 
@@ -90,7 +90,7 @@ def export_session_result(result, destination):
     return output
 
 
-def export_results(results, destination, *, plots=False):
+def export_results(results, destination):
     """Compare like conditions; incomplete/error results never become zero scores.
 
     This consumes disclosed service results, not private evaluator artifacts.
@@ -166,10 +166,6 @@ def export_results(results, destination, *, plots=False):
         )
     if summaries:
         _csv(output / "tasks.csv", tuple(summaries[0]), summaries)
-    if plots and summaries:
-        from .plotting import render_service_results
-
-        render_service_results(rows, output)
     atomic_write(
         output / "manifest.json",
         json_bytes(

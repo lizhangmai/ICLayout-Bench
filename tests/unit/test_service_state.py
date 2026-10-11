@@ -11,6 +11,87 @@ from benchmarking.service.state import ServiceState
 pytestmark = pytest.mark.unit
 
 
+@pytest.mark.parametrize('damage', [None, 'archive', 'task', 'deadline'])
+def test_checkpoint_restores_committed_state_without_replaying_commands(tmp_path, damage):
+    task = SimpleNamespace(digest='frozen-task', output=SimpleNamespace(path='output/final.gds'))
+    state = ServiceState(tmp_path, task)
+    (tmp_path / 'session').mkdir()
+    data = {'session_id': 'session', 'task_sha256': task.digest, 'token': 'original-token',
+            'deadline_epoch': 12345, 'limits': {'workspace_mb': 1},
+            'requests': {'files:committed': {'response': {'path': 'saved.py'}}},
+            'submissions': {}, 'executions': {}}
+    state.register(data)
+
+    class Workspace:
+        def checkpoint(self, destination, limit):
+            destination.write_bytes(b'committed workspace')
+
+    state.checkpoint(data, Workspace())
+    data['requests']['files:uncertain'] = {'response': {'path': 'uncertain.py'}}
+    data['requests']['executions:command'] = {'response': {'execution_id': 'command', 'state': 'running'}}
+    data['executions']['command'] = {'execution_id': 'command', 'state': 'running', 'truncated': False}
+    state.save(data)
+    if damage == 'archive':
+        archive, = (tmp_path / 'session/.private').glob('*.tar.gz')
+        archive.write_bytes(b'corrupted workspace')
+    elif damage == 'task':
+        task.digest = 'changed-task'
+    elif damage == 'deadline':
+        data['deadline_epoch'] += 1
+        state.save(data)
+    if damage:
+        with pytest.raises(ValueError, match='integrity|task changed|deadline changed'):
+            ServiceState(tmp_path, task)
+        return
+    recovered = ServiceState(tmp_path, task)
+    restored = recovered.runs['session']
+    assert restored['token'] == 'original-token' and restored['deadline_epoch'] == 12345
+    assert 'files:committed' in restored['requests'] and 'files:uncertain' not in restored['requests']
+    assert restored['executions']['command']['state'] == 'error'
+    assert restored['executions']['command']['rolled_back']
+    assert restored['recovery'] == {'workspace_restored': True, 'interrupted_executions': ['command']}
+    assert restored['requests']['executions:command']['response']['execution_id'] == 'command'
+    assert not restored.get('interrupted')
+
+
+def test_failed_checkpoint_blocks_successful_mutation_replay(tmp_path, executable_case):
+    import base64
+    import time
+
+    from benchmarking.engine.sessions.control import SessionControl
+    from benchmarking.service.application import LocalService
+    from benchmarking.service.contracts import APIError
+    from benchmarking.tasks import load_task
+
+    class Workspace:
+        active = True
+        def write(self, *args):
+            pass
+        def checkpoint(self, *args):
+            raise OSError('disk full')
+    class Control(SessionControl):
+        def workspace(self, sid):
+            return Workspace()
+
+    service = LocalService(tmp_path, load_task(executable_case), {}, {}, 'unused', 'operator',
+                           seconds=60, session_control=Control())
+    (tmp_path / 'session').mkdir()
+    data = {'session_id': 'session', 'token': 'scoped', 'deadline_epoch': time.time() + 60,
+            'retained_epoch': time.time() + 600, 'created_at': 'start', 'deadline': 'deadline',
+            'requests': {}, 'executions': {}, 'submissions': {}, 'limits': service.controller.limits}
+    service.controller.state.register(data)
+    body = {'path': 'saved.py', 'content_base64': base64.b64encode(b'content').decode()}
+    try:
+        with pytest.raises(OSError, match='disk full'):
+            service.handle('POST', '/sessions/session/files', {}, 'scoped', body, 'write')
+        with pytest.raises(APIError) as caught:
+            service.handle('POST', '/sessions/session/files', {}, 'scoped', body, 'write')
+        assert caught.value.code == 'infrastructure_error'
+        assert data['interrupted'] and data['checkpoint_error']
+    finally:
+        service.shutdown()
+
+
 def test_finished_report_replays_committed_submission_before_http_projection(tmp_path):
     run = tmp_path / 'session' / 'run'
     run.mkdir(parents=True)
@@ -93,7 +174,7 @@ def test_concurrent_mutation_replay_is_atomic_and_survives_restart(tmp_path, exe
         def workspace(self, sid):
             return Workspace()
     service = LocalService(tmp_path, task, {}, {}, 'unused', 'operator', seconds=60,
-                           session_control=Control())
+                           session_control=Control(), recoverable=False)
     sid = 'session'
     (tmp_path / sid).mkdir()
     service.controller.state.register({
@@ -122,7 +203,7 @@ def test_concurrent_mutation_replay_is_atomic_and_survives_restart(tmp_path, exe
         assert len(durable['observations']) == 1
     finally:
         service.shutdown()
-    recovered = LocalService(tmp_path, task, {}, {}, 'unused', 'operator', seconds=60)
+    recovered = LocalService(tmp_path, task, {}, {}, 'unused', 'operator', seconds=60, recoverable=False)
     try:
         assert recovered.handle('POST', f'/sessions/{sid}/files', {}, 'scoped', body, 'write') == first
     finally:
@@ -176,7 +257,7 @@ def test_injected_runtime_serves_a_scoped_session_over_http(tmp_path, executable
         session_factory=lambda image, ready, **kwargs: SimpleNamespace(image_id='synthetic-image', ready=ready))
     task = load_task(executable_case)
     service = LocalService(tmp_path, task, {}, {}, 'unused', 'operator', seconds=60,
-                           session_control=control)
+                           session_control=control, recoverable=False)
     server = serve(service)
     thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': .01}, daemon=True)
     thread.start()

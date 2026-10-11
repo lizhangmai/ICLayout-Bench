@@ -11,8 +11,9 @@ Start with [README](README.md), run `git status --short --branch`, and preserve 
 | Public interfaces or protocol boundaries | [Architecture](docs/architecture.md) |
 | Tasks, inputs, metrics or judges | [Task contract](docs/tasks.md) and [qualification](CONTRIBUTING.md#task-qualification) |
 | Participation, sessions, batches or statistics | [Running guide](docs/running.md) |
+| Shared command execution, frozen evidence or result finalization | [Shared interfaces](docs/architecture.md#shared-execution-and-evidence-interfaces) |
 | Archives or presentation assets | [Result storage](docs/running.md#result-archive), [presentation bindings](docs/running.md#task-presentations-and-interactive-layouts) and [archive verification](CONTRIBUTING.md#result-archive-verification) |
-| Result delivery, admission or disclosure | [Handoff boundaries](docs/architecture.md#result-handoff-and-storage-ownership) and [verified reruns](docs/architecture.md#verified-reruns-and-disclosure) |
+| Result delivery, review or disclosure | [Handoff boundaries](docs/architecture.md#result-handoff-and-storage-ownership) and [verified reruns](docs/architecture.md#verified-reruns-and-disclosure) |
 | Images, dependencies, PDKs or backends | [Tools](docs/tools.md) and [image development](CONTRIBUTING.md#image-development) |
 | Tests or fixtures | [Test conventions](tests/AGENTS.md) |
 | Participant examples | [Installed-package examples](examples/README.md) |
@@ -27,6 +28,10 @@ Start with [README](README.md), run `git status --short --branch`, and preserve 
   remain with their owning applications.
 - Standard solves expose only [declared inputs and reviewed resources](docs/tasks.md#input-isolation).
   Evaluate frozen candidates independently of solver credentials and writable directories.
+- Own shared participant lifecycle, single-run evidence verification, machine-readable
+  results, shared statistics and EDA layout preview assets.
+  Result charts, interactive comparisons and report presentation belong to the
+  consuming website; analysis commands export JSON/CSV without rendering charts.
 - Keep original scores, identities and verification levels when archiving or
   delivering results. Website review and publication belong to the operator.
 - README owns onboarding; `docs/` contains user-facing guides and public contracts.
@@ -41,4 +46,4 @@ Start with [README](README.md), run `git status --short --branch`, and preserve 
 
 Select checks by change scope and delivery stage from [CONTRIBUTING](CONTRIBUTING.md#verification).
 Check changed links and commands, and report actual validation scope and Git status.
-Verify and commit affected repositories separately.
+Verify affected repositories separately; commit only when authorized, with one repository per commit.

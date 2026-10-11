@@ -10,10 +10,11 @@ class LocalService:
     """HTTP adapter with controller-owned state and an optional dedicated runtime supervisor."""
 
     def __init__(self, root, task, resources, backends, image, token, *, seconds=None,
-                 revision='unknown', solver_runtime=None, session_control=None):
+                 revision='unknown', solver_runtime=None, session_control=None, recoverable=None):
         self.controller = SessionController(root, task, resources, backends, image, token,
                                             seconds=seconds, revision=revision,
-                                            solver_runtime=solver_runtime, session_control=session_control)
+                                            solver_runtime=solver_runtime, session_control=session_control,
+                                            recoverable=recoverable)
 
     def shutdown(self):
         self.controller.shutdown()
@@ -52,6 +53,9 @@ class LocalService:
             return 'status', None, 0
         if tail == ['result'] and not query:
             return 'result', None, 0
+        if len(tail) == 3 and tail[0] == 'requests' and tail[1] in {'files', 'executions', 'submissions'} and not query:
+            identifier(tail[2])
+            return 'request', (tail[1], tail[2]), 0
         if tail == ['file'] and set(query) == {'path'} and len(query['path']) == 1:
             return 'file', query['path'][0], 0
         if len(tail) == 2 and tail[0] == 'submissions' and not query:

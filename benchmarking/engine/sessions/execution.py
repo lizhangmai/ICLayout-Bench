@@ -6,6 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from benchmarking.engine.container_scripts import benchmark_feedback as opinions
+from benchmarking.evaluation.scoring import attempt_score
 from benchmarking.files import Asset, ReadOnlyMount, atomic_write
 from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY
 
@@ -19,13 +20,7 @@ from .recorder import RecordingError, RunRecorder
 __all__ = ["run_session"]
 
 
-def _zero_attempt_score(method="layout"):
-    """Return zero for a conclusive incomplete solve."""
-    return {"method": method, "value": 0.0, "maximum": 100, "reference": 100,
-            "components": {"G": 0.0, "E": None, "Q": None}}
-
-
-def run_session(task, config, resources, backends, destination: Path, *, session, inference=None, execution=None):
+def run_session(task, config, resources, backends, destination: Path, *, session, inference=None, execution=None, resume=False):
     if task.hours is not None:
         config = replace(config, wall_seconds=task.wall_seconds)
     if task.evaluation is None or task.evaluation.mode != "post_layout":
@@ -36,11 +31,19 @@ def run_session(task, config, resources, backends, destination: Path, *, session
     if inference:
         validate_harness_wire(config.harness.wire_api, inference.config.wire_api)
     destination = destination.absolute()
-    if destination.exists() or destination.is_symlink():
+    if not resume and (destination.exists() or destination.is_symlink()):
         raise FileExistsError(destination)
     execution = json.loads(json.dumps(execution, allow_nan=False))
-    recorder = RunRecorder(destination)
-    archive = recorder.archive
+    if resume:
+        previous = json.loads((destination / 'run.json').read_bytes())
+        if previous.get('phase') != 'running':
+            raise ValueError('Cannot resume a terminal evaluator run')
+        # Compare frozen identities before repairing or writing any old evidence.
+        def archive(asset):
+            return {**asset.identity(), 'path': f'artifacts/{asset.sha256}'}
+    else:
+        recorder = RunRecorder(destination)
+        archive = recorder.archive
     message = task_message(task, config)
     report = {"events": {"path": "events.jsonl"}, "run_kind": "offline_cli_development", "task_sha256": task.digest,
               "task_witnessed": task.witnessed,
@@ -69,6 +72,13 @@ def run_session(task, config, resources, backends, destination: Path, *, session
         # Keep evaluator or infrastructure failures visibly pending for a
         # scored task. Unscored standalone runs do not claim an official score.
         report["score"] = None
+    if resume:
+        if any(previous.get(key) != report.get(key) for key in
+                ('task_sha256', 'configuration', 'inputs', 'resources', 'implementation', 'execution')):
+            raise ValueError('Cannot resume changed or terminal evaluator run')
+        recorder = RunRecorder.resume(destination, discard_incomplete_tail=True)
+        archive = recorder.archive
+        report = previous
     def save():
         recorder.save(report)
 
@@ -80,7 +90,8 @@ def run_session(task, config, resources, backends, destination: Path, *, session
             name = "engine/inference/" + filename
             report["implementation"][name] = archive(Asset(package_source(name).read_bytes(), "python"))
     save()
-    recorder.event("run.started", task_sha256=task.digest, agent_id=config.id)
+    if not resume:
+        recorder.event("run.started", task_sha256=task.digest, agent_id=config.id)
     feedback_enabled = PROCESS_FEEDBACK_CAPABILITY in config.harness.capabilities
 
     def process_feedback(candidate, sequence):
@@ -164,14 +175,8 @@ def run_session(task, config, resources, backends, destination: Path, *, session
     if result.termination == "infrastructure_error":
         report.update(outcome="error", task_success=None)
         report["score"] = None
-    elif (task.evaluation.scoring is not None
-          and task.evaluation.scoring.method == "layout"
-          and (result.termination in {"agent_error", "budget_exhausted"}
-               or report["outcome"] == "no_submission")):
-        # A timed-out or otherwise incomplete Agent attempt is a conclusive
-        # zero for the planned repetition, even when it left a candidate that
-        # the evaluator could inspect. A no-submission attempt has the same
-        # model outcome and needs an explicit score envelope for scored tasks.
-        report["score"] = _zero_attempt_score(task.evaluation.scoring.method)
+    if task.evaluation.scoring is not None:
+        report["score"] = attempt_score(result.termination, report["outcome"], report.get("score"),
+                                         method=task.evaluation.scoring.method)
     recorder.finish(report)
     return report

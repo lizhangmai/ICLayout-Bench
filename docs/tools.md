@@ -7,8 +7,8 @@ ID after publication, or an explicit local Dataset working copy for validation.
 No Python source checkout, `prepare` command or prepared case directory is needed.
 
 ```bash
-python -m benchmarking.engine.preview --dataset /path/to/ICLayout-Bench-Dataset list
-python -m benchmarking.engine.preview --dataset /path/to/ICLayout-Bench-Dataset \
+python -m benchmarking.engine.preview --dataset /path/to/dataset list
+python -m benchmarking.engine.preview --dataset /path/to/dataset \
   run --case NAND2_X1 --image iclayout-eda-open:local --output build/reference-check
 ```
 
@@ -696,7 +696,10 @@ run controls, without duplicating those statements or changing device rules.
 RuleChecks; the default still requires the ERC report.
 
 For four-terminal BSIM-CMG extraction, `finfet = true` disables gate recognition,
-series/parallel MOS and split-gate merging, and compares W, L and nfin for MN/MP.
+series MOS and split-gate merging, and compares W, L and nfin for MN/MP.
+Parallel reduction requires equal L and common terminal nets, including the body.
+It sums W, nfin and the junction properties. Literal integer MOS multiplicity
+is expanded only for LVS so native planar multiplier handling cannot omit nfin.
 It retains native MOS models and requires finite extracted W/L, integer positive
 nfin, and nonnegative ADEJ/ASEJ/PDEJ/PSEJ. This mode uses
 `require_junctions = false` because those are FinFET junction parameters rather
@@ -785,10 +788,14 @@ the source is used for LVS and naming, not as a substitute for extraction.
 
 `icv-native` selects operator host ICV with `check = "drc"`, `"lvs"`, or
 `"rc"` and a mounted `deck`. It currently supports the FreePDK3-style
-`compare_settings` matrix with one comparison. LVS disables gate recognition,
-parallel MOS merging and equivalent-node shorting, checks W/L/nfin, and requires
+`compare_settings` matrix with one comparison. LVS disables gate recognition
+and equivalent-node shorting, checks W/L/nfin, and requires
 the declared schematic ports to match named layout nets. Names are uppercased
 for comparison. ICV's generated, untexted internal ports are not external pins.
+Parallel MOS reduction requires equal L and common terminal nets; its property
+function sums W, nfin and native junction geometry. Integer MOS multiplicities
+are expanded for comparison, preserving every per-unit parameter. Simulation
+and physical extraction retain their actual device cards.
 DRC requires a completed report for the requested top, positive rule coverage
 and zero violations. `allowed_unexecuted` records the deck's known inactive
 rules; it does not suppress checks, and any change in that list is an error.
