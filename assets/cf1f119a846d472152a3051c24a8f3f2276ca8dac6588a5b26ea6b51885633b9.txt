@@ -1,0 +1,89 @@
+# Self-Biased Cascode Common-Source Gain Stage Layout Task
+
+## Objective
+
+Implement the fixed `gs_001_cascode_cs` circuit in GF180MCU D and submit self-contained GDS.
+Nine MOS devices form a cascode common-source stage with PMOS and NMOS bias ladders. An external 20 uA sink biases the PMOS ladder. Total widths, lengths and multiplicities follow the fixed GF180 binding. Physical body contacts and an independently constructed reference complete the circuit.
+
+## Inputs and Interface
+
+`materials/circuit.spice` is authoritative for LVS and source calibration;
+`materials/testbench.spice` defines every electrical measurement. This problem
+is the description input. Ordered ports: `vdd vout vin ibias vss`.
+In order, these are: Supply, output, signal input, PMOS reference-current sink, and return.
+
+Preserve netlist connectivity, dimensions, multiplicities and body terminals. Provide physical well/substrate contacts for the declared supplies. Placement, routing, splitting and source/drain exchange must satisfy the declared LVS equivalence rules. Common-centroid placement and statistical matching are unscored. Ideal external stimuli, biases and loads belong to the testbench, outside the DUT.
+
+## Operating Conditions
+
+Use the typical GF180 3.3 V MOS models and physical poly models where present,
+with statistical variation disabled. Unless swept explicitly, temperature is 27 C.
+VSS = 0 V; VDD = 2.7, 3.0 and 3.3 V; external 20 uA sink from ibias to VSS; external 1 pF output load. A 1 TH external inductor connects output to input for the DC trip-point solve. A 1 F external coupling capacitor injects a unit AC input through acin while isolating the DC fixture. This measures open-loop small-signal gain at each self-biased trip point; it does not prescribe a fixed DC input voltage.
+
+AC sweeps 100 points per decade from 1 Hz to 1 GHz. Under unit AC injection, gain-stage transfer is V(vout); under unit differential excitation, differential-pair transfer is V(voutn)-V(voutp); OTA transfer is defined above.
+
+## Physical Requirements
+
+Submit top cell `gs_001_cascode_cs` with every named electrical port, resolved hierarchy
+and a file size at most 10 MiB. Artifact, GF180 variant-D DRC including antenna,
+strict named-port LVS and geometry must pass, without DRC waivers. Chip-level
+density and seal-ring closure are outside this standalone-block scope.
+
+The functional bounding box must fit within 220 by 120 um. Area includes all
+process device and routing drawing layers listed in runtime constraints:
+wells, implants, active, poly, contacts, metals/vias and passive/device markers.
+Annotation and pin-purpose shapes are excluded; all functional routing must use
+drawing layers. The complete layer list is frozen in `/protocol/task.json`.
+
+The judge independently extracts distributed wiring resistance and capacitance
+from the submitted GDS, retaining candidate-derived MOS/passive geometry and
+external body connections. Every scored simulation consumes that extracted DUT.
+This model boundary does not include a distributed silicon substrate network.
+Transient settling, fixed-input bias robustness, noise, mismatch, PVT and EM are outside scope. Manufacturing signoff is not claimed.
+
+## Electrical Requirements and Scoring
+
+Complete all three conditions, with every observation finite and within its inclusive interval. Aggregation must not hide a failed condition; missing crossings or incomplete extraction/simulation cannot establish success. Retain waveforms for independent reconstruction of observations.
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `output_v` | DC output voltage | V | target / target | 0 … 3.3 | 3.3 |
+| `bias_v` | DC V(ibias) | V | target / target | 0 … 3.3 | 3.3 |
+| `power_w` | DC power delivered by VDD, -V(vdd)*I(VDD) | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `gain_db` | 20 log10(abs(transfer)) at 10 Hz | dB | maximize / db20 | −∞ … +∞ | — |
+| `bandwidth_hz` | First frequency where transfer gain falls 3 dB below its 10 Hz value | Hz | maximize / ratio | 0 … +∞ | — |
+
+Area reference: **394.4 um2**. The expanded circuit has 9 device instances, a sum of device/contact envelopes 220.6500 um2, a one-sided envelope margin of 1 um, a routing allowance of 50%, and a total outer width/height allowance 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across both sides, and the envelope sum is displayed to four decimal places. MOS/passive envelopes use W/L (or resistor dimensions) and multiplicity, including explicit contacts and HBT emitter/contact envelopes. This is a frozen engineering estimate, not a process minimum or a proven achievable area.
+
+The capability coefficient is **4**, independent of this task's reference-normalized score.
+
+### Score weights
+
+Local gain stages: signal transfer 50%; bandwidth 15%; operating points 5%; power 15%; area 15%. Each objective's weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.15 |
+| `gain_db` | 0.500000000000 |
+| `bandwidth_hz` | 0.150000000000 |
+| `bias_v` | 0.025000000000 |
+| `output_v` | 0.025000000000 |
+| `power_w` | 0.150000000000 |
+
+## Tools and Submission
+
+Solve budget: **3 hours**.
+
+Use the reviewed GF180 resources in `/protocol/resources.json`. KLayout checks the layout, Magic extracts RC and ngspice simulates. `/protocol/task.json` supplies frozen constraints and evaluation requirements; `/protocol/harness.json` describes the runtime protocol. If `process-feedback` is provided, its public helpers may be used for intermediate checks. Write `/workspace/output/final.gds`, then run `python -I /protocol/submit.py` to submit explicitly.
+
+Use a GDS database unit of 0.001 um as required by GF180MCU DRC rules.

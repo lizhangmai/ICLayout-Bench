@@ -1,0 +1,1060 @@
+kind = "layout_case"
+id = "gf180mcuD.analog-db.ldo_006_stub"
+title = "Divider-Biased NMOS Source Follower"
+status = "qualified"
+in_core = false
+
+[[assets]]
+path = "reference/ldo_006_stub.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "7b8cbe36c0f7f829b4b4849ff304dccbb9842e843a35f3e94c27faeef3dba91f"
+
+[task]
+hours = 6
+kind = "netlist_to_gds"
+family = "physical_core"
+coefficient = 3
+environment = "gf180mcuD-mos-rc-tt"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "8196ff1ddc16d9d9e44d0fc6aeb7586c4fe05436d86f614ba5850e3d975eca05"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+subcircuit = "ldo_006_stub"
+sha256 = "b2cbf5b0cf0497af8ad62bded31556d61ed2d15ff665966e7e8e5e7772a58aa3"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "3c6789457bc622df1c4811b6fa2436d31b314999e060bdfc0443b84766570c0a"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "940ea39a96f1d4e2f892f563fc3b4cd486a1acfecdc868cf72bcdbf269832641"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "ldo_006_stub"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
+]
+max_width_um = 5000
+max_height_um = 1000
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "vout",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+loaded = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply = 1.2
+load = 100000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+step_shift_v = "V"
+ripple_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+loaded = "loaded.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+loaded = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply = 1.2
+load = 1000000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+step_shift_v = "V"
+ripple_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+loaded = "loaded.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+loaded = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply = 1.5
+load = 100000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+step_shift_v = "V"
+ripple_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+loaded = "loaded.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+loaded = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply = 1.5
+load = 1000000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+step_shift_v = "V"
+ripple_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+loaded = "loaded.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "output_v"
+unit = "V"
+aggregation = "max"
+direction = "target"
+dimension = "bias"
+normalization = "target"
+scale = 0.1
+category = "performance"
+observations = [
+    "condition_0:output_v",
+    "condition_1:output_v",
+    "condition_2:output_v",
+    "condition_3:output_v",
+]
+baseline = [
+    "source_condition_0:output_v",
+    "source_condition_1:output_v",
+    "source_condition_2:output_v",
+    "source_condition_3:output_v",
+]
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.5
+rationale = "The declared unipolar circuit output or bias node must remain within its stated ground-to-supply operating envelope; source-matching precision remains a scored objective."
+
+[[task.evaluation.metrics]]
+id = "power_w"
+unit = "W"
+aggregation = "max"
+direction = "minimize"
+dimension = "supply"
+normalization = "ratio"
+scale = 1e-12
+category = "performance"
+observations = [
+    "condition_0:power_w",
+    "condition_1:power_w",
+    "condition_2:power_w",
+    "condition_3:power_w",
+]
+baseline = [
+    "source_condition_0:power_w",
+    "source_condition_1:power_w",
+    "source_condition_2:power_w",
+    "source_condition_3:power_w",
+]
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared powered circuit or passive driven network must consume nonnegative net supply/driver energy or quiescent current under the complete stated observation."
+
+[[task.evaluation.metrics]]
+id = "step_shift_v"
+unit = "V"
+aggregation = "max"
+direction = "target"
+dimension = "response"
+normalization = "target"
+scale = 0.1
+category = "performance"
+observations = [
+    "condition_0:step_shift_v",
+    "condition_1:step_shift_v",
+    "condition_2:step_shift_v",
+    "condition_3:step_shift_v",
+]
+baseline = [
+    "source_condition_0:step_shift_v",
+    "source_condition_1:step_shift_v",
+    "source_condition_2:step_shift_v",
+    "source_condition_3:step_shift_v",
+]
+
+[[task.evaluation.metrics]]
+id = "ripple_v"
+unit = "V"
+aggregation = "max"
+direction = "minimize"
+category = "performance"
+observations = [
+    "condition_0:ripple_v",
+    "condition_1:ripple_v",
+    "condition_2:ripple_v",
+    "condition_3:ripple_v",
+]
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The absolute error, voltage span or magnitude has a nonnegative measurement domain; its positive value remains a continuously scored quality observation."
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 1200
+rationale = "Regulator stub: loaded operating point 34%; load response 34%; power 17%; area 15%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.15
+output_v = 0.34
+step_shift_v = 0.34
+power_w = 0.17
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "c8106f43f6bbcdd317aa2e78ae8d49dc33db4874798b7bd2a5b141cc4708b7ff"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"dfbdf2f93297bbe7d8b576fb988504bd0ecf85b93ef47c314a0f2c9c8830c3e7\", \"compatibility\": null, \"cpu_budget\": 8, \"execution_sha256\": \"495aa9623759f70228a236eb4825c2ae443ef6a741816d8cfc17d1830841dcef\", \"image_id\": \"sha256:060fee64f9f6e71a647e5e958b788d723c9d51d2928ff93e6a295db1959bc37f\", \"limits\": {\"cpus\": 8, \"memory_mb\": 4096, \"pids\": 256}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"4c7a26df97245613922e47bdae060a40d6cb59f9c243e22d8964f97209f47011\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 240.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_condition_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+loaded = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.values]
+supply = 1.2
+load = 100000.0
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.measurements]
+output_v = "V"
+power_w = "W"
+step_shift_v = "V"
+ripple_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+loaded = "loaded.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.input_sha256]
+deck = "940ea39a96f1d4e2f892f563fc3b4cd486a1acfecdc868cf72bcdbf269832641"
+dut = "3c6789457bc622df1c4811b6fa2436d31b314999e060bdfc0443b84766570c0a"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.output_v]
+value = 0.05755748327764071
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.power_w]
+value = 7.891038427252645e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.ripple_v]
+value = 1.558476e-14
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.step_shift_v]
+value = -0.0244887432776407
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.output_sha256]
+op = "4be6a7e26915211a3f4e5888b505a6df2ecf273604b757ccc1315f2e6334a00f"
+transient = "ee626b44719f4f2886ff1210aeb148ebceaff00b5dfe7490fe77c4bbfb499dc4"
+loaded = "18e01f7efbc179d6902cb18efbfad544a41c350d0c604dbd1acc9a8de8f23d82"
+
+[task.evaluation.pre_layout.jobs.source_condition_1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+loaded = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.values]
+supply = 1.2
+load = 1000000.0
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.measurements]
+output_v = "V"
+power_w = "W"
+step_shift_v = "V"
+ripple_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+loaded = "loaded.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.input_sha256]
+deck = "940ea39a96f1d4e2f892f563fc3b4cd486a1acfecdc868cf72bcdbf269832641"
+dut = "3c6789457bc622df1c4811b6fa2436d31b314999e060bdfc0443b84766570c0a"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.output_v]
+value = 0.1049486282284016
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.power_w]
+value = 7.326287027635482e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.ripple_v]
+value = 7.960358e-11
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.step_shift_v]
+value = -0.0645835182284016
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.output_sha256]
+op = "9cef694ec478c3beac03cec90754c31089d046bd3a459adeb989bb2f25b532f3"
+transient = "1cd208cf7d81cc098fc887505a15d67faa9b0da3d28ea3dea8a1a5eea2853d07"
+loaded = "d34c52ab820ac0615dc28e77a809503d46ed8f7e79481b49b9a993b203f4f891"
+
+[task.evaluation.pre_layout.jobs.source_condition_2]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+loaded = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.values]
+supply = 1.5
+load = 100000.0
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.measurements]
+output_v = "V"
+power_w = "W"
+step_shift_v = "V"
+ripple_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+loaded = "loaded.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.input_sha256]
+deck = "940ea39a96f1d4e2f892f563fc3b4cd486a1acfecdc868cf72bcdbf269832641"
+dut = "3c6789457bc622df1c4811b6fa2436d31b314999e060bdfc0443b84766570c0a"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.output_v]
+value = 0.143184566600803
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.power_w]
+value = 1.339831443967738e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.ripple_v]
+value = 6.911138e-15
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.step_shift_v]
+value = -0.014338166600803
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.output_sha256]
+op = "d9621478be7be707330d2f9773dde6affcb4bd9866d67e006a2b2d02b96d18fd"
+transient = "2954182ba2eff9cb0124fd807a21423dc7b6c99fac6ae7f413b7da507d4a35f3"
+loaded = "2f1b590f2ef10cb335f14126f2e5084fbdb2c3e4b1f8f8d2e28a071e7619e509"
+
+[task.evaluation.pre_layout.jobs.source_condition_3]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+loaded = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.values]
+supply = 1.5
+load = 1000000.0
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.measurements]
+output_v = "V"
+power_w = "W"
+step_shift_v = "V"
+ripple_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+loaded = "loaded.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.input_sha256]
+deck = "940ea39a96f1d4e2f892f563fc3b4cd486a1acfecdc868cf72bcdbf269832641"
+dut = "3c6789457bc622df1c4811b6fa2436d31b314999e060bdfc0443b84766570c0a"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.output_v]
+value = 0.1998588147024911
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.power_w]
+value = 1.155033319339639e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.ripple_v]
+value = 6.303291e-12
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.step_shift_v]
+value = -0.050102114702491
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.output_sha256]
+op = "c8cef77aab1b45dd4f391ce45d9a05f94e0971721715fc27d9504607f1a54a87"
+transient = "cd5e387dfef09c3dd331dfa7bcce4571542feebf08355dcbac0feb3310e50c21"
+loaded = "a6dec64a9e29c2dd0f48a58afd65597012c4d097db92a6bcac76f71798cdf2a5"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+check = "artifact"
+timeout_seconds = 180
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+check = "drc"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+check = "lvs"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "lvs.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 180
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-eda-open:local"
+support = "build/support/gf180-magic"
+technology = "gf180mcuD.tech"
+tech_name = "gf180mcuD"
+style = "ngspice()"
+gds_readonly = false
+grid_subdivision = 10
+case_insensitive_ports = true
+timeout_seconds = 240
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+support = "build/support/gf180-models"
+timeout_seconds = 240
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/ldo_006_stub"
+
+[qualification]
+reference = "reference/ldo_006_stub.gds"
+
+[presentation]
+category = "Amplifiers & RF"
+summary = "Tracks an input bias with a divider-biased NMOS source follower."

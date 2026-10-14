@@ -1,0 +1,35 @@
+* All-code DC linearity and full-scale transient response.
+.include "/workspace/support/models.spice"
+.include "parameters.spice"
+.include "dut.spice"
+.temp 27
+.option klu rshunt=1e12 itl1=100 method=gear
+Va avdd 0 3.3
+Vd dvdd 0 1.8
+Ven ena 0 1.8
+Vhi high 0 2.4
+Vlo low 0 0.8
+Vcode code 0 0
+Vmode mode 0 1
+Vpulse pulse 0 PULSE(0 1.8 10u 2n 2n 20u 40u)
+B0 b0 0 V=(v(mode)>0.5 ? v(pulse) : 1.8*(floor((v(code)+0.5)/1)-2*floor((v(code)+0.5)/2)))
+B1 b1 0 V=(v(mode)>0.5 ? v(pulse) : 1.8*(floor((v(code)+0.5)/2)-2*floor((v(code)+0.5)/4)))
+B2 b2 0 V=(v(mode)>0.5 ? v(pulse) : 1.8*(floor((v(code)+0.5)/4)-2*floor((v(code)+0.5)/8)))
+B3 b3 0 V=(v(mode)>0.5 ? v(pulse) : 1.8*(floor((v(code)+0.5)/8)-2*floor((v(code)+0.5)/16)))
+B4 b4 0 V=(v(mode)>0.5 ? v(pulse) : 1.8*(floor((v(code)+0.5)/16)-2*floor((v(code)+0.5)/32)))
+B5 b5 0 V=(v(mode)>0.5 ? v(pulse) : 1.8*(floor((v(code)+0.5)/32)-2*floor((v(code)+0.5)/64)))
+B6 b6 0 V=(v(mode)>0.5 ? v(pulse) : 1.8*(floor((v(code)+0.5)/64)-2*floor((v(code)+0.5)/128)))
+B7 b7 0 V=(v(mode)>0.5 ? v(pulse) : 1.8*(floor((v(code)+0.5)/128)-2*floor((v(code)+0.5)/256)))
+Xdut dvdd 0 0 avdd b7 b6 b5 b4 b3 b2 b1 b0 high out ena low sky130_ef_ip__rdac3v_8bit
+Cload out 0 1p
+.control
+save v(code) v(mode) v(out) v(pulse)
+tran 20n 60u
+meas tran rise_delay TRIG v(pulse) VAL=0.9 RISE=1 TARG v(out) VAL=2.2 RISE=1
+meas tran fall_delay TRIG v(pulse) VAL=0.9 FALL=1 TARG v(out) VAL=1.0 FALL=1
+meas tran high_level FIND v(out) AT=29u
+meas tran low_level FIND v(out) AT=49u
+write transient.raw v(pulse) v(out)
+quit
+.endc
+.end

@@ -1,0 +1,895 @@
+kind = "layout_case"
+id = "freepdk45.nangate45-pdk.NOR2_X1"
+title = "Two-Input NOR"
+status = "qualified"
+in_core = false
+
+[[assets]]
+path = "reference/NOR2_X1.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "61bbf67bf8686e6b47f75908e9381d5a4c20ba7c2db4a401810d3a016e72ad10"
+
+[task]
+hours = 3
+kind = "netlist_to_gds"
+family = "freepdk45_nor2_x1"
+coefficient = 1
+environment = "freepdk45-nominal-predictive-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "512f00033118477518a32dc6928e7fec94d24eb9f3c7a4f969244b6f27e3e996"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+subcircuit = "NOR2_X1"
+sha256 = "6521472bc3714e83d5fcf0ffa0e462c2439d863f31a7b20e6141056f2232c1cd"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "c5b39a6e9116066488d5c7d60c1a19b310f7f4d22b9744bbf2264ef59dfba209"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        2,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        4,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        9,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        15,
+        0,
+    ],
+    [
+        16,
+        0,
+    ],
+    [
+        17,
+        0,
+    ],
+    [
+        18,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        20,
+        0,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        23,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        25,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        27,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+]
+max_width_um = 100
+max_height_um = 100
+
+[[task.constraints.hard]]
+id = "cell_frame"
+type = "cell_frame"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        2,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        4,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        9,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        15,
+        0,
+    ],
+    [
+        16,
+        0,
+    ],
+    [
+        17,
+        0,
+    ],
+    [
+        18,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        20,
+        0,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        23,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        25,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        27,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+]
+height_um = 1.6300000000000001
+width_grid_um = 0.01
+
+[[task.constraints.hard.rails]]
+name = "VDD"
+layer = [
+    11,
+    0,
+]
+connectivity_layer = "metal1"
+y_um = 1.5150000000000001
+thickness_um = 0.07
+left_um = 0.115
+right_um = 0.030000000000000002
+
+[[task.constraints.hard.rails]]
+name = "VSS"
+layer = [
+    11,
+    0,
+]
+connectivity_layer = "metal1"
+y_um = 0.115
+thickness_um = 0.07
+left_um = 0.115
+right_um = 0.030000000000000002
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "NOR2_X1"
+max_bytes = 10485760
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "A1",
+    "A2",
+    "ZN",
+    "VDD",
+    "VSS",
+]
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+state_0 = "V"
+state_1 = "V"
+state_2 = "V"
+state_3 = "V"
+state_4 = "V"
+state_5 = "V"
+state_6 = "V"
+state_7 = "V"
+state_8 = "V"
+supply = "W"
+delay_a2_1 = "s"
+transition_a2_1 = "s"
+delay_a1_4 = "s"
+transition_a1_4 = "s"
+delay_a1_5 = "s"
+transition_a1_5 = "s"
+delay_a2_8 = "s"
+transition_a2_8 = "s"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "state_0"
+category = "performance"
+observations = [
+    "nominal:state_0",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+
+[task.evaluation.metrics.requirement]
+lower = 0.9
+rationale = "The output must resolve to the declared CMOS logic level after the input settles at the nominal supply and load."
+
+[[task.evaluation.metrics]]
+id = "state_1"
+category = "performance"
+observations = [
+    "nominal:state_1",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+upper = 0.1
+rationale = "The output must resolve to the declared CMOS logic level after the input settles at the nominal supply and load."
+
+[[task.evaluation.metrics]]
+id = "state_2"
+category = "performance"
+observations = [
+    "nominal:state_2",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+upper = 0.1
+rationale = "The output must resolve to the declared CMOS logic level after the input settles at the nominal supply and load."
+
+[[task.evaluation.metrics]]
+id = "state_3"
+category = "performance"
+observations = [
+    "nominal:state_3",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+upper = 0.1
+rationale = "The output must resolve to the declared CMOS logic level after the input settles at the nominal supply and load."
+
+[[task.evaluation.metrics]]
+id = "state_4"
+category = "performance"
+observations = [
+    "nominal:state_4",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+
+[task.evaluation.metrics.requirement]
+lower = 0.9
+rationale = "The output must resolve to the declared CMOS logic level after the input settles at the nominal supply and load."
+
+[[task.evaluation.metrics]]
+id = "state_5"
+category = "performance"
+observations = [
+    "nominal:state_5",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+upper = 0.1
+rationale = "The output must resolve to the declared CMOS logic level after the input settles at the nominal supply and load."
+
+[[task.evaluation.metrics]]
+id = "state_6"
+category = "performance"
+observations = [
+    "nominal:state_6",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+upper = 0.1
+rationale = "The output must resolve to the declared CMOS logic level after the input settles at the nominal supply and load."
+
+[[task.evaluation.metrics]]
+id = "state_7"
+category = "performance"
+observations = [
+    "nominal:state_7",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+upper = 0.1
+rationale = "The output must resolve to the declared CMOS logic level after the input settles at the nominal supply and load."
+
+[[task.evaluation.metrics]]
+id = "state_8"
+category = "performance"
+observations = [
+    "nominal:state_8",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+
+[task.evaluation.metrics.requirement]
+lower = 0.9
+rationale = "The output must resolve to the declared CMOS logic level after the input settles at the nominal supply and load."
+
+[[task.evaluation.metrics]]
+id = "supply"
+category = "performance"
+observations = [
+    "nominal:supply",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+dimension = "supply"
+baseline = [
+    "source_nominal:supply",
+]
+normalization = "ratio"
+scale = 1e-12
+
+[[task.evaluation.metrics]]
+id = "propagation_delay"
+category = "performance"
+observations = [
+    "nominal:delay_a2_1",
+    "nominal:delay_a1_4",
+    "nominal:delay_a1_5",
+    "nominal:delay_a2_8",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_nominal:delay_a2_1",
+    "source_nominal:delay_a1_4",
+    "source_nominal:delay_a1_5",
+    "source_nominal:delay_a2_8",
+]
+normalization = "ratio"
+
+[[task.evaluation.metrics]]
+id = "output_transition"
+category = "performance"
+observations = [
+    "nominal:transition_a2_1",
+    "nominal:transition_a1_4",
+    "nominal:transition_a1_5",
+    "nominal:transition_a2_8",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_nominal:transition_a2_1",
+    "source_nominal:transition_a1_4",
+    "source_nominal:transition_a1_5",
+    "source_nominal:transition_a2_8",
+]
+normalization = "ratio"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 1.34312
+rationale = "Standard-cell logic: propagation delay 48%; output transition 16%; supply power 16%; area 20%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.2
+propagation_delay = 0.48
+output_transition = 0.16
+supply = 0.16
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "d497cf6816f045a63b56b73692070af6bb4a62e94d4e774461e145914c97a7e0"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"dfbdf2f93297bbe7d8b576fb988504bd0ecf85b93ef47c314a0f2c9c8830c3e7\", \"compatibility\": null, \"cpu_budget\": 8, \"execution_sha256\": \"495aa9623759f70228a236eb4825c2ae443ef6a741816d8cfc17d1830841dcef\", \"image_id\": \"sha256:060fee64f9f6e71a647e5e958b788d723c9d51d2928ff93e6a295db1959bc37f\", \"limits\": {\"cpus\": 8, \"memory_mb\": 4096, \"pids\": 256}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"660672961e1ce0632bb9e18bc6dfb1fbd751a36d1fc496f1491763859d76c624\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 120.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_nominal]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_nominal.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_nominal.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.measurements]
+delay_a1_4 = "s"
+delay_a1_5 = "s"
+delay_a2_1 = "s"
+delay_a2_8 = "s"
+state_0 = "V"
+state_1 = "V"
+state_2 = "V"
+state_3 = "V"
+state_4 = "V"
+state_5 = "V"
+state_6 = "V"
+state_7 = "V"
+state_8 = "V"
+supply = "W"
+transition_a1_4 = "s"
+transition_a1_5 = "s"
+transition_a2_1 = "s"
+transition_a2_8 = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.input_sha256]
+deck = "c5b39a6e9116066488d5c7d60c1a19b310f7f4d22b9744bbf2264ef59dfba209"
+dut = "6521472bc3714e83d5fcf0ffa0e462c2439d863f31a7b20e6141056f2232c1cd"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.delay_a1_4]
+value = 1.418335e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.delay_a1_5]
+value = 8.976102e-12
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.delay_a2_1]
+value = 1.023491e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.delay_a2_8]
+value = 1.596073e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_0]
+value = 0.9998956
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_1]
+value = 0.0002931843
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_2]
+value = 5.588641e-07
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_3]
+value = 3.990427e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_4]
+value = 0.9998806
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_5]
+value = 3.990442e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_6]
+value = 0.0001088246
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_7]
+value = 0.0002606938
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.state_8]
+value = 0.999877
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.supply]
+value = 3.603559e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.transition_a1_4]
+value = 1.697477e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.transition_a1_5]
+value = 8.944657e-12
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.transition_a2_1]
+value = 1.065085e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.transition_a2_8]
+value = 1.697785e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.output_sha256]
+waveform = "2eb2215cebf189f4c2ff70e58072665a2c6e02da51f6a45b6f0dba236c72cd47"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+check = "artifact"
+timeout_seconds = 120
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+check = "drc"
+timeout_seconds = 120
+support = "build/support/freepdk45-klayout"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+check = "lvs"
+timeout_seconds = 120
+support = "build/support/freepdk45-klayout"
+profile = "strict-lvs.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 60
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-eda-open:local"
+support = "build/support/freepdk45-magic-vtl"
+technology = "freepdk45.tech"
+tech_name = "freepdk45"
+style = "spice3(sim)"
+gds_readonly = false
+case_insensitive_ports = true
+label_layers = [
+    [
+        9,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        15,
+        0,
+    ],
+    [
+        17,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        23,
+        0,
+    ],
+    [
+        25,
+        0,
+    ],
+    [
+        27,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+]
+timeout_seconds = 120
+
+[toolchain.backends.rc.support_profiles]
+support = "magic-vtl"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+support = "build/support/freepdk45-models"
+timeout_seconds = 120
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[qualification]
+reference = "reference/NOR2_X1.gds"
+
+[origin]
+url = "https://foss-eda-tools.googlesource.com/third_party/freepdk45/+/356e90646f5ef26ea09b1ed8ce4796871403a0c7/Back_End/spice/NOR2_X1.spi"
+
+[presentation]
+category = "Logic & memory"
+summary = "Implements two-input NOR logic in a fixed-height standard cell."

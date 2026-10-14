@@ -1,0 +1,31 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt amp_015_sau_cfcc vss vdd vinn vinp vout net013
+MM0 net013 net013 vdd vdd sg13_lv_pmos w=3.11u l=8.33u m=4
+MM1 vb4 net013 vdd vdd sg13_lv_pmos w=3.11u l=8.33u m=4
+MM10 net043 net050 vdd vdd sg13_lv_pmos w=6.38u l=1.97u m=8
+MM11 vout net050 vdd vdd sg13_lv_pmos w=9.59u l=1.2u m=8
+MM12 vb4 vb3 net54 vss sg13_lv_nmos w=2.57u l=3.99u m=32
+MM13 dm_1 vb3 net56 vss sg13_lv_nmos w=2.57u l=3.99u m=32
+MM14 vb3 vb3 vss vss sg13_lv_nmos w=2.57u l=3.99u m=8
+MM15 voutn vb3 dm_2 vss sg13_lv_nmos w=6.74u l=3.98u m=8
+MM16 net050 vb3 net063 vss sg13_lv_nmos w=6.74u l=3.98u m=8
+MM17 net54 vb4 vss vss sg13_lv_nmos w=2.57u l=3.99u m=32
+MM18 net56 vb4 vss vss sg13_lv_nmos w=2.57u l=3.99u m=32
+MM19 dm_2 vb4 vss vss sg13_lv_nmos w=2.57u l=3.99u m=64
+MM2 dm_1 net013 vdd vdd sg13_lv_pmos w=3.11u l=8.33u m=4
+MM20 net063 vb4 vss vss sg13_lv_nmos w=2.57u l=3.99u m=64
+MM21 net043 net043 vss vss sg13_lv_nmos w=6.87u l=0.64u m=8
+MM22 net049 net043 vss vss sg13_lv_nmos w=6.87u l=0.64u m=24
+MM23 vout net049 vss vss sg13_lv_nmos w=7.31u l=0.81u m=4
+MM3 vb3 net013 vdd vdd sg13_lv_pmos w=3.11u l=8.33u m=4
+MM4 net31 net013 vdd vdd sg13_lv_pmos w=3.11u l=8.33u m=8
+MM5 voutn voutn vdd vdd sg13_lv_pmos w=3.11u l=8.33u m=4
+MM6 net050 voutn vdd vdd sg13_lv_pmos w=3.11u l=8.33u m=4
+MM7 net049 voutn vdd vdd sg13_lv_pmos w=1.38u l=1.09u m=4
+MM8 dm_2 vinn net31 net31 sg13_lv_pmos w=7.33u l=0.46u m=4
+MM9 net063 vinp net31 net31 sg13_lv_pmos w=7.33u l=0.46u m=4
+C0_0 net063 vout cap_cmim w=51.3u l=51.3u m=1
+CLOCAL_0 net050 vout cap_cmim w=51.64u l=51.64u m=4
+COUT_0 vout vss cap_cmim w=51.64u l=51.64u m=12
+.ends amp_015_sau_cfcc

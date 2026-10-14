@@ -1,0 +1,52 @@
+# FreePDK45 XOR2_X1 Layout Task
+
+## Objective
+
+Implement the fixed-size two-input XOR gate `XOR2_X1` in FreePDK45, preserving ports A B Z VDD VSS, four-terminal connections, VTL models and fixed sizes, implementing 00→0, 01→1, 11→0, 10→1. Solve budget: **3 hours**.
+
+## Inputs and Interface
+
+Declared inputs are this description, `materials/circuit.spice` and `materials/testbench.spice`. The evaluation environment supplies model, extraction, DRC and LVS resources; reference GDS and qualification evidence are maintainer-only.
+
+## Operating Conditions
+
+Nominal FreePDK45 BSIM4, 1.0 V, 27 °C, Z load 5 fF. Nine 500 ps slots drive (A,B)=(0,0),(0,1),(1,1),(1,0),(0,0),(0,1),(1,1),(1,0),(0,0) with 10 ps edges; sample +110 ps after each slot starts. Transient ends at 4.5 ns with 0.5 ps sampling steps; average power over 0–4.4 ns. Only the nominal condition is scored.
+
+## Physical Requirements
+
+Submit nonempty `output/final.gds` with top cell `XOR2_X1`, at most 10 MiB. Pass FreePDK45 KLayout DRC and strict named-port LVS without waivers, checking body terminals, MOS models and W/L. Research rules do not constitute manufacturing signoff.
+
+The functional bounding-box width and height on drawing layers 1/0–29/0 must each be at most 100 µm. The standard-cell frame has fixed height 1.63 µm and width on a 0.01 µm grid. Relative to its lower-left corner, continuous metal1 VDD/VSS rails have centers at y=1.515/0.115 µm and connect to the corresponding ports; thickness is at least 0.07 µm, extending from x=0.115 µm to the right boundary minus 0.030 µm. Electrical labels lie on poly or metal drawing layers. Global translation, equivalent hierarchy, internal renaming and source/drain exchange are allowed if all physical and electrical checks pass.
+
+## Electrical Requirements and Scoring
+
+At every sample, Z must satisfy the expected CMOS level: high at least 0.9 V, low at most 0.1 V.
+
+| State | Sample time | A | B | Expected Z |
+| --- | --- | --- | --- | --- |
+| state_0 | 0.110 ns | 0 | 0 | low |
+| state_1 | 0.610 ns | 0 | 1 | high |
+| state_2 | 1.110 ns | 1 | 1 | low |
+| state_3 | 1.610 ns | 1 | 0 | high |
+| state_4 | 2.110 ns | 0 | 0 | low |
+| state_5 | 2.610 ns | 0 | 1 | high |
+| state_6 | 3.110 ns | 1 | 1 | low |
+| state_7 | 3.610 ns | 1 | 0 | high |
+| state_8 | 4.110 ns | 0 | 0 | low |
+
+Measure each of the 8 input edges that change the output: propagation delay runs from the input 0.5 V crossing to the output 0.5 V crossing; output rise transition is 0.2→0.8 V and fall transition is 0.8→0.2 V. Independent source simulation with the same testbench defines electrical baselines; compare delay and transition per edge, taking the worst source/candidate quality ratio. Average supply power is paired with the source using a 1 pW normalization floor.
+
+The functional-area target is 2.086400 µm², 80% of the verified reference area 2.608000 µm², and is only a quality target. q_area=target/candidate area; q_delay is the minimum source/candidate delay ratio over 8 edges, q_transition is the minimum source/candidate transition-time ratio, and q_supply is the source/candidate average-power ratio with a 1 pW floor.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.2 |
+| `propagation_delay` | 0.48 |
+| `output_transition` | 0.16 |
+| `supply` | 0.16 |
+
+Supply quality q_supply = (P_source + 1 pW)/(P_candidate + 1 pW), using the declared 1 pW normalization offset. Total score is 100 × q_area^0.20 × q_delay^0.48 × q_transition^0.16 × q_supply^0.16; propagation delay, output transition, power and area weights are 48%, 16%, 16%, 20%, respectively. Area at target with source-equivalent electrical behavior scores 100; better valid layouts may exceed 100. Physical or functional failure scores zero; after validity checks, there are no additional timing, power or area performance rejection thresholds.
+
+## Tools and Submission
+
+Use declared FreePDK45 KLayout DRC/LVS, Magic RC and ngspice models, and submit only `output/final.gds` with top cell `XOR2_X1`. Coverage is limited to nominal tests and supply-rail geometry, excluding cell-array integration, PVT, mismatch and manufacturing signoff.

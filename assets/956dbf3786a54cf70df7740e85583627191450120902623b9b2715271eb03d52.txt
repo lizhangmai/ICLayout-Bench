@@ -1,0 +1,39 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt amp_012_peng_tcfc vss vdd vinn vinp vout vb1
+XM0 net2 vb1 vdd vdd sg13_lv_pmos w=0.36u l=4.94u m=16
+XM1 net3 vb1 vdd vdd sg13_lv_pmos w=0.36u l=4.94u m=16
+XM10 net043 voutp vdd vdd sg13_lv_pmos w=7.83u l=0.75u m=4
+XM11 vout voutp vdd vdd sg13_lv_pmos w=9.06u l=0.54u m=4
+XM12 vb4 vb3 net54 vss sg13_lv_nmos w=1.71u l=0.43u m=16
+XM13 net7 vb3 net56 vss sg13_lv_nmos w=1.71u l=0.43u m=16
+XM14 vb3 vb3 vss vss sg13_lv_nmos w=1.71u l=0.43u m=4
+XM15 voutn vb3 dm_2 vss sg13_lv_nmos w=1.71u l=0.43u m=32
+XM16 voutp vb3 net063 vss sg13_lv_nmos w=1.71u l=0.43u m=32
+XM17 net54 vb4 vss vss sg13_lv_nmos w=1.71u l=0.43u m=16
+XM18 net56 vb4 vss vss sg13_lv_nmos w=1.71u l=0.43u m=16
+XM19 dm_2 vb4 vss vss sg13_lv_nmos w=1.71u l=0.43u m=32
+XM2 net6 vb1 vdd vdd sg13_lv_pmos w=0.36u l=4.94u m=16
+XM20 net063 vb4 vss vss sg13_lv_nmos w=1.71u l=0.43u m=32
+XM23 vout net10 vss vss sg13_lv_nmos w=2.79u l=0.61u m=4
+XM3 net8 vb1 vdd vdd sg13_lv_pmos w=0.36u l=4.94u m=16
+XM4 net31 vb1 vdd vdd sg13_lv_pmos w=0.36u l=4.94u m=32
+XM5 voutn voutn vdd vdd sg13_lv_pmos w=0.36u l=4.94u m=16
+XM57 vb1 vb2 net2 vdd sg13_lv_pmos w=0.36u l=4.94u m=16
+XM58 vb4 vb2 net3 vdd sg13_lv_pmos w=0.36u l=4.94u m=16
+XM6 voutp voutn vdd vdd sg13_lv_pmos w=0.36u l=4.94u m=16
+XM61 net7 vb2 net6 vdd sg13_lv_pmos w=0.36u l=4.94u m=16
+XM62 vb3 vb2 net8 vdd sg13_lv_pmos w=0.36u l=4.94u m=16
+XM63 vb2 vb3 net9 vss sg13_lv_nmos w=1.71u l=0.43u m=16
+XM64 net9 vb4 vss vss sg13_lv_nmos w=1.71u l=0.43u m=16
+XM65 vb2 vb2 vdd vdd sg13_lv_pmos w=0.36u l=4.94u m=4
+XM66 net10 vb2 net049 vdd sg13_lv_pmos w=0.36u l=4.94u m=192
+XM69 net10 net043 vss vss sg13_lv_nmos w=4.65u l=9.14u m=4
+XM7 net049 vb1 vdd vdd sg13_lv_pmos w=0.36u l=4.94u m=192
+XM70 net043 net043 vss vss sg13_lv_nmos w=4.65u l=9.14u m=4
+XM8 dm_2 vinn net31 net31 sg13_lv_pmos w=5.5u l=2.06u m=4
+XM9 net063 vinp net31 net31 sg13_lv_pmos w=5.5u l=2.06u m=4
+XC0_0 voutp vout cap_cmim w=35.325u l=35.325u m=1
+XC1_0 net049 vout cap_cmim w=41.2u l=41.2u m=1
+XCLOCAL_0 net10 vout cap_cmim w=51.64u l=51.64u m=1
+.ends amp_012_peng_tcfc

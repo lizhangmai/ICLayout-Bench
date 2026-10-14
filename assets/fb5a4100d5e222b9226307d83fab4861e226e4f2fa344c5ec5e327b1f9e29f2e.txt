@@ -1,0 +1,854 @@
+kind = "layout_case"
+id = "gf180mcuD.Jianxun-OTA.ota_5t"
+title = "Five-Transistor OTA with Bias and Dummies"
+status = "qualified"
+in_core = true
+core_order = 8
+
+[[assets]]
+path = "reference/ota_5t.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "5a8f97494c2bdda14f186f9ea1cb21b65d86b70cd89886684eea3941b4ae23cf"
+
+[task]
+hours = 1
+kind = "netlist_to_gds"
+family = "gf180_ota_5t"
+coefficient = 4
+environment = "gf180mcuD-typical-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "6ba8ff358d7aa612b1c2d296efeba45dc6ddb54e20934d93fd3118878c6ae147"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+subcircuit = "ota_5t"
+sha256 = "fe6966f64eb3bc72880adca79dac070e0c0e2ea05cdc46c83f49616611d36fac"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "3efca916ec85a68bfa98be31c2e17bbe1e62c2dd96cd2830a8a13e2c09fa4030"
+
+[task.inputs.cmrr]
+path = "materials/cmrr.spice"
+format = "spice"
+sha256 = "d3553f2c2a2a9cf78e9abd9cd9ffc535a67861e3d648cf28df9ffbb1298c88c4"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "ota_5t"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
+]
+max_width_um = 320
+max_height_um = 80
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "out",
+    "in_p",
+    "in_n",
+    "i_bias",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+gain_db = "dB"
+unity_hz = "Hz"
+bias_v = "V"
+power_w = "W"
+
+[task.evaluation.jobs.parameters.values]
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.jobs]]
+id = "cmrr"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:cmrr"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+cmrr_db = "dB"
+
+[task.evaluation.jobs.parameters.values]
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "cmrr"
+category = "performance"
+observations = [
+    "cmrr:cmrr_db",
+]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_cmrr:cmrr_db",
+]
+normalization = "db20"
+
+[[task.evaluation.metrics]]
+id = "gain"
+category = "performance"
+observations = [
+    "nominal:gain_db",
+]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_nominal:gain_db",
+]
+normalization = "db20"
+
+[[task.evaluation.metrics]]
+id = "unity"
+category = "performance"
+observations = [
+    "nominal:unity_hz",
+]
+unit = "Hz"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_nominal:unity_hz",
+]
+normalization = "ratio"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared ordered-event interval or crossing frequency has a nonnegative measurement domain, and its crossing must exist for a usable observation."
+
+[task.evaluation.metrics.quality_target]
+value = 26000000.0
+rationale = "Retain 26 MHz unity-gain bandwidth while driving the declared 1 pF load with fixed device sizes and 10 uA bias."
+
+[[task.evaluation.metrics]]
+id = "output_bias"
+category = "performance"
+observations = [
+    "nominal:bias_v",
+]
+unit = "V"
+direction = "target"
+aggregation = "min"
+dimension = "bias"
+baseline = [
+    "source_nominal:bias_v",
+]
+normalization = "target"
+scale = 0.01
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 3.3
+rationale = "The declared output or bias must stay in its specified operating or logic-level interval under the supplied rail, feedback or full-scale reference conditions; an out-of-range output violates that interface."
+
+[[task.evaluation.metrics]]
+id = "supply"
+category = "performance"
+observations = [
+    "nominal:power_w",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "min"
+dimension = "supply"
+baseline = [
+    "source_nominal:power_w",
+]
+normalization = "ratio"
+scale = 1e-12
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared powered circuit must consume nonnegative net energy from its supplies and driven references over the stated observation; power magnitude remains a quality objective."
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 100.0
+rationale = "A 100 um2 functional footprint is a compact 10-by-10 um integration budget, not a percentage of the feasibility witness. Area (50%) and loaded bandwidth (30%) reward diffusion sharing and short sensitive interconnects with fixed device dimensions. Gain (8%), CMRR (7%), bias (3%) and power (2%) retain electrical quality without letting nearly fixed DC quantities dominate. The 26 MHz bandwidth goal retains nearly all nominal source bandwidth at 1 pF; the 10 mV bias scale resolves routing-induced shifts without imposing a rejection limit."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.5
+gain = 0.08
+cmrr = 0.07
+unity = 0.3
+output_bias = 0.03
+supply = 0.02
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "ebf7b5c90ce94e1bc2626122b8618d2f76e9292f4760ac7c756b2a4b47464c85"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"0f975b3ce7692fcbe19ec46cf8a89bcd3d7d718eed443f714afa3033f9e33834\", \"compatibility\": null, \"cpu_budget\": 8, \"execution_sha256\": \"4256875a12feacdc7b1c992999ca2d58c01501a4bc6f5ac8e9a9fa379d26502b\", \"image_id\": \"sha256:f3d0db2bd3aa5dfbcc44bb75b7cfbe8f24356a8b32fe1bce2433431f624e7afe\", \"limits\": {\"cpus\": 8, \"memory_mb\": 4096, \"pids\": 256}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"4c7a26df97245613922e47bdae060a40d6cb59f9c243e22d8964f97209f47011\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 240.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Wed Oct  7 12:04:25 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_nominal]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_nominal.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_nominal.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.measurements]
+gain_db = "dB"
+unity_hz = "Hz"
+bias_v = "V"
+power_w = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.values]
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.input_sha256]
+deck = "3efca916ec85a68bfa98be31c2e17bbe1e62c2dd96cd2830a8a13e2c09fa4030"
+dut = "fe6966f64eb3bc72880adca79dac070e0c0e2ea05cdc46c83f49616611d36fac"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.bias_v]
+value = 2.526216
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.gain_db]
+value = 24.42387
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.power_w]
+value = 0.0001074716
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.unity_hz]
+value = 26352120.0
+unit = "Hz"
+
+[task.evaluation.pre_layout.jobs.source_cmrr]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_cmrr.inputs]
+deck = "input:cmrr"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_cmrr.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_cmrr.parameters.measurements]
+cmrr_db = "dB"
+
+[task.evaluation.pre_layout.jobs.source_cmrr.parameters.values]
+
+[task.evaluation.pre_layout.jobs.source_cmrr.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_cmrr.input_sha256]
+deck = "d3553f2c2a2a9cf78e9abd9cd9ffc535a67861e3d648cf28df9ffbb1298c88c4"
+dut = "fe6966f64eb3bc72880adca79dac070e0c0e2ea05cdc46c83f49616611d36fac"
+
+[task.evaluation.pre_layout.jobs.source_cmrr.measurements.cmrr_db]
+value = 55.49372
+unit = "dB"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+check = "artifact"
+timeout_seconds = 180
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+check = "drc"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+check = "lvs"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "lvs.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 180
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-eda-open:local"
+support = "build/support/gf180-magic"
+technology = "gf180mcuD.tech"
+tech_name = "gf180mcuD"
+style = "ngspice()"
+gds_readonly = false
+grid_subdivision = 10
+case_insensitive_ports = true
+timeout_seconds = 240
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+support = "build/support/gf180-models"
+timeout_seconds = 240
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[origin]
+url = "https://github.com/Jianxun/iic-osic-tools-project-template/tree/178a401d847ce7a602d0ce70a1ba90a15b5f9536/designs/libs/core_analog/ota_5t/ota_5t.spice"
+
+[qualification]
+reference = "reference/ota_5t.gds"
+
+[presentation]
+category = "Amplifiers & RF"
+summary = "Amplifies a differential input with a compact five-transistor OTA core and bias network."

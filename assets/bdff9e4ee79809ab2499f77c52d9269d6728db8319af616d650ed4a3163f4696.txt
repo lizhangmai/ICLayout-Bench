@@ -1,0 +1,37 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt amp_021_yan_az vss vdd vinn vinp vout vb1
+MM0 vb1 vb1 vdd vdd sg13_lv_pmos w=0.54u l=3.85u m=4
+MM1 vb4 vb1 vdd vdd sg13_lv_pmos w=0.54u l=3.85u m=4
+MM10 net063 vinp net019 net019 sg13_lv_pmos w=2.59u l=0.37u m=4
+MM11 net094 net050 vdd vdd sg13_lv_pmos w=8.95u l=3.41u m=4
+MM13 vout net050 vdd vdd sg13_lv_pmos w=5.99u l=2.04u m=4
+MM14 voutn net077 dm_2 vss sg13_lv_nmos w=9.12u l=7.48u m=4
+MM15 net050 net082 net063 vss sg13_lv_nmos w=9.12u l=7.48u m=4
+MM16 net077 dm_2 vss vss sg13_lv_nmos w=2.64u l=5.64u m=4
+MM17 net082 net063 vss vss sg13_lv_nmos w=2.64u l=5.64u m=4
+MM18 vout net057 vss vss sg13_lv_nmos w=0.41u l=3u m=4
+MM19 vb4 vb4 vss vss sg13_lv_nmos w=2.01u l=1.26u m=4
+MM2 net019 vb1 vdd vdd sg13_lv_pmos w=0.54u l=3.85u m=8
+MM20 dm_2 vb4 vss vss sg13_lv_nmos w=2.01u l=1.26u m=4
+MM21 net063 vb4 vss vss sg13_lv_nmos w=2.01u l=1.26u m=4
+MM22 net094 net051 vss vss sg13_lv_nmos w=6.13u l=2.09u m=4
+MM23 net057 net094 vss vss sg13_lv_nmos w=5.95u l=9.97u m=4
+MM3 net078 vb1 vdd vdd sg13_lv_pmos w=0.54u l=3.85u m=16
+MM4 voutn voutn vdd vdd sg13_lv_pmos w=0.54u l=3.85u m=4
+MM5 net050 voutn vdd vdd sg13_lv_pmos w=0.54u l=3.85u m=4
+MM67 net057 voutn vdd vdd sg13_lv_pmos w=0.54u l=3.85u m=4
+MM9 dm_2 vinn net019 net019 sg13_lv_pmos w=2.59u l=0.37u m=4
+C0_0 net063 vout cap_cmim w=36.86u l=36.86u m=2
+C1_0 net051 vss cap_cmim w=46.99u l=46.99u m=2
+RR0_0 net078 R0_s1 vss rhigh w=.5u l=61.2u m=1 b=0
+RR0_1 R0_s1 net077 vss rhigh w=.5u l=61.2u m=1 b=0
+RR1_0 net078 net082 vss rhigh w=.5u l=19.43u m=1 b=0
+RR2_0 net094 R2_s1 vss rhigh w=.5u l=79.64u m=1 b=0
+RR2_1 R2_s1 R2_s2 vss rhigh w=.5u l=79.64u m=1 b=0
+RR2_2 R2_s2 R2_s3 vss rhigh w=.5u l=79.64u m=1 b=0
+RR2_3 R2_s3 R2_s4 vss rhigh w=.5u l=79.64u m=1 b=0
+RR2_4 R2_s4 R2_s5 vss rhigh w=.5u l=79.64u m=1 b=0
+RR2_5 R2_s5 R2_s6 vss rhigh w=.5u l=79.64u m=1 b=0
+RR2_6 R2_s6 net051 vss rhigh w=.5u l=79.64u m=1 b=0
+.ends amp_021_yan_az

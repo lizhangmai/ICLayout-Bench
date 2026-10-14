@@ -1,0 +1,28 @@
+.subckt OPAMP_TWO_STAGE VDD GND DIFFPAIR_BIAS VP VN CS_BIAS VOUT
+X0 n_wire0 VN n_X0_wire0 GND sky130_fd_pr__nfet_01v8 l=1.0 w=6.0 m=8
+X1 GND GND GND GND sky130_fd_pr__nfet_01v8 l=1.0 w=6.0 m=2
+X2 n_wire1 VP n_X0_wire0 GND sky130_fd_pr__nfet_01v8 l=1.0 w=6.0 m=8
+X3 GND GND GND GND sky130_fd_pr__nfet_01v8 l=1.0 w=6.0 m=2
+X4 DIFFPAIR_BIAS DIFFPAIR_BIAS GND GND sky130_fd_pr__nfet_01v8 l=2.0 w=6.0 m=4
+X5 n_X0_wire0 DIFFPAIR_BIAS GND GND sky130_fd_pr__nfet_01v8 l=2.0 w=6.0 m=4
+X6 n_X1_X0_X0_V1 n_wire0 VDD VDD sky130_fd_pr__pfet_01v8 l=1 w=6 m=8
+X7 n_X1_wire0 n_wire0 VDD VDD sky130_fd_pr__pfet_01v8 l=1 w=6 m=8
+X8 n_wire0 n_wire0 n_X1_X0_X0_V1 VDD sky130_fd_pr__pfet_01v8 l=1 w=6 m=12
+X9 n_wire1 n_wire0 n_X1_wire0 VDD sky130_fd_pr__pfet_01v8 l=1 w=6 m=12
+X10 VOUT n_wire1 VDD VDD sky130_fd_pr__pfet_01v8 l=1 w=7 m=30
+X11 VDD VDD VDD VDD sky130_fd_pr__pfet_01v8 l=1 w=7 m=3
+X12 VDD VDD VDD VDD sky130_fd_pr__pfet_01v8 l=1 w=7 m=3
+X13 VOUT n_wire1 VDD VDD sky130_fd_pr__pfet_01v8 l=1 w=7 m=30
+X14 VDD VDD VDD VDD sky130_fd_pr__pfet_01v8 l=1 w=7 m=3
+X15 VDD VDD VDD VDD sky130_fd_pr__pfet_01v8 l=1 w=7 m=3
+X16 CS_BIAS CS_BIAS GND GND sky130_fd_pr__nfet_01v8 l=2 w=6 m=16
+X17 VOUT CS_BIAS GND GND sky130_fd_pr__nfet_01v8 l=2 w=6 m=32
+X18 VOUT n_X1_wire0 sky130_fd_pr__cap_mim_m3_1 l=12.0 w=12.0
+X19 VOUT n_X1_wire0 sky130_fd_pr__cap_mim_m3_1 l=12.0 w=12.0
+X20 VOUT n_X1_wire0 sky130_fd_pr__cap_mim_m3_1 l=12.0 w=12.0
+X21 VOUT n_X1_wire0 sky130_fd_pr__cap_mim_m3_1 l=12.0 w=12.0
+X22 VOUT n_X1_wire0 sky130_fd_pr__cap_mim_m3_1 l=12.0 w=12.0
+X23 VOUT n_X1_wire0 sky130_fd_pr__cap_mim_m3_1 l=12.0 w=12.0
+XNDUMMY GND GND GND GND sky130_fd_pr__nfet_01v8 l=2 w=6 m=14
+XPDUMMY VDD VDD VDD VDD sky130_fd_pr__pfet_01v8 l=1 w=6 m=10
+.ends OPAMP_TWO_STAGE

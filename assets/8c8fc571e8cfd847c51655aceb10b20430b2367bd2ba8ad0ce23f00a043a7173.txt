@@ -1,0 +1,153 @@
+# Self-Starting Isolated-Body PTAT Core Layout Task
+
+## Objective
+
+Implement `tsn_002_ptat_classic` in GF180MCU D and submit self-contained GDS.
+The resistor-degenerated four-MOS source core has a positive temperature slope;
+candidate slope is measured and source-paired without a positive-slope acceptance bound.
+A maintained three-MOS startup branch establishes its operating state after
+power-up. Supply sensitivity remains: this is not a precision temperature
+reference or a calibrated thermometer.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the physical LVS authority;
+`materials/circuit.spice` is its simulator representation.
+`materials/startup.spice` and `materials/temperature.spice` define stimuli and observations. This problem is
+the description input. Ordered ports are `vdd vout vss`: supply,
+temperature-dependent output and return.
+
+Retain all device dimensions, multiplicities and four-terminal connections.
+The 8/1 um core NMOS has both source and body on `vout`; its body must remain
+isolated from VSS. The physical primitive `MM0 ... nfet_03v3_dn` maps to
+`XM0 ... nfet_03v3` in the simulator, with the same D/G/S/B and W/L/m.
+Use an isolated P-well inside a supply-tied deep N-well, with explicit
+N-well enclosure and physical well/substrate contacts. Extraction must retain
+the separation between the output body and substrate return. No body-to-VSS
+substitution is permitted. The core resistor is physical 1 kohm/square poly,
+W=2 um, L=40 um, nominal 20 kohm.
+
+The added startup devices have W/L of 0.42/20 um (weak PMOS pull-up),
+2/0.28 um (NMOS detector) and 0.42/1 um (NMOS injector). The detector reduces
+the startup control voltage after bias is established, turning off the
+injection path. The weak pull-up/detector branch still draws static current;
+all DUT supply power is measured. Preserve this branch as part of the DUT.
+Placement, routing, splitting and source/drain interchange are permitted only
+where accepted by the declared LVS equivalence rules. No statistical matching
+or placement style is scored. External stimulus and the output load belong to
+the testbench and must not be placed inside the DUT.
+
+## Operating Conditions
+
+Use typical GF180 3.3 V MOS and poly models with statistical variation disabled.
+VSS is 0 V. Evaluate all 18 combinations of VDD = 2.7/3.0/3.3 V,
+temperature = -20/27/100 C and supply rise time = 0.1/10 us.
+Each startup condition measures its DC operating point at the selected supply
+and temperature. Independently sweep -20 to 100 C in 1 C steps once per supply;
+this sweep is independent of the startup temperature and supply-rise time.
+All three complete temperature sweeps and all 18 startup conditions are retained.
+The external output capacitance is exactly 100 fF.
+
+For startup, ramp VDD linearly from 0 to its selected value, then hold it.
+Use a zero-initial-state `uic` transient through 100 us with no internal
+initial-condition bias or auxiliary startup source. Gear order 2 and a
+maximum timestep of 1 ns are declared. Measure final error, ripple and average
+power over 90–100 us. Startup time is the last falling crossing of the absolute
+output error through 1 mV, relative to that condition's DC operating point.
+This threshold-crossing measure is scored source-relatively and has no hard
+maximum-time limit; overshoot remains represented only by the declared
+finite-window error/ripple measurements.
+
+The unipolar output must stay within the declared 0 to 3.3 V supply envelope,
+and this powered core must consume supply energy. Absolute errors, voltage
+ranges and startup times must represent their nonnegative measurement domains.
+These requirements have explicit rationales in `case.toml`; positive error,
+startup time and power remain scored quality objectives without upper rejection
+budgets. Missing or unusable measurements remain evaluation errors.
+
+## Physical Requirements
+
+Submit top cell `tsn_002_ptat_classic`, all named electrical ports, resolved
+hierarchy and at most 10 MiB. Artifact, GF180 variant-D DRC including antenna,
+strict named-port LVS and geometry must pass with no DRC waivers. Chip-level
+density and seal-ring closure are outside this standalone-block scope.
+
+The functional bounding box must fit within 220 by 65 um. Its area includes
+all declared device and routing drawing layers: wells (including deep N-well
+and isolated P-well), implants, active, poly, contacts, metals/vias and device
+markers. Annotation and pin-purpose shapes are excluded. All functional
+routing must use drawing layers. `/protocol/task.json` freezes the layer set.
+
+Independent candidate extraction retains MOS and resistor geometry and adds
+distributed wiring RC. All scored simulation consumes that extracted DUT.
+This does not include a distributed silicon substrate model. Larger output
+loads are unqualified and can cause oscillation; this is not a pF-load output
+buffer. Brownout/restart, arbitrary supply ramps, process/statistical corners,
+noise, absolute temperature accuracy, supply rejection, EM and fabrication
+signoff are outside scope.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations remain required evidence. The explicit quality targets below supply scoring anchors; otherwise the paired source value is used. Reports retain every paired result.
+
+Let x be the post-layout measurement and b the declared quality target, or the same-condition source measurement when no target is declared:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+For metrics declaring `saturating_ratio`, q = 2(b+s)/(b+x+2*s), using the quality anchor b and the positive scale s in the metric’s units. Equality to the anchor gives raw quality 1; improvements approach raw quality 2 but credited quality stays at 1. Normalize each condition before selecting the worst quality. These scales and targets do not add acceptance cutoffs.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `output_v` | DC output at the selected supply and temperature | V | target / target | 0 … 3.3 | 3.3 |
+| `power_w` | DC delivered supply power, -V(vdd)*I(VDD), including startup bias | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `cold_v` | Output at -20 C | V | target / target | 0 … 3.3 | 3.3 |
+| `hot_v` | Output at 100 C | V | target / target | 0 … 3.3 | 3.3 |
+| `slope_v_per_c` | (hot_v - cold_v)/120 C | V/C | target / target | −∞ … +∞ | 1e-05 |
+| `curvature_v` | Maximum absolute deviation from the endpoint line at all 121 temperatures | V | minimize / saturating_ratio | 0 … +∞ | 0.0001 |
+| `minimum_slope` | Minimum ngspice deriv(output) over temperature | V/C | target / target | −∞ … +∞ | 1e-05 |
+| `maximum_slope` | Maximum ngspice deriv(output) over temperature | V/C | target / target | −∞ … +∞ | 1e-05 |
+| `peak_power_w` | Maximum delivered supply power over temperature | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `startup_error_v` | Maximum absolute output error against the selected DC operating point during 90–100 us | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 |
+| `startup_time_s` | Last falling crossing into a 1 mV absolute-error band around the selected DC operating point | s | minimize / ratio | 0 … +∞ | — |
+| `ripple_v` | Maximum minus minimum output during 90–100 us | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 |
+| `final_power_w` | Time-average delivered supply power during 90–100 us | W | minimize / ratio | 0 … +∞ | 1e-12 |
+
+
+The capability coefficient is **6**, independent of this task's reference-normalized score.
+
+### Quality targets and weights
+
+The area quality target is **300 um2**. It is an integration budget, not a hard limit or a proven process minimum.
+
+The 300 um2 integration budget carries 50% for this fixed-device PTAT core. Curvature carries 20%. The worst paired mean/minimum/maximum temperature slope is scored as one 15% group with a 10 uV/C deviation scale, avoiding three correlated rewards for the same transfer law. Startup time carries 10% and peak power 5%. The 2 mV curvature budget over -20 to 100 C is close to the 1.9 mV worst source curvature. Repeated endpoint voltages, final ripple and repeated steady power observations remain diagnostics; fixed topology is not presented as freely tunable temperature compensation.
+
+`slope_profile` takes the worst source-paired target quality across the mean, minimum and maximum temperature slopes, with a 10 uV/C deviation scale. The three original metrics retain their functional checks and observations with zero individual weights. This group carries 15% once, independently of the 20% curvature objective.
+
+| Metric | Quality anchor | Unit | Scale | Weight |
+| --- | --- | --- | --- | ---: |
+| `functional_area` | 300 | um2 | — | 0.5 |
+| `curvature_v` | 0.002 | V | 0.0001 | 0.2 |
+| `startup_time_s` | paired source | s | — | 0.1 |
+| `peak_power_w` | paired source | W | 1e-12 | 0.05 |
+| `slope_profile` | paired source | V/C | 1e-05 | 0.15 |
+
+Zero-weight observations: `maximum_slope`, `minimum_slope`, `slope_v_per_c`, `ripple_v`, `startup_error_v`, `cold_v`, `hot_v`, `output_v`, `final_power_w`, `power_w`. Original functional requirements remain enforced; grouped metrics listed above carry their stated weight once.
+
+The targets affect continuous quality only. A complete feasible reference may miss them; there is no minimum qualifying score.
+
+## Tools and Submission
+
+Solve budget: **1 hour**.
+
+Use the reviewed GF180 resources in `/protocol/resources.json`. KLayout checks
+physical validity and geometry, Magic extracts RC and ngspice simulates the
+circuit. `/protocol/task.json` provides frozen requirements and
+`/protocol/harness.json` describes the harness. When `process-feedback` is
+exposed, use its published helper for interim checks. Write
+`/workspace/output/final.gds`, then submit with `python -I /protocol/submit.py`.
+
+Use a GDS database unit of 0.001 um as required by GF180MCU DRC rules.

@@ -1,0 +1,43 @@
+* Nominal fully differential OTA: differential AC drive through CircuitOpt fixture.
+.include /workspace/support/models.spice
+.include dut.spice
+.temp 27
+VDD VDD 0 1.0
+VBN VB_N 0 0.44
+VBCN VB_CN 0 0.814
+VBCP VB_CP 0 0.35
+VCMR VCM_REF 0 0.50
+VCMI VCMI 0 0.65
+VINP VINP 0 DC 0.65 AC 0.5
+VINN VINN 0 DC 0.65 AC -0.5
+RS1 VINP VSP 1k
+RS2 VINN VSN 1k
+CC1 VSP G1 2p
+CC2 VSN G2 2p
+RB1 G1 VCMI 1Meg
+RB2 G2 VCMI 1Meg
+CL1 OUTP 0 0.2p
+CL2 OUTN 0 0.2p
+Xdut G1 G2 OUTP OUTN VDD 0 VCM_REF VB_N VB_CN VB_CP fd_ota
+.control
+op
+let output_cm=(v(OUTP)+v(OUTN))/2
+let output_diff=v(OUTP)-v(OUTN)
+let supply=-v(VDD)*i(VDD)
+print output_cm output_diff supply
+alter VCMR 0.55
+op
+let cmfb_high=(v(OUTP)+v(OUTN))/2
+let cmfb_shift=cmfb_high-op1.output_cm
+print cmfb_high cmfb_shift
+alter VCMR 0.50
+save i(vdd) v(differential) v(outn) v(outp) v(vdd)
+ac dec 30 1k 100G
+let differential=v(OUTP)-v(OUTN)
+let db_gain=vdb(differential)
+meas ac gain_db find db_gain at=1Meg
+meas ac unity_hz when db_gain=0 fall=1
+write waveform.raw differential
+quit
+.endc
+.end

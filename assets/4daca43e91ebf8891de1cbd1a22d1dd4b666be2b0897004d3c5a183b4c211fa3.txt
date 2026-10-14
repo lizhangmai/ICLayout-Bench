@@ -1,0 +1,84 @@
+# Quadrature Voltage-Controlled Oscillator Layout Task
+
+## Objective
+
+Implement `vco` in GF180MCU variant D while preserving the supplied circuit, device dimensions and ordered interface. Four-phase oscillation, quadrature and frequency tuning at control voltages 1.65 V and 2.10 V, checked across typical-model temperature and output-load conditions.
+
+## Inputs and Interface
+
+Inputs are this description, `materials/circuit.spice` (the authoritative circuit) and `materials/testbench.spice` (stimuli and measurements). Runtime task metadata supplies consistent frozen constraints, evaluation conditions and output declarations.
+
+Ordered subcircuit and GDS interface: `GND, VDD, ctrl, out_0, out_90, out_180, out_270`.
+GND/VDD: return/supply; ctrl: tuning voltage; out_0/out_90/out_180/out_270: quadrature outputs.
+
+Preserve topology, total device widths, channel lengths, multiplicities, resistor dimensions and body connections. Equivalent hierarchy, diffusion sharing and parallel fingers are allowed when connectivity and electrical checks pass; preserve source models and dimensions without idealizing internal devices. Retain dummy devices even when all their terminals are shorted.
+
+## Operating Conditions
+
+Use typical models at -20, 27 and 100 C. At each temperature run two independent copies of the submitted circuit at ctrl = 1.65 V and 2.10 V, with 25, 50 and 100 fF loads on each output. Each copy has its own ideal supply ramping from 0 V at 0 ns to 3.3 V at 1 ns. Simulate through 600 ns with a 0.02 ns requested step and characterize steady oscillation over 400–600 ns. This is a nine-condition temperature/load matrix, not a process-corner or statistical-yield qualification. Every applicable performance metric is aggregated at its worst paired condition; functional output swing is checked at all outputs, controls and conditions.
+
+Use the reviewed typical primitive models with statistical variation disabled. Numerical parameters in the runtime simulation jobs supply the testbench's `parameters.spice`. Follow the delivered testbench for interpolation and detailed PWL definitions. Process corners, mismatch yield, noise, RF/EM and full-chip density closure are outside this task's qualification scope.
+
+## Physical Requirements
+
+Submit a nonempty GDS with top cell `vco`, no larger than 10485760 bytes. The functional bounding box must fit within 700 × 240 um and includes relevant device and routing polygons, implants/wells, passive markers, contacts, vias and dummy routing. The complete layer/datatype set is:
+
+`[[5,0],[11,17],[11,39],[12,0],[13,17],[21,0],[22,0],[22,4],[24,0],[24,5],[30,0],[30,4],[31,0],[32,0],[33,0],[34,0],[34,3],[34,4],[34,5],[35,0],[36,0],[36,3],[36,4],[36,5],[37,0],[38,0],[40,0],[41,0],[42,0],[42,3],[42,4],[42,5],[46,0],[46,3],[46,4],[46,5],[49,0],[53,0],[53,3],[53,4],[53,5],[55,0],[62,0],[75,0],[80,5],[81,0],[81,3],[81,4],[81,5],[82,0],[86,17],[88,17],[96,1],[100,5],[100,7],[100,8],[108,5],[110,5],[110,11],[110,12],[110,13],[110,14],[110,15],[110,16],[111,5],[112,1],[115,5],[116,5],[117,5],[117,10],[118,5],[119,5],[122,5],[123,5],[124,5],[125,5],[127,5],[128,17],[137,5],[151,5],[152,5],[153,51],[166,5],[167,5],[173,5],[178,0],[183,0],[184,0],[185,0],[204,0],[210,0],[220,0],[226,0],[227,0],[241,0]]`.
+
+Area excludes text and nonfunctional boundary layers 0/0 and 63/0; functional geometry must remain on functional layers. Pass the fixed GF180 D FEOL, BEOL, connectivity, grid and antenna checks without waivers. Use five metal layers, the 1.1 um top-metal option and the 1 kOhm/square high-resistance poly option. Chip density and seal-ring closure belong to higher-level integration.
+
+LVS checks topology, dimensions, body terminals and all named top-level ports, case-insensitively. Physically implement supply and substrate/well contacts; do not short different nets through adjoining silicided diffusion. After validity and geometric checks pass, extract candidate devices and distributed interconnect RC, then simulate the extracted circuit. The substrate model is one equipotential body region with explicit well/body contacts, rather than a distributed silicon-substrate network. Unreliable extraction, missing ports or incomplete measurements cannot establish success.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations remain required evidence. The explicit quality targets below supply scoring anchors; otherwise the paired source value is used. Reports retain every paired result.
+
+Let x be the post-layout measurement and b the declared quality target, or the same-condition source measurement when no target is declared:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `low_control_frequency` | Inverse period between the first two out_0 rising 1.65 V crossings after 400 ns at ctrl=1.65 V. | Hz | target / target | 0 … +∞ | 5000000 |
+| `high_control_frequency` | The same frequency measurement at ctrl=2.10 V. | Hz | target / target | 0 … +∞ | 10000000 |
+| `tuning` | Frequency at 2.10 V divided by frequency at 1.65 V. | 1 | maximize / ratio | 0 … +∞ | — |
+| `quadrature90` | First out_90 versus out_0 rising-crossing displacement after 400 ns, divided by period and reduced modulo one cycle. | 1 | target / target | −∞ … +∞ | 0.00277777777778 |
+| `quadrature180` | The same phase measurement for out_180. | 1 | target / target | −∞ … +∞ | 0.00277777777778 |
+| `quadrature270` | The same phase measurement for out_270. | 1 | target / target | −∞ … +∞ | 0.00277777777778 |
+| `low` | Minimum voltage on each output over 400–600 ns at each control voltage. | V | functional check | −∞ … 0.33 | — |
+| `high` | Maximum voltage on each output over 400–600 ns at each control voltage. | V | functional check | 2.97 … +∞ | — |
+| `supply` | Average delivered supply power over 400–600 ns, separately for each control voltage. | W | minimize / ratio | 0 … +∞ | 1e-12 |
+
+
+The capability coefficient is **8**, independent of this task's reference-normalized score.
+
+### Quality targets and weights
+
+The area quality target is **250 um2**, independent of the current feasibility witness. It is not a hard area limit or a process minimum.
+
+The 250 um2 footprint carries 25%. The three relative phases together carry 45%, centered on exact quarter/half/three-quarter cycles with a one-degree deviation scale; a full-cycle scale hid useful routing asymmetry. The two frequencies retain temperature/load-specific source anchors with 5 and 10 MHz scales and 10% weight each. Tuning and supply power receive 5% each. Faster oscillation alone is not rewarded at the expense of the intended control law.
+
+| Metric | Quality anchor | Unit | Scale | Weight |
+| --- | --- | --- | --- | ---: |
+| `functional_area` | 250 | um2 | — | 0.25 |
+| `high_control_frequency` | paired source | Hz | 10000000 | 0.1 |
+| `low_control_frequency` | paired source | Hz | 5000000 | 0.1 |
+| `tuning` | paired source | 1 | — | 0.05 |
+| `quadrature180` | 0.5 | 1 | 0.00277777777778 | 0.15 |
+| `quadrature270` | 0.75 | 1 | 0.00277777777778 | 0.15 |
+| `quadrature90` | 0.25 | 1 | 0.00277777777778 | 0.15 |
+| `supply` | paired source | W | 1e-12 | 0.05 |
+
+The targets above affect continuous quality only. A complete feasible reference is allowed to miss them; there is no minimum qualifying score.
+
+## Tools and Submission
+
+Solve budget: **1.5 hours**.
+
+Discover inputs and reviewed GF180 resources through the runtime task, resource and submission protocols. Trusted feedback executes the declared physical and post-layout evaluation; source simulation only assists design. Write the final GDS to `/workspace/output/final.gds` and explicitly submit through the runtime protocol. File generation or a successful standalone simulation alone does not complete the task.
+
+Use a GDS database unit of 0.001 um as required by GF180MCU DRC rules.

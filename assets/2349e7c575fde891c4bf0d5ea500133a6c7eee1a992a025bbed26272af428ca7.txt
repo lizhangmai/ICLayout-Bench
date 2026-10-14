@@ -1,0 +1,669 @@
+kind = "layout_case"
+id = "sky130A.sky130_ef_ip__opamp.opamp"
+title = "SKY130 3.3 V Rail-to-Rail Operational Amplifier"
+status = "qualified"
+in_core = false
+
+[[assets]]
+path = "reference/opamp.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "5c516a05ccbdfdcaf508963c885356f61b7fb0eaa337d7abec6a69746ec3bada"
+
+[origin]
+url = "https://github.com/efabless/sky130_ef_ip__opamp/tree/f0eb5cd47112d90fd6d7792ba68e763beacac8e7"
+
+[task]
+kind = "netlist_to_gds"
+hours = 8
+family = "sky130_opamp"
+coefficient = 3
+environment = "sky130A-tt-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "c0f1fb66eda614eb2be5958f2df02384ccd40542be04e8dca9a97f33ba485861"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+subcircuit = "sky130_ef_ip__opamp"
+sha256 = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "8a445a3cbb29766dbfafa634a369c25f82df226c1d319a7f2aa80ae10f9b4537"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "sky130_ef_ip__opamp"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        64,
+        20,
+    ],
+    [
+        65,
+        20,
+    ],
+    [
+        65,
+        44,
+    ],
+    [
+        66,
+        20,
+    ],
+    [
+        66,
+        44,
+    ],
+    [
+        67,
+        20,
+    ],
+    [
+        67,
+        44,
+    ],
+    [
+        68,
+        20,
+    ],
+    [
+        68,
+        44,
+    ],
+    [
+        69,
+        20,
+    ],
+    [
+        69,
+        44,
+    ],
+    [
+        70,
+        20,
+    ],
+    [
+        70,
+        44,
+    ],
+    [
+        71,
+        20,
+    ],
+    [
+        71,
+        44,
+    ],
+    [
+        72,
+        20,
+    ],
+    [
+        93,
+        44,
+    ],
+    [
+        94,
+        20,
+    ],
+]
+max_width_um = 80
+max_height_um = 100
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "out",
+    "ena",
+    "vss",
+    "inp",
+    "inm",
+]
+
+[[task.evaluation.jobs]]
+id = "light"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+bias_voltage = "V"
+supply_power = "W"
+gain_low = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.jobs.parameters.values]
+load_capacitance = 1e-13
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+bias_voltage = "V"
+supply_power = "W"
+gain_low = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.jobs.parameters.values]
+load_capacitance = 5e-13
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.jobs]]
+id = "heavy"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+bias_voltage = "V"
+supply_power = "W"
+gain_low = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.jobs.parameters.values]
+load_capacitance = 1e-12
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "gain_low"
+category = "performance"
+observations = [
+    "light:gain_low",
+    "nominal:gain_low",
+    "heavy:gain_low",
+]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+baseline = [
+    "source_light:gain_low",
+    "source_nominal:gain_low",
+    "source_heavy:gain_low",
+]
+normalization = "db20"
+dimension = "response"
+
+[[task.evaluation.metrics]]
+id = "unity_hz"
+category = "performance"
+observations = [
+    "light:unity_hz",
+    "nominal:unity_hz",
+    "heavy:unity_hz",
+]
+unit = "Hz"
+direction = "maximize"
+aggregation = "min"
+baseline = [
+    "source_light:unity_hz",
+    "source_nominal:unity_hz",
+    "source_heavy:unity_hz",
+]
+normalization = "ratio"
+dimension = "response"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared ordered-event interval or crossing frequency has a nonnegative measurement domain, and its crossing must exist for a usable observation."
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = [
+    "light:supply_power",
+    "nominal:supply_power",
+    "heavy:supply_power",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_light:supply_power",
+    "source_nominal:supply_power",
+    "source_heavy:supply_power",
+]
+normalization = "saturating_ratio"
+dimension = "supply"
+scale = 0.0001
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared powered circuit must consume nonnegative net energy from its supplies and driven references over the stated observation; power magnitude remains a quality objective."
+
+[[task.evaluation.metrics]]
+id = "phase_margin"
+category = "performance"
+observations = [
+    "light:phase_margin",
+    "nominal:phase_margin",
+    "heavy:phase_margin",
+]
+unit = "deg"
+direction = "target"
+aggregation = "min"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 180
+rationale = "The declared negative-feedback loop must remain on its measured 0 to 180 degree stable-feedback branch at the specified crossing; the previous 45 degree design margin is not a validity cutoff."
+
+[[task.evaluation.metrics]]
+id = "bias_voltage"
+category = "performance"
+observations = [
+    "light:bias_voltage",
+    "nominal:bias_voltage",
+    "heavy:bias_voltage",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+lower = 1
+upper = 2.3
+rationale = "The declared output or bias must stay in its specified operating or logic-level interval under the supplied rail, feedback or full-scale reference conditions; an out-of-range output violates that interface."
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 2118.8931
+rationale = "Voltage gain and unity-gain bandwidth carry 60%, supply power 20%, and area 20%. The same source and extracted fixtures use 0.1/0.5/1 pF and 100 Mohm loads at TT, 27 C, 3.3 V supply and 1.8 V enable. A stable 0 to 180 degree phase-margin branch and valid output bias are functional requirements; gain, bandwidth and power have no fixed design-budget cutoff. Area target is the frozen reference functional footprint."
+
+[task.evaluation.scoring.weights]
+gain_low = 0.3
+unity_hz = 0.3
+supply_power = 0.2
+functional_area = 0.2
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "6126a840789ce0d901476faaca9ece5797f7ef7bd8f22c6cd9c84d20a9614725"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"dfbdf2f93297bbe7d8b576fb988504bd0ecf85b93ef47c314a0f2c9c8830c3e7\", \"compatibility\": \"hsa\", \"cpu_budget\": 8, \"execution_sha256\": \"495aa9623759f70228a236eb4825c2ae443ef6a741816d8cfc17d1830841dcef\", \"image_id\": \"sha256:060fee64f9f6e71a647e5e958b788d723c9d51d2928ff93e6a295db1959bc37f\", \"limits\": {\"cpus\": 8, \"memory_mb\": 4096, \"pids\": 256}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"cba8c3811d06b88752a21414d16575ef72011a8b2f05214e29076a9ae90ffb9c\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 240.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_light]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_light.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_light.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_light.parameters.measurements]
+bias_voltage = "V"
+supply_power = "W"
+gain_low = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.pre_layout.jobs.source_light.parameters.values]
+load_capacitance = 1e-13
+
+[task.evaluation.pre_layout.jobs.source_light.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[task.evaluation.pre_layout.jobs.source_light.input_sha256]
+deck = "8a445a3cbb29766dbfafa634a369c25f82df226c1d319a7f2aa80ae10f9b4537"
+dut = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.evaluation.pre_layout.jobs.source_light.measurements.bias_voltage]
+value = 1.648869
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_light.measurements.gain_low]
+value = 54.34573
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_light.measurements.phase_margin]
+value = 81.74539
+unit = "deg"
+
+[task.evaluation.pre_layout.jobs.source_light.measurements.supply_power]
+value = 0.0003807927
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_light.measurements.unity_hz]
+value = 32851740.0
+unit = "Hz"
+
+[task.evaluation.pre_layout.jobs.source_light.output_sha256]
+op = "7a0b5909e973a5890443a4f011827a5669018ec78e6d8dc0bb53c658a132850f"
+ac = "0618f1ffac75e792207d67c8e47a718d00c7f9127b3546cca63eab7448514eda"
+
+[task.evaluation.pre_layout.jobs.source_nominal]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_nominal.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_nominal.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.measurements]
+bias_voltage = "V"
+supply_power = "W"
+gain_low = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.values]
+load_capacitance = 5e-13
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.input_sha256]
+deck = "8a445a3cbb29766dbfafa634a369c25f82df226c1d319a7f2aa80ae10f9b4537"
+dut = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.bias_voltage]
+value = 1.648869
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.gain_low]
+value = 54.34573
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.phase_margin]
+value = 75.9951
+unit = "deg"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.supply_power]
+value = 0.0003807927
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.unity_hz]
+value = 32396710.0
+unit = "Hz"
+
+[task.evaluation.pre_layout.jobs.source_nominal.output_sha256]
+op = "20527807e84bdaed92d8e7593822363275d8061b96b1a1bb37d3e825dbd68a9a"
+ac = "e4584a915d8b184f3684377507e72b8c02885b723b713327b0c67b3865535e0b"
+
+[task.evaluation.pre_layout.jobs.source_heavy]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_heavy.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_heavy.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_heavy.parameters.measurements]
+bias_voltage = "V"
+supply_power = "W"
+gain_low = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.pre_layout.jobs.source_heavy.parameters.values]
+load_capacitance = 1e-12
+
+[task.evaluation.pre_layout.jobs.source_heavy.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[task.evaluation.pre_layout.jobs.source_heavy.input_sha256]
+deck = "8a445a3cbb29766dbfafa634a369c25f82df226c1d319a7f2aa80ae10f9b4537"
+dut = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.evaluation.pre_layout.jobs.source_heavy.measurements.bias_voltage]
+value = 1.648869
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_heavy.measurements.gain_low]
+value = 54.34573
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_heavy.measurements.phase_margin]
+value = 69.55286
+unit = "deg"
+
+[task.evaluation.pre_layout.jobs.source_heavy.measurements.supply_power]
+value = 0.0003807927
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_heavy.measurements.unity_hz]
+value = 31488070.0
+unit = "Hz"
+
+[task.evaluation.pre_layout.jobs.source_heavy.output_sha256]
+op = "dde9a9510d695792cee05363a268b3409c798fd2507017db37e2f4e28c2e931f"
+ac = "e33b2a82e761deac964ae829a8d2d7d3bec7f148f274619375c34c8e19900773"
+
+[qualification]
+reference = "reference/opamp.gds"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "artifact"
+
+[toolchain.backends.drc]
+type = "magic-physical-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "drc"
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "drc(full)"
+grid_subdivision = 2
+support = "external-cache/physical"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "magic-physical-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "lvs"
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "ngspice()"
+setup = "sky130A_setup.tcl"
+grid_subdivision = 2
+support = "external-cache/physical"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+gds_readonly = false
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "ngspice()"
+grid_subdivision = 2
+support = "external-cache/magic"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+compatibility = "hsa"
+support = "external-cache/models"
+
+[toolchain.backends.simulation.support_profiles]
+support = "models"
+
+[presentation]
+category = "Amplifiers & RF"
+summary = "Amplifies differential inputs with a 3.3 V rail-to-rail operational amplifier under the declared capacitive loads."

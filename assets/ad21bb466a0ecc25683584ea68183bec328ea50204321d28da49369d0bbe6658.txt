@@ -1,0 +1,21 @@
+* DC transfer of a fixed 1:1 current mirror, TT at 27 C.
+.include /workspace/support/models.spice
+.include parameters.spice
+.include dut.spice
+.temp 27
+Ireference 0 ref {reference_current}
+Vout out 0 0.9
+Xdut ref out 0 0 CMIRROR
+.control
+op
+let bias_voltage=v(ref)
+print bias_voltage
+write op.raw all
+save @ireference[dc] i(vout) v(ref)
+dc Vout 0.6 1.8 0.05
+let ratio_error=abs(-i(vout)/@ireference[dc]-1)
+meas dc ratio_error_max MAX ratio_error
+write dc.raw all
+quit
+.endc
+.end

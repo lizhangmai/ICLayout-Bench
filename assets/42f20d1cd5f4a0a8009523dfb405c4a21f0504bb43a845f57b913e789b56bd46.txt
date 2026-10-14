@@ -1,0 +1,93 @@
+# Qu AZC Three-Stage Amplifier Layout Task
+
+## Objective
+
+Implement `amp_013_qu2017_azc` without changing the declared circuit. XM9/XM10 form the PMOS input pair with their bodies tied to the common source net019. XM14–XM17 form the active NMOS load around DM_2/net063; XM4/XM5 convert this to net050. XM11 drives net094 and XM12 with the XM6/XM7 mirror drives net057. XM23/XM24 drive net049; XM13/XM18 drive VOUT. The active compensation retains C0 (net063–VOUT), C1 (net051–vss), C2 (net043–vss), both resistors from net078 to net077/net082, and both resistors from net057 to net051/net043. The entire bias tree and all body relationships remain.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the authoritative physical circuit and `materials/circuit.spice` its equivalent simulation representation; `materials/testbench.spice` and `materials/ac.spice` define transient/closed-loop AC and balanced open-loop AC, respectively. This statement is the description input. Ordered interface is `vss vdd vinn vinp vout vb1`: `vss`/`vdd` are supply rails; all other signals, bias/reference and unloaded monitor ports retain netlist connections. Independent bias sources and loads remain outside the physical core.
+
+The integer-micrometre MOS dimensions are unchanged. Every resistor uses native rhigh segments of at most about 250 kOhm; every larger capacitor uses parallel native cap_cmim units of at most about 4 pF. Source and extraction use logical body nets. Native LVS checks actual body-contact connectivity. Distributed substrate behavior is outside this model boundary.
+
+## Operating Conditions
+
+TT MOS, typical MIM/high-poly, 27 C, 1.5 V supply, 0.3 V input reference, 10 pF output load. The external current sink is i0 vb1 vss 1e-06. A direct unity follower receives a 100 mV step at 2 us with 100 ns edges and 8 us high width; falling starts at 10.1 us and completes at 10.2 us. Observe 0–20 us with 0.5 ns maximum step. Report high-window statistics at 8–10 us and return-window statistics at 18–20 us, not a settling time. The rail is adapted from the authored 1.8 V analysis to the actual IHP LV binding; no transistor sizing campaign is performed.
+
+The transient deck directly connects vinn to vout. The frequency-domain deck closes DC feedback through 1 TH, bypasses its far end to ground through 1 F and injects +0.5/−0.5 V AC at the inputs, isolating DC feedback at all measurement frequencies. AC common-mode residual and DC feedback error must both be at most 1 uV; do not infer open-loop gain from near-zero closed-loop input error.
+
+Both decks sweep 200 points per decade from 1 Hz to 1 GHz. AC linearizes a verified DC point and does not prove that equilibrium dynamically stable. Source and candidate both use `rshunt=1e12` (1 TOhm) numerical shunts from each node to ground to handle floating extracted/series-capacitor nodes; sensitivity is checked at 10 TOhm. Power-up startup is not simulated: transient starts at the DC point, and an undisturbed interval checks whether it persists. Use the default sparse solver and deck-declared tolerances.
+
+## Physical Requirements
+
+Submit a native SG13G2 GDS with top cell `amp_013_qu2017_azc`, at most 67108864 bytes, within 20000 × 2000 um. Native main and maximal DRC, named-interface LVS and geometry must pass without marker waivers. Keep every MOS, body connection and passive path. Unit multiplicities and the declared passive series/parallel realization are fixed in the materials.
+
+Functional area includes active regions, gates, contacts, metals, vias, MIM devices and all routing. Wells, text, annotations and nonfunctional markers cannot independently define functional area. Runtime task metadata supplies the exact layer set. After native connectivity and distributed wire-resistance/ground-capacitance extraction, simulate the candidate GDS with the same native MOS/MIM/high-poly models as the source. This task's nominal MOS/R/C scope excludes RF/coupling extraction, PVT, mismatch, noise and manufacturing signoff.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+Complete every declared simulation, with finite measurements and complete raw records. Transient means use full-precision cumulative integration and interpolated endpoint corrections; incomplete windows are errors. PP is the range over the entire finite window, including oscillation or slow drift. It does not establish phase margin, loop gain, settling time or periodic steady state.
+
+`late_error_v`, `return_error_v`, `ripple_v` and `return_ripple_v` use `saturating_ratio`. Candidate error x, paired source error b and the positive scale s below define q = 2(b+s)/(b+x+2s). Source-equivalent error gives q=1; decreasing error approaches the upper quality limit 2 with diminishing returns. The scale retains its declared unit and numerical-floor meaning. Normalize each condition before taking the worst paired quality; other metrics retain their declared normalization and functional requirements.
+
+| Metric | Unit | Definition | Quality role / functional domain |
+| --- | --- | --- | --- |
+| `output_v` | V | DC follower output | bias; target |
+| `power_w` | W | DC rail power, -VDD*I(VDD); external current-sink implementation excluded | supply; ratio; 0 ≤ value |
+| `gain_db` | dB | Balanced differential open AC gain at 1 Hz | response; db20 |
+| `gain_10khz_db` | dB | Balanced differential open AC gain at 10 kHz | response; db20 |
+| `closed_gain_10khz_db` | dB | Direct follower output/signal AC gain at 10 kHz | response; target |
+| `late_error_v` | V | Mean absolute follower tracking error, 8–10 us | response; saturating_ratio; 0 ≤ value |
+| `return_error_v` | V | Mean absolute follower tracking error, 18–20 us | response; saturating_ratio; 0 ≤ value |
+| `ripple_v` | V | Full output peak-to-peak range, 8–10 us | response; saturating_ratio; 0 ≤ value |
+| `return_ripple_v` | V | Full output peak-to-peak range, 18–20 us | response; saturating_ratio; 0 ≤ value |
+| `mean_power_w` | W | Time-weighted rail power over 2–20 us; external current-sink implementation excluded | supply; ratio; 0 ≤ value |
+| `bias_v` | V | External current-bias port DC voltage | diagnostic; unscored |
+| `high_v` | V | Mean follower output, 8–10 us | diagnostic; unscored |
+| `low_v` | V | Mean follower output, 18–20 us | diagnostic; unscored |
+| `output_min_v` | V | Minimum output over 0–20 us | diagnostic; unscored |
+| `output_max_v` | V | Maximum output over 0–20 us | diagnostic; unscored |
+| `fixture_cm_max` | V | Residual common-mode excitation in the differential AC fixture | diagnostic; unscored; 0 ≤ value ≤ 1e-06 |
+| `dc_feedback_error_v` | V | DC voltage mismatch across the external feedback inductor | diagnostic; unscored; 0 ≤ value ≤ 1e-06 |
+
+Observe DC bias, differential gain at 1 Hz/10 kHz, closed-loop response at 10 kHz, tracking error, output bounds and supply power separately.
+
+Performance is continuously paired with the independently simulated source under exactly the same conditions. Gain quality is 10^((candidate−source)/20); target quality is 1/(1+abs(candidate−source)/scale); inverse-ratio quality is (source+floor)/(candidate+floor). Area quality is Q = 8079.11 um2 / functional area. The bias scale is 1.5 V; closed-response scale is 6 dB (factor two in amplitude). Error/range floors are 1 mV (1% of the 100 mV step); power floor is 1 pW. Physical/domain and fixture-validity gates are not upstream product targets.
+
+The compact area benchmark sums MOS envelopes m*((W+2.4)*(L+2.4)+3.2^2) um2, capacitor envelopes 1.2*C/(1.5 fF/um2), and resistor envelopes 2*R/(1360 Ohm) um2, then adds 50% global routing allowance; this is an engineering estimate independent of reference GDS. Coefficient 8 accounts for multistage analog routing, active compensation/body connections and physical passive matching.
+
+### Score weights
+
+Finite-window amplifier response: tracking error 36%, ripple 22.5%, AC transfer 18%, bias and offset 4.5%, power 9%, area 10%. Each objective's weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `late_error_v` | 0.180000000000 |
+| `return_error_v` | 0.180000000000 |
+| `return_ripple_v` | 0.112500000000 |
+| `ripple_v` | 0.112500000000 |
+| `closed_gain_10khz_db` | 0.060000000000 |
+| `gain_10khz_db` | 0.060000000000 |
+| `gain_db` | 0.060000000000 |
+| `output_v` | 0.045000000000 |
+| `mean_power_w` | 0.045000000000 |
+| `power_w` | 0.045000000000 |
+
+## Tools and Submission
+
+Solve budget: **8 hours**.
+
+Use the reviewed SG13G2 resources and ngspice 45 environment. Frozen inputs, requirements and tool bindings are in `/protocol/task.json`. Explicitly submit `/workspace/output/final.gds` through the session submission tool; file generation alone is not submission. Evaluation performs native checks, candidate RC extraction and independent paired source/post-layout simulation. Reference GDS, maintainer README and development sources are not solver inputs.
+
+The authoritative MOS input preserves the original logical groups, W/L/m and all four terminal nets. Verified unit arrays, multiple fingers, shared diffusion and shared wells on the same body net are allowed. Native LVS checks connectivity and equivalent device parameters; native DRC checks actual well/substrate contacts. Contact count, dimensions, area/perimeter and the reference well partition are not circuit constraints. PEX uses actual diffusion geometry and interconnect RC, with logical body nets as its boundary; distributed substrate/well resistance is outside this extraction model.

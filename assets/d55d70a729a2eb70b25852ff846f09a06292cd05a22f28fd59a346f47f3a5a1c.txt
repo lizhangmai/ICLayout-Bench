@@ -1,0 +1,69 @@
+# Dynamic Comparator Layout Task
+
+## Objective
+
+Implement `comp_20240331` in GF180MCU D, preserving circuit, sizes and ordered interface. Complete clocked decisions in both directions with input common mode 1.65 V, differential input ±20 mV, clock 50 MHz and 50 fF per output.
+
+## Inputs and Interface
+
+Inputs are this description, `materials/circuit.spice` (the authoritative circuit) and `materials/testbench.spice` (stimuli and measurements). Runtime task metadata supplies consistent frozen constraints, evaluation conditions and output declarations.
+
+Ordered subcircuit and GDS interface: `VDD, CLK, VOUTP, VOUTN, VINP, VINN, VSS`. VDD/VSS are supply/return, CLK the clock, VINP/VINN differential inputs, and VOUTP/VOUTN directional differential outputs.
+
+Preserve topology, total device widths, channel lengths, multiplicities, resistor dimensions and body connections. Equivalent hierarchy, diffusion sharing and parallel fingers are allowed when connectivity and electrical checks pass; preserve source models and dimensions without idealizing internal devices. Retain dummy devices even when all their terminals are shorted.
+
+## Operating Conditions
+
+3.3 V, 27 C. Clock first rises at 10 ns, with period 20 ns, edges 0.1 ns and high duration 10 ns; each output has 50 fF to ground. Test polarity=-1/+1 separately: VINP=1.65+polarity*0.01 V, VINN=1.65−polarity*0.01 V. Simulate to 100 ns with requested step 0.01 ns.
+
+Use reviewed typical primitive models with statistical variation disabled. Numerical parameters from runtime simulation jobs generate the testbench's `parameters.spice`; interpolation and detailed PWL follow the delivered deck. Scope is limited to nominal compact-model conditions, excluding temperature/process corners, mismatch yield, noise, RF/EM and full-chip density closure.
+
+## Physical Requirements
+
+Submit a nonempty GDS with top cell `comp_20240331`, no larger than 10485760 bytes. The functional bounding box must fit within 200 × 100 um and includes relevant device and routing polygons, implants/wells, passive markers, contacts, vias and dummy routing. The complete layer/datatype set is:
+
+`[[5,0],[11,17],[11,39],[12,0],[13,17],[21,0],[22,0],[22,4],[24,0],[24,5],[30,0],[30,4],[31,0],[32,0],[33,0],[34,0],[34,3],[34,4],[34,5],[35,0],[36,0],[36,3],[36,4],[36,5],[37,0],[38,0],[40,0],[41,0],[42,0],[42,3],[42,4],[42,5],[46,0],[46,3],[46,4],[46,5],[49,0],[53,0],[53,3],[53,4],[53,5],[55,0],[62,0],[75,0],[80,5],[81,0],[81,3],[81,4],[81,5],[82,0],[86,17],[88,17],[96,1],[100,5],[100,7],[100,8],[108,5],[110,5],[110,11],[110,12],[110,13],[110,14],[110,15],[110,16],[111,5],[112,1],[115,5],[116,5],[117,5],[117,10],[118,5],[119,5],[122,5],[123,5],[124,5],[125,5],[127,5],[128,17],[137,5],[151,5],[152,5],[153,51],[166,5],[167,5],[173,5],[178,0],[183,0],[184,0],[185,0],[204,0],[210,0],[220,0],[226,0],[227,0],[241,0]]`.
+
+Area excludes text and nonfunctional boundary layers 0/0 and 63/0; functional geometry must remain on functional layers. Pass the fixed GF180 D FEOL, BEOL, connectivity, grid and antenna checks without waivers. Use five metal layers, the 1.1 um top-metal option and the 1 kOhm/square high-resistance poly option. Chip density and seal-ring closure belong to higher-level integration.
+
+LVS checks topology, dimensions, body terminals and all named top-level ports, case-insensitively. Physically implement supply and substrate/well contacts; do not short different nets through adjoining silicided diffusion. After validity and geometric checks pass, extract candidate devices and distributed interconnect RC, then simulate the extracted circuit. The substrate model is one equipotential body region with explicit well/body contacts, rather than a distributed silicon-substrate network. Unreliable extraction, missing ports or incomplete measurements cannot establish success.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `decision` | polarity*(VOUTP-VOUTN) at 99 ns. | V | functional check | 2.97 … +∞ | — |
+| `delay` | Final clock rising 1.65 V crossing after 80 ns to the corresponding directional output crossing 2.97 V. | s | minimize / ratio | 0 … +∞ | — |
+| `supply` | Average power delivered by VDD over 20–100 ns. | W | minimize / ratio | 0 … +∞ | 1e-12 |
+
+Area reference: **301.49 um2**. The expanded circuit has 15 device instances, a sum of device/contact envelopes 164.1600 um2, a one-sided envelope margin of 1 um, a routing allowance of 50%, and a total outer width/height allowance 2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across both sides, and the envelope sum is displayed to four decimal places. MOS/passive envelopes use W/L (or resistor dimensions) and multiplicity, including explicit contacts and HBT emitter/contact envelopes. This is a frozen engineering estimate, not a process minimum or a proven achievable area.
+
+The capability coefficient is **6**, independent of this task's reference-normalized score.
+
+### Score weights
+
+Clocked comparator: decision delay 71.1%, supply power 18.9%, area 10%; each objective weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `delay` | 0.710526315789 |
+| `supply` | 0.189473684211 |
+
+## Tools and Submission
+
+Solve budget: **3 hours**.
+
+Discover inputs and reviewed GF180 resources through the runtime task, resource and submission protocols. Trusted feedback executes the declared physical and post-layout evaluation; source simulation only assists design. Write the final GDS to `/workspace/output/final.gds` and explicitly submit through the runtime protocol. File generation or a successful standalone simulation alone does not complete the task.
+
+Use a GDS database unit of 0.001 um as required by GF180MCU DRC rules.

@@ -1,0 +1,51 @@
+# SKY130 Eight-Bit Buffered Resistor DAC Layout Task
+
+## Objective
+
+Implement `sky130_ef_ip__rdac3v_8bit` from the supplied transistor-level circuit, preserving topology, fixed device parameters, four-terminal body connections and the ordered interface. Submit a candidate GDS for electrical evaluation of its distributed RC extraction.
+
+## Inputs and Interface
+
+Ordered ports are `dvdd avss dvss avdd b[7] b[6] b[5] b[4] b[3] b[2] b[1] b[0] Vhigh out ena Vlow`. Declared inputs include `problem.md`, `materials/circuit.spice`, `materials/testbench_dc.spice`, `materials/testbench_transient.spice`. The runtime environment supplies models and process resources; reference layouts, author code and qualification evidence are maintainer-only.
+
+## Operating Conditions
+
+Analog/digital supplies are 3.3/1.8 V, enable 1.8 V, low/high references 0.8/2.4 V, and output load 1 pF. Four overlapping DC code blocks 0–64, 64–128, 128–192, 192–255 cover all integer codes and adjacent steps; each block also measures codes 0 and 255, using matching full-range endpoints to compute LSB=output span/255. Supply and reference power use the worst value over all codes. Transient switches all eight digital inputs simultaneously with 2 ns edges, timing the rising output crossing of 2.2 V and falling crossing of 1.0 V separately. All electrical experiments use fixed TT models at 27 °C; delivered testbenches define interpolation, edges, loads, sweeps, observation times and power intervals.
+
+## Physical Requirements
+
+Submit a nonempty GDS no larger than 10485760 bytes, with top cell `sky130_ef_ip__rdac3v_8bit`. Functional geometry must fit within the 250 × 300 um envelope on the declared layer set. Pass complete Magic DRC without waivers and independent Netgen LVS checking named ports, models, dimensions, multiplicities and body/contact connections. After physical and geometric checks pass, extract the candidate's distributed interconnect resistance, capacitance and devices, then run every declared experiment.
+
+## Electrical Requirements and Scoring
+
+Every adjacent-code step must be at least 1 uV, ensuring numerically resolvable strict monotonicity; full-range span must be 1.5–1.7 V, and transient high/low endpoints 2.35–2.45 V and 0.75–0.85 V, respectively, implementing the declared buffer linear-output range. Absolute INL and DNL must be nonnegative; DNL is diagnostic without weight. INL, delay and power use the weights below for continuous quality, without 2 LSB, 1 LSB, 10 us or 20 mW accuracy/power rejection thresholds. Power and absolute errors must be nonnegative; all required measurements must be complete, finite and in correct units.
+
+| Metric | Functional requirement or measurement domain | Aggregation | Score weight |
+| --- | --- | --- | ---: |
+| `functional_area` | No fixed performance bound | max | 35% |
+| `inl_max` | 0 … +∞ LSB | max | 40% |
+| `dnl_max` | 0 … +∞ LSB | max | 0% |
+| `span` | 1.5 … 1.7 V | max | 0% |
+| `min_step` | 1e-06 … +∞ V | min | 0% |
+| `dc_power` | 0 … +∞ W | max | 5% |
+| `rise_delay` | 0 … +∞ s | max | 10% |
+| `fall_delay` | 0 … +∞ s | max | 10% |
+| `high_level` | 2.35 … 2.45 V | max | 0% |
+| `low_level` | 0.75 … 0.85 V | max | 0% |
+
+The 10000 um2 footprint rewards a compact resistor array and decoder/buffer interconnect. INL 40% and area 35% dominate; separate rising/falling full-scale delays each receive 10%, with 1 ns scales so parasitic delay is visible. The 0.15 LSB target is a precision goal, not a monotonicity cutoff. DC power carries 5% because fixed bias largely sets it.
+
+| Metric | Quality anchor | Unit | Normalization | Scale |
+| --- | --- | --- | --- | --- |
+| `inl_max` | 0.15 | LSB | saturating_ratio | 0.05 |
+| `dc_power` | paired source | W | saturating_ratio | 1e-06 |
+| `rise_delay` | 2e-08 | s | saturating_ratio | 1e-09 |
+| `fall_delay` | 3e-08 | s | saturating_ratio | 1e-09 |
+
+Independent source/candidate measurements remain paired under identical conditions. For a cost measurement x, saturating quality is `2*(b+s)/(b+x+2*s)`; target quality is `1/(1+abs(x-b)/s)`. Here b is the quality anchor above, and s is the declared scale. Take the worst quality across each metric’s conditions. Targets and scales do not add acceptance cutoffs; zero-weight observations remain checked.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+## Tools and Submission
+
+Solve budget: 4 hours. Use the task information, tools and SKY130 resources provided by the runtime protocol. Write only the final GDS to `output/final.gds` and explicitly submit through the declared interface. Source simulation serves characterization; accepted results come from complete physical and RC electrical evaluation of the candidate GDS. Conclusions cover only the declared conditions, excluding PVT, mismatch, reliability and product signoff.

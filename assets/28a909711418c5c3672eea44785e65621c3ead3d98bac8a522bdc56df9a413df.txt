@@ -1,0 +1,184 @@
+# Two-Stage Fully Differential OTA with RC Common-Mode Feedback Layout Task
+
+## Objective
+
+Implement `amp_023_fer_fd2s`: an NMOS-input folded first stage, two NMOS
+common-source output stages, dual series R/C compensation and transistor
+common-mode feedback sensing both outputs through physical R/C arms. Preserve
+all device groups and validate both differential and common-mode behavior in
+the specified unity differential feedback connection.
+
+## Inputs and Interface
+
+- `materials/circuit.cdl`: authoritative physical circuit for native LVS.
+- `materials/circuit.spice`: equivalent process-model simulator representation.
+- `materials/testbench.spice`: nominal-temperature stimuli, differential feedback and measurements.
+- `materials/performance_85c.spice`: the same testbench at 85 °C for the selected temperature-stress subset.
+
+Ordered ports are `vinp vinn voutp voutn vdd vss ibias vcmr`.
+VINP/VINN are differential inputs; VOUTP/VOUTN are differential outputs;
+VDD/VSS are supply/return; IBIAS receives 20 uA from VDD; VCMR receives the
+common-mode reference relative to VSS. The bias mirrors and common-mode
+controller stay in the DUT. Do not replace the internal controller with an
+ideal servo or omit physical passive devices.
+
+Retain all 28 MOS groups' fixed W/L/m (50 individual transistors), models and
+connectivity. Equivalent parallel fingering/native merging is allowed if all
+checks pass. NMOS and resistor bodies connect through the explicit substrate
+tap to VSS; PMOS bodies connect through the well tap to VDD. Keep supplies,
+body connections and ordered ports faithful to the circuit.
+
+Each output compensation path has a W=1 um, L=0.96 um `rhigh` (nominally
+1.52 kohm at 27 C) between `o1a`/`o1b` and `za`/`zb`, followed by two parallel
+25.85 × 25.85 um `cap_cmim` units to the corresponding output (2.01294 pF).
+Each output-to-`vsen` sensing arm contains eight series W=1 um, L=18 um
+`rhigh` segments (nominally 205.28 kohm total), in parallel with a
+9.95 × 9.95 um MIM (150.096 fF). Resistors use m=1, b=0. These internal
+devices are separate from external output loads; they must be physically
+implemented with the same terminal mapping. Internal nodes are not bias ports.
+
+## Operating Conditions
+
+Use typical MOS, capacitor and resistor models, 27 C, 1.2 V supply, 20 uA
+from VDD to IBIAS, and input common mode 0.5 V. Each output has an external
+1, 5 or 10 pF load. For each load, evaluate paired positive and negative
+stimuli: `step_v` is +0.1 or −0.1 V and `kick_a` is respectively +100 or
+−100 uA. All six conditions must pass.
+
+Define `d=VOUTP−VOUTN` and `c=(VOUTP+VOUTN)/2`. The external differential
+feedback apparatus drives `VINP=0.5+(VSIG−d)/2` and
+`VINN=0.5−(VSIG−d)/2`, through zero-volt series probes. It holds input
+common mode and closes differential unity feedback. It does not force output
+common mode: the actual DUT controller, its two R/C sense arms and actual
+output stages close that loop.
+
+At DC, VSIG=0 and VCMR=0.75 V. Differential AC uses opposite +0.5/−0.5 V
+series probe excitations and sweeps 1 Hz–1 GHz at 150 points/decade. Measure
+`A=d/(VINP−VINN)`; its sign is retained. Low-frequency gain is dB magnitude
+at 1 Hz; unity frequency is the first falling 0 dB crossing; phase margin is
+180 degrees plus continuous phase there, without subtracting an arbitrary
+phase offset. A missing crossing is an error. This voltage-injection return
+ratio is scoped to the high-impedance input and declared unity feedback.
+
+Common-mode AC sets both series probe AC magnitudes to zero and VCMR AC=1 V,
+keeping differential feedback closed. Sweep 1 Hz–1 GHz at 100 points/decade.
+Measure `abs(c/VCMR)` at 1 Hz and its maximum over the complete sweep.
+This is closed-loop common-mode tracking/peaking, not an internal common-mode
+loop phase-margin measurement.
+
+The transient sequence runs 0–8 us using Gear order 2 with maximum step 1 ns.
+Use `rshunt=1e12`, `reltol=1e-5`, `abstol=1e-13`, `vntol=1e-8`.
+VSIG rises from zero to `step_v` during 1–1.005 us, holds for 4 us, and
+returns during 5.005–5.010 us. VCMR rises 0.75→0.8 V during 3–3.005 us,
+holds for 1 us, and returns during 4.005–4.010 us. Thus reference tracking
+is tested while a nonzero differential output is present. Equal current
+sources inject `kick_a` into both outputs during a 6–6.060 us pulse:
+5 ns rise, 50 ns hold and 5 ns fall. Negative `kick_a` withdraws current.
+The pulse periods are 20 us; only this finite 8 us sequence is measured.
+No startup initialization is imposed; transient starts from the solved DC point.
+
+A selected phase-margin and CMFB subset repeats at 85 °C with the same TT device models, supply, references, loads and step/kick conditions. This checks temperature sensitivity only; no process-corner, mismatch or yield result is claimed.
+
+## Physical Requirements
+
+Submit GDSII top cell `amp_023_fer_fd2s`, at most 10 MiB. Pass native IHP
+main/maximal DRC without waivers (standalone scope, density/antenna disabled),
+strict named-port LVS with physical taps, and a 1200 × 400 um functional
+outline. Include all device, contact and routing drawing layers enumerated by
+the runtime outline constraint. Pin-purpose and annotation layers do not
+contribute to bounding-box area and cannot conceal functional geometry.
+
+Post-layout measurements must consume the candidate-derived Magic RC netlist,
+including physical passives, transistor junction geometry and interconnect.
+The extraction configuration subdivides Magic's initial grid by two before
+GDS import and imports its isolated copy with `gds_readonly=false`; the submitted
+GDS remains immutable. No extraction error is waived. Device parameters,
+geometry and port connectivity must survive extraction. Magic idealizes
+well/substrate taps; source simulation retains their finite process models.
+Distributed substrate resistance/noise and fabrication signoff are outside scope.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations remain required evidence. The explicit quality targets below supply scoring anchors; otherwise the paired source value is used. Reports retain every paired result.
+
+Let x be the post-layout measurement and b the declared quality target, or the same-condition source measurement when no target is declared:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+Static common-mode accuracy is scored once, using three independently solved
+DC equilibria for each load/polarity condition. Dynamic common-mode recovery is
+measured relative to the corresponding circuit equilibrium, not the ideal
+reference, so a fixed offset cannot earn repeated recovery rewards. The return
+window ends at 4.95 us, before the differential input returns. The 100 uV scale
+for static common-mode error, recovery and coupling equals 0.2% of the 50 mV
+reference step; it declares useful accuracy, not a pass/fail tolerance or a
+claim of process robustness. The original typical-model, 27 C, 1.2 V scope remains.
+
+The measurements below use the supplied SPICE node and source names. `v(n)` is a node voltage; `i(V)` is current flowing into a voltage source, so delivered power uses a negative sign. `db(z)=20*log10(abs(z))`; `mag/abs` denote magnitude, and `cph` denotes continuous phase in radians. `find`, `when`, `from/to` and `rise/fall` follow the deck's interpolation, window and crossing conventions. SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/milli/mega/giga. Nested `avg`, `min`, `max`, `vecmin/vecmax` and `deriv` represent window averages, extrema and sampled derivatives. Measure each operating condition independently, pair it with the source result under that condition, and take the worst paired quality within each metric group.
+
+For metrics declaring `saturating_ratio`, q = 2(b+s)/(b+x+2*s), using the quality anchor b and the positive scale s in the metric’s units. Equality to the anchor gives raw quality 1; improvements approach raw quality 2 but credited quality stays at 1. Normalize each condition before selecting the worst quality. These scales and targets do not add acceptance cutoffs.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale | Dimension |
+| --- | --- | --- | --- | --- | --- | --- |
+| `cm_static_error_v` | DC: Maximum absolute common-mode reference error across (VSIG, VCMR) = (0, 0.75 V), (step_v, 0.75 V), (step_v, 0.8 V). | V | minimize / saturating_ratio | 0 … +∞ | 0.005 | response |
+| `output_cm_v` | DC operating point: `(v(outp)+v(outn))/2`. | V | target / target | 0 … 1.2 | 1.2 | bias |
+| `output_dm_v` | DC operating point: `v(outp)-v(outn)`. | V | target / target | −∞ … +∞ | 1.2 | bias |
+| `bias_v` | DC operating point: `v(ibias)`. | V | target / target | 0 … 1.2 | 1.2 | bias |
+| `power_w` | DC operating point: `-v(vdd)*i(VDD)`. | W | minimize / ratio | 0 … +∞ | 1e-12 | supply |
+| `dm_gain_db` | AC: Value of `(db(((v(outp)-v(outn))/(v(inp)-v(inn))))) at=1`. | dB | maximize / db20 | −∞ … +∞ | — | response |
+| `unity_hz` | AC: Crossing coordinate where `(db(((v(outp)-v(outn))/(v(inp)-v(inn)))))=0 fall=1`. | Hz | maximize / ratio | 0 … +∞ | — | response |
+| `phase_margin_deg` | AC: `180+(find (180*cph(((v(outp)-v(outn))/(v(inp)-v(inn))))/pi) when (db(((v(outp)-v(outn))/(v(inp)-v(inn)))))=0 fall=1)`. | deg | target / target | 0 … 180 | 10 | response |
+| `cm_gain_vv` | AC: Value of `(mag(((v(outp)+v(outn))/2))) at=1`. | V/V | target / target | −∞ … +∞ | 1 | response |
+| `cm_peak_vv` | AC: Maximum of `(mag(((v(outp)+v(outn))/2)))`. | V/V | target / target | −∞ … +∞ | 1 | response |
+| `dm_up_error_v` | TRAN: Maximum of `(abs((v(outp)-v(outn))-v(sig))) from=1.5u to=1.95u`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-05 | response |
+| `dm_down_error_v` | TRAN: Maximum of `(abs((v(outp)-v(outn))-v(sig))) from=5.5u to=5.95u`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-05 | response |
+| `cm_up_recovery_v` | TRAN: max abs(c-c_high), 3.5–3.95 us; c_high is the independent DC output at (step_v, 0.8 V). | V | minimize / saturating_ratio | 0 … +∞ | 0.0001 | response |
+| `cm_down_recovery_v` | TRAN: max abs(c-c_low), 4.5–4.95 us; c_low is the independent DC output at (step_v, 0.75 V). | V | minimize / saturating_ratio | 0 … +∞ | 0.0001 | response |
+| `cm_kick_recovery_v` | TRAN: max abs(c-c_idle), 6.5–7.9 us; c_idle is the independent DC output at (0, 0.75 V). | V | minimize / saturating_ratio | 0 … +∞ | 0.0001 | response |
+| `cm_kick_peak_v` | TRAN: max abs(c-c_idle), 6–6.5 us. | V | minimize / saturating_ratio | 0 … 1.2 | 0.005 | response |
+| `dm_peak_v` | TRAN: Maximum of `(abs((v(outp)-v(outn)))) from=1u to=5u`. | V | target / target | 0 … 1.2 | 1.2 | response |
+| `mean_power_w` | TRAN: Mean of `(-v(vdd)*i(VDD)) from=0 to=8u`. | W | minimize / ratio | 0 … +∞ | 1e-12 | supply |
+| `dm_cm_error_v` | TRAN: Maximum of `(abs((v(outp)-v(outn))-v(sig))) from=3.5u to=3.95u`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 | response |
+| `cm_dm_coupling_v` | TRAN: max abs(c-c_idle), 1.5–1.95 us; retains differential-to-common-mode coupling but removes the initial static reference offset. | V | minimize / saturating_ratio | 0 … +∞ | 1e-07 | response |
+| `dm_high_v` | TRAN: Mean of `(v(outp)-v(outn)) from=1.8u to=1.95u`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `cm_high_v` | TRAN: Mean of `((v(outp)+v(outn))/2) from=3.8u to=3.95u`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+
+
+The capability coefficient is **9**, independent of this task's reference-normalized score.
+
+### Quality targets and weights
+
+The area quality target is **4000 um2**. It is an integration budget, not a hard limit or a proven process minimum.
+
+The fixed MIM plates occupy 2870.895 um2; the 4000 um2 integration budget leaves 1129.105 um2 for the amplifier, taps, enclosure and routing and carries 30%. Differential recovery, static common-mode error and common-mode peak response remain distinct quality objectives; the peak is minimized rather than rewarded for matching a nonzero source peak. Bandwidth carries 10%, phase preservation 5%, common-mode-to-differential coupling 10% and mean power 5%. Near-zero late common-mode residuals and repeated operating-point summaries remain diagnostic. The 100 uV differential, 50 mV common-mode and 1 uV coupling goals apply only to the declared loads and hot-temperature check.
+
+| Metric | Quality anchor | Unit | Scale | Weight |
+| --- | --- | --- | --- | ---: |
+| `functional_area` | 4000 | um2 | — | 0.3 |
+| `dm_down_error_v` | 0.0001 | V | 1e-05 | 0.1 |
+| `dm_up_error_v` | 0.0001 | V | 1e-05 | 0.1 |
+| `cm_kick_peak_v` | 0.05 | V | 0.005 | 0.1 |
+| `cm_dm_coupling_v` | 1e-06 | V | 1e-07 | 0.1 |
+| `phase_margin_deg` | paired source | deg | 10 | 0.05 |
+| `unity_hz` | paired source | Hz | — | 0.1 |
+| `mean_power_w` | paired source | W | 1e-12 | 0.05 |
+| `cm_static_error_v` | 0.05 | V | 0.005 | 0.1 |
+
+Zero-weight observations: `dm_peak_v`, `cm_down_recovery_v`, `cm_kick_recovery_v`, `cm_up_recovery_v`, `dm_cm_error_v`, `cm_gain_vv`, `cm_peak_vv`, `dm_gain_db`, `bias_v`, `output_cm_v`, `output_dm_v`, `power_w`. Original functional requirements remain enforced; grouped metrics listed above carry their stated weight once.
+
+The targets affect continuous quality only. A complete feasible reference may miss them; there is no minimum qualifying score.
+
+## Tools and Submission
+
+Solve budget: **1.5 hours**.
+
+Discover task inputs, frozen requirements, reviewed resources and harness
+feedback through `/protocol/task.json`, `/protocol/resources.json` and
+`/protocol/harness.json`. Use the supplied IHP primitives and KLayout, Magic
+and ngspice. Write `/workspace/output/final.gds` and explicitly submit using
+the harness protocol. Reference GDS, source records and host configuration
+remain outside standard solver inputs.

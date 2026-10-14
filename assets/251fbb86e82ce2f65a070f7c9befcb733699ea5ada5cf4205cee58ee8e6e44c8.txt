@@ -1,0 +1,2681 @@
+kind = "layout_case"
+id = "ihp-sg13g2.analog-db.vref_001_vgs"
+title = "Mixed LV/HV VGS Reference with Picoampere Load and Zero-State Recovery"
+status = "qualified"
+in_core = false
+
+[[assets]]
+path = "reference/vref_001_vgs.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "bd06f42574302e32d144af40740e9179ae3b3a7f539943cdd3d720a3aedc9400"
+
+[task]
+hours = 3
+coefficient = 5
+kind = "netlist_to_gds"
+family = "ihp-sg13g2_vgs_reference"
+environment = "ihp-sg13g2-vgs-reference-mixed-mos-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "859c0d62f3ad014f29948800a89a5b6731b90dfd35dce07f548c2541251f794b"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+subcircuit = "vref_001_vgs"
+sha256 = "4352aeb85c2a7bfb00181738a742d0ccbd5033b422393bafa6a82bd84c1e84b9"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "adf8fa7eabe990285cd2e7317bd93a5e7c749bc47881e92fdadb45ec5896fe26"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "6b030a347f17808327f462bc90d6f2564f8d0953f7dd96c02da9e82b3fa9ad92"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 100
+max_height_um = 100
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "vref_001_vgs"
+max_bytes = 1048576
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "vref",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "tm20_v10"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = -20
+supply_v = 1.0
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "tm20_v12"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = -20
+supply_v = 1.2
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "tm20_v15"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = -20
+supply_v = 1.5
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "t27_v10"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = 27
+supply_v = 1.0
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "t27_v12"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = 27
+supply_v = 1.2
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "t27_v15"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = 27
+supply_v = 1.5
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "t85_v10"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = 85
+supply_v = 1.0
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "t85_v12"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = 85
+supply_v = 1.2
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.jobs]]
+id = "t85_v15"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+dut = "job:parasitics:netlist"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+temperature_c = 85
+supply_v = 1.5
+
+[task.evaluation.jobs.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "reference_v"
+category = "performance"
+observations = [
+    "tm20_v10:reference_v",
+    "tm20_v12:reference_v",
+    "tm20_v15:reference_v",
+    "t27_v10:reference_v",
+    "t27_v12:reference_v",
+    "t27_v15:reference_v",
+    "t85_v10:reference_v",
+    "t85_v12:reference_v",
+    "t85_v15:reference_v",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+dimension = "bias"
+baseline = [
+    "source_tm20_v10:reference_v",
+    "source_tm20_v12:reference_v",
+    "source_tm20_v15:reference_v",
+    "source_t27_v10:reference_v",
+    "source_t27_v12:reference_v",
+    "source_t27_v15:reference_v",
+    "source_t85_v10:reference_v",
+    "source_t85_v12:reference_v",
+    "source_t85_v15:reference_v",
+]
+normalization = "target"
+scale = 1.5
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.5
+rationale = "The unipolar reference and its declared unloaded/loaded DC observations must stay within the 0 to 1.5 V operating supply envelope."
+
+[[task.evaluation.metrics]]
+id = "supply_a"
+category = "performance"
+observations = [
+    "tm20_v10:supply_a",
+    "tm20_v12:supply_a",
+    "tm20_v15:supply_a",
+    "t27_v10:supply_a",
+    "t27_v12:supply_a",
+    "t27_v15:supply_a",
+    "t85_v10:supply_a",
+    "t85_v12:supply_a",
+    "t85_v15:supply_a",
+]
+unit = "A"
+direction = "minimize"
+aggregation = "max"
+dimension = "bias"
+baseline = [
+    "source_tm20_v10:supply_a",
+    "source_tm20_v12:supply_a",
+    "source_tm20_v15:supply_a",
+    "source_t27_v10:supply_a",
+    "source_t27_v12:supply_a",
+    "source_t27_v15:supply_a",
+    "source_t85_v10:supply_a",
+    "source_t85_v12:supply_a",
+    "source_t85_v15:supply_a",
+]
+normalization = "ratio"
+scale = 1e-12
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "This unloaded two-transistor reference consumes nonnegative DC supply current and power."
+
+[[task.evaluation.metrics]]
+id = "power_w"
+category = "performance"
+observations = [
+    "tm20_v10:power_w",
+    "tm20_v12:power_w",
+    "tm20_v15:power_w",
+    "t27_v10:power_w",
+    "t27_v12:power_w",
+    "t27_v15:power_w",
+    "t85_v10:power_w",
+    "t85_v12:power_w",
+    "t85_v15:power_w",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+dimension = "supply"
+baseline = [
+    "source_tm20_v10:power_w",
+    "source_tm20_v12:power_w",
+    "source_tm20_v15:power_w",
+    "source_t27_v10:power_w",
+    "source_t27_v12:power_w",
+    "source_t27_v15:power_w",
+    "source_t85_v10:power_w",
+    "source_t85_v12:power_w",
+    "source_t85_v15:power_w",
+]
+normalization = "ratio"
+scale = 1e-12
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "This unloaded two-transistor reference consumes nonnegative DC supply current and power."
+
+[[task.evaluation.metrics]]
+id = "startup_error_v"
+category = "performance"
+observations = [
+    "tm20_v10:startup_error_v",
+    "tm20_v12:startup_error_v",
+    "tm20_v15:startup_error_v",
+    "t27_v10:startup_error_v",
+    "t27_v12:startup_error_v",
+    "t27_v15:startup_error_v",
+    "t85_v10:startup_error_v",
+    "t85_v12:startup_error_v",
+    "t85_v15:startup_error_v",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_tm20_v10:startup_error_v",
+    "source_tm20_v12:startup_error_v",
+    "source_tm20_v15:startup_error_v",
+    "source_t27_v10:startup_error_v",
+    "source_t27_v12:startup_error_v",
+    "source_t27_v15:startup_error_v",
+    "source_t85_v10:startup_error_v",
+    "source_t85_v12:startup_error_v",
+    "source_t85_v15:startup_error_v",
+]
+normalization = "saturating_ratio"
+scale = 1e-06
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "Absolute reference errors and sampled voltage spans have nonnegative measurement domains; positive values remain scored quality observations."
+
+[[task.evaluation.metrics]]
+id = "load_error_v"
+category = "performance"
+observations = [
+    "tm20_v10:load_error_v",
+    "tm20_v12:load_error_v",
+    "tm20_v15:load_error_v",
+    "t27_v10:load_error_v",
+    "t27_v12:load_error_v",
+    "t27_v15:load_error_v",
+    "t85_v10:load_error_v",
+    "t85_v12:load_error_v",
+    "t85_v15:load_error_v",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_tm20_v10:load_error_v",
+    "source_tm20_v12:load_error_v",
+    "source_tm20_v15:load_error_v",
+    "source_t27_v10:load_error_v",
+    "source_t27_v12:load_error_v",
+    "source_t27_v15:load_error_v",
+    "source_t85_v10:load_error_v",
+    "source_t85_v12:load_error_v",
+    "source_t85_v15:load_error_v",
+]
+normalization = "saturating_ratio"
+scale = 1e-06
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "Absolute reference errors and sampled voltage spans have nonnegative measurement domains; positive values remain scored quality observations."
+
+[[task.evaluation.metrics]]
+id = "release_error_v"
+category = "performance"
+observations = [
+    "tm20_v10:release_error_v",
+    "tm20_v12:release_error_v",
+    "tm20_v15:release_error_v",
+    "t27_v10:release_error_v",
+    "t27_v12:release_error_v",
+    "t27_v15:release_error_v",
+    "t85_v10:release_error_v",
+    "t85_v12:release_error_v",
+    "t85_v15:release_error_v",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_tm20_v10:release_error_v",
+    "source_tm20_v12:release_error_v",
+    "source_tm20_v15:release_error_v",
+    "source_t27_v10:release_error_v",
+    "source_t27_v12:release_error_v",
+    "source_t27_v15:release_error_v",
+    "source_t85_v10:release_error_v",
+    "source_t85_v12:release_error_v",
+    "source_t85_v15:release_error_v",
+]
+normalization = "saturating_ratio"
+scale = 1e-06
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "Absolute reference errors and sampled voltage spans have nonnegative measurement domains; positive values remain scored quality observations."
+
+[[task.evaluation.metrics]]
+id = "injection_error_v"
+category = "performance"
+observations = [
+    "tm20_v10:injection_error_v",
+    "tm20_v12:injection_error_v",
+    "tm20_v15:injection_error_v",
+    "t27_v10:injection_error_v",
+    "t27_v12:injection_error_v",
+    "t27_v15:injection_error_v",
+    "t85_v10:injection_error_v",
+    "t85_v12:injection_error_v",
+    "t85_v15:injection_error_v",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_tm20_v10:injection_error_v",
+    "source_tm20_v12:injection_error_v",
+    "source_tm20_v15:injection_error_v",
+    "source_t27_v10:injection_error_v",
+    "source_t27_v12:injection_error_v",
+    "source_t27_v15:injection_error_v",
+    "source_t85_v10:injection_error_v",
+    "source_t85_v12:injection_error_v",
+    "source_t85_v15:injection_error_v",
+]
+normalization = "saturating_ratio"
+scale = 1e-06
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "Absolute reference errors and sampled voltage spans have nonnegative measurement domains; positive values remain scored quality observations."
+
+[[task.evaluation.metrics]]
+id = "return_error_v"
+category = "performance"
+observations = [
+    "tm20_v10:return_error_v",
+    "tm20_v12:return_error_v",
+    "tm20_v15:return_error_v",
+    "t27_v10:return_error_v",
+    "t27_v12:return_error_v",
+    "t27_v15:return_error_v",
+    "t85_v10:return_error_v",
+    "t85_v12:return_error_v",
+    "t85_v15:return_error_v",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_tm20_v10:return_error_v",
+    "source_tm20_v12:return_error_v",
+    "source_tm20_v15:return_error_v",
+    "source_t27_v10:return_error_v",
+    "source_t27_v12:return_error_v",
+    "source_t27_v15:return_error_v",
+    "source_t85_v10:return_error_v",
+    "source_t85_v12:return_error_v",
+    "source_t85_v15:return_error_v",
+]
+normalization = "saturating_ratio"
+scale = 1e-06
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "Absolute reference errors and sampled voltage spans have nonnegative measurement domains; positive values remain scored quality observations."
+
+[[task.evaluation.metrics]]
+id = "minimum_v"
+category = "performance"
+observations = [
+    "tm20_v10:minimum_v",
+    "tm20_v12:minimum_v",
+    "tm20_v15:minimum_v",
+    "t27_v10:minimum_v",
+    "t27_v12:minimum_v",
+    "t27_v15:minimum_v",
+    "t85_v10:minimum_v",
+    "t85_v12:minimum_v",
+    "t85_v15:minimum_v",
+]
+unit = "V"
+direction = "target"
+aggregation = "min"
+dimension = "bias"
+baseline = [
+    "source_tm20_v10:minimum_v",
+    "source_tm20_v12:minimum_v",
+    "source_tm20_v15:minimum_v",
+    "source_t27_v10:minimum_v",
+    "source_t27_v12:minimum_v",
+    "source_t27_v15:minimum_v",
+    "source_t85_v10:minimum_v",
+    "source_t85_v12:minimum_v",
+    "source_t85_v15:minimum_v",
+]
+normalization = "target"
+scale = 1.5
+
+[[task.evaluation.metrics]]
+id = "maximum_v"
+category = "performance"
+observations = [
+    "tm20_v10:maximum_v",
+    "tm20_v12:maximum_v",
+    "tm20_v15:maximum_v",
+    "t27_v10:maximum_v",
+    "t27_v12:maximum_v",
+    "t27_v15:maximum_v",
+    "t85_v10:maximum_v",
+    "t85_v12:maximum_v",
+    "t85_v15:maximum_v",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+dimension = "bias"
+baseline = [
+    "source_tm20_v10:maximum_v",
+    "source_tm20_v12:maximum_v",
+    "source_tm20_v15:maximum_v",
+    "source_t27_v10:maximum_v",
+    "source_t27_v12:maximum_v",
+    "source_t27_v15:maximum_v",
+    "source_t85_v10:maximum_v",
+    "source_t85_v12:maximum_v",
+    "source_t85_v15:maximum_v",
+]
+normalization = "target"
+scale = 1.5
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.5
+rationale = "The unipolar reference and its declared unloaded/loaded DC observations must stay within the 0 to 1.5 V operating supply envelope."
+
+[[task.evaluation.metrics]]
+id = "line_min_v"
+category = "performance"
+observations = [
+    "tm20_v10:line_min_v",
+    "tm20_v12:line_min_v",
+    "tm20_v15:line_min_v",
+    "t27_v10:line_min_v",
+    "t27_v12:line_min_v",
+    "t27_v15:line_min_v",
+    "t85_v10:line_min_v",
+    "t85_v12:line_min_v",
+    "t85_v15:line_min_v",
+]
+unit = "V"
+direction = "target"
+aggregation = "min"
+dimension = "bias"
+baseline = [
+    "source_tm20_v10:line_min_v",
+    "source_tm20_v12:line_min_v",
+    "source_tm20_v15:line_min_v",
+    "source_t27_v10:line_min_v",
+    "source_t27_v12:line_min_v",
+    "source_t27_v15:line_min_v",
+    "source_t85_v10:line_min_v",
+    "source_t85_v12:line_min_v",
+    "source_t85_v15:line_min_v",
+]
+normalization = "target"
+scale = 1.5
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.5
+rationale = "The unipolar reference and its declared unloaded/loaded DC observations must stay within the 0 to 1.5 V operating supply envelope."
+
+[[task.evaluation.metrics]]
+id = "line_max_v"
+category = "performance"
+observations = [
+    "tm20_v10:line_max_v",
+    "tm20_v12:line_max_v",
+    "tm20_v15:line_max_v",
+    "t27_v10:line_max_v",
+    "t27_v12:line_max_v",
+    "t27_v15:line_max_v",
+    "t85_v10:line_max_v",
+    "t85_v12:line_max_v",
+    "t85_v15:line_max_v",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+dimension = "bias"
+baseline = [
+    "source_tm20_v10:line_max_v",
+    "source_tm20_v12:line_max_v",
+    "source_tm20_v15:line_max_v",
+    "source_t27_v10:line_max_v",
+    "source_t27_v12:line_max_v",
+    "source_t27_v15:line_max_v",
+    "source_t85_v10:line_max_v",
+    "source_t85_v12:line_max_v",
+    "source_t85_v15:line_max_v",
+]
+normalization = "target"
+scale = 1.5
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.5
+rationale = "The unipolar reference and its declared unloaded/loaded DC observations must stay within the 0 to 1.5 V operating supply envelope."
+
+[[task.evaluation.metrics]]
+id = "line_span_v"
+category = "performance"
+observations = [
+    "tm20_v10:line_span_v",
+    "tm20_v12:line_span_v",
+    "tm20_v15:line_span_v",
+    "t27_v10:line_span_v",
+    "t27_v12:line_span_v",
+    "t27_v15:line_span_v",
+    "t85_v10:line_span_v",
+    "t85_v12:line_span_v",
+    "t85_v15:line_span_v",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_tm20_v10:line_span_v",
+    "source_tm20_v12:line_span_v",
+    "source_tm20_v15:line_span_v",
+    "source_t27_v10:line_span_v",
+    "source_t27_v12:line_span_v",
+    "source_t27_v15:line_span_v",
+    "source_t85_v10:line_span_v",
+    "source_t85_v12:line_span_v",
+    "source_t85_v15:line_span_v",
+]
+normalization = "saturating_ratio"
+scale = 1e-06
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "Absolute reference errors and sampled voltage spans have nonnegative measurement domains; positive values remain scored quality observations."
+
+[[task.evaluation.metrics]]
+id = "temperature_min_v"
+category = "performance"
+observations = [
+    "tm20_v10:temperature_min_v",
+    "tm20_v12:temperature_min_v",
+    "tm20_v15:temperature_min_v",
+    "t27_v10:temperature_min_v",
+    "t27_v12:temperature_min_v",
+    "t27_v15:temperature_min_v",
+    "t85_v10:temperature_min_v",
+    "t85_v12:temperature_min_v",
+    "t85_v15:temperature_min_v",
+]
+unit = "V"
+direction = "target"
+aggregation = "min"
+dimension = "bias"
+baseline = [
+    "source_tm20_v10:temperature_min_v",
+    "source_tm20_v12:temperature_min_v",
+    "source_tm20_v15:temperature_min_v",
+    "source_t27_v10:temperature_min_v",
+    "source_t27_v12:temperature_min_v",
+    "source_t27_v15:temperature_min_v",
+    "source_t85_v10:temperature_min_v",
+    "source_t85_v12:temperature_min_v",
+    "source_t85_v15:temperature_min_v",
+]
+normalization = "target"
+scale = 1.5
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.5
+rationale = "The unipolar reference and its declared unloaded/loaded DC observations must stay within the 0 to 1.5 V operating supply envelope."
+
+[[task.evaluation.metrics]]
+id = "temperature_max_v"
+category = "performance"
+observations = [
+    "tm20_v10:temperature_max_v",
+    "tm20_v12:temperature_max_v",
+    "tm20_v15:temperature_max_v",
+    "t27_v10:temperature_max_v",
+    "t27_v12:temperature_max_v",
+    "t27_v15:temperature_max_v",
+    "t85_v10:temperature_max_v",
+    "t85_v12:temperature_max_v",
+    "t85_v15:temperature_max_v",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+dimension = "bias"
+baseline = [
+    "source_tm20_v10:temperature_max_v",
+    "source_tm20_v12:temperature_max_v",
+    "source_tm20_v15:temperature_max_v",
+    "source_t27_v10:temperature_max_v",
+    "source_t27_v12:temperature_max_v",
+    "source_t27_v15:temperature_max_v",
+    "source_t85_v10:temperature_max_v",
+    "source_t85_v12:temperature_max_v",
+    "source_t85_v15:temperature_max_v",
+]
+normalization = "target"
+scale = 1.5
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.5
+rationale = "The unipolar reference and its declared unloaded/loaded DC observations must stay within the 0 to 1.5 V operating supply envelope."
+
+[[task.evaluation.metrics]]
+id = "temperature_span_v"
+category = "performance"
+observations = [
+    "tm20_v10:temperature_span_v",
+    "tm20_v12:temperature_span_v",
+    "tm20_v15:temperature_span_v",
+    "t27_v10:temperature_span_v",
+    "t27_v12:temperature_span_v",
+    "t27_v15:temperature_span_v",
+    "t85_v10:temperature_span_v",
+    "t85_v12:temperature_span_v",
+    "t85_v15:temperature_span_v",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_tm20_v10:temperature_span_v",
+    "source_tm20_v12:temperature_span_v",
+    "source_tm20_v15:temperature_span_v",
+    "source_t27_v10:temperature_span_v",
+    "source_t27_v12:temperature_span_v",
+    "source_t27_v15:temperature_span_v",
+    "source_t85_v10:temperature_span_v",
+    "source_t85_v12:temperature_span_v",
+    "source_t85_v15:temperature_span_v",
+]
+normalization = "saturating_ratio"
+scale = 1e-06
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "Absolute reference errors and sampled voltage spans have nonnegative measurement domains; positive values remain scored quality observations."
+
+[[task.evaluation.metrics]]
+id = "output_resistance_ohm"
+category = "performance"
+observations = [
+    "tm20_v10:output_resistance_ohm",
+    "tm20_v12:output_resistance_ohm",
+    "tm20_v15:output_resistance_ohm",
+    "t27_v10:output_resistance_ohm",
+    "t27_v12:output_resistance_ohm",
+    "t27_v15:output_resistance_ohm",
+    "t85_v10:output_resistance_ohm",
+    "t85_v12:output_resistance_ohm",
+    "t85_v15:output_resistance_ohm",
+]
+unit = "ohm"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_tm20_v10:output_resistance_ohm",
+    "source_tm20_v12:output_resistance_ohm",
+    "source_tm20_v15:output_resistance_ohm",
+    "source_t27_v10:output_resistance_ohm",
+    "source_t27_v12:output_resistance_ohm",
+    "source_t27_v15:output_resistance_ohm",
+    "source_t85_v10:output_resistance_ohm",
+    "source_t85_v12:output_resistance_ohm",
+    "source_t85_v15:output_resistance_ohm",
+]
+normalization = "ratio"
+scale = 1e-06
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "Withdrawing positive DC load from this unbuffered reference must not raise its output voltage; the declared output resistance must be nonnegative."
+
+[[task.evaluation.metrics]]
+id = "loaded_reference_v"
+category = "performance"
+observations = [
+    "tm20_v10:loaded_reference_v",
+    "tm20_v12:loaded_reference_v",
+    "tm20_v15:loaded_reference_v",
+    "t27_v10:loaded_reference_v",
+    "t27_v12:loaded_reference_v",
+    "t27_v15:loaded_reference_v",
+    "t85_v10:loaded_reference_v",
+    "t85_v12:loaded_reference_v",
+    "t85_v15:loaded_reference_v",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+dimension = "bias"
+baseline = [
+    "source_tm20_v10:loaded_reference_v",
+    "source_tm20_v12:loaded_reference_v",
+    "source_tm20_v15:loaded_reference_v",
+    "source_t27_v10:loaded_reference_v",
+    "source_t27_v12:loaded_reference_v",
+    "source_t27_v15:loaded_reference_v",
+    "source_t85_v10:loaded_reference_v",
+    "source_t85_v12:loaded_reference_v",
+    "source_t85_v15:loaded_reference_v",
+]
+normalization = "target"
+scale = 1.5
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.5
+rationale = "The unipolar reference and its declared unloaded/loaded DC observations must stay within the 0 to 1.5 V operating supply envelope."
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 210.61
+rationale = "VGS reference: line and temperature drift 31.5%; load regulation 22.5%; startup and disturbance recovery 18%; reference and extrema 9%; supply cost 9%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+line_span_v = 0.157500000001
+temperature_span_v = 0.1575
+load_error_v = 0.05625
+loaded_reference_v = 0.05625
+output_resistance_ohm = 0.05625
+release_error_v = 0.05625
+injection_error_v = 0.06
+return_error_v = 0.06
+startup_error_v = 0.06
+line_max_v = 0.012857142857
+line_min_v = 0.012857142857
+maximum_v = 0.012857142857
+minimum_v = 0.012857142857
+reference_v = 0.012857142857
+temperature_max_v = 0.012857142857
+temperature_min_v = 0.012857142857
+power_w = 0.045
+supply_a = 0.045
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "7c4f6cb880d7b1f4dd22ae8f7f6414ff44d0263f43e3fc227d008bed9f717ce5"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"dfbdf2f93297bbe7d8b576fb988504bd0ecf85b93ef47c314a0f2c9c8830c3e7\", \"compatibility\": null, \"cpu_budget\": 8, \"execution_sha256\": \"495aa9623759f70228a236eb4825c2ae443ef6a741816d8cfc17d1830841dcef\", \"image_id\": \"sha256:060fee64f9f6e71a647e5e958b788d723c9d51d2928ff93e6a295db1959bc37f\", \"limits\": {\"cpus\": 8, \"memory_mb\": 4096, \"pids\": 256}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"9ce793b7b3a5b9dd56576b6027328f240c4fa0049b3437092216154dbf25f137\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 300.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.parameters.values]
+temperature_c = -20
+supply_v = 1.0
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.input_sha256]
+dut = "adf8fa7eabe990285cd2e7317bd93a5e7c749bc47881e92fdadb45ec5896fe26"
+deck = "6b030a347f17808327f462bc90d6f2564f8d0953f7dd96c02da9e82b3fa9ad92"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.injection_error_v]
+value = 0.002965899
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.line_max_v]
+value = 0.364990943076
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.line_min_v]
+value = 0.355558824465
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.line_span_v]
+value = 0.009432118610955
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.load_error_v]
+value = 0.003246418
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.loaded_reference_v]
+value = 0.3523123250968
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.maximum_v]
+value = 0.3585247
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.minimum_v]
+value = 1.354617e-06
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.output_resistance_ohm]
+value = 3246499368.272
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.power_w]
+value = 8.188620429312e-12
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.reference_v]
+value = 0.355558824465
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.release_error_v]
+value = 2.036695e-07
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.return_error_v]
+value = 5.143982e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.startup_error_v]
+value = 2.04144e-07
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.supply_a]
+value = 8.188620429312e-12
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.temperature_max_v]
+value = 0.355558824465
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.temperature_min_v]
+value = 0.3552048266366
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.measurements.temperature_span_v]
+value = 0.0003539978283933
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v10.output_sha256]
+op = "369dc710c2ef3739568a050de530b9d1869812a679da5e0155fc12c3da9bacd4"
+transient = "e0733293298e9c103bc1acec689c05c67be729eaf3a8c2ed759057b1f47ec54a"
+line = "9fbd2520da185f14c9dfbd587de51143dd8eec50b80d72d5c3106a1c91f408d9"
+temperature = "8747423c5a17d03b945c54f36ffc0493c09dcaddf2fdf6c71abc871cc513749a"
+load = "721d0003ec20794afe408b76e6e913bed67db727b2524c8b777bf5094817390f"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.parameters.values]
+temperature_c = -20
+supply_v = 1.2
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.input_sha256]
+dut = "adf8fa7eabe990285cd2e7317bd93a5e7c749bc47881e92fdadb45ec5896fe26"
+deck = "6b030a347f17808327f462bc90d6f2564f8d0953f7dd96c02da9e82b3fa9ad92"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.injection_error_v]
+value = 0.002634407
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.line_max_v]
+value = 0.364990943076
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.line_min_v]
+value = 0.355558824465
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.line_span_v]
+value = 0.009432118610955
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.load_error_v]
+value = 0.002855016
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.loaded_reference_v]
+value = 0.3564491763054
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.maximum_v]
+value = 0.3619387
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.minimum_v]
+value = 1.625533e-06
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.output_resistance_ohm]
+value = 2855139646.341
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.power_w]
+value = 1.116990970105e-11
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.reference_v]
+value = 0.3593043159517
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.release_error_v]
+value = 5.92263e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.return_error_v]
+value = 2.739574e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.startup_error_v]
+value = 7.093676e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.supply_a]
+value = 9.308258084209e-12
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.temperature_max_v]
+value = 0.3595321836069
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.temperature_min_v]
+value = 0.3589069541849
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.measurements.temperature_span_v]
+value = 0.0006252294220225
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v12.output_sha256]
+op = "ce187d3fe8f773047d9eeb6c70dbbee8e0cc1d4977b04de49ca7eaf0bf5ae1de"
+transient = "1ab0c333c801cfcd69cb172fad065ac983d4872533b55eadd2e0c27f49240363"
+line = "9fbd2520da185f14c9dfbd587de51143dd8eec50b80d72d5c3106a1c91f408d9"
+temperature = "111bbb97db17a0573dbb882cc9e0c2628023623e093d4092a2d3e437c9080d94"
+load = "93fed8fcafcfe055a4e41444bc14ac530d56913d9b8a840ea3d650038393f472"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.parameters.values]
+temperature_c = -20
+supply_v = 1.5
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.input_sha256]
+dut = "adf8fa7eabe990285cd2e7317bd93a5e7c749bc47881e92fdadb45ec5896fe26"
+deck = "6b030a347f17808327f462bc90d6f2564f8d0953f7dd96c02da9e82b3fa9ad92"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.injection_error_v]
+value = 0.00219733
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.line_max_v]
+value = 0.364990943076
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.line_min_v]
+value = 0.355558824465
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.line_span_v]
+value = 0.009432118610955
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.load_error_v]
+value = 0.002350573
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.loaded_reference_v]
+value = 0.3626403602272
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.maximum_v]
+value = 0.3671883
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.minimum_v]
+value = 2.031901e-06
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.output_resistance_ohm]
+value = 2350589576.276
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.power_w]
+value = 1.696872397952e-11
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.reference_v]
+value = 0.3649909498035
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.release_error_v]
+value = 7.37137e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.return_error_v]
+value = 1.790933e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.startup_error_v]
+value = 7.378376e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.supply_a]
+value = 1.131248265301e-11
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.temperature_max_v]
+value = 0.3649909498035
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.temperature_min_v]
+value = 0.3635002813983
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.measurements.temperature_span_v]
+value = 0.001490668405211
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_tm20_v15.output_sha256]
+op = "aa18c964fc7244969c05dd6d118893048582dca1a21e2d62ccf3737718cb62c4"
+transient = "59945e00f6a468465fabf15f7edadb1b1ae55e15b132edb9ffe9a56ed960c44d"
+line = "9fbd2520da185f14c9dfbd587de51143dd8eec50b80d72d5c3106a1c91f408d9"
+temperature = "bc949bb10ba745d3aa2d244f8824c5d5e6ae338c285c815deaa447d566915f62"
+load = "1b13e9fdc5405a67cf0a21843b9793a136c063de0b4861756bdfc6fbc8cba82a"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.parameters.values]
+temperature_c = 27
+supply_v = 1.0
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.input_sha256]
+dut = "adf8fa7eabe990285cd2e7317bd93a5e7c749bc47881e92fdadb45ec5896fe26"
+deck = "6b030a347f17808327f462bc90d6f2564f8d0953f7dd96c02da9e82b3fa9ad92"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.injection_error_v]
+value = 0.0002410628
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.line_max_v]
+value = 0.3635759130167
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.line_min_v]
+value = 0.3552833812721
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.line_span_v]
+value = 0.008292531744654
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.load_error_v]
+value = 0.0002424897
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.loaded_reference_v]
+value = 0.3550409057339
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.maximum_v]
+value = 0.3555244
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.minimum_v]
+value = 1.457215e-06
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.output_resistance_ohm]
+value = 242475538.1479
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.power_w]
+value = 1.247549389724e-10
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.reference_v]
+value = 0.3552833812721
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.release_error_v]
+value = 1.837112e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.return_error_v]
+value = 1.118692e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.startup_error_v]
+value = 1.836785e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.supply_a]
+value = 1.247549389724e-10
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.temperature_max_v]
+value = 0.355558824465
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.temperature_min_v]
+value = 0.3552048266366
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.measurements.temperature_span_v]
+value = 0.0003539978283933
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v10.output_sha256]
+op = "f9f4e9d2e08d0cb61253967871ecb3e15066ef17b95f48eb52651f1da4117c8d"
+transient = "1c00511748b0ee7d510291e9920aa60d1ce520ba64300d3595bf15f7c51d603c"
+line = "93474641551a45e9b2ed69d1ee3057f60396b6dc0c350d1a6196694dc37c7ad6"
+temperature = "8747423c5a17d03b945c54f36ffc0493c09dcaddf2fdf6c71abc871cc513749a"
+load = "1cd4d7611a6bc2a12db42dbca7b2715fa6efa36efb9e2f5600143200fcf62b14"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.parameters.values]
+temperature_c = 27
+supply_v = 1.2
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.input_sha256]
+dut = "adf8fa7eabe990285cd2e7317bd93a5e7c749bc47881e92fdadb45ec5896fe26"
+deck = "6b030a347f17808327f462bc90d6f2564f8d0953f7dd96c02da9e82b3fa9ad92"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.injection_error_v]
+value = 0.000217951
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.line_max_v]
+value = 0.3635759130167
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.line_min_v]
+value = 0.3552833812721
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.line_span_v]
+value = 0.008292531744654
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.load_error_v]
+value = 0.0002191188
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.loaded_reference_v]
+value = 0.3587849351973
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.maximum_v]
+value = 0.359222
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.minimum_v]
+value = 1.748603e-06
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.output_resistance_ohm]
+value = 219120348.2213
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.power_w]
+value = 1.664798653228e-10
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.reference_v]
+value = 0.3590040555455
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.release_error_v]
+value = 1.154967e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.return_error_v]
+value = 8.919361e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.startup_error_v]
+value = 1.148302e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.supply_a]
+value = 1.387332211023e-10
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.temperature_max_v]
+value = 0.3595321836069
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.temperature_min_v]
+value = 0.3589069541849
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.measurements.temperature_span_v]
+value = 0.0006252294220225
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v12.output_sha256]
+op = "12d7d34185662db36d27c3f4268ba9f088d56d8c1966b0154ae681018e91b1c9"
+transient = "9844fb632581fe3def5b7e91f923f1ab84f440d8f2d96290bd186f92425f6059"
+line = "93474641551a45e9b2ed69d1ee3057f60396b6dc0c350d1a6196694dc37c7ad6"
+temperature = "111bbb97db17a0573dbb882cc9e0c2628023623e093d4092a2d3e437c9080d94"
+load = "a4922b7222ba551ff713c81c45800d045e91ae363aa5396fe45e279283427882"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.parameters.values]
+temperature_c = 27
+supply_v = 1.5
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.input_sha256]
+dut = "adf8fa7eabe990285cd2e7317bd93a5e7c749bc47881e92fdadb45ec5896fe26"
+deck = "6b030a347f17808327f462bc90d6f2564f8d0953f7dd96c02da9e82b3fa9ad92"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.injection_error_v]
+value = 0.0001923721
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.line_max_v]
+value = 0.3635759130167
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.line_min_v]
+value = 0.3552833812721
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.line_span_v]
+value = 0.008292531744654
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.load_error_v]
+value = 0.0001932854
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.loaded_reference_v]
+value = 0.3633826368464
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.maximum_v]
+value = 0.3637683
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.minimum_v]
+value = 2.185648e-06
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.output_resistance_ohm]
+value = 193282259.9621
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.power_w]
+value = 2.371279384334e-10
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.reference_v]
+value = 0.3635759191063
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.release_error_v]
+value = 3.393431e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.return_error_v]
+value = 3.448054e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.startup_error_v]
+value = 3.391471e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.supply_a]
+value = 1.58085292289e-10
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.temperature_max_v]
+value = 0.3649909498035
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.temperature_min_v]
+value = 0.3635002813983
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.measurements.temperature_span_v]
+value = 0.001490668405211
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t27_v15.output_sha256]
+op = "0f9f0639a30afc54b3abf7dbfdbf7b6fb5133753ff51ec760309fb2fcbe32e6e"
+transient = "105960b28124b02d07434228d3bc97ef0f26956ed88f877b83562446cb8c336b"
+line = "93474641551a45e9b2ed69d1ee3057f60396b6dc0c350d1a6196694dc37c7ad6"
+temperature = "bc949bb10ba745d3aa2d244f8824c5d5e6ae338c285c815deaa447d566915f62"
+load = "ad0bd971427331b74d25bc9200d945f1e17a026574b71a5aeac2fa6c94840559"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.parameters.values]
+temperature_c = 85
+supply_v = 1.0
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.input_sha256]
+dut = "adf8fa7eabe990285cd2e7317bd93a5e7c749bc47881e92fdadb45ec5896fe26"
+deck = "6b030a347f17808327f462bc90d6f2564f8d0953f7dd96c02da9e82b3fa9ad92"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.injection_error_v]
+value = 2.293908e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.line_max_v]
+value = 0.3646955344917
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.line_min_v]
+value = 0.3552048265261
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.line_span_v]
+value = 0.009490707965616
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.load_error_v]
+value = 2.294884e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.loaded_reference_v]
+value = 0.3551818777345
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.maximum_v]
+value = 0.3552278
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.minimum_v]
+value = 2.442225e-06
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.output_resistance_ohm]
+value = 22948791.59115
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.power_w]
+value = 1.587192175364e-09
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.reference_v]
+value = 0.3552048265261
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.release_error_v]
+value = 4.757893e-10
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.return_error_v]
+value = 4.792568e-10
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.startup_error_v]
+value = 4.798483e-10
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.supply_a]
+value = 1.587192175364e-09
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.temperature_max_v]
+value = 0.355558824465
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.temperature_min_v]
+value = 0.3552048266366
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.measurements.temperature_span_v]
+value = 0.0003539978283933
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v10.output_sha256]
+op = "0b75129390de3f22a710b7c64c4c06e9000b7f5d7fef5f96df7ecd1a05bdfbbb"
+transient = "1ce62c5a5b2e3d0cdd9ded7f3d4875919fcab016500ed66ddbf1258593eacfd9"
+line = "646cf245da651ec2bf0ace73a1d1817caf34a34c919ba248556b8186d7376e15"
+temperature = "8747423c5a17d03b945c54f36ffc0493c09dcaddf2fdf6c71abc871cc513749a"
+load = "ad13024bc79497cfbb4367f8612ff4bc80c5c875556a216bf3e8f6c057089d0f"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.parameters.values]
+temperature_c = 85
+supply_v = 1.2
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.input_sha256]
+dut = "adf8fa7eabe990285cd2e7317bd93a5e7c749bc47881e92fdadb45ec5896fe26"
+deck = "6b030a347f17808327f462bc90d6f2564f8d0953f7dd96c02da9e82b3fa9ad92"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.injection_error_v]
+value = 2.087492e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.line_max_v]
+value = 0.3646955344917
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.line_min_v]
+value = 0.3552048265261
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.line_span_v]
+value = 0.009490707965616
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.load_error_v]
+value = 2.08835e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.loaded_reference_v]
+value = 0.3595112677802
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.maximum_v]
+value = 0.359553
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.minimum_v]
+value = 2.930269e-06
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.output_resistance_ohm]
+value = 20882826.67018
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.power_w]
+value = 2.10732742886e-09
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.reference_v]
+value = 0.3595321506069
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.release_error_v]
+value = 3.869879e-10
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.return_error_v]
+value = 3.839277e-10
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.startup_error_v]
+value = 3.839277e-10
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.supply_a]
+value = 1.756106190716e-09
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.temperature_max_v]
+value = 0.3595321836069
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.temperature_min_v]
+value = 0.3589069541849
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.measurements.temperature_span_v]
+value = 0.0006252294220225
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v12.output_sha256]
+op = "a0ae701731e093c469f995ab35c2982268b36811a71c97cc58666d576a8d712e"
+transient = "2f8ff6b0def8ba72d5c0f9c9f737d41221a68dee205077bee3c64081c52aba53"
+line = "646cf245da651ec2bf0ace73a1d1817caf34a34c919ba248556b8186d7376e15"
+temperature = "111bbb97db17a0573dbb882cc9e0c2628023623e093d4092a2d3e437c9080d94"
+load = "6cb5ebc78ffadafc5ad3ecb4724ef6cda6aad965c1d9f8c8d641d56506dc934c"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.inputs]
+dut = "input:simulation"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.outputs]
+op = "ngspice-raw"
+transient = "ngspice-raw"
+line = "ngspice-raw"
+temperature = "ngspice-raw"
+load = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.parameters.values]
+temperature_c = 85
+supply_v = 1.5
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.parameters.measurements]
+reference_v = "V"
+supply_a = "A"
+power_w = "W"
+startup_error_v = "V"
+load_error_v = "V"
+release_error_v = "V"
+injection_error_v = "V"
+return_error_v = "V"
+minimum_v = "V"
+maximum_v = "V"
+line_min_v = "V"
+line_max_v = "V"
+line_span_v = "V"
+temperature_min_v = "V"
+temperature_max_v = "V"
+temperature_span_v = "V"
+output_resistance_ohm = "ohm"
+loaded_reference_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.parameters.exports]
+op = "op.raw"
+transient = "transient.raw"
+line = "line.raw"
+temperature = "temperature.raw"
+load = "load.raw"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.input_sha256]
+dut = "adf8fa7eabe990285cd2e7317bd93a5e7c749bc47881e92fdadb45ec5896fe26"
+deck = "6b030a347f17808327f462bc90d6f2564f8d0953f7dd96c02da9e82b3fa9ad92"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.injection_error_v]
+value = 1.863711e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.line_max_v]
+value = 0.3646955344917
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.line_min_v]
+value = 0.3552048265261
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.line_span_v]
+value = 0.009490707965616
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.load_error_v]
+value = 1.864483e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.loaded_reference_v]
+value = 0.3646768896358
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.maximum_v]
+value = 0.3647142
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.minimum_v]
+value = 3.662084e-06
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.output_resistance_ohm]
+value = 18644508.18201
+unit = "ohm"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.power_w]
+value = 2.971849183074e-09
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.reference_v]
+value = 0.364695534144
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.release_error_v]
+value = 3.174917e-10
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.return_error_v]
+value = 3.169571e-10
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.startup_error_v]
+value = 3.147905e-10
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.supply_a]
+value = 1.981232788716e-09
+unit = "A"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.temperature_max_v]
+value = 0.3649909498035
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.temperature_min_v]
+value = 0.3635002813983
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.measurements.temperature_span_v]
+value = 0.001490668405211
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_t85_v15.output_sha256]
+op = "34ec0143786de01638e8ba81da8f349d24630224e8721610dfc4e89fb742a35a"
+transient = "cc453fa88f6469725710d48a8454c362f9aa3dd0a21a15acfd8e43e517072be3"
+line = "c6eeaa8760982fa438c0460c8a77ba985928bbdfa0a7ef5e2e661a3ec1798d3e"
+temperature = "d753993a52bf3415491f8bc0861b7bf54b4789c68f793be916568dbbbcb33ffa"
+load = "245de2d7b564073f22735545cb10c9eac2141902b5993a31bb2a87b0fbc649a9"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+check = "artifact"
+timeout_seconds = 600
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+check = "drc"
+support = "build/support/input-pair-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+check = "lvs"
+support = "build/support/input-pair-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-eda-open:local"
+support = "build/support/input-pair-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+capacitance_threshold_ff = 0
+timeout_seconds = 600
+gds_readonly = false
+grid_subdivision = 2
+label_layers = [
+    [
+        30,
+        25,
+    ],
+]
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 120
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "mixed-mos-models"
+
+[toolchain.backends.simulation.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+support = "build/support/mixed-mos-models"
+timeout_seconds = 300
+
+[qualification]
+reference = "reference/vref_001_vgs.gds"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/blob/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/raw/vref_001_vgs/ihp-sg13g2/_dut.spice"
+
+[presentation]
+category = "Power & references"
+summary = "Establishes a voltage reference using a mixed low/high-voltage two-transistor core."

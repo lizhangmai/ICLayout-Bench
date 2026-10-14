@@ -1,0 +1,81 @@
+# Bidirectional CMOS Transmission Gate Layout Task
+
+## Objective
+
+Implement `sw_001_transmission_gate_pair` with the complete fixed topology and minimize layout-induced degradation under the declared nominal observations. The fixed IHP binding has one NMOS and one PMOS, each W=2 um, L=0.13 um, m=1. Both connect the bidirectional signal terminals, with the NMOS body at vss and PMOS body at vdd. No internal clock generator is added.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the authoritative logical circuit netlist; `materials/circuit.spice` is its simulator representation. `materials/testbench.spice`, `materials/forward.spice`, `materials/reverse.spice` supply the performance stimuli and measurements. `problem.md` is this contract. Ordered ports: `port_a port_b vctl vctl_not vdd vss`. The fixture supplies complementary controls externally. Both signal/control ports stay within 0–1.5 V. Native body taps remain physically checked; finite well/substrate resistances are outside the Magic RC compact-model boundary.
+
+## Operating Conditions
+
+1.5 V supply. DC on/off conditions use signal common modes 0.15, 0.75 and 1.35 V and both signs of a 10 mV port difference. On controls are 1.5/0 V; off controls are 0/1.5 V. Ron is the absolute port drop divided by actual port-source current, accepted only above 1 nA and independently checked for the correct current direction. Off leakage uses held voltages at both terminals. Dynamic tests drive each direction separately through 100 ohm, with a 1 pF receiving load and 1 Mohm resistor to the selected common mode. Signal steps are common-mode ±50 mV with 1 ns edges starting at 20 ns; separate static-input runs isolate control feedthrough. Complementary controls turn off at 70 ns for 60 ns, with matched 1 ns edges, no extra overlap/dead interval. Runs start from DC and end at 110 ns with maximum 50 ps steps. The finite receiving resistance defines the off-node behavior physically. The isolated window-marker source only schedules exact time breakpoints; it connects to no DUT terminal.
+
+Source and candidate jobs use exactly the same test apparatus, parameters, nominal TT models and 27 C temperature. Stimuli and measurements follow the testbench control block and frozen runtime parameters. Source simulation is independent of reference GDS; paper or datasheet performance is not an acceptance bound.
+
+## Physical Requirements
+
+Submit a valid GDSII containing top cell `sw_001_transmission_gate_pair`, at most 10485760 bytes. Pass the pinned native DRC profile, named-interface LVS and functional outline checks. Maximum functional width/height are 5000/1000 um. The complete functional layer set is `[[1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0], [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0], [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0], [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0], [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0], [133, 0], [134, 0], [139, 0], [152, 0]]` (layer/datatype pairs); text/annotation geometry is excluded. There are no case-local DRC waivers. Geometry bounds are generous task/resource limits, not an area score anchor.
+
+Post-layout simulation uses distributed wire RC from native candidate GDS and retains physical MOS, resistors and capacitors; LVS cannot replace PEX. Source and Magic extraction use logical well/substrate body nets; no distributed substrate resistance or noise accuracy is claimed.
+
+## Electrical Requirements and Scoring
+
+The on-state 10 mV port difference must produce a resolved current above the 1 nA observation floor so that an open or unresolved path cannot establish a usable resistance. Resistance, leakage and absolute voltage disturbances must be nonnegative by their measurement definitions. These bounds have explicit rationales in `case.toml`; no upper resistance, leakage or tracking-error budget rejects an otherwise valid solution.
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+Coefficient 3 covers local bidirectional analog conduction and loaded control transitions. Tracking error is integrated over exactly 20–60 ns; control-edge excursion uses the inclusive 69–75 ns sample window; held mean shift compares 90–100 ns with 65–69 ns. These are loaded feedthrough/hold observations, not an intrinsic charge-injection constant or perfect floating-node retention. No energy score is claimed: body-rail current alone cannot measure control and signal-driver energy.
+
+Every required condition must produce finite, valid measurements and pass the functional bounds below. Missing or invalid extraction/measurements are evaluation errors and cannot be replaced by a low performance score.
+
+`tracking_error_v`, `feedthrough_v` use `saturating_ratio`: q = 2(b+s)/(b+x+2s), where x is candidate error, b is paired source error and s is the positive scale below. Source equivalence gives q=1; improvement approaches the upper limit 2 with diminishing returns. The scale retains its declared unit and numerical-floor meaning. Normalize each condition before taking the worst quality; other rules follow their declarations.
+
+| Metric | Unit | Definition | Dimension / normalization | Functional range |
+| --- | --- | --- | --- | --- |
+| `ron_ohm` | ohm | 10 mV DC port drop divided by measured port current | response / ratio; scale 1 | lower=0 |
+| `on_current_a` | A | Absolute DC on current; excludes numerical-noise division | unscored / functional | lower=1e-09 |
+| `leakage_a` | A | Off-state current with both ports held at defined voltages | bias / ratio; scale 1e-12 | lower=0 |
+| `kcl_a` | A | External KCL including control and body sources | diagnostic; unscored | Producer validity guard; see below |
+| `tracking_error_v` | V | Mean loaded dynamic tracking error, 20–60 ns | response / saturating_ratio; scale 0.0001 | lower=0 |
+| `feedthrough_v` | V | Output excursion during turn-off, 69–75 ns | response / saturating_ratio; scale 0.0001 | lower=0 |
+| `hold_shift_v` | V | Finite loaded hold mean 90–100 ns minus 65–69 ns | response / target; scale 0.1 | Finite measurement |
+
+Target normalization uses declared voltage or gain scales to preserve the source operating point/transfer. Ratio floors prevent division by zero at zero error or the noise floor; they are numeric normalization units, not acceptance tolerances. Voltage bounds are the declared supply rails; measurement-generator validity checks distinguish measurements from numerical noise. No hard cutoff relative to source performance is imposed.
+
+The area anchor is **300 um²**: twice the sum of `(W + 6 um) × (L + 8 um)` over every expanded MOS and physical passive unit (2 units, sum 130.080000 um²), rounded upward to 100 um². Contact/well/tap/isolation envelopes are included in the 6/8 um allowances; the factor two allows routing. This is an engineering compact-footprint estimate, independent of measured witness area, not a foundry minimum or demonstrated optimum. Task coefficient: **3**.
+
+### Score weights
+
+Transmission/chopper switches: on-state conduction 21.4%; off-state leakage 17.1%; transfer fidelity 25.7%; switching disturbance 25.7%; area 10%. Each objective's weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `ron_ohm` | 0.214285714286 |
+| `leakage_a` | 0.171428571429 |
+| `tracking_error_v` | 0.257142857143 |
+| `feedthrough_v` | 0.128571428571 |
+| `hold_shift_v` | 0.128571428571 |
+
+## Tools and Submission
+
+Solve budget: **8 hours**.
+
+Use the runtime task and reviewed PDK resources to complete the declared native checks, extraction and ngspice measurements. Write the required top cell to `output/final.gds`, then explicitly submit its path through the session interface; file generation alone is not submission. Reference GDS, qualification results and development sources are not standard solver inputs.
+
+The source and extracted-candidate decks require absolute external DC current
+conservation residual `kcl_a <= 1e-09 A`. A larger residual aborts
+simulation and produces an evaluator error with unknown score, rather than a
+functional rejection. The reported residual is an unscored diagnostic.
+
+The authoritative MOS input preserves the original logical groups, W/L/m and all four terminal nets. Verified unit arrays, multiple fingers, shared diffusion and shared wells on the same body net are allowed. Native LVS checks connectivity and equivalent device parameters; native DRC checks actual well/substrate contacts. Contact count, dimensions, area/perimeter and the reference well partition are not circuit constraints. PEX uses actual diffusion geometry and interconnect RC, with logical body nets as its boundary; distributed substrate/well resistance is outside this extraction model.

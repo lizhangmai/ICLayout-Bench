@@ -1,0 +1,4 @@
+Efabless SKY130 sample and hold, Apache-2.0.
+https://github.com/efabless/sky130_ef_ip__samplehold
+Commit 5d5c1e9e172c4afc1a48adc3fe18fbe62642ca39.
+Includes Apache-2.0 HVL cell definitions from the pinned PDK.

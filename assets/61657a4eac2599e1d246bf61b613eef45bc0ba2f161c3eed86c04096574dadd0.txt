@@ -1,0 +1,31 @@
+* Continuous comparator: DC offset and +/-20 mV transient overdrive.
+.include "/workspace/support/models.spice"
+.include "parameters.spice"
+.include "dut.spice"
+.temp 27
+.option klu rshunt=1e12 method=gear
+Va avdd 0 3.3
+Vd dvdd 0 1.8
+Ven ena 0 1.8
+Vcm cm 0 {common_mode}
+Vdiff inp cm DC 0 PULSE(-20m 20m 10u 2n 2n 5u 10u)
+Xdut out dvdd 0 avdd 0 inp cm cm ena sky130_ef_ip__ccomp3v_cl
+Cload out 0 1p
+.control
+save i(va) i(vd) i(ven) v(cm) v(inp) v(out)
+dc Vdiff -0.05 0.05 0.00025
+let input_difference=v(inp)-v(cm)
+meas dc trip_voltage FIND input_difference WHEN v(out)=0.9 RISE=1
+write dc.raw input_difference v(out)
+tran 2n 28u
+let transient_difference=v(inp)-v(cm)
+meas tran rise_delay TRIG transient_difference VAL=0 RISE=1 TARG v(out) VAL=0.9 RISE=1
+meas tran fall_delay TRIG transient_difference VAL=0 FALL=1 TARG v(out) VAL=0.9 FALL=1
+meas tran high_level FIND v(out) AT=14u
+meas tran low_level FIND v(out) AT=19u
+let power=-3.3*i(Va)-1.8*i(Vd)-1.8*i(Ven)
+meas tran supply_power AVG power FROM=10u TO=28u
+write transient.raw v(inp) v(cm) v(out)
+quit
+.endc
+.end

@@ -1,0 +1,614 @@
+kind = "layout_case"
+id = "freepdk45.OpenRAM.cell_6t"
+title = "Six-Transistor SRAM Bitcell"
+status = "qualified"
+in_core = true
+core_order = 10
+
+[[assets]]
+path = "reference/cell_6t.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "400d0f5640f07266e4b17b4d3d765ca04ffbabe03dd1122195f277e5ea558fdc"
+
+[task]
+hours = 1
+kind = "netlist_to_gds"
+family = "freepdk45_cell_6t"
+coefficient = 6
+environment = "freepdk45-nominal-predictive-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "0eef1c395cb0282478df658bc029d74f65b48a3cd47c2efdca4a234efa4d2932"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+subcircuit = "cell_6t"
+sha256 = "18518f33516076c2bdca25c7036319734470c7757e3b1a2ab5c8e93b21fb4488"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "bc0034d4bde558134f21b5ad453623f4cd93862d8fe7761a1a8752ba21051006"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        2,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        4,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        9,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        15,
+        0,
+    ],
+    [
+        16,
+        0,
+    ],
+    [
+        17,
+        0,
+    ],
+    [
+        18,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        20,
+        0,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        23,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        25,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        27,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+]
+max_width_um = 100
+max_height_um = 100
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "cell_6t"
+max_bytes = 10485760
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "bl",
+    "br",
+    "wl",
+    "vdd",
+    "gnd",
+]
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+read0 = "V"
+repeat0 = "V"
+read1 = "V"
+repeat1 = "V"
+supply = "W"
+read_delay_0_1 = "s"
+read_delay_0_2 = "s"
+read_delay_1_5 = "s"
+read_delay_1_6 = "s"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "read0"
+category = "performance"
+observations = [
+    "nominal:read0",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+
+[task.evaluation.metrics.requirement]
+lower = 0.3
+rationale = "Each declared SRAM read must develop the polarity-correct 0.3 V bitline differential, including the repeated read that checks preservation of the stored state."
+
+[[task.evaluation.metrics]]
+id = "repeat0"
+category = "performance"
+observations = [
+    "nominal:repeat0",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+
+[task.evaluation.metrics.requirement]
+lower = 0.3
+rationale = "Each declared SRAM read must develop the polarity-correct 0.3 V bitline differential, including the repeated read that checks preservation of the stored state."
+
+[[task.evaluation.metrics]]
+id = "read1"
+category = "performance"
+observations = [
+    "nominal:read1",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+
+[task.evaluation.metrics.requirement]
+lower = 0.3
+rationale = "Each declared SRAM read must develop the polarity-correct 0.3 V bitline differential, including the repeated read that checks preservation of the stored state."
+
+[[task.evaluation.metrics]]
+id = "repeat1"
+category = "performance"
+observations = [
+    "nominal:repeat1",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+
+[task.evaluation.metrics.requirement]
+lower = 0.3
+rationale = "Each declared SRAM read must develop the polarity-correct 0.3 V bitline differential, including the repeated read that checks preservation of the stored state."
+
+[[task.evaluation.metrics]]
+id = "supply"
+category = "performance"
+observations = [
+    "nominal:supply",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+dimension = "supply"
+baseline = [
+    "source_nominal:supply",
+]
+normalization = "ratio"
+scale = 1e-12
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared powered circuit must consume nonnegative net energy from its supplies and driven references over the stated observation; power magnitude remains a quality objective."
+
+[[task.evaluation.metrics]]
+id = "read_delay"
+category = "performance"
+observations = [
+    "nominal:read_delay_0_1",
+    "nominal:read_delay_0_2",
+    "nominal:read_delay_1_5",
+    "nominal:read_delay_1_6",
+]
+baseline = [
+    "source_nominal:read_delay_0_1",
+    "source_nominal:read_delay_0_2",
+    "source_nominal:read_delay_1_5",
+    "source_nominal:read_delay_1_6",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+normalization = "ratio"
+
+[task.evaluation.metrics.requirement]
+lower = 0.0
+rationale = "The declared ordered-event interval or crossing frequency has a nonnegative measurement domain, and its crossing must exist for a usable observation."
+
+[task.evaluation.metrics.quality_target]
+value = 1.4e-11
+rationale = "Develop the required differential read signal within 14 ps with the declared 10 fF bitlines, while preserving nondestructive reads and both stored states."
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 0.4
+rationale = "The 0.4 um2 cell-area goal demands compact cross-coupled placement and shared diffusion. Equal 45% area and read-delay weights expose the density/read-access tradeoff; 10% supply power retains switching cost. The 14 ps read target leaves little parasitic margin beyond the approximately 13.2 ps source response and is not a functional deadline."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.45
+read_delay = 0.45
+supply = 0.1
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "cdc4c535c47688bd62882fd748fd30697c19eb0393172c69c45c32884ce266f4"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"dfbdf2f93297bbe7d8b576fb988504bd0ecf85b93ef47c314a0f2c9c8830c3e7\", \"compatibility\": null, \"cpu_budget\": 8, \"execution_sha256\": \"495aa9623759f70228a236eb4825c2ae443ef6a741816d8cfc17d1830841dcef\", \"image_id\": \"sha256:060fee64f9f6e71a647e5e958b788d723c9d51d2928ff93e6a295db1959bc37f\", \"limits\": {\"cpus\": 8, \"memory_mb\": 4096, \"pids\": 256}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"660672961e1ce0632bb9e18bc6dfb1fbd751a36d1fc496f1491763859d76c624\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 120.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_nominal]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_nominal.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_nominal.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.exports]
+waveform = "waveform.raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.measurements]
+read0 = "V"
+repeat0 = "V"
+read1 = "V"
+repeat1 = "V"
+supply = "W"
+read_delay_0_1 = "s"
+read_delay_0_2 = "s"
+read_delay_1_5 = "s"
+read_delay_1_6 = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.input_sha256]
+deck = "bc0034d4bde558134f21b5ad453623f4cd93862d8fe7761a1a8752ba21051006"
+dut = "18518f33516076c2bdca25c7036319734470c7757e3b1a2ab5c8e93b21fb4488"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.read0]
+value = 0.7858571
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.read1]
+value = 0.7858571
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.read_delay_0_1]
+value = 1.317565e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.read_delay_0_2]
+value = 1.317565e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.read_delay_1_5]
+value = 1.317565e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.read_delay_1_6]
+value = 1.317565e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.repeat0]
+value = 0.7858571
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.repeat1]
+value = 0.7858571
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.supply]
+value = 5.942012e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.output_sha256]
+waveform = "532eb3655fa60cea47e9c9eb12e53033ff2d99d674d1de5b2430173dd600bf35"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+check = "artifact"
+timeout_seconds = 120
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+check = "drc"
+timeout_seconds = 120
+support = "build/support/freepdk45-klayout"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+check = "lvs"
+timeout_seconds = 120
+support = "build/support/freepdk45-klayout"
+profile = "strict-lvs.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 60
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-eda-open:local"
+support = "build/support/freepdk45-magic-vtg"
+technology = "freepdk45.tech"
+tech_name = "freepdk45"
+style = "spice3(sim)"
+gds_readonly = false
+case_insensitive_ports = true
+label_layers = [
+    [
+        9,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        15,
+        0,
+    ],
+    [
+        17,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        23,
+        0,
+    ],
+    [
+        25,
+        0,
+    ],
+    [
+        27,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+]
+timeout_seconds = 120
+
+[toolchain.backends.rc.support_profiles]
+support = "magic-vtg"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+support = "build/support/freepdk45-models"
+timeout_seconds = 120
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[qualification]
+reference = "reference/cell_6t.gds"
+
+[origin]
+url = "https://github.com/ferdous313/OpenRAM/blob/420a33e731d7d80bf9c7cd54ffbeec3603259847/technology/freepdk45/sp_lib/cell_6t.sp"
+
+[presentation]
+category = "Logic & memory"
+summary = "Stores one bit using cross-coupled inverters and wordline-controlled access transistors."

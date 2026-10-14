@@ -1,0 +1,4 @@
+SKY130 simple power-on reset: Efabless, Apache-2.0.
+Upstream: https://github.com/efabless/sky130_ef_ip__simple_por
+Commit: d8a9581533238bdb99cb0389fd4387587969dc12
+Included SKY130 HVL cells: SkyWater PDK, Apache-2.0, Ciel pin in ../pdk.toml.

@@ -1,0 +1,72 @@
+# Six-Transistor SRAM Bitcell Layout Task
+
+## Objective
+
+Implement the supplied six-transistor SRAM bitcell, retaining cross-coupled storage, complementary bitlines and the shared wordline. Preserve authoritative netlist models, W/L, interface and connections; top cell is `cell_6t`.
+
+## Inputs and Interface
+
+Ordered SPICE ports: `bl br wl vdd gnd`. Names are case-insensitive, but different names are not interchangeable. Inputs are this description, `materials/circuit.spice` and `materials/testbench.spice`. The reviewed resource package supplies models and extraction resources; reference geometry and qualification evidence are not solver inputs.
+
+## Operating Conditions
+
+Use nominal FreePDK45 BSIM4 models at **1.0 V and 27 C**, with ground at 0 V. Every transistor has channel length 50 nm; widths and model types follow the netlist.
+
+Each bitline has a 10 fF load; ideal external switches have on resistance 10 ohm and off resistance 1e12 ohm. Write BL=0/BR=1 over 0–500 ps; after precharge, read at 1 ns and 2 ns. Write the opposite value over 4–4.5 ns, then read again at 5 ns and 6 ns. Sample differential bitline voltage 110 ps after each read starts; wordline edges are 10 ps and read pulses 300 ps. The second read checks nondestructive reading and retention after idle; see the deck for exact switching times. Power over 0–7 ns includes DUT and precharge supplies.
+
+The deck precisely defines stimuli and observation times, testing only through external ports. Validation covers these nominal conditions, excluding PVT, mismatch, array integration, substrate noise and manufacturing signoff.
+
+## Physical Requirements
+
+Submit a nonempty GDSII no larger than 10 MiB. Enable every check in the supplied KLayout DRC deck, including grid and antenna checks, without waivers. Strict LVS checks named ports, models, W/L and physical well/contact connectivity, with library-specific implicit or global power connections disabled. The upstream deck does not implement its documented spacing rule for wells at different potentials and does not provide complete foundry signoff.
+
+The hard functional-outline limit is 100 um × 100 um. Its bounding box includes all functional geometry on drawing layers 1/0–29/0: active regions, wells, implants, threshold markers, poly, contacts, ten metal layers and nine via layers. Area is scored in um2. Keep functional geometry on these layers, excluding pin-purpose and annotation geometry. Electrical labels use poly or metal drawing layers (9/0, 11/0, 13/0, …, 29/0); nonelectrical annotation text is not extracted.
+
+Translation, equivalent hierarchy and internal instance renaming are allowed. LVS permits source/drain exchange and equivalent parallel devices; the candidate must still pass the same RC electrical evaluation. Preserve top-level port identities and explicit body connections.
+
+## Electrical Requirements and Scoring
+
+Extract the candidate GDS only after file, DRC, LVS and geometry checks pass. Simulate its Magic RC netlist directly, with independent source simulation supplying the scoring baseline. Independent LVS first checks VTG/VTL device types, then uses the matching extraction configuration. Extraction includes poly/metal sheet resistance, contacts/vias, geometry-dependent coupling and ground capacitance, and device junction areas/perimeters. Wells use lumped connectivity; BSIM4 describes device and junction behavior. Interconnect RC uses estimated coefficients and native capacitance placement from the fixed community FreePDK45 Magic technology. The adapter binds VTG/VTL models, preserves annotation layers and corrects dimension-unit conversion. This is a predictive approximation without field-solver signoff accuracy.
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations remain required evidence; the quality targets below set the scoring anchors without depending on the submitted GDS. Reports retain every source/candidate pair.
+
+Let x be the post-layout measurement and b the declared quality target, or the same-condition source measurement when no target is declared:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `read0` | `find par('v(br)-v(bl)') at=1110p` | V | functional check | 0.3 … +∞ | — |
+| `repeat0` | `find par('v(br)-v(bl)') at=2110p` | V | functional check | 0.3 … +∞ | — |
+| `read1` | `find par('v(bl)-v(br)') at=5110p` | V | functional check | 0.3 … +∞ | — |
+| `repeat1` | `find par('v(bl)-v(br)') at=6110p` | V | functional check | 0.3 … +∞ | — |
+| `supply` | `avg par('-v(vdd)*i(Vdd)') from=0 to=7n` | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `read_delay` | WL rising through 0.5 V to signed bitline difference reaching 0.1 V, for read edges at 1, 2, 5 and 6 ns (distinct from the 0.3 V sampled-level requirement). | s | minimize / ratio | 0 … +∞ | — |
+
+The area scoring target is **0.4 um2**. It is a continuous quality goal, not a hard limit, process minimum or a percentage of the current feasibility witness.
+
+- `read_delay`: **1.4e-11 s**. Develop the required differential read signal within 14 ps with the declared 10 fF bitlines, while preserving nondestructive reads and both stored states.
+
+The 0.4 um2 cell-area goal demands compact cross-coupled placement and shared diffusion. Equal 45% area and read-delay weights expose the density/read-access tradeoff; 10% supply power retains switching cost. The 14 ps read target leaves little parasitic margin beyond the approximately 13.2 ps source response and is not a functional deadline.
+
+Quality targets do not impose additional functional cutoffs. Metrics without an explicit target retain their same-condition source anchors.
+
+The capability coefficient is **6**, independent of this task's reference-normalized score.
+
+### Score weights
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.45 |
+| `read_delay` | 0.45 |
+| `supply` | 0.1 |
+
+## Tools and Submission
+
+Solve budget: **1 hour**.
+
+Use the reviewed FreePDK45 KLayout, Magic and ngspice resources in `/protocol/resources.json`. Magic RC extraction uses `/resources/support/magic-vtg/freepdk45.tech`, including model and unit adaptation. `/protocol/task.json` supplies consistent constraints, measurements and scoring; `/task` contains only declared inputs. Write `/workspace/output/final.gds`, then run `python -I /protocol/submit.py` to submit explicitly. If `process-feedback` is provided, intermediate checks use the frozen plan and backend identities; their snapshots are not final submissions.

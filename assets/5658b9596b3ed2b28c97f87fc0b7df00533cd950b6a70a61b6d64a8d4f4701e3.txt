@@ -1,0 +1,43 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt amp_016_song_dacfc vss vdd vinn vinp vout net013
+MM0 net013 net013 vdd vdd sg13_lv_pmos w=1u l=1u m=16
+MM1 vb4 net013 vdd vdd sg13_lv_pmos w=1u l=1u m=16
+MM10 net043 net4 vdd vdd sg13_lv_pmos w=1u l=1u m=4
+MM11 vout net4 vdd vdd sg13_lv_pmos w=1u l=1u m=4
+MM12 vb4 vb3 net54 vss sg13_lv_nmos w=1u l=1u m=16
+MM13 dm_1 vb3 net56 vss sg13_lv_nmos w=1u l=1u m=16
+MM14 vb3 vb3 vss vss sg13_lv_nmos w=1u l=1u m=4
+MM15 voutn vb3 dm_2 vss sg13_lv_nmos w=1u l=1u m=16
+MM16 net4 vb3 net063 vss sg13_lv_nmos w=1u l=1u m=16
+MM17 net54 vb4 vss vss sg13_lv_nmos w=1u l=1u m=16
+MM18 net56 vb4 vss vss sg13_lv_nmos w=1u l=1u m=16
+MM19 dm_2 vb4 vss vss sg13_lv_nmos w=1u l=1u m=32
+MM2 dm_1 dm_1 vdd vdd sg13_lv_pmos w=1u l=1u m=4
+MM20 net063 vb4 vss vss sg13_lv_nmos w=1u l=1u m=32
+MM21 net043 net043 vss vss sg13_lv_nmos w=1u l=1u m=4
+MM22 net049 net043 vss vss sg13_lv_nmos w=1u l=1u m=4
+MM23 vout net049 vss vss sg13_lv_nmos w=1u l=1u m=4
+MM3 vb3 net013 vdd vdd sg13_lv_pmos w=1u l=1u m=16
+MM4 net31 net013 vdd vdd sg13_lv_pmos w=1u l=1u m=8
+MM5 net5 voutn vdd vdd sg13_lv_pmos w=1u l=1u m=4
+MM57 net043 vinn net1 net1 sg13_lv_pmos w=1u l=1u m=4
+MM58 net049 vinp net1 net1 sg13_lv_pmos w=1u l=1u m=4
+MM59 net1 net013 vdd vdd sg13_lv_pmos w=1u l=1u m=8
+MM6 net050 voutn vdd vdd sg13_lv_pmos w=1u l=1u m=4
+MM60 voutn dm_1 net5 vdd sg13_lv_pmos w=1u l=1u m=16
+MM61 net4 dm_1 net050 vdd sg13_lv_pmos w=1u l=1u m=16
+MM62 voutn dm_1 net3 vdd sg13_lv_pmos w=1u l=1u m=16
+MM63 net70 dm_1 net2 vdd sg13_lv_pmos w=1u l=1u m=16
+MM64 net85 vb4 vss vss sg13_lv_nmos w=1u l=1u m=32
+MM65 net69 vb4 vss vss sg13_lv_nmos w=1u l=1u m=32
+MM68 net2 net70 vdd vdd sg13_lv_pmos w=1u l=1u m=16
+MM69 net3 net70 vdd vdd sg13_lv_pmos w=1u l=1u m=16
+MM7 net049 voutn vdd vdd sg13_lv_pmos w=1u l=1u m=4
+MM70 net70 vb3 net69 vss sg13_lv_nmos w=1u l=1u m=16
+MM71 voutn vb3 net85 vss sg13_lv_nmos w=1u l=1u m=16
+MM8 dm_2 vinn net31 net31 sg13_lv_pmos w=1u l=1u m=4
+MM9 net063 vinp net31 net31 sg13_lv_pmos w=1u l=1u m=4
+C0_0 vout net70 cap_cmim w=31.57u l=31.57u m=1
+C2_0 net4 vss cap_cmim w=21.55u l=21.55u m=1
+.ends amp_016_song_dacfc

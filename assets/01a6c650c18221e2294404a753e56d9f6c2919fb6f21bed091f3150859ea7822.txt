@@ -1,0 +1,2273 @@
+kind = "layout_case"
+id = "gf180mcuD.analog-db.cmp_002_strongarm"
+title = "StrongARM Dynamic Comparator"
+status = "qualified"
+in_core = true
+core_order = 18
+
+[[assets]]
+path = "reference/cmp_002_strongarm.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "3a6c839c762a1ef7ac81f55c00f33f87bfbd5e07b906b424e6c40911831f9411"
+
+[task]
+hours = 1
+kind = "netlist_to_gds"
+family = "gf180_strongarm"
+coefficient = 6
+environment = "gf180mcuD-typical-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "5a4b621cee4d03be2a468d65e5e9a89faba46bab60dc0a60bc24e428cb7731e1"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+subcircuit = "cmp_002_strongarm"
+sha256 = "5b80e3a40ab19415481d51b8e6b4e4bcf45c4517ccc5071aa1b342038c94e14c"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "cmp_002_strongarm"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        5,
+        0,
+    ],
+    [
+        11,
+        17,
+    ],
+    [
+        11,
+        39,
+    ],
+    [
+        12,
+        0,
+    ],
+    [
+        13,
+        17,
+    ],
+    [
+        21,
+        0,
+    ],
+    [
+        22,
+        0,
+    ],
+    [
+        22,
+        4,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        24,
+        5,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        30,
+        4,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        34,
+        0,
+    ],
+    [
+        34,
+        3,
+    ],
+    [
+        34,
+        4,
+    ],
+    [
+        34,
+        5,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        36,
+        3,
+    ],
+    [
+        36,
+        4,
+    ],
+    [
+        36,
+        5,
+    ],
+    [
+        37,
+        0,
+    ],
+    [
+        38,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        41,
+        0,
+    ],
+    [
+        42,
+        0,
+    ],
+    [
+        42,
+        3,
+    ],
+    [
+        42,
+        4,
+    ],
+    [
+        42,
+        5,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        46,
+        3,
+    ],
+    [
+        46,
+        4,
+    ],
+    [
+        46,
+        5,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        53,
+        3,
+    ],
+    [
+        53,
+        4,
+    ],
+    [
+        53,
+        5,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        62,
+        0,
+    ],
+    [
+        75,
+        0,
+    ],
+    [
+        80,
+        5,
+    ],
+    [
+        81,
+        0,
+    ],
+    [
+        81,
+        3,
+    ],
+    [
+        81,
+        4,
+    ],
+    [
+        81,
+        5,
+    ],
+    [
+        82,
+        0,
+    ],
+    [
+        86,
+        17,
+    ],
+    [
+        88,
+        17,
+    ],
+    [
+        96,
+        1,
+    ],
+    [
+        100,
+        5,
+    ],
+    [
+        100,
+        7,
+    ],
+    [
+        100,
+        8,
+    ],
+    [
+        108,
+        5,
+    ],
+    [
+        110,
+        5,
+    ],
+    [
+        110,
+        11,
+    ],
+    [
+        110,
+        12,
+    ],
+    [
+        110,
+        13,
+    ],
+    [
+        110,
+        14,
+    ],
+    [
+        110,
+        15,
+    ],
+    [
+        110,
+        16,
+    ],
+    [
+        111,
+        5,
+    ],
+    [
+        112,
+        1,
+    ],
+    [
+        115,
+        5,
+    ],
+    [
+        116,
+        5,
+    ],
+    [
+        117,
+        5,
+    ],
+    [
+        117,
+        10,
+    ],
+    [
+        118,
+        5,
+    ],
+    [
+        119,
+        5,
+    ],
+    [
+        122,
+        5,
+    ],
+    [
+        123,
+        5,
+    ],
+    [
+        124,
+        5,
+    ],
+    [
+        125,
+        5,
+    ],
+    [
+        127,
+        5,
+    ],
+    [
+        128,
+        17,
+    ],
+    [
+        137,
+        5,
+    ],
+    [
+        151,
+        5,
+    ],
+    [
+        152,
+        5,
+    ],
+    [
+        153,
+        51,
+    ],
+    [
+        166,
+        5,
+    ],
+    [
+        167,
+        5,
+    ],
+    [
+        173,
+        5,
+    ],
+    [
+        178,
+        0,
+    ],
+    [
+        183,
+        0,
+    ],
+    [
+        184,
+        0,
+    ],
+    [
+        185,
+        0,
+    ],
+    [
+        204,
+        0,
+    ],
+    [
+        210,
+        0,
+    ],
+    [
+        220,
+        0,
+    ],
+    [
+        226,
+        0,
+    ],
+    [
+        227,
+        0,
+    ],
+    [
+        241,
+        0,
+    ],
+]
+max_width_um = 5000
+max_height_um = 1000
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "voutp",
+    "voutn",
+    "vinp",
+    "vinn",
+    "clk",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = 1
+common_v = 1.2
+edge_s = 1e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = -1
+common_v = 1.2
+edge_s = 1e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = 1
+common_v = 1.65
+edge_s = 1e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = -1
+common_v = 1.65
+edge_s = 1e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_cm09_p_edge100p"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = 1
+common_v = 0.9
+edge_s = 1e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_cm09_p_edge500p"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = 1
+common_v = 0.9
+edge_s = 5e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_cm09_n_edge100p"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = -1
+common_v = 0.9
+edge_s = 1e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_cm09_n_edge500p"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = -1
+common_v = 0.9
+edge_s = 5e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_cm12_p_edge500p"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = 1
+common_v = 1.2
+edge_s = 5e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_cm12_n_edge500p"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = -1
+common_v = 1.2
+edge_s = 5e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_cm165_p_edge500p"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = 1
+common_v = 1.65
+edge_s = 5e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_cm165_n_edge500p"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = -1
+common_v = 1.65
+edge_s = 5e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_cm21_p_edge100p"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = 1
+common_v = 2.1
+edge_s = 1e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_cm21_p_edge500p"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = 1
+common_v = 2.1
+edge_s = 5e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_cm21_n_edge100p"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = -1
+common_v = 2.1
+edge_s = 1e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_cm21_n_edge500p"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+polarity = -1
+common_v = 2.1
+edge_s = 5e-10
+
+[task.evaluation.jobs.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "delay_s"
+unit = "s"
+dimension = "response"
+direction = "minimize"
+normalization = "ratio"
+aggregation = "max"
+category = "performance"
+observations = [
+    "condition_0:delay_s",
+    "condition_1:delay_s",
+    "condition_2:delay_s",
+    "condition_3:delay_s",
+    "condition_cm09_p_edge100p:delay_s",
+    "condition_cm09_p_edge500p:delay_s",
+    "condition_cm09_n_edge100p:delay_s",
+    "condition_cm09_n_edge500p:delay_s",
+    "condition_cm12_p_edge500p:delay_s",
+    "condition_cm12_n_edge500p:delay_s",
+    "condition_cm165_p_edge500p:delay_s",
+    "condition_cm165_n_edge500p:delay_s",
+    "condition_cm21_p_edge100p:delay_s",
+    "condition_cm21_p_edge500p:delay_s",
+    "condition_cm21_n_edge100p:delay_s",
+    "condition_cm21_n_edge500p:delay_s",
+]
+baseline = [
+    "source_condition_0:delay_s",
+    "source_condition_1:delay_s",
+    "source_condition_2:delay_s",
+    "source_condition_3:delay_s",
+    "source_condition_cm09_p_edge100p:delay_s",
+    "source_condition_cm09_p_edge500p:delay_s",
+    "source_condition_cm09_n_edge100p:delay_s",
+    "source_condition_cm09_n_edge500p:delay_s",
+    "source_condition_cm12_p_edge500p:delay_s",
+    "source_condition_cm12_n_edge500p:delay_s",
+    "source_condition_cm165_p_edge500p:delay_s",
+    "source_condition_cm165_n_edge500p:delay_s",
+    "source_condition_cm21_p_edge100p:delay_s",
+    "source_condition_cm21_p_edge500p:delay_s",
+    "source_condition_cm21_n_edge100p:delay_s",
+    "source_condition_cm21_n_edge500p:delay_s",
+]
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The observed frequency or ordered-event interval has a nonnegative measurement domain; the required crossing must exist for a usable observation."
+
+[task.evaluation.metrics.quality_target]
+value = 7e-10
+rationale = "Resolve both 20 mV input polarities within 700 ps across all four input common modes and both clock-edge rates at 50 fF per output."
+
+[[task.evaluation.metrics]]
+id = "slew_s"
+unit = "s"
+dimension = "response"
+direction = "minimize"
+normalization = "ratio"
+aggregation = "max"
+category = "performance"
+observations = [
+    "condition_0:slew_s",
+    "condition_1:slew_s",
+    "condition_2:slew_s",
+    "condition_3:slew_s",
+    "condition_cm09_p_edge100p:slew_s",
+    "condition_cm09_p_edge500p:slew_s",
+    "condition_cm09_n_edge100p:slew_s",
+    "condition_cm09_n_edge500p:slew_s",
+    "condition_cm12_p_edge500p:slew_s",
+    "condition_cm12_n_edge500p:slew_s",
+    "condition_cm165_p_edge500p:slew_s",
+    "condition_cm165_n_edge500p:slew_s",
+    "condition_cm21_p_edge100p:slew_s",
+    "condition_cm21_p_edge500p:slew_s",
+    "condition_cm21_n_edge100p:slew_s",
+    "condition_cm21_n_edge500p:slew_s",
+]
+baseline = [
+    "source_condition_0:slew_s",
+    "source_condition_1:slew_s",
+    "source_condition_2:slew_s",
+    "source_condition_3:slew_s",
+    "source_condition_cm09_p_edge100p:slew_s",
+    "source_condition_cm09_p_edge500p:slew_s",
+    "source_condition_cm09_n_edge100p:slew_s",
+    "source_condition_cm09_n_edge500p:slew_s",
+    "source_condition_cm12_p_edge500p:slew_s",
+    "source_condition_cm12_n_edge500p:slew_s",
+    "source_condition_cm165_p_edge500p:slew_s",
+    "source_condition_cm165_n_edge500p:slew_s",
+    "source_condition_cm21_p_edge100p:slew_s",
+    "source_condition_cm21_p_edge500p:slew_s",
+    "source_condition_cm21_n_edge100p:slew_s",
+    "source_condition_cm21_n_edge500p:slew_s",
+]
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The observed frequency or ordered-event interval has a nonnegative measurement domain; the required crossing must exist for a usable observation."
+
+[[task.evaluation.metrics]]
+id = "power_w"
+unit = "W"
+dimension = "supply"
+direction = "minimize"
+normalization = "ratio"
+aggregation = "max"
+scale = 1e-12
+category = "performance"
+observations = [
+    "condition_0:power_w",
+    "condition_1:power_w",
+    "condition_2:power_w",
+    "condition_3:power_w",
+    "condition_cm09_p_edge100p:power_w",
+    "condition_cm09_p_edge500p:power_w",
+    "condition_cm09_n_edge100p:power_w",
+    "condition_cm09_n_edge500p:power_w",
+    "condition_cm12_p_edge500p:power_w",
+    "condition_cm12_n_edge500p:power_w",
+    "condition_cm165_p_edge500p:power_w",
+    "condition_cm165_n_edge500p:power_w",
+    "condition_cm21_p_edge100p:power_w",
+    "condition_cm21_p_edge500p:power_w",
+    "condition_cm21_n_edge100p:power_w",
+    "condition_cm21_n_edge500p:power_w",
+]
+baseline = [
+    "source_condition_0:power_w",
+    "source_condition_1:power_w",
+    "source_condition_2:power_w",
+    "source_condition_3:power_w",
+    "source_condition_cm09_p_edge100p:power_w",
+    "source_condition_cm09_p_edge500p:power_w",
+    "source_condition_cm09_n_edge100p:power_w",
+    "source_condition_cm09_n_edge500p:power_w",
+    "source_condition_cm12_p_edge500p:power_w",
+    "source_condition_cm12_n_edge500p:power_w",
+    "source_condition_cm165_p_edge500p:power_w",
+    "source_condition_cm165_n_edge500p:power_w",
+    "source_condition_cm21_p_edge100p:power_w",
+    "source_condition_cm21_p_edge500p:power_w",
+    "source_condition_cm21_n_edge100p:power_w",
+    "source_condition_cm21_n_edge500p:power_w",
+]
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared powered circuit or passive driven network must consume nonnegative net supply/driver energy or quiescent current under the complete stated observation."
+
+[[task.evaluation.metrics]]
+id = "decision_v"
+unit = "V"
+dimension = "bias"
+direction = "target"
+normalization = "target"
+aggregation = "max"
+scale = 3.3
+category = "performance"
+observations = [
+    "condition_0:decision_v",
+    "condition_1:decision_v",
+    "condition_2:decision_v",
+    "condition_3:decision_v",
+    "condition_cm09_p_edge100p:decision_v",
+    "condition_cm09_p_edge500p:decision_v",
+    "condition_cm09_n_edge100p:decision_v",
+    "condition_cm09_n_edge500p:decision_v",
+    "condition_cm12_p_edge500p:decision_v",
+    "condition_cm12_n_edge500p:decision_v",
+    "condition_cm165_p_edge500p:decision_v",
+    "condition_cm165_n_edge500p:decision_v",
+    "condition_cm21_p_edge100p:decision_v",
+    "condition_cm21_p_edge500p:decision_v",
+    "condition_cm21_n_edge100p:decision_v",
+    "condition_cm21_n_edge500p:decision_v",
+]
+baseline = [
+    "source_condition_0:decision_v",
+    "source_condition_1:decision_v",
+    "source_condition_2:decision_v",
+    "source_condition_3:decision_v",
+    "source_condition_cm09_p_edge100p:decision_v",
+    "source_condition_cm09_p_edge500p:decision_v",
+    "source_condition_cm09_n_edge100p:decision_v",
+    "source_condition_cm09_n_edge500p:decision_v",
+    "source_condition_cm12_p_edge500p:decision_v",
+    "source_condition_cm12_n_edge500p:decision_v",
+    "source_condition_cm165_p_edge500p:decision_v",
+    "source_condition_cm165_n_edge500p:decision_v",
+    "source_condition_cm21_p_edge100p:decision_v",
+    "source_condition_cm21_p_edge500p:decision_v",
+    "source_condition_cm21_n_edge100p:decision_v",
+    "source_condition_cm21_n_edge500p:decision_v",
+]
+
+[task.evaluation.metrics.requirement]
+lower = 1.65
+upper = 3.3
+rationale = "The polarity-normalized dynamic comparator decision must exceed the 1.65 V logic threshold and remain within its 3.3 V supply."
+
+[[task.evaluation.metrics]]
+id = "reset_p_v"
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_0:reset_p_v",
+    "condition_1:reset_p_v",
+    "condition_2:reset_p_v",
+    "condition_3:reset_p_v",
+    "condition_cm09_p_edge100p:reset_p_v",
+    "condition_cm09_p_edge500p:reset_p_v",
+    "condition_cm09_n_edge100p:reset_p_v",
+    "condition_cm09_n_edge500p:reset_p_v",
+    "condition_cm12_p_edge500p:reset_p_v",
+    "condition_cm12_n_edge500p:reset_p_v",
+    "condition_cm165_p_edge500p:reset_p_v",
+    "condition_cm165_n_edge500p:reset_p_v",
+    "condition_cm21_p_edge100p:reset_p_v",
+    "condition_cm21_p_edge500p:reset_p_v",
+    "condition_cm21_n_edge100p:reset_p_v",
+    "condition_cm21_n_edge500p:reset_p_v",
+]
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.65
+rationale = "Both buffered comparator outputs must return below the 1.65 V logic threshold during the declared reset observation."
+
+[[task.evaluation.metrics]]
+id = "reset_n_v"
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+category = "performance"
+observations = [
+    "condition_0:reset_n_v",
+    "condition_1:reset_n_v",
+    "condition_2:reset_n_v",
+    "condition_3:reset_n_v",
+    "condition_cm09_p_edge100p:reset_n_v",
+    "condition_cm09_p_edge500p:reset_n_v",
+    "condition_cm09_n_edge100p:reset_n_v",
+    "condition_cm09_n_edge500p:reset_n_v",
+    "condition_cm12_p_edge500p:reset_n_v",
+    "condition_cm12_n_edge500p:reset_n_v",
+    "condition_cm165_p_edge500p:reset_n_v",
+    "condition_cm165_n_edge500p:reset_n_v",
+    "condition_cm21_p_edge100p:reset_n_v",
+    "condition_cm21_p_edge500p:reset_n_v",
+    "condition_cm21_n_edge100p:reset_n_v",
+    "condition_cm21_n_edge500p:reset_n_v",
+]
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.65
+rationale = "Both buffered comparator outputs must return below the 1.65 V logic threshold during the declared reset observation."
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 100.0
+rationale = "Worst decision delay receives 55% because regenerative-node parasitics and branch routing directly affect the 16-condition decision sweep. A 100 um2 footprint receives 30%, power 10% and slew 5%. Rail decision amplitude remains checked but is not repeatedly rewarded. The 700 ps target is just beyond the slowest source decision (about 671 ps), and is independent of the much looser functional observation window."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.3
+delay_s = 0.55
+slew_s = 0.05
+decision_v = 0.0
+power_w = 0.1
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "0a2afb4c388c44916929b1fcbed9e9c4575f595566ca443dbc28bbee3e4e0914"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"dfbdf2f93297bbe7d8b576fb988504bd0ecf85b93ef47c314a0f2c9c8830c3e7\", \"compatibility\": null, \"cpu_budget\": 8, \"execution_sha256\": \"495aa9623759f70228a236eb4825c2ae443ef6a741816d8cfc17d1830841dcef\", \"image_id\": \"sha256:060fee64f9f6e71a647e5e958b788d723c9d51d2928ff93e6a295db1959bc37f\", \"limits\": {\"cpus\": 8, \"memory_mb\": 4096, \"pids\": 256}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"4c7a26df97245613922e47bdae060a40d6cb59f9c243e22d8964f97209f47011\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 240.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_condition_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.values]
+polarity = 1
+common_v = 1.2
+edge_s = 1e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.delay_s]
+value = 4.099738e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.power_w]
+value = 6.995383e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.reset_n_v]
+value = 3.68746e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.reset_p_v]
+value = 3.692917e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.slew_s]
+value = 2.98826e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.output_sha256]
+transient = "578420ae242ba33bcb1eeb1dafeab0904dd613fa4e769f426c066e72c3a4a488"
+
+[task.evaluation.pre_layout.jobs.source_condition_1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.values]
+polarity = -1
+common_v = 1.2
+edge_s = 1e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.delay_s]
+value = 4.099738e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.power_w]
+value = 6.995383e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.reset_n_v]
+value = 3.692917e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.reset_p_v]
+value = 3.68746e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.slew_s]
+value = 2.98826e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.output_sha256]
+transient = "8371a7d9f399e8b9aa8434e11b3176707849fa163831e0e70b31a63b3818c258"
+
+[task.evaluation.pre_layout.jobs.source_condition_2]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.values]
+polarity = 1
+common_v = 1.65
+edge_s = 1e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.delay_s]
+value = 3.284388e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.power_w]
+value = 7.492169e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.reset_n_v]
+value = 3.68784e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.reset_p_v]
+value = 3.693198e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.slew_s]
+value = 2.837858e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.output_sha256]
+transient = "78bc4b9378c00a26082808be979afd5e18b8e653ce75f08833ca6817cb0e3f3f"
+
+[task.evaluation.pre_layout.jobs.source_condition_3]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.values]
+polarity = -1
+common_v = 1.65
+edge_s = 1e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.delay_s]
+value = 3.284388e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.power_w]
+value = 7.492169e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.reset_n_v]
+value = 3.693198e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.reset_p_v]
+value = 3.68784e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.slew_s]
+value = 2.837858e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.output_sha256]
+transient = "4d98c92a3b8349c26f196472c93b5f55a957d283b5514cd8a1f698568311a3a9"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.parameters.values]
+polarity = 1
+common_v = 0.9
+edge_s = 1e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.measurements.delay_s]
+value = 6.642624e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.measurements.power_w]
+value = 6.854809e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.measurements.reset_n_v]
+value = 3.687054e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.measurements.reset_p_v]
+value = 3.692618e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.measurements.slew_s]
+value = 3.870764e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge100p.output_sha256]
+transient = "908da6bf8be594a0cb3fa9bd596a76b0046b69dc085689038d21321775a11dd5"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.parameters.values]
+polarity = 1
+common_v = 0.9
+edge_s = 5e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.measurements.delay_s]
+value = 6.712258e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.measurements.power_w]
+value = 7.188339e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.measurements.reset_n_v]
+value = 3.682966e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.measurements.reset_p_v]
+value = 3.690136e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.measurements.slew_s]
+value = 3.872323e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_p_edge500p.output_sha256]
+transient = "b095539b65f12db4834d6b86611c428dc875065897e0bb8d143786e52fc26321"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.parameters.values]
+polarity = -1
+common_v = 0.9
+edge_s = 1e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.measurements.delay_s]
+value = 6.642624e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.measurements.power_w]
+value = 6.854809e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.measurements.reset_n_v]
+value = 3.692618e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.measurements.reset_p_v]
+value = 3.687053e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.measurements.slew_s]
+value = 3.870764e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge100p.output_sha256]
+transient = "d4956a748a75c0ee7ee4066fe317ff61fd911438fc4b1b63526dffff30ec6810"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.parameters.values]
+polarity = -1
+common_v = 0.9
+edge_s = 5e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.measurements.delay_s]
+value = 6.712258e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.measurements.power_w]
+value = 7.188339e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.measurements.reset_n_v]
+value = 3.690136e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.measurements.reset_p_v]
+value = 3.682966e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.measurements.slew_s]
+value = 3.872323e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm09_n_edge500p.output_sha256]
+transient = "7c8322db233c42268a9f2ee01f9d05af219dc0c6c06a7582f821a72b361e0452"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.parameters.values]
+polarity = 1
+common_v = 1.2
+edge_s = 5e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.measurements.delay_s]
+value = 4.219992e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.measurements.power_w]
+value = 7.429555e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.measurements.reset_n_v]
+value = 3.683494e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.measurements.reset_p_v]
+value = 3.690524e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.measurements.slew_s]
+value = 3.009141e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_p_edge500p.output_sha256]
+transient = "5bd1f7ce255f03099c3e34c315e16aaf8f3a189395d69faf5b2004f4ef2300c6"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.parameters.values]
+polarity = -1
+common_v = 1.2
+edge_s = 5e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.measurements.delay_s]
+value = 4.219992e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.measurements.power_w]
+value = 7.429555e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.measurements.reset_n_v]
+value = 3.690524e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.measurements.reset_p_v]
+value = 3.683494e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.measurements.slew_s]
+value = 3.009141e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm12_n_edge500p.output_sha256]
+transient = "9fbb83e3b2291135334eb41937bd94919f84f724540ad5e8ce8b2a5f8c7c3de6"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.parameters.values]
+polarity = 1
+common_v = 1.65
+edge_s = 5e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.measurements.delay_s]
+value = 3.41836e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.measurements.power_w]
+value = 7.911703e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.measurements.reset_n_v]
+value = 3.683963e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.measurements.reset_p_v]
+value = 3.690874e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.measurements.slew_s]
+value = 2.870646e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_p_edge500p.output_sha256]
+transient = "f3f392a9b437eb3c7e9ae5c3751c42a81838aed0173a1bf639f0a46d8c78dc19"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.parameters.values]
+polarity = -1
+common_v = 1.65
+edge_s = 5e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.measurements.delay_s]
+value = 3.41836e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.measurements.power_w]
+value = 7.911703e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.measurements.reset_n_v]
+value = 3.690874e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.measurements.reset_p_v]
+value = 3.683963e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.measurements.slew_s]
+value = 2.870646e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm165_n_edge500p.output_sha256]
+transient = "f4bd1ccb1322b79f62f8a05351d7ea29ea2a14b2ef55d36a88abe0443ee3dcd5"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.parameters.values]
+polarity = 1
+common_v = 2.1
+edge_s = 1e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.measurements.delay_s]
+value = 3.151525e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.measurements.power_w]
+value = 7.942078e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.measurements.reset_n_v]
+value = 3.688057e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.measurements.reset_p_v]
+value = 3.69336e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.measurements.slew_s]
+value = 2.823729e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge100p.output_sha256]
+transient = "085e838960fabe70a073aef73392e1249dd785471a84397cee9fcfd8d2cf9f87"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.parameters.values]
+polarity = 1
+common_v = 2.1
+edge_s = 5e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.measurements.delay_s]
+value = 3.310896e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.measurements.power_w]
+value = 8.308052e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.measurements.reset_n_v]
+value = 3.68421e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.measurements.reset_p_v]
+value = 3.691063e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.measurements.slew_s]
+value = 2.871186e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_p_edge500p.output_sha256]
+transient = "34b67e0080ed4f0a32e54869a240d915632ce62702fcc6db5490d36d4bd505ab"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.parameters.values]
+polarity = -1
+common_v = 2.1
+edge_s = 1e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.measurements.delay_s]
+value = 3.151525e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.measurements.power_w]
+value = 7.942078e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.measurements.reset_n_v]
+value = 3.69336e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.measurements.reset_p_v]
+value = 3.688057e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.measurements.slew_s]
+value = 2.823729e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge100p.output_sha256]
+transient = "f28af7dd9f7711f697a11f5a0de8140fee70a8a687f45b8bc9038bc54ef74674"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.parameters.values]
+polarity = -1
+common_v = 2.1
+edge_s = 5e-10
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.parameters.measurements]
+delay_s = "s"
+slew_s = "s"
+power_w = "W"
+decision_v = "V"
+reset_p_v = "V"
+reset_n_v = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.input_sha256]
+deck = "b47655f2a706e3a6e5ba6adf3d7aea3b81dcb2cee3a366b9c13b23383249dcee"
+dut = "36d51c97acf4f0c0c6c65fedab51f34d64af9aaa291f8bb71964cd5163b9739b"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.measurements.decision_v]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.measurements.delay_s]
+value = 3.310896e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.measurements.power_w]
+value = 8.308052e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.measurements.reset_n_v]
+value = 3.691063e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.measurements.reset_p_v]
+value = 3.68421e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.measurements.slew_s]
+value = 2.871186e-10
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_condition_cm21_n_edge500p.output_sha256]
+transient = "ddb8a48e7fa581053f7b0687b8cf11d8d3bd20e41bbf8af8b5515d579f729722"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+check = "artifact"
+timeout_seconds = 180
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+check = "drc"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "drc.json"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+check = "lvs"
+timeout_seconds = 180
+support = "build/support/gf180-physical"
+profile = "lvs.json"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 180
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-eda-open:local"
+support = "build/support/gf180-magic"
+technology = "gf180mcuD.tech"
+tech_name = "gf180mcuD"
+style = "ngspice()"
+gds_readonly = false
+grid_subdivision = 10
+case_insensitive_ports = true
+timeout_seconds = 240
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.ngspice]
+type = "ngspice-docker"
+
+[toolchain.backends.ngspice.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+support = "build/support/gf180-models"
+timeout_seconds = 240
+
+[toolchain.backends.ngspice.support_profiles]
+support = "models"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "ngspice"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/cmp_002_strongarm"
+
+[qualification]
+reference = "reference/cmp_002_strongarm.gds"
+
+[presentation]
+category = "Mixed-signal"
+summary = "Makes clocked differential decisions with a StrongARM regenerative latch."

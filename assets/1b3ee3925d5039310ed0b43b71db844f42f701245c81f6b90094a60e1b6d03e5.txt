@@ -1,0 +1,292 @@
+** sch_path: /source/xschem/sky130_ef_ip__rdac3v_8bit.sch
+.subckt sky130_ef_ip__rdac3v_8bit dvdd avss dvss avdd b[7] b[6] b[5] b[4] b[3] b[2] b[1] b[0] Vhigh out ena Vlow
+*.PININFO out:O avss:B avdd:B Vhigh:B Vlow:B ena:I b[7:0]:I dvdd:B dvss:B
+x1 avdd avss b3a b4a b3b b4b b5a Vhigh b6a b0a net3 b6b b5b b0b b1a b1b b2a b2b net1 net6 net5 dac_half
+x2 avdd avss b3a b4a b3b b4b b5a net6 b6a b0a net5 b6b b5b b0b b1a b1b b2a b2b net2 Vlow net4 dac_half
+x3 avdd b7b out_unbuf net1 b7a avss passtrans
+x7 avdd dvdd b7a b7b b[7] dvss level_shifter
+x8 avdd dvdd b6a b6b b[6] dvss level_shifter
+x9 avdd dvdd b5a b5b b[5] dvss level_shifter
+x10 avdd dvdd b4a b4b b[4] dvss level_shifter
+x11 avdd dvdd b3a b3b b[3] dvss level_shifter
+x12 avdd dvdd b2a b2b b[2] dvss level_shifter
+x13 avdd dvdd b1a b1b b[1] dvss level_shifter
+x14 avdd dvdd b0a b0b b[0] dvss level_shifter
+x15 avdd b7a out_unbuf net2 b7b avss passtrans
+x18 avdd net4 Vlow net7 avss net8 dac_column_dummy
+x5 avdd net8 net7 net9 avss net9 dac_column_dummy
+x4 avdd net10 net11 Vhigh avss net3 dac_column_dummy
+x16 avdd net12 net12 net11 avss net10 dac_column_dummy
+x6 avdd out ena avss out_unbuf dvss follower_amp
+.ends
+
+* expanding   symbol:  dac_half.sym # of pins=21
+** sym_path: /source/xschem/dac_half.sym
+** sch_path: /source/xschem/dac_half.sch
+.subckt dac_half vdd vss b3 b4 b3b b4b b5 res_in b6 b0 dum_in b6b b5b b0b b1 b1b b2 b2b out res_out dum_out
+*.PININFO res_in:B res_out:B out:B vdd:B vss:B b3:I b3b:I b5:I b5b:I b6:I b6b:I dum_out:B dum_in:B b4:I b4b:I b0:I b0b:I b1:I
+*+ b1b:I b2:I b2b:I
+x1 b2 b2b b1 b1b b0 b0b vdd net9 net8 net44 net16 vss net15 dac_column
+x2 b2 b2b b1 b1b b0 b0b vdd net10 net7 net43 net8 vss net9 dac_column
+x3 b2 b2b b1 b1b b0 b0b vdd net11 net6 net42 net7 vss net10 dac_column
+x4 b2 b2b b1 b1b b0 b0b vdd net12 net5 net41 net6 vss net11 dac_column
+x5 b2 b2b b1 b1b b0 b0b vdd net13 net4 net40 net5 vss net12 dac_column
+x6 b2 b2b b1 b1b b0 b0b vdd net14 net3 net39 net4 vss net13 dac_column
+x7 b2 b2b b1 b1b b0 b0b vdd net2 net1 net38 net3 vss net14 dac_column
+x8 b2 b2b b1 b1b b0 b0b vdd dum_in res_in net37 net1 vss net2 dac_column
+x9 b2 b2b b1 b1b b0 b0b vdd net25 net24 net52 res_out vss dum_out dac_column
+x10 b2 b2b b1 b1b b0 b0b vdd net26 net23 net51 net24 vss net25 dac_column
+x11 b2 b2b b1 b1b b0 b0b vdd net27 net22 net50 net23 vss net26 dac_column
+x12 b2 b2b b1 b1b b0 b0b vdd net28 net21 net49 net22 vss net27 dac_column
+x13 b2 b2b b1 b1b b0 b0b vdd net29 net20 net48 net21 vss net28 dac_column
+x14 b2 b2b b1 b1b b0 b0b vdd net30 net19 net47 net20 vss net29 dac_column
+x15 b2 b2b b1 b1b b0 b0b vdd net18 net17 net46 net19 vss net30 dac_column
+x16 b2 b2b b1 b1b b0 b0b vdd net15 net16 net45 net17 vss net18 dac_column
+x17 vdd b4 net31 net54 b4b vss passtrans
+x18 vdd b4b net31 net53 b4 vss passtrans
+x19 vdd b4 net32 net55 b4b vss passtrans
+x20 vdd b4b net32 net56 b4 vss passtrans
+x21 vdd b4 net33 net57 b4b vss passtrans
+x22 vdd b4b net33 net58 b4 vss passtrans
+x23 vdd b4 net34 net59 b4b vss passtrans
+x24 vdd b4b net34 net60 b4 vss passtrans
+x25 vdd b5b net36 net34 b5 vss passtrans
+x26 vdd b5 net36 net33 b5b vss passtrans
+x27 vdd b5b net35 net32 b5 vss passtrans
+x28 vdd b5 net35 net31 b5b vss passtrans
+x29 vdd b6b out net36 b6 vss passtrans
+x30 vdd b6 out net35 b6b vss passtrans
+x33 vdd b3b net60 net37 b3 vss passtrans
+x31 vdd b3 net60 net38 b3b vss passtrans
+x32 vdd b3b net59 net39 b3 vss passtrans
+x34 vdd b3 net59 net40 b3b vss passtrans
+x35 vdd b3b net58 net41 b3 vss passtrans
+x36 vdd b3 net58 net42 b3b vss passtrans
+x37 vdd b3b net57 net43 b3 vss passtrans
+x38 vdd b3 net57 net44 b3b vss passtrans
+x39 vdd b3b net56 net45 b3 vss passtrans
+x40 vdd b3 net56 net46 b3b vss passtrans
+x41 vdd b3b net55 net47 b3 vss passtrans
+x42 vdd b3 net55 net48 b3b vss passtrans
+x43 vdd b3b net53 net49 b3 vss passtrans
+x44 vdd b3 net53 net50 b3b vss passtrans
+x45 vdd b3b net54 net51 b3 vss passtrans
+x46 vdd b3 net54 net52 b3b vss passtrans
+x47 vdd vdd net61 net61 vss vss passtrans
+.ends
+
+
+* expanding   symbol:  passtrans.sym # of pins=6
+** sym_path: /source/xschem/passtrans.sym
+** sch_path: /source/xschem/passtrans.sch
+.subckt passtrans vdd enab out in ena vss
+*.PININFO enab:I ena:I vss:B vdd:B in:B out:B
+XM1 in ena out vss sky130_fd_pr__nfet_g5v0d10v5 L=0.5 W=0.65 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM2 in enab out vdd sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=1 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)'
++ ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+.ends
+
+
+* expanding   symbol:  level_shifter.sym # of pins=6
+** sym_path: /source/xschem/level_shifter.sym
+** sch_path: /source/xschem/level_shifter.sch
+.subckt level_shifter vdd dvdd bit_out bitb_out bit_in dvss
+*.PININFO bit_in:I bit_out:O bitb_out:O dvss:I dvdd:I vdd:I
+x1 bit_in dvdd dvss dvss vdd vdd net1 sky130_fd_sc_hvl__lsbuflv2hv_1
+x2 net1 dvss dvss vdd vdd net2 sky130_fd_sc_hvl__inv_2
+x3 net2 dvss dvss vdd vdd net3 sky130_fd_sc_hvl__inv_4
+x4 net3 dvss dvss vdd vdd bitb_out sky130_fd_sc_hvl__inv_8
+x5 bitb_out dvss dvss vdd vdd bit_out sky130_fd_sc_hvl__inv_8
+XXD1 dvss bit_in sky130_fd_pr__diode_pw2nd_05v5 area=0.2025 perim=1.8
+.ends
+
+
+* expanding   symbol:  dac_column_dummy.sym # of pins=6
+** sym_path: /source/xschem/dac_column_dummy.sym
+** sch_path: /source/xschem/dac_column_dummy.sch
+.subckt dac_column_dummy vdd dum_in res_in res_out vss dum_out
+*.PININFO res_in:B vss:B vdd:B dum_in:B res_out:B dum_out:B
+x1 vdd vdd net17 net1 vss vss passtrans
+XR1 res_out net1 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+x2 vdd vdd net16 net2 vss vss passtrans
+x3 vdd vdd net15 net3 vss vss passtrans
+x4 vdd vdd net14 net4 vss vss passtrans
+x5 vdd vdd net13 net5 vss vss passtrans
+x6 vdd vdd net12 net6 vss vss passtrans
+x7 vdd vdd net10 net7 vss vss passtrans
+x8 vdd vdd net11 res_in vss vss passtrans
+x9 vdd vdd net8 dum_in vss vss passtrans
+x10 vdd vdd net9 res_out vss vss passtrans
+XR2 net1 net2 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR3 net2 net3 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR4 net3 net4 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR5 net4 net5 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR6 net5 net6 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR7 net6 net7 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR9 net7 res_in vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR10 res_in dum_in vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR12 dum_out res_out vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+x11 vdd vdd net12 net12 vss vss passtrans
+x12 vdd vdd net13 net13 vss vss passtrans
+x13 vdd vdd net14 net14 vss vss passtrans
+x14 vdd vdd net15 net15 vss vss passtrans
+x15 vdd vdd net11 net11 vss vss passtrans
+x16 vdd vdd net16 net16 vss vss passtrans
+x17 vdd vdd net8 net8 vss vss passtrans
+x18 vdd vdd net9 net9 vss vss passtrans
+x19 vdd vdd net10 net10 vss vss passtrans
+x20 vdd vdd net17 net17 vss vss passtrans
+.ends
+
+
+* expanding   symbol:  follower_amp.sym # of pins=6
+** sym_path: /source/ip/sky130_ef_ip__samplehold/xschem/follower_amp.sym
+** sch_path: /source/ip/sky130_ef_ip__samplehold/xschem/follower_amp.sch
+.subckt follower_amp vdd out ena vss in vsub
+*.PININFO in:I vdd:I vss:I out:O ena:I vsub:I
+XM4 pdrv1 net1 vdd vdd sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=2 nf=2 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM5 vdd net1 net1 vdd sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=2 nf=2 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM10 vss nbias nbias vss sky130_fd_pr__nfet_g5v0d10v5 L=0.5 W=1 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM20 out pdrv1 vdd vdd sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=280 nf=280 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM22 out ndrv vss vss sky130_fd_pr__nfet_g5v0d10v5 L=0.5 W=4 nf=4 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM24 pbias nbias vss vss sky130_fd_pr__nfet_g5v0d10v5 L=0.5 W=1 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM25 vdd pbias pbias vdd sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=1 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM26 vcomp pbias vdd vdd sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=2 nf=2 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM27 net2 out vcomp vdd sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=2 nf=2 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM28 vcomp in ndrv vdd sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=2 nf=2 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM29 ndrv net2 vss vss sky130_fd_pr__nfet_g5v0d10v5 L=0.5 W=1 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM30 vss net2 net2 vss sky130_fd_pr__nfet_g5v0d10v5 L=0.5 W=1 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM1 net1 out vcomn1 vss sky130_fd_pr__nfet_g5v0d10v5 L=0.5 W=1 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM2 vcomn1 in pdrv1 vss sky130_fd_pr__nfet_g5v0d10v5 L=0.5 W=1 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM3 pdrv2 net3 vdd vdd sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=2 nf=2 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM6 vdd net3 net3 vdd sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=2 nf=2 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM7 vcomn2 nbias vss vss sky130_fd_pr__nfet_g5v0d10v5 L=0.5 W=2 nf=2 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM12 vdd pdrv2 out vdd sky130_fd_pr__pfet_g5v0d10v5 L=0.5 W=20 nf=20 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XXD1 vss in sky130_fd_pr__diode_pw2nd_05v5 area=0.2025 perim=1.8
+XM13 net4 ena nbias vss sky130_fd_pr__nfet_g5v0d10v5 L=0.5 W=1 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XXD2 vss ena sky130_fd_pr__diode_pw2nd_05v5 area=0.2025 perim=1.8
+XM11 pdrv2 in vcomn2 vss sky130_fd_pr__nfet_05v0_nvt L=0.9 W=1 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM9 net3 out vcomn2 vss sky130_fd_pr__nfet_05v0_nvt L=0.9 W=1 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM8 vcomn1 nbias vss vss sky130_fd_pr__nfet_g5v0d10v5 L=0.5 W=1 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XR2 net4 vdd vss sky130_fd_pr__res_xhigh_po_0p35 L=140 mult=1 m=1
+.ends
+
+
+* expanding   symbol:  dac_column.sym # of pins=13
+** sym_path: /source/xschem/dac_column.sym
+** sch_path: /source/xschem/dac_column.sch
+.subckt dac_column b2 b2b b1 b1b b0 b0b vdd dum_in res_in out res_out vss dum_out
+*.PININFO res_in:B vss:B vdd:B out:B b0:I b0b:I b1:I b1b:I b2:I b2b:I dum_in:B res_out:B dum_out:B
+x1 vdd b0 net8 net1 b0b vss passtrans
+XR1 res_out net1 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+x2 vdd b0b net8 net2 b0 vss passtrans
+x3 vdd b0 net9 net3 b0b vss passtrans
+x4 vdd b0b net9 net4 b0 vss passtrans
+x5 vdd b0 net10 net5 b0b vss passtrans
+x6 vdd b0b net10 net6 b0 vss passtrans
+x7 vdd b0 net11 net7 b0b vss passtrans
+x8 vdd b0b net11 res_in b0 vss passtrans
+x9 vdd vdd net15 dum_in vss vss passtrans
+x10 vdd vdd net12 res_out vss vss passtrans
+XR2 net1 net2 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR3 net2 net3 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR4 net3 net4 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR5 net4 net5 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR6 net5 net6 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR7 net6 net7 vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR9 net7 res_in vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR10 res_in dum_in vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+XR12 dum_out res_out vss sky130_fd_pr__res_high_po_0p35 L=3.16 mult=1 m=1
+x11 vdd b1b net14 net11 b1 vss passtrans
+x12 vdd b1 net14 net10 b1b vss passtrans
+x13 vdd b1b net13 net9 b1 vss passtrans
+x14 vdd b1 net13 net8 b1b vss passtrans
+x15 vdd b2b out net14 b2 vss passtrans
+x16 vdd b2 out net13 b2b vss passtrans
+x17 vdd vdd net15 net15 vss vss passtrans
+x18 vdd vdd net12 net12 vss vss passtrans
+.ends
+
+
+.subckt sky130_fd_sc_hvl__lsbuflv2hv_1 A LVPWR VGND VNB VPB VPWR X
+X0 VGND a_404_1133# a_504_1221# VNB sky130_fd_pr__nfet_g5v0d10v5 w=1.5e+06u l=500000u
+X1 a_504_1221# a_404_1133# VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=1.5e+06u l=500000u
+X2 X a_1711_885# VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X3 X a_1711_885# VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X4 VGND A a_404_1133# VNB sky130_fd_pr__nfet_01v8 w=840000u l=150000u
+X5 a_1197_107# a_772_151# VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=1.5e+06u l=500000u
+X6 VPWR a_1197_107# a_504_1221# VPB sky130_fd_pr__pfet_g5v0d10v5 w=420000u l=1e+06u
+X7 a_504_1221# a_404_1133# VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=1.5e+06u l=500000u
+X8 a_1197_107# a_772_151# VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=1.5e+06u l=500000u
+X9 a_772_151# a_404_1133# VGND VNB sky130_fd_pr__nfet_01v8 w=840000u l=150000u
+X10 a_504_1221# a_404_1133# VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=1.5e+06u l=500000u
+X11 VGND a_404_1133# a_504_1221# VNB sky130_fd_pr__nfet_g5v0d10v5 w=1.5e+06u l=500000u
+X12 LVPWR A a_404_1133# LVPWR sky130_fd_pr__pfet_01v8_hvt w=840000u l=150000u
+X13 VGND a_772_151# a_1197_107# VNB sky130_fd_pr__nfet_g5v0d10v5 w=1.5e+06u l=500000u
+X14 VPWR a_504_1221# a_1711_885# VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X15 VGND a_504_1221# a_1711_885# VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X16 VGND a_772_151# a_1197_107# VNB sky130_fd_pr__nfet_g5v0d10v5 w=1.5e+06u l=500000u
+X17 a_772_151# a_404_1133# LVPWR LVPWR sky130_fd_pr__pfet_01v8_hvt w=840000u l=150000u
+X18 a_1197_107# a_772_151# VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=1.5e+06u l=500000u
+X19 VPWR a_504_1221# a_1197_107# VPB sky130_fd_pr__pfet_g5v0d10v5 w=420000u l=1e+06u
+.ends
+
+.subckt sky130_fd_sc_hvl__inv_2 A VGND VNB VPB VPWR Y
+X0 VPWR A Y VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X1 Y A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X2 VGND A Y VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X3 Y A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+.ends
+
+.subckt sky130_fd_sc_hvl__inv_8 A VGND VNB VPB VPWR Y
+X0 VPWR A Y VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X1 VGND A Y VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X2 VGND A Y VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X3 Y A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X4 Y A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X5 Y A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X6 Y A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X7 Y A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X8 VPWR A Y VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X9 VPWR A Y VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X10 VPWR A Y VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X11 VGND A Y VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X12 Y A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X13 Y A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X14 Y A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X15 VGND A Y VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+.ends
+
+.subckt sky130_fd_sc_hvl__inv_4 A VGND VNB VPB VPWR Y
+X0 Y A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X1 Y A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X2 VGND A Y VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X3 Y A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X4 VGND A Y VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X5 VPWR A Y VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X6 VPWR A Y VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X7 Y A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+.ends

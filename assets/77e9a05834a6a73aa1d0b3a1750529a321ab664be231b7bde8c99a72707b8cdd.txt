@@ -1,0 +1,35 @@
+* Open-loop small-signal response with DC-only unity feedback.
+.include "/workspace/support/models.spice"
+.include "parameters.spice"
+.include "dut.spice"
+.temp 27
+Vdd vdd 0 1.8
+Iref1 vdd bias1 20u
+Iref2 vdd bias2 100u
+Vin inp 0 DC 0.9 AC 1
+Rfb out feedback 9meg
+Rref feedback common 1meg
+Vcommon common 0 0.9
+Lfb feedback inm 1e12
+Cfb inm 0 1e12
+Xdut vdd 0 bias1 inp inm bias2 out OPAMP_TWO_STAGE
+Cload out 0 {load_capacitance}
+Rload out 0 100meg
+.control
+op
+let bias_voltage=v(out)
+let supply_power=-1.8*i(Vdd)
+print bias_voltage supply_power
+write op.raw v(out) i(Vdd)
+save i(vdd) v(inm) v(inp) v(out)
+ac dec 100 1 1e9
+let gain_db=db(v(out))
+let magnitude=mag(v(out))
+let phase_margin_curve=180+180/PI*cph(v(out))
+meas ac gain_low FIND gain_db AT=1
+meas ac loop_bandwidth WHEN magnitude=10 FALL=1
+meas ac phase_margin FIND phase_margin_curve WHEN magnitude=10 FALL=1
+write ac.raw v(out) v(inp) v(inm)
+quit
+.endc
+.end

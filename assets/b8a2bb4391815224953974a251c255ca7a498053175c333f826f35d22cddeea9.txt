@@ -1,0 +1,717 @@
+kind = "layout_case"
+id = "sky130A.sky130_ef_ip__ccomp3v.ccomp3v"
+title = "SKY130 Continuous Comparator with Complementary Input Load"
+status = "qualified"
+in_core = false
+
+[[assets]]
+path = "reference/ccomp3v.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "b672f8dbc89b170681fb59d62561b11a1e500b690e788dc0bad00d2e02893a7b"
+
+[origin]
+url = "https://github.com/efabless/sky130_ef_ip__ccomp3v/tree/b051f6131efe5c1169e52a826f893c1a4f65eff0"
+
+[task]
+kind = "netlist_to_gds"
+hours = 8
+family = "sky130_comparator"
+coefficient = 3
+environment = "sky130A-tt-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "9ad3c1bdbedbb6f8ec29c7da7f11e3b2e2c9425b08b4c8e68e6aa1b0366e0fb9"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+subcircuit = "sky130_ef_ip__ccomp3v_cl"
+sha256 = "7fd17ed297a1e263a2169ee7965be2d7dcb5adfb9efc97ec1d62a17f9d9d59c5"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "61657a4eac2599e1d246bf61b613eef45bc0ba2f161c3eed86c04096574dadd0"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "sky130_ef_ip__ccomp3v_cl"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        64,
+        20,
+    ],
+    [
+        65,
+        20,
+    ],
+    [
+        65,
+        44,
+    ],
+    [
+        66,
+        20,
+    ],
+    [
+        66,
+        44,
+    ],
+    [
+        67,
+        20,
+    ],
+    [
+        67,
+        44,
+    ],
+    [
+        68,
+        20,
+    ],
+    [
+        68,
+        44,
+    ],
+    [
+        69,
+        20,
+    ],
+    [
+        69,
+        44,
+    ],
+    [
+        70,
+        20,
+    ],
+    [
+        70,
+        44,
+    ],
+    [
+        71,
+        20,
+    ],
+    [
+        71,
+        44,
+    ],
+    [
+        72,
+        20,
+    ],
+    [
+        93,
+        44,
+    ],
+    [
+        94,
+        20,
+    ],
+]
+max_width_um = 120
+max_height_um = 120
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "VOUT",
+    "DVDD",
+    "DVSS",
+    "VDD",
+    "VSS",
+    "VINP",
+    "VINM",
+    "CLOAD",
+    "ENA",
+]
+
+[[task.evaluation.jobs]]
+id = "low_cm"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+dc = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+trip_voltage = "V"
+rise_delay = "s"
+fall_delay = "s"
+high_level = "V"
+low_level = "V"
+supply_power = "W"
+
+[task.evaluation.jobs.parameters.values]
+common_mode = 0.5
+
+[task.evaluation.jobs.parameters.exports]
+dc = "dc.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "mid_cm"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+dc = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+trip_voltage = "V"
+rise_delay = "s"
+fall_delay = "s"
+high_level = "V"
+low_level = "V"
+supply_power = "W"
+
+[task.evaluation.jobs.parameters.values]
+common_mode = 1.65
+
+[task.evaluation.jobs.parameters.exports]
+dc = "dc.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "high_cm"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+dc = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+trip_voltage = "V"
+rise_delay = "s"
+fall_delay = "s"
+high_level = "V"
+low_level = "V"
+supply_power = "W"
+
+[task.evaluation.jobs.parameters.values]
+common_mode = 2.8
+
+[task.evaluation.jobs.parameters.exports]
+dc = "dc.raw"
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "trip_voltage"
+category = "performance"
+observations = [
+    "low_cm:trip_voltage",
+    "mid_cm:trip_voltage",
+    "high_cm:trip_voltage",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_low_cm:trip_voltage",
+    "source_mid_cm:trip_voltage",
+    "source_high_cm:trip_voltage",
+]
+normalization = "target"
+scale = 0.001
+dimension = "bias"
+
+[[task.evaluation.metrics]]
+id = "rise_delay"
+category = "performance"
+observations = [
+    "low_cm:rise_delay",
+    "mid_cm:rise_delay",
+    "high_cm:rise_delay",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_low_cm:rise_delay",
+    "source_mid_cm:rise_delay",
+    "source_high_cm:rise_delay",
+]
+normalization = "saturating_ratio"
+scale = 1e-08
+dimension = "response"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared ordered-event interval or crossing frequency has a nonnegative measurement domain, and its crossing must exist for a usable observation."
+
+[[task.evaluation.metrics]]
+id = "fall_delay"
+category = "performance"
+observations = [
+    "low_cm:fall_delay",
+    "mid_cm:fall_delay",
+    "high_cm:fall_delay",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_low_cm:fall_delay",
+    "source_mid_cm:fall_delay",
+    "source_high_cm:fall_delay",
+]
+normalization = "saturating_ratio"
+scale = 1e-08
+dimension = "response"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared ordered-event interval or crossing frequency has a nonnegative measurement domain, and its crossing must exist for a usable observation."
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = [
+    "low_cm:supply_power",
+    "mid_cm:supply_power",
+    "high_cm:supply_power",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_low_cm:supply_power",
+    "source_mid_cm:supply_power",
+    "source_high_cm:supply_power",
+]
+normalization = "saturating_ratio"
+scale = 0.0001
+dimension = "supply"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared powered circuit must consume nonnegative net energy from its supplies and driven references over the stated observation; power magnitude remains a quality objective."
+
+[[task.evaluation.metrics]]
+id = "high_level"
+category = "performance"
+observations = [
+    "low_cm:high_level",
+    "mid_cm:high_level",
+    "high_cm:high_level",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+lower = 1.6
+upper = 1.9
+rationale = "The declared output or bias must stay in its specified operating or logic-level interval under the supplied rail, feedback or full-scale reference conditions; an out-of-range output violates that interface."
+
+[[task.evaluation.metrics]]
+id = "low_level"
+category = "performance"
+observations = [
+    "low_cm:low_level",
+    "mid_cm:low_level",
+    "high_cm:low_level",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+lower = -0.1
+upper = 0.2
+rationale = "The declared output or bias must stay in its specified operating or logic-level interval under the supplied rail, feedback or full-scale reference conditions; an out-of-range output violates that interface."
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 4542.708625
+rationale = "Offset preservation, rising delay, falling delay, supply power and area each carry 20%. Timing uses +/-20 mV overdrive and 1 pF output load at three input common modes; CLOAD is held at the same common mode. A 1 mV offset scale, 10 ns timing scale and 100 uW power scale avoid singular error ratios. Output logic levels remain functional requirements; offset, propagation delay and supply power are continuous quality objectives without fixed budget cutoffs."
+
+[task.evaluation.scoring.weights]
+trip_voltage = 0.2
+rise_delay = 0.2
+fall_delay = 0.2
+supply_power = 0.2
+functional_area = 0.2
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "99a0103db1a120380431a7c1029bc4f5c570ee41ac66eef1c1bcb264bfc54920"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"dfbdf2f93297bbe7d8b576fb988504bd0ecf85b93ef47c314a0f2c9c8830c3e7\", \"compatibility\": \"hsa\", \"cpu_budget\": 8, \"execution_sha256\": \"495aa9623759f70228a236eb4825c2ae443ef6a741816d8cfc17d1830841dcef\", \"image_id\": \"sha256:060fee64f9f6e71a647e5e958b788d723c9d51d2928ff93e6a295db1959bc37f\", \"limits\": {\"cpus\": 8, \"memory_mb\": 4096, \"pids\": 256}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"cba8c3811d06b88752a21414d16575ef72011a8b2f05214e29076a9ae90ffb9c\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 900.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_low_cm]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_low_cm.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_low_cm.outputs]
+dc = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_low_cm.parameters.measurements]
+trip_voltage = "V"
+rise_delay = "s"
+fall_delay = "s"
+high_level = "V"
+low_level = "V"
+supply_power = "W"
+
+[task.evaluation.pre_layout.jobs.source_low_cm.parameters.values]
+common_mode = 0.5
+
+[task.evaluation.pre_layout.jobs.source_low_cm.parameters.exports]
+dc = "dc.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_low_cm.input_sha256]
+deck = "61657a4eac2599e1d246bf61b613eef45bc0ba2f161c3eed86c04096574dadd0"
+dut = "7fd17ed297a1e263a2169ee7965be2d7dcb5adfb9efc97ec1d62a17f9d9d59c5"
+
+[task.evaluation.pre_layout.jobs.source_low_cm.measurements.fall_delay]
+value = 5.420744e-08
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_low_cm.measurements.high_level]
+value = 1.8
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_low_cm.measurements.low_level]
+value = 5.11301e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_low_cm.measurements.rise_delay]
+value = 1.605907e-07
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_low_cm.measurements.supply_power]
+value = 0.0004509336
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_low_cm.measurements.trip_voltage]
+value = 0.0001247708
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_low_cm.output_sha256]
+dc = "8f1aacd6b0ed76f5a369749159a794a129224a27296a2cf9162bc61f68372260"
+transient = "45190c96dea76783e69e93f02b457c91ec01c0e7f93f0dd3d6f0bf0d1c19bd09"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.outputs]
+dc = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.parameters.measurements]
+trip_voltage = "V"
+rise_delay = "s"
+fall_delay = "s"
+high_level = "V"
+low_level = "V"
+supply_power = "W"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.parameters.values]
+common_mode = 1.65
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.parameters.exports]
+dc = "dc.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.input_sha256]
+deck = "61657a4eac2599e1d246bf61b613eef45bc0ba2f161c3eed86c04096574dadd0"
+dut = "7fd17ed297a1e263a2169ee7965be2d7dcb5adfb9efc97ec1d62a17f9d9d59c5"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.measurements.fall_delay]
+value = 3.096436e-08
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.measurements.high_level]
+value = 1.8
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.measurements.low_level]
+value = 5.113104e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.measurements.rise_delay]
+value = 1.154989e-07
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.measurements.supply_power]
+value = 0.0006039166
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.measurements.trip_voltage]
+value = 0.0001250029
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_mid_cm.output_sha256]
+dc = "10bc1bc906899f67b3f68c86ee8a5055af0812cc820286f6d0d4d508f339f6e7"
+transient = "c00612d16e8beb40b0a0a1832cd8c5d56f6f2a623b9c1ffcf58eea0901821ee5"
+
+[task.evaluation.pre_layout.jobs.source_high_cm]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_high_cm.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_high_cm.outputs]
+dc = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_high_cm.parameters.measurements]
+trip_voltage = "V"
+rise_delay = "s"
+fall_delay = "s"
+high_level = "V"
+low_level = "V"
+supply_power = "W"
+
+[task.evaluation.pre_layout.jobs.source_high_cm.parameters.values]
+common_mode = 2.8
+
+[task.evaluation.pre_layout.jobs.source_high_cm.parameters.exports]
+dc = "dc.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_high_cm.input_sha256]
+deck = "61657a4eac2599e1d246bf61b613eef45bc0ba2f161c3eed86c04096574dadd0"
+dut = "7fd17ed297a1e263a2169ee7965be2d7dcb5adfb9efc97ec1d62a17f9d9d59c5"
+
+[task.evaluation.pre_layout.jobs.source_high_cm.measurements.fall_delay]
+value = 3.280079e-08
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_high_cm.measurements.high_level]
+value = 1.8
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_high_cm.measurements.low_level]
+value = 5.11316e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_high_cm.measurements.rise_delay]
+value = 1.197226e-07
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_high_cm.measurements.supply_power]
+value = 0.0005314422
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_high_cm.measurements.trip_voltage]
+value = 0.0001250002
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_high_cm.output_sha256]
+dc = "858cb2b9928c85c8bb478d5d6801f3a26743b5d44714af9e4a599d1f4c32b8d7"
+transient = "426ef739eb2bb71e47262a1f45029265f6552ea19fa3de4c56ec738e351227be"
+
+[qualification]
+reference = "reference/ccomp3v.gds"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "artifact"
+
+[toolchain.backends.drc]
+type = "magic-physical-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "drc"
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "drc(full)"
+grid_subdivision = 2
+support = "external-cache/physical"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "magic-physical-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "lvs"
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "ngspice()"
+setup = "sky130A_setup.tcl"
+grid_subdivision = 2
+support = "external-cache/physical"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+gds_readonly = false
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "ngspice()"
+grid_subdivision = 2
+support = "external-cache/magic"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+timeout_seconds = 900
+compatibility = "hsa"
+support = "external-cache/models"
+
+[toolchain.backends.simulation.support_profiles]
+support = "models"
+
+[presentation]
+category = "Mixed-signal"
+summary = "Compares differential inputs across three common-mode voltages with a complementary input load."

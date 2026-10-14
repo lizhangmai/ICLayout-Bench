@@ -1,0 +1,38 @@
+# SKY130 Two-Stage Miller Operational Amplifier Layout Task
+
+## Objective
+
+Implement `OPAMP_TWO_STAGE` from the supplied transistor-level circuit, preserving topology, fixed device parameters, four-terminal body connections and the ordered interface. Submit a candidate GDS for electrical evaluation of its distributed RC extraction.
+
+## Inputs and Interface
+
+Ordered ports are `VDD GND DIFFPAIR_BIAS VP VN CS_BIAS VOUT`. Declared inputs include `problem.md`, `materials/circuit.spice` and `materials/testbench.spice`. The runtime provides models and process resources; reference layouts, author code and qualification evidence are maintainer-only materials.
+
+## Operating Conditions
+
+Supply 1.8 V, input common mode 0.9 V, and external input-stage/common-source-stage bias currents 20, 100 uA, respectively. Use output capacitances 0.1, 0.5, 1 pF and a 100 Mohm resistive load. Feedback 9 Mohm and reference 1 Mohm resistors set noise gain 10; external large inductance/capacitance closes DC feedback and breaks AC feedback, measuring loop bandwidth and phase margin where open-loop magnitude falls to 10. This fixture does not prove unity-gain stability. All electrical experiments use fixed TT models at 27 °C; delivered testbenches define interpolation, edges, loads, sweeps, observation times and power intervals.
+
+## Physical Requirements
+
+Submit a nonempty GDS no larger than 10485760 bytes, with top cell `OPAMP_TWO_STAGE`. Functional geometry must fit within the 200 × 200 um envelope on the declared layer set. Pass complete Magic DRC without waivers and independent Netgen LVS checking named ports, models, dimensions, multiplicities and body/contact connections. After physical and geometric checks pass, extract the candidate's distributed interconnect resistance, capacitance and devices, then run every declared experiment.
+
+## Electrical Requirements and Scoring
+
+Output bias must be 0.3–1.5 V; phase margin at the specified crossing must lie on the stable-feedback branch within 0–180 degrees, and the crossing must exist. Gain, bandwidth and power are quality targets; no 40 dB, 100 kHz, 5 mW or 45 degree design-budget rejection thresholds are imposed. Power and absolute errors must be nonnegative; all required measurements must be complete, finite and in correct units.
+
+| Metric | Functional requirement or measurement domain | Aggregation | Score weight |
+| --- | --- | --- | ---: |
+| `functional_area` | No fixed performance bound | max | 20% |
+| `gain_low` | No fixed performance bound | min | 30% |
+| `loop_bandwidth` | 0 … +∞ Hz | min | 30% |
+| `supply_power` | 0 … +∞ W | max | 20% |
+| `phase_margin` | 0 … 180 deg | min | 0% |
+| `bias_voltage` | 0.3 … 1.5 V | max | 0% |
+
+Pair electrical quality with independent source-netlist observations under exactly the same conditions, taking the worst paired quality for each metric. Gain in dB uses `10^((x-b)/20)`; target quantities use `1/(1+abs(x-b)/s)`; ratio quantities use `x/b` or `b/x` according to optimization direction; cost quantities declaring `saturating_ratio` use `2*(b+s)/(b+x+2*s)`. `x` is the candidate observation, `b` is the source observation and `s` is the contract's physical normalization scale. These define no degradation allowance. Zero-weight observations still undergo measurement and functional checks.
+
+Area quality is `14329.60165 um² / candidate functional area`; the area target is the original reference layout's functional-footprint soft target, and a separate envelope constraint controls functional bounds. Total score is `100 × product(q_i^w_i)`, using the contract's `layout` method and original weights. Source-equivalent performance at target area scores 100, and better valid solutions may exceed 100. Physical or functional invalidity scores zero; missing or unusable measurements make the score unknown. Capability coefficient `3` is independent of this quality score.
+
+## Tools and Submission
+
+Solve budget: 8 hours. Use the task information, tools and SKY130 resources provided by the runtime protocol. Write only the final GDS to `output/final.gds` and explicitly submit through the declared interface. Source simulation serves characterization; accepted results come from complete physical and RC electrical evaluation of the candidate GDS. Conclusions cover only the declared conditions, excluding PVT, mismatch, reliability and product signoff.

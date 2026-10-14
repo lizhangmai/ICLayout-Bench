@@ -1,0 +1,97 @@
+# Buffered-Reference LDO Layout Task
+
+## Objective
+
+Implement `ldo_005_buffered_ref` as a GF180MCU D layout. The fixed upstream GF180 6 V circuit combines its self-biased reference amplifier, gain-two reference divider, RC low-pass filter, self-biased error amplifier, PMOS pass device, bleeder and on-die output capacitor. The two inlined amplifiers retain this LDO accession's own dimensions and compensation values; they are not replaced by the standalone amplifier cases.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the physical authority; `materials/circuit.spice`
+contains matching native simulator wrappers. `materials/testbench.spice` defines
+all measurements. Ordered ports: `vdd vout vss vref`.
+
+`vdd/vss`: supply and return; `vout`: regulated output; `vref`: external 0.8 V reference. The upstream ideal VREF becomes test apparatus at this explicit port. Its zero-volt VLP loop marker becomes a wire to the output; no physical functional element is removed. The reference divider, RC filter, bleeder and four internal capacitors remain inside the DUT. External load and output capacitor remain test apparatus.
+
+## Operating Conditions
+
+Typical native models at 27 C, statistics disabled. All four combinations of 3.0/3.3 V supply and 50/200 uA DC load are evaluated, with a 0.8 V external reference and 1 uF external output load. AC supply injection spans 1 Hz–1 MHz, 80 points/decade. The load doubles at 100 us and returns after 100 us, with 1 us edges; transient evaluation ends at 500 us with 0.1 us requested steps. This is steady-state load-step characterization, not cold-start or dropout qualification.
+
+## Physical Requirements
+
+GDS database unit 0.001 um, maximum 10 MiB, top cell `ldo_005_buffered_ref`.
+Native standalone DRC covers geometry, connectivity, manufacturing grid, dummy
+fill and antenna; chip-level density and seal-ring closure are excluded.
+LVS must match all devices, parameters and named ports. Metal1 labels identify
+ports. The functional bounding rectangle includes the device, well, implant,
+contact, passive and complete routing layers enumerated in the runtime outline;
+text annotations are excluded. Maximum outline is 5000 by 1000 um.
+
+6 V MOS minimum channel lengths are 0.70 um NMOS and 0.55 um PMOS. Only subminimum lengths are raised, and dimensions are quantized to 5 nm. Passives use 1 kohm/square poly, with series segmentation, and 2 fF/um2 MIM-B on M4/M5, with parallel tiling. Source and extracted candidates use the same native layer-specific capacitor models. Geometry, parasitic effects and physical values are authoritative; no ideal R/C replacements are made during post-layout simulation.
+
+Candidate-derived native Magic coupling capacitance and distributed wire
+resistance feed post-layout simulation, with zero omission thresholds.
+Physical MOS diffusion areas/perimeters come from the layout. Substrate/well
+connections are ideal: distributed substrate resistance/noise and inductance
+are not represented. Nominal DC regulation, 1 kHz supply rejection and load-step excursion/recovery across four supply/load points. Coefficient 7 reflects interacting regulation stages and recovery across loads. Noise, loop return-ratio, cold start, dropout, PVT and statistical yield are outside this declared scope.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+`regulation_error_v`, `excursion_v` use `saturating_ratio`: q = 2(b+s)/(b+x+2s), where x is candidate error, b is paired source error and s is the positive scale below. Source equivalence gives q=1; improvement approaches the upper limit 2 with diminishing returns. The scale retains its declared unit and numerical-floor meaning. Normalize each condition before taking the worst quality; other rules follow their declarations.
+
+| Metric | Definition | Unit | Dimension | Normalization |
+| --- | --- | --- | --- | --- |
+| `output_v` | DC regulated output | V | bias | target |
+| `regulation_error_v` | Absolute DC error relative to 1.6 V | V | response | saturating_ratio |
+| `psrr_db` | Negative 20 log10 magnitude of supply-to-output response at 1 kHz | dB | response | db20 |
+| `excursion_v` | Output maximum minus minimum over 90–500 us | V | response | saturating_ratio |
+| `recovery_v` | Mean output over 400–500 us after the load returns | V | bias | target |
+| `power_w` | DC supply power -VDD*I(VDD) | W | supply | ratio |
+| `minimum_v` | Minimum transient output over 90–500 us | V | functional | unscored |
+| `maximum_v` | Maximum transient output over 90–500 us | V | functional | unscored |
+
+Output and recovered output must be in 0–3.3 V; the transient minimum must be nonnegative and the maximum at most 3.3 V. Supply power and absolute/range errors must be nonnegative. These are supply-domain and physical measurement constraints. Accuracy, rejection and recovery differences enter continuous scoring; no upstream regulation target is a hard gate.
+Every condition must complete; missing, nonfinite or wrong-unit observations
+produce an evaluation error. Upstream advertised performance is not a
+qualification requirement.
+
+Scored observations pair with independent source jobs using the identical
+stimuli, parameters, models and backend. Target scales are 3.3 V; ratio floors
+are 1 pW for power and 1 mV for error/excursion. These are normalization units,
+not allowed degradation. `db20` compares
+amplitude ratios.
+
+Area anchor **29565.16 um2** uses a 18964.964200 um2 sum of expanded
+`(W+2)*(L+2)` device/contact envelopes, a 50% routing allowance and 2 um outer
+margin: `ceil(100*(1.5*sum+8*sqrt(sum)+16))/100`. It is independent of witness
+area and is an engineering estimate, not a foundry minimum. Coefficient **7**
+is independent of this score.
+
+### Score weights
+
+GF180 compact regulator variants: regulation and recovery 52.9%; rejection and peaking 26.5%; power 10.6%; area 10%. Each objective's weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `excursion_v` | 0.132352941176 |
+| `output_v` | 0.132352941176 |
+| `recovery_v` | 0.132352941176 |
+| `regulation_error_v` | 0.132352941176 |
+| `psrr_db` | 0.264705882355 |
+| `power_w` | 0.105882352941 |
+
+## Tools and Submission
+
+Solve budget: **3 hours**.
+
+Read `/protocol/task.json`, `/protocol/resources.json`, `/protocol/harness.json`. KLayout checks physical requirements, Magic extracts the candidate, and ngspice measures it; use `process-feedback` if available. Write `/workspace/output/final.gds`, then explicitly submit with `python -I /protocol/submit.py`.

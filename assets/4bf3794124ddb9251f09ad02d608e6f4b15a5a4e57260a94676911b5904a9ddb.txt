@@ -1,0 +1,20 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt amp_027_fan_rrl_ota vinp vinn voutp voutn vdd vss vb1 vb2 vb3 vb4
+MM1 tail vb3 vdd vdd sg13_lv_pmos w=20u l=1u m=1
+MM10 voutp vb1 d1p vdd sg13_lv_pmos w=10u l=0.3u m=1
+MM11 voutn vb2 csrc_n vss sg13_lv_nmos w=5u l=0.3u m=1
+MM12 voutp vb2 csrc_p vss sg13_lv_nmos w=5u l=0.3u m=1
+MM13 csrc_n cm_bias vss vss sg13_lv_nmos w=6u l=1u m=1
+MM14 csrc_p cm_bias vss vss sg13_lv_nmos w=6u l=1u m=1
+MM15 cm_bias cm_bias vss vss sg13_lv_nmos w=2u l=1u m=1
+MM16 cm_sense cm_sense vss vss sg13_lv_nmos w=2u l=1u m=1
+MM2 d1n vinp tail vdd sg13_lv_pmos w=20u l=0.5u m=1
+MM3 d1p vinn tail vdd sg13_lv_pmos w=20u l=0.5u m=1
+MM4 cm_tail vb3 vdd vdd sg13_lv_pmos w=10u l=1u m=1
+MM5 cm_sense voutn cm_tail vdd sg13_lv_pmos w=4u l=0.5u m=1
+MM6 cm_bias vb4 cm_tail vdd sg13_lv_pmos w=4u l=0.5u m=1
+MM7 cm_sense voutp cm_tail vdd sg13_lv_pmos w=4u l=0.5u m=1
+MM8 cm_bias vb4 cm_tail vdd sg13_lv_pmos w=4u l=0.5u m=1
+MM9 voutn vb1 d1n vdd sg13_lv_pmos w=10u l=0.3u m=1
+.ends amp_027_fan_rrl_ota

@@ -1,0 +1,37 @@
+* 8-bit static transfer characterization: one DC sweep, no code transitions.
+.include "support/models.spice"
+.include "dut.spice"
+.include "parameters.spice"
+.temp 27
+VCODE code 0 DC 0
+B0 b0 0 V={3.3*(floor(V(code))-2*floor(V(code)/2))}
+B1 b1 0 V={3.3*(floor(V(code)/2)-2*floor(V(code)/4))}
+B2 b2 0 V={3.3*(floor(V(code)/4)-2*floor(V(code)/8))}
+B3 b3 0 V={3.3*(floor(V(code)/8)-2*floor(V(code)/16))}
+B4 b4 0 V={3.3*(floor(V(code)/16)-2*floor(V(code)/32))}
+B5 b5 0 V={3.3*(floor(V(code)/32)-2*floor(V(code)/64))}
+B6 b6 0 V={3.3*(floor(V(code)/64)-2*floor(V(code)/128))}
+B7 b7 0 V={3.3*(floor(V(code)/128)-2*floor(V(code)/256))}
+CLOAD out 0 1p
+XDUT b7 b1 b0 b2 b3 b4 b5 b6 out 0 r2r
+.control
+set noaskquit
+set numdgt=12
+save v(code) v(out)
+dc VCODE 0 255 1
+let ideal_lsb = 3.3/256
+let out0 = v(out)[0]
+let out255 = v(out)[255]
+let endpoint_line = out0+v(code)*(out255-out0)/255
+let inl_lsb = (v(out)-endpoint_line)/ideal_lsb
+let abs_inl_lsb = abs(inl_lsb)
+meas dc worst_inl_lsb max abs_inl_lsb
+let dnl_lsb = deriv(v(out))/ideal_lsb-1
+let abs_dnl_lsb = abs(dnl_lsb)
+meas dc worst_dnl_lsb max abs_dnl_lsb
+let step_v = deriv(v(out))
+meas dc minimum_step_v min step_v
+write transfer.raw
+quit
+.endc
+.end

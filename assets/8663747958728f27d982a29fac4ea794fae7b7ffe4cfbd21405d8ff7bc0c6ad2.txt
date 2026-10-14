@@ -1,0 +1,92 @@
+# Scan D Flip-Flop with Active-Low Reset Layout Task
+
+## Objective
+
+Implement `gf180mcu_voidwalkers_sc_sdffrnq_4` in GF180MCU variant D while preserving the supplied circuit, device dimensions and ordered interface. Functional data and scan selection, rising-edge storage, asynchronous active-low reset, and 50 MHz operation with 50 fF load.
+
+## Inputs and Interface
+
+Inputs are this description, `materials/circuit.spice` (the authoritative circuit) and `materials/testbench.spice` (stimuli and measurements). Runtime task metadata supplies consistent frozen constraints, evaluation conditions and output declarations.
+
+Ordered subcircuit and GDS interface: `S, VDD, Q, B, CLK, A, RN, VSS`.
+VDD/VSS: supply/return; A: functional data; B: scan data; S: select (0=A, 1=B); CLK: rising-edge clock; RN: active-low asynchronous reset; Q: stored output.
+
+Preserve topology, total device widths, channel lengths, multiplicities, resistor dimensions and body connections. Equivalent hierarchy, diffusion sharing and parallel fingers are allowed when connectivity and electrical checks pass; preserve source models and dimensions without idealizing internal devices. Retain dummy devices even when all their terminals are shorted.
+
+## Operating Conditions
+
+Use 3.3 V and 27 C, a 50 fF Q load and the same 50 MHz clock throughout (first rise 10 ns, rise/fall 0.1 ns, high time 10 ns). Select A initially; select B at 40.1 ns; return to A at 80.1 ns. A rises at 20.1 ns, falls at 60.1 ns, rises at 100.1 ns and falls at 120.1 ns. B rises at 60.1 ns. RN starts low, releases at 5.1 ns, asserts at 85.1 ns and releases at 95.1 ns. All data/reset transitions take 0.1 ns, as specified in the testbench.
+
+The testbench also checks two late-cycle A-to-Q cases at the nominal 50 MHz clock and 50 fF load. At each measured rising edge, A crosses 1.65 V 0.8 ns before the edge and makes the opposite transition 0.2 ns after it, exercising setup and hold behavior. It checks Q after the capture edge and source-pairs the corresponding clock-to-Q delay and output slew. These fixed setup/hold exercises do not measure minimum setup/hold time or establish timing signoff across corners. Simulate through 200 ns.
+
+Use reviewed typical primitive models with statistical variation disabled. Numerical parameters from runtime simulation jobs generate the testbench's `parameters.spice`; interpolation and detailed PWL follow the delivered deck. Scope is limited to nominal compact-model conditions, excluding temperature/process corners, mismatch yield, noise, RF/EM and full-chip density closure.
+
+## Physical Requirements
+
+Submit a nonempty GDS with top cell `gf180mcu_voidwalkers_sc_sdffrnq_4`, no larger than 10485760 bytes. The functional bounding box must fit within 80 × 80 um and includes relevant device and routing polygons, implants/wells, passive markers, contacts, vias and dummy routing. The complete layer/datatype set is:
+
+`[[5,0],[11,17],[11,39],[12,0],[13,17],[21,0],[22,0],[22,4],[24,0],[24,5],[30,0],[30,4],[31,0],[32,0],[33,0],[34,0],[34,3],[34,4],[34,5],[35,0],[36,0],[36,3],[36,4],[36,5],[37,0],[38,0],[40,0],[41,0],[42,0],[42,3],[42,4],[42,5],[46,0],[46,3],[46,4],[46,5],[49,0],[53,0],[53,3],[53,4],[53,5],[55,0],[62,0],[75,0],[80,5],[81,0],[81,3],[81,4],[81,5],[82,0],[86,17],[88,17],[96,1],[100,5],[100,7],[100,8],[108,5],[110,5],[110,11],[110,12],[110,13],[110,14],[110,15],[110,16],[111,5],[112,1],[115,5],[116,5],[117,5],[117,10],[118,5],[119,5],[122,5],[123,5],[124,5],[125,5],[127,5],[128,17],[137,5],[151,5],[152,5],[153,51],[166,5],[167,5],[173,5],[178,0],[183,0],[184,0],[185,0],[204,0],[210,0],[220,0],[226,0],[227,0],[241,0]]`.
+
+Area excludes text and nonfunctional boundary layers 0/0 and 63/0; functional geometry must remain on functional layers. Pass the fixed GF180 D FEOL, BEOL, connectivity, grid and antenna checks without waivers. Use five metal layers, the 1.1 um top-metal option and the 1 kOhm/square high-resistance poly option. Chip density and seal-ring closure belong to higher-level integration.
+
+LVS checks topology, dimensions, body terminals and all named top-level ports, case-insensitively. Physically implement supply and substrate/well contacts; do not short different nets through adjoining silicided diffusion. After validity and geometric checks pass, extract candidate devices and distributed interconnect RC, then simulate the extracted circuit. The substrate model is one equipotential body region with explicit well/body contacts, rather than a distributed silicon-substrate network. Unreliable extraction, missing ports or incomplete measurements cannot establish success.
+
+The standard-cell functional frame has fixed height 6.35 um and width on a 0.005 um grid. Coordinates below are relative to its lower-left functional bound; global translation remains allowed. Supply rails must be continuous on metal1 and bound by LVS to the named supply.
+
+- `VDD`: centre y = 6 um, thickness at least 0.23 um, from left + 0 um to right − 0 um.
+- `VSS`: centre y = 0.35 um, thickness at least 0.23 um, from left + 0 um to right − 0 um.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations remain required evidence; the quality targets below set the scoring anchors without depending on the submitted GDS. Reports retain every source/candidate pair.
+
+Let x be the post-layout measurement and b the declared quality target, or the same-condition source measurement when no target is declared:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `low` | Q at 19, 59, 89, 99 and 139 ns plus the 191.5 ns near-edge capture/hold check; the 89 ns sample checks asynchronous reset before the next rising clock. | V | functional check | −∞ … 0.33 | — |
+| `high` | Q at 39, 79 and 119 ns plus the 151.5 ns near-edge capture/hold check, exercising functional and scan data. | V | functional check | 2.97 … +∞ | — |
+| `propagation_delay` | Worst paired quality over the five existing data/scan/reset arcs and two additional A-data clock-to-Q arcs with 0.8 ns setup. | s | minimize / ratio | 0 … +∞ | — |
+| `output_transition` | Worst paired quality over the five existing data/scan/reset arcs and the two additional A-data output-slew arcs with 0.8 ns setup. | s | minimize / ratio | 0 … +∞ | — |
+| `supply` | Average VDD power over 20–200 ns, including the late-cycle timing stimuli. | W | minimize / ratio | 0 … +∞ | 1e-12 |
+
+The area scoring target is **100 um2**. It is a continuous quality goal, not a hard limit, process minimum or a percentage of the current feasibility witness.
+
+- `propagation_delay`: **5.5e-10 s**. Keep all declared clock/data/reset-to-Q timing observations within 550 ps at 50 fF, including the late-cycle capture exercises.
+
+The 100 um2 area goal rewards compact latch, clock and scan-multiplexer placement. Timing 45% and area 40% expose clock/internal-node routing cost, with 10% slew and 5% power. The 550 ps target is close to the slowest source path. Fixed setup/hold exercises establish correct capture, not a characterized minimum setup or hold time.
+
+Quality targets do not impose additional functional cutoffs. Metrics without an explicit target retain their same-condition source anchors.
+
+The capability coefficient is **5**, independent of this task's reference-normalized score.
+
+### Standard-cell design guidance
+
+You may plan device rows, supply rails and signal access before routing. Represent pull-up/pull-down connections as transistor-edge graphs and explore compatible Euler paths and alternative orders to share diffusion and reduce breaks. Choose a legal arrangement considering routing length, parasitics and signal access. Keep fixed netlist sizes, models and connections; do not optimize sizing.
+
+Use the declared row height, grid and supply-rail geometry. Keep local routing compact and signal pins accessible, avoiding routing layers with no benefit. Check DRC and named-port LVS, then extract the candidate and compare transitions in both directions and power against source simulation; iterate using parasitic measurements. These methods are optional and do not prescribe an algorithm or reference layout.
+
+These methods refer to Sections 2–3 of Xu et al., *Standard Cell Library Design and Optimization Methodology for ASAP7 PDK* (https://arxiv.org/abs/1807.11396). Its FinFET sizing, track count and process-specific dimensions do not apply to this task.
+
+### Score weights
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.4 |
+| `propagation_delay` | 0.45 |
+| `output_transition` | 0.1 |
+| `supply` | 0.05 |
+
+## Tools and Submission
+
+Solve budget: **1.5 hours**.
+
+Discover inputs and reviewed GF180 resources through the runtime task, resource and submission protocols. Trusted feedback executes the declared physical and post-layout evaluation; source simulation only assists design. Write the final GDS to `/workspace/output/final.gds` and explicitly submit through the runtime protocol. File generation or a successful standalone simulation alone does not complete the task.
+
+Use a GDS database unit of 0.001 um as required by GF180MCU DRC rules.

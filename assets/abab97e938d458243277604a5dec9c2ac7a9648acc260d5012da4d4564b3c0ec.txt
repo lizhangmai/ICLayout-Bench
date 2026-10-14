@@ -1,0 +1,6 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt adc_001_inv1b vdd vin vout vss
+MMN vout vin vss vss sg13_lv_nmos w=1u l=0.13u m=1
+MMP vout vin vdd vdd sg13_lv_pmos w=2.5u l=0.13u m=1
+.ends adc_001_inv1b

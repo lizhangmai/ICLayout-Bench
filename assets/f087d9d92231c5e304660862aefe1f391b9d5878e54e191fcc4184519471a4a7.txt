@@ -1,0 +1,2108 @@
+kind = "layout_case"
+id = "ihp-sg13g2.analog-db.trm_001_vcr"
+title = "Resistor-Pullup NMOS Shunt Trim"
+status = "qualified"
+in_core = false
+
+[[assets]]
+path = "reference/trm_001_vcr.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "35815d1a14528eec80ba78e4143169dec0498212bf2edf5665de339ac2f12fae"
+
+[task]
+hours = 3
+coefficient = 4
+kind = "netlist_to_gds"
+family = "ihp-sg13g2_trm_001_vcr"
+environment = "ihp-sg13g2-trm_001_vcr-nominal-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "e2c8c1a1f25947957e3af9becc719986b911d97ebedf711c55d541b078fc970e"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+subcircuit = "trm_001_vcr"
+sha256 = "ed94062ae8c8856ffe51593d5134a9926c266e6620767f13d491a21ad288136a"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "ad571b8394e5dae6fb5f992cd00c8864bd01881b71f7f90d2a8c54d3edfb6567"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "50783e7f3277c5a395028e57b2754bae806f316b1af65da289e30fe04401e57c"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 110
+max_height_um = 80
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "trm_001_vcr"
+max_bytes = 10485760
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 636.57
+rationale = "Voltage-controlled trim element: control characteristic 36%; conductance 22.5%; loaded recovery 18%; operating range 4.5%; power 9%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+knee_code_v = 0.09
+maximum_slope = 0.09
+span_v = 0.09
+step_span_v = 0.09
+conductance_04_s = 0.075
+conductance_06_s = 0.075
+conductance_ratio = 0.075
+recovery_down_v = 0.09
+recovery_up_v = 0.09
+high_v = 0.015
+low_v = 0.015
+output_v = 0.015
+mean_power_w = 0.045
+power_w = 0.045
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "vcode",
+    "vout",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "condition_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.1
+temp_c = 27
+load_ohm = 500000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.1
+temp_c = 27
+load_ohm = 1000000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.1
+temp_c = 85
+load_ohm = 500000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_3"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.1
+temp_c = 85
+load_ohm = 1000000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_4"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+temp_c = 27
+load_ohm = 500000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_5"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+temp_c = 27
+load_ohm = 1000000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_6"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+temp_c = 85
+load_ohm = 500000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "condition_7"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+supply_v = 1.3
+temp_c = 85
+load_ohm = 1000000.0
+
+[task.evaluation.jobs.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "output_v"
+category = "performance"
+observations = [
+    "condition_0:output_v",
+    "condition_1:output_v",
+    "condition_2:output_v",
+    "condition_3:output_v",
+    "condition_4:output_v",
+    "condition_5:output_v",
+    "condition_6:output_v",
+    "condition_7:output_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:output_v",
+    "source_condition_1:output_v",
+    "source_condition_2:output_v",
+    "source_condition_3:output_v",
+    "source_condition_4:output_v",
+    "source_condition_5:output_v",
+    "source_condition_6:output_v",
+    "source_condition_7:output_v",
+]
+normalization = "target"
+scale = 1.3
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.3
+rationale = "The declared node voltage or voltage span must remain within its ground-to-supply operating envelope; precision relative to the source remains a scored objective."
+
+[[task.evaluation.metrics]]
+id = "power_w"
+category = "performance"
+observations = [
+    "condition_0:power_w",
+    "condition_1:power_w",
+    "condition_2:power_w",
+    "condition_3:power_w",
+    "condition_4:power_w",
+    "condition_5:power_w",
+    "condition_6:power_w",
+    "condition_7:power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:power_w",
+    "source_condition_1:power_w",
+    "source_condition_2:power_w",
+    "source_condition_3:power_w",
+    "source_condition_4:power_w",
+    "source_condition_5:power_w",
+    "source_condition_6:power_w",
+    "source_condition_7:power_w",
+]
+normalization = "ratio"
+scale = 1e-12
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared powered circuit or driven switching network must consume nonnegative net supply/driver energy or quiescent current under the complete stated observation."
+
+[[task.evaluation.metrics]]
+id = "high_v"
+category = "performance"
+observations = [
+    "condition_0:high_v",
+    "condition_1:high_v",
+    "condition_2:high_v",
+    "condition_3:high_v",
+    "condition_4:high_v",
+    "condition_5:high_v",
+    "condition_6:high_v",
+    "condition_7:high_v",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+dimension = "response"
+normalization = "target"
+scale = 1.3
+baseline = [
+    "source_condition_0:high_v",
+    "source_condition_1:high_v",
+    "source_condition_2:high_v",
+    "source_condition_3:high_v",
+    "source_condition_4:high_v",
+    "source_condition_5:high_v",
+    "source_condition_6:high_v",
+    "source_condition_7:high_v",
+]
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.3
+rationale = "The declared node voltage or voltage span must remain within its ground-to-supply operating envelope; precision relative to the source remains a scored objective."
+
+[[task.evaluation.metrics]]
+id = "low_v"
+category = "performance"
+observations = [
+    "condition_0:low_v",
+    "condition_1:low_v",
+    "condition_2:low_v",
+    "condition_3:low_v",
+    "condition_4:low_v",
+    "condition_5:low_v",
+    "condition_6:low_v",
+    "condition_7:low_v",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+dimension = "response"
+normalization = "target"
+scale = 1.3
+baseline = [
+    "source_condition_0:low_v",
+    "source_condition_1:low_v",
+    "source_condition_2:low_v",
+    "source_condition_3:low_v",
+    "source_condition_4:low_v",
+    "source_condition_5:low_v",
+    "source_condition_6:low_v",
+    "source_condition_7:low_v",
+]
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.3
+rationale = "The declared node voltage or voltage span must remain within its ground-to-supply operating envelope; precision relative to the source remains a scored objective."
+
+[[task.evaluation.metrics]]
+id = "knee_code_v"
+category = "performance"
+observations = [
+    "condition_0:knee_code_v",
+    "condition_1:knee_code_v",
+    "condition_2:knee_code_v",
+    "condition_3:knee_code_v",
+    "condition_4:knee_code_v",
+    "condition_5:knee_code_v",
+    "condition_6:knee_code_v",
+    "condition_7:knee_code_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:knee_code_v",
+    "source_condition_1:knee_code_v",
+    "source_condition_2:knee_code_v",
+    "source_condition_3:knee_code_v",
+    "source_condition_4:knee_code_v",
+    "source_condition_5:knee_code_v",
+    "source_condition_6:knee_code_v",
+    "source_condition_7:knee_code_v",
+]
+normalization = "target"
+scale = 1.3
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.3
+rationale = "The declared node voltage or voltage span must remain within its ground-to-supply operating envelope; precision relative to the source remains a scored objective."
+
+[[task.evaluation.metrics]]
+id = "maximum_slope"
+category = "performance"
+observations = [
+    "condition_0:maximum_slope",
+    "condition_1:maximum_slope",
+    "condition_2:maximum_slope",
+    "condition_3:maximum_slope",
+    "condition_4:maximum_slope",
+    "condition_5:maximum_slope",
+    "condition_6:maximum_slope",
+    "condition_7:maximum_slope",
+]
+unit = "V/V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:maximum_slope",
+    "source_condition_1:maximum_slope",
+    "source_condition_2:maximum_slope",
+    "source_condition_3:maximum_slope",
+    "source_condition_4:maximum_slope",
+    "source_condition_5:maximum_slope",
+    "source_condition_6:maximum_slope",
+    "source_condition_7:maximum_slope",
+]
+normalization = "target"
+scale = 0.1
+
+[task.evaluation.metrics.requirement]
+upper = 0.0
+rationale = "Increasing the NMOS shunt-control voltage must not raise the trim-node output; a positive slope violates the required monotonic control polarity."
+
+[[task.evaluation.metrics]]
+id = "span_v"
+category = "performance"
+observations = [
+    "condition_0:span_v",
+    "condition_1:span_v",
+    "condition_2:span_v",
+    "condition_3:span_v",
+    "condition_4:span_v",
+    "condition_5:span_v",
+    "condition_6:span_v",
+    "condition_7:span_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:span_v",
+    "source_condition_1:span_v",
+    "source_condition_2:span_v",
+    "source_condition_3:span_v",
+    "source_condition_4:span_v",
+    "source_condition_5:span_v",
+    "source_condition_6:span_v",
+    "source_condition_7:span_v",
+]
+normalization = "target"
+scale = 1.3
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.3
+rationale = "The declared node voltage or voltage span must remain within its ground-to-supply operating envelope; precision relative to the source remains a scored objective."
+
+[[task.evaluation.metrics]]
+id = "conductance_04_s"
+category = "performance"
+observations = [
+    "condition_0:conductance_04_s",
+    "condition_1:conductance_04_s",
+    "condition_2:conductance_04_s",
+    "condition_3:conductance_04_s",
+    "condition_4:conductance_04_s",
+    "condition_5:conductance_04_s",
+    "condition_6:conductance_04_s",
+    "condition_7:conductance_04_s",
+]
+unit = "S"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:conductance_04_s",
+    "source_condition_1:conductance_04_s",
+    "source_condition_2:conductance_04_s",
+    "source_condition_3:conductance_04_s",
+    "source_condition_4:conductance_04_s",
+    "source_condition_5:conductance_04_s",
+    "source_condition_6:conductance_04_s",
+    "source_condition_7:conductance_04_s",
+]
+normalization = "target"
+scale = 0.00015
+
+[[task.evaluation.metrics]]
+id = "conductance_06_s"
+category = "performance"
+observations = [
+    "condition_0:conductance_06_s",
+    "condition_1:conductance_06_s",
+    "condition_2:conductance_06_s",
+    "condition_3:conductance_06_s",
+    "condition_4:conductance_06_s",
+    "condition_5:conductance_06_s",
+    "condition_6:conductance_06_s",
+    "condition_7:conductance_06_s",
+]
+unit = "S"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:conductance_06_s",
+    "source_condition_1:conductance_06_s",
+    "source_condition_2:conductance_06_s",
+    "source_condition_3:conductance_06_s",
+    "source_condition_4:conductance_06_s",
+    "source_condition_5:conductance_06_s",
+    "source_condition_6:conductance_06_s",
+    "source_condition_7:conductance_06_s",
+]
+normalization = "target"
+scale = 0.0005
+
+[[task.evaluation.metrics]]
+id = "conductance_ratio"
+category = "performance"
+observations = [
+    "condition_0:conductance_ratio",
+    "condition_1:conductance_ratio",
+    "condition_2:conductance_ratio",
+    "condition_3:conductance_ratio",
+    "condition_4:conductance_ratio",
+    "condition_5:conductance_ratio",
+    "condition_6:conductance_ratio",
+    "condition_7:conductance_ratio",
+]
+unit = "1"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:conductance_ratio",
+    "source_condition_1:conductance_ratio",
+    "source_condition_2:conductance_ratio",
+    "source_condition_3:conductance_ratio",
+    "source_condition_4:conductance_ratio",
+    "source_condition_5:conductance_ratio",
+    "source_condition_6:conductance_ratio",
+    "source_condition_7:conductance_ratio",
+]
+normalization = "target"
+scale = 5
+
+[[task.evaluation.metrics]]
+id = "recovery_down_v"
+category = "performance"
+observations = [
+    "condition_0:recovery_down_v",
+    "condition_1:recovery_down_v",
+    "condition_2:recovery_down_v",
+    "condition_3:recovery_down_v",
+    "condition_4:recovery_down_v",
+    "condition_5:recovery_down_v",
+    "condition_6:recovery_down_v",
+    "condition_7:recovery_down_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:recovery_down_v",
+    "source_condition_1:recovery_down_v",
+    "source_condition_2:recovery_down_v",
+    "source_condition_3:recovery_down_v",
+    "source_condition_4:recovery_down_v",
+    "source_condition_5:recovery_down_v",
+    "source_condition_6:recovery_down_v",
+    "source_condition_7:recovery_down_v",
+]
+normalization = "saturating_ratio"
+scale = 1e-06
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The absolute error, voltage span, charge magnitude or recovery deviation has a nonnegative measurement domain; its positive value remains a continuously scored quality observation."
+
+[[task.evaluation.metrics]]
+id = "recovery_up_v"
+category = "performance"
+observations = [
+    "condition_0:recovery_up_v",
+    "condition_1:recovery_up_v",
+    "condition_2:recovery_up_v",
+    "condition_3:recovery_up_v",
+    "condition_4:recovery_up_v",
+    "condition_5:recovery_up_v",
+    "condition_6:recovery_up_v",
+    "condition_7:recovery_up_v",
+]
+unit = "V"
+dimension = "response"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:recovery_up_v",
+    "source_condition_1:recovery_up_v",
+    "source_condition_2:recovery_up_v",
+    "source_condition_3:recovery_up_v",
+    "source_condition_4:recovery_up_v",
+    "source_condition_5:recovery_up_v",
+    "source_condition_6:recovery_up_v",
+    "source_condition_7:recovery_up_v",
+]
+normalization = "saturating_ratio"
+scale = 1e-06
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The absolute error, voltage span, charge magnitude or recovery deviation has a nonnegative measurement domain; its positive value remains a continuously scored quality observation."
+
+[[task.evaluation.metrics]]
+id = "mean_power_w"
+category = "performance"
+observations = [
+    "condition_0:mean_power_w",
+    "condition_1:mean_power_w",
+    "condition_2:mean_power_w",
+    "condition_3:mean_power_w",
+    "condition_4:mean_power_w",
+    "condition_5:mean_power_w",
+    "condition_6:mean_power_w",
+    "condition_7:mean_power_w",
+]
+unit = "W"
+dimension = "supply"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_condition_0:mean_power_w",
+    "source_condition_1:mean_power_w",
+    "source_condition_2:mean_power_w",
+    "source_condition_3:mean_power_w",
+    "source_condition_4:mean_power_w",
+    "source_condition_5:mean_power_w",
+    "source_condition_6:mean_power_w",
+    "source_condition_7:mean_power_w",
+]
+normalization = "ratio"
+scale = 1e-12
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared powered circuit or driven switching network must consume nonnegative net supply/driver energy or quiescent current under the complete stated observation."
+
+[[task.evaluation.metrics]]
+id = "step_span_v"
+category = "performance"
+observations = [
+    "condition_0:step_span_v",
+    "condition_1:step_span_v",
+    "condition_2:step_span_v",
+    "condition_3:step_span_v",
+    "condition_4:step_span_v",
+    "condition_5:step_span_v",
+    "condition_6:step_span_v",
+    "condition_7:step_span_v",
+]
+unit = "V"
+dimension = "response"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_condition_0:step_span_v",
+    "source_condition_1:step_span_v",
+    "source_condition_2:step_span_v",
+    "source_condition_3:step_span_v",
+    "source_condition_4:step_span_v",
+    "source_condition_5:step_span_v",
+    "source_condition_6:step_span_v",
+    "source_condition_7:step_span_v",
+]
+normalization = "target"
+scale = 1.3
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 1.3
+rationale = "The declared node voltage or voltage span must remain within its ground-to-supply operating envelope; precision relative to the source remains a scored objective."
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "a0c1cf2de8ac662a69a3f55cc157300d7ad7f683c06a98df1b4122cf70c78297"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"dfbdf2f93297bbe7d8b576fb988504bd0ecf85b93ef47c314a0f2c9c8830c3e7\", \"compatibility\": null, \"cpu_budget\": 8, \"execution_sha256\": \"495aa9623759f70228a236eb4825c2ae443ef6a741816d8cfc17d1830841dcef\", \"image_id\": \"sha256:060fee64f9f6e71a647e5e958b788d723c9d51d2928ff93e6a295db1959bc37f\", \"limits\": {\"cpus\": 8, \"memory_mb\": 4096, \"pids\": 256}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"a202c3d9d407fa71903be9db155aeb1eb3f9bccbb7ed18bfd0eaa1ea925dc151\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 600.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_condition_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.values]
+supply_v = 1.1
+temp_c = 27
+load_ohm = 500000.0
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.input_sha256]
+deck = "ad571b8394e5dae6fb5f992cd00c8864bd01881b71f7f90d2a8c54d3edfb6567"
+dut = "50783e7f3277c5a395028e57b2754bae806f316b1af65da289e30fe04401e57c"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.conductance_04_s]
+value = 0.0001058322
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.conductance_06_s]
+value = 0.0004249599
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.conductance_ratio]
+value = 4.015412133547
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.high_v]
+value = 0.755971
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.knee_code_v]
+value = 0.3472854
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.low_v]
+value = 0.007459411
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.maximum_slope]
+value = -0.0145072990792
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.mean_power_w]
+value = 4.727891e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.mid_v]
+value = 0.04892808
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.output_v]
+value = 0.04892809452319
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.power_w]
+value = 5.803626014374e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.recovery_down_v]
+value = 1.64991e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.recovery_up_v]
+value = 2.558933e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.span_v]
+value = 0.748511589
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.measurements.step_span_v]
+value = 0.45347505
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_0.output_sha256]
+op = "67b3589197003aa0f74264d95e8dd2261dd8fb1aae0ca51c5b9dd8788efd2f17"
+control = "d4c5322b900af20788a5ee85104dadd45c6acdda0086f6edfa92cdba9ab22f12"
+transient = "ae5d0f20b2bbda9eeba07927e99738fbb2e988517afc2d8f8412d2c1dee42b00"
+
+[task.evaluation.pre_layout.jobs.source_condition_1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.values]
+supply_v = 1.1
+temp_c = 27
+load_ohm = 1000000.0
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.input_sha256]
+deck = "ad571b8394e5dae6fb5f992cd00c8864bd01881b71f7f90d2a8c54d3edfb6567"
+dut = "50783e7f3277c5a395028e57b2754bae806f316b1af65da289e30fe04401e57c"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.conductance_04_s]
+value = 0.0001054521
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.conductance_06_s]
+value = 0.0004249322
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.conductance_ratio]
+value = 4.029622928325
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.high_v]
+value = 0.8783805
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.knee_code_v]
+value = 0.3500782
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.low_v]
+value = 0.007469589
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.maximum_slope]
+value = -0.0145473126609
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.mean_power_w]
+value = 4.566792e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.mid_v]
+value = 0.04953385
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.output_v]
+value = 0.04953386044922
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.power_w]
+value = 5.800281205105e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.recovery_down_v]
+value = 2.926452e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.recovery_up_v]
+value = 4.991323e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.span_v]
+value = 0.870910911
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.measurements.step_span_v]
+value = 0.51343948
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_1.output_sha256]
+op = "a91d6637be5fdf74c4a61ef4ae726592541374dae2ba6e98bf06603af69d78f2"
+control = "2a67b592f42b1fe28b744ee9303204c200b4349c8c826d1689bcb38fcb66f603"
+transient = "335b26fb926c7c7019c15b6db849f6b8c39ddf6cb90172f59a95e83928180173"
+
+[task.evaluation.pre_layout.jobs.source_condition_2]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.values]
+supply_v = 1.1
+temp_c = 85
+load_ohm = 500000.0
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.input_sha256]
+deck = "ad571b8394e5dae6fb5f992cd00c8864bd01881b71f7f90d2a8c54d3edfb6567"
+dut = "50783e7f3277c5a395028e57b2754bae806f316b1af65da289e30fe04401e57c"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.conductance_04_s]
+value = 0.0001196524
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.conductance_06_s]
+value = 0.0003566876
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.conductance_ratio]
+value = 2.981031721888
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.high_v]
+value = 0.7064219
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.knee_code_v]
+value = 0.3227419
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.low_v]
+value = 0.010712
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.maximum_slope]
+value = -0.0193142468267
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.mean_power_w]
+value = 5.86467e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.mid_v]
+value = 0.04960892
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.output_v]
+value = 0.04960891755123
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.power_w]
+value = 6.638550720806e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.recovery_down_v]
+value = 1.496684e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.recovery_up_v]
+value = 1.144438e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.span_v]
+value = 0.6957099
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.measurements.step_span_v]
+value = 0.29636584
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_2.output_sha256]
+op = "6894da1d66906017dda27308ee31a6b6743ae649eb347dec72adbef4d88e87c0"
+control = "3832bb0276caae111d09eba3723b3aa903504707c5e7714c9b0d2f44421362c9"
+transient = "5fc4d4835719020bda841b96f6ade2174318a1cf50f0af2f7fba3bf647b689b2"
+
+[task.evaluation.pre_layout.jobs.source_condition_3]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.values]
+supply_v = 1.1
+temp_c = 85
+load_ohm = 1000000.0
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.input_sha256]
+deck = "ad571b8394e5dae6fb5f992cd00c8864bd01881b71f7f90d2a8c54d3edfb6567"
+dut = "50783e7f3277c5a395028e57b2754bae806f316b1af65da289e30fe04401e57c"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.conductance_04_s]
+value = 0.0001193928
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.conductance_06_s]
+value = 0.0003566551
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.conductance_ratio]
+value = 2.987241274181
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.high_v]
+value = 0.8026371
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.knee_code_v]
+value = 0.3256991
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.low_v]
+value = 0.01073039
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.maximum_slope]
+value = -0.019381509842
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.mean_power_w]
+value = 5.764293e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.mid_v]
+value = 0.05010433
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.output_v]
+value = 0.0501043350941
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.power_w]
+value = 6.635419647022e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.recovery_down_v]
+value = 1.209461e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.recovery_up_v]
+value = 4.499059e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.span_v]
+value = 0.79190671
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.measurements.step_span_v]
+value = 0.32867677
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_3.output_sha256]
+op = "2b4edd142c08a4ab45559df87c05ac7bb131895d43d1bfb1008fc9d73aff48a1"
+control = "f734cd4556f23b1686ebdc7d8e3c9606fd3e420d960a06b88b7dec2c69bbb111"
+transient = "1516c7c5391a04a8532112c8086a3e635f1450bad591c03e33b9af15da48d553"
+
+[task.evaluation.pre_layout.jobs.source_condition_4]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.parameters.values]
+supply_v = 1.3
+temp_c = 27
+load_ohm = 500000.0
+
+[task.evaluation.pre_layout.jobs.source_condition_4.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.input_sha256]
+deck = "ad571b8394e5dae6fb5f992cd00c8864bd01881b71f7f90d2a8c54d3edfb6567"
+dut = "50783e7f3277c5a395028e57b2754bae806f316b1af65da289e30fe04401e57c"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.conductance_04_s]
+value = 9.758712e-05
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.conductance_06_s]
+value = 0.0004227813
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.conductance_ratio]
+value = 4.332347342559
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.high_v]
+value = 0.8958877
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.knee_code_v]
+value = 0.3604808
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.low_v]
+value = 0.008829431
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.maximum_slope]
+value = -0.0172356676261
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.mean_power_w]
+value = 6.515305e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.mid_v]
+value = 0.06238177
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.output_v]
+value = 0.06238182043659
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.power_w]
+value = 8.076146433028e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.recovery_down_v]
+value = 3.412896e-10
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.recovery_up_v]
+value = 2.331991e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.span_v]
+value = 0.887058269
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.measurements.step_span_v]
+value = 0.56264691
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_4.output_sha256]
+op = "d21af867bbf07bc7266c75553753e3bdfef4240c1873752c068766130dd8f25f"
+control = "8f033159ead9c809ebde734af107c2912b10a73f167758a401004241f25587a8"
+transient = "81eb2489ca17e91c27e6efd6811938a25e117c04c3bbce2ed9c01f88bacfc09b"
+
+[task.evaluation.pre_layout.jobs.source_condition_5]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.parameters.values]
+supply_v = 1.3
+temp_c = 27
+load_ohm = 1000000.0
+
+[task.evaluation.pre_layout.jobs.source_condition_5.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.input_sha256]
+deck = "ad571b8394e5dae6fb5f992cd00c8864bd01881b71f7f90d2a8c54d3edfb6567"
+dut = "50783e7f3277c5a395028e57b2754bae806f316b1af65da289e30fe04401e57c"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.conductance_04_s]
+value = 9.702293e-05
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.conductance_06_s]
+value = 0.0004227481
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.conductance_ratio]
+value = 4.35719782942
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.high_v]
+value = 1.041178
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.knee_code_v]
+value = 0.3628944
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.low_v]
+value = 0.008841516
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.maximum_slope]
+value = -0.0172834468926
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.mean_power_w]
+value = 6.276214e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.mid_v]
+value = 0.06332873
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.output_v]
+value = 0.06332879202012
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.power_w]
+value = 8.069966922484e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.recovery_down_v]
+value = 2.748335e-10
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.recovery_up_v]
+value = 1.43202e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.span_v]
+value = 1.032336484
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.measurements.step_span_v]
+value = 0.63795004
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_5.output_sha256]
+op = "430818444832b6e9f7be0c4fb31160c354e1f914e82548a79d7a01f2f6494535"
+control = "72e70f794998c8747b5a8831cab149d5ac4dfdfc3e9c8ae8fc1db8e8eee03c4c"
+transient = "d84726704c5d3b2fc158db53fc9323a56835666f9e8086cea2d030f711bef363"
+
+[task.evaluation.pre_layout.jobs.source_condition_6]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.parameters.values]
+supply_v = 1.3
+temp_c = 85
+load_ohm = 500000.0
+
+[task.evaluation.pre_layout.jobs.source_condition_6.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.input_sha256]
+deck = "ad571b8394e5dae6fb5f992cd00c8864bd01881b71f7f90d2a8c54d3edfb6567"
+dut = "50783e7f3277c5a395028e57b2754bae806f316b1af65da289e30fe04401e57c"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.conductance_04_s]
+value = 0.0001134226
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.conductance_06_s]
+value = 0.0003545253
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.conductance_ratio]
+value = 3.125702461414
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.high_v]
+value = 0.8442598
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.knee_code_v]
+value = 0.3387361
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.low_v]
+value = 0.01268593
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.maximum_slope]
+value = -0.022984733445
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.mean_power_w]
+value = 8.015902e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.mid_v]
+value = 0.06164309
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.output_v]
+value = 0.06164309857475
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.power_w]
+value = 9.249507169737e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.recovery_down_v]
+value = 2.949312e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.recovery_up_v]
+value = 2.708194e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.span_v]
+value = 0.83157387
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.measurements.step_span_v]
+value = 0.3970159
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_6.output_sha256]
+op = "3660382cf88437925556c2430f49ddc3a80c0ff6c44c78aef12033109461f356"
+control = "b2383172c7b893c7e146b591807d0247cb53a68ea081b60fb8316dc2649fec25"
+transient = "5921def91288bc65a1be850c703aabccbcbefa0847f0a13c4f67374ba12b493d"
+
+[task.evaluation.pre_layout.jobs.source_condition_7]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.outputs]
+op = "ngspice-raw"
+control = "ngspice-raw"
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.parameters.values]
+supply_v = 1.3
+temp_c = 85
+load_ohm = 1000000.0
+
+[task.evaluation.pre_layout.jobs.source_condition_7.parameters.measurements]
+output_v = "V"
+power_w = "W"
+high_v = "V"
+low_v = "V"
+mid_v = "V"
+knee_code_v = "V"
+maximum_slope = "V/V"
+span_v = "V"
+recovery_down_v = "V"
+recovery_up_v = "V"
+mean_power_w = "W"
+step_span_v = "V"
+conductance_04_s = "S"
+conductance_06_s = "S"
+conductance_ratio = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.parameters.exports]
+op = "op.raw"
+control = "control.raw"
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.input_sha256]
+deck = "ad571b8394e5dae6fb5f992cd00c8864bd01881b71f7f90d2a8c54d3edfb6567"
+dut = "50783e7f3277c5a395028e57b2754bae806f316b1af65da289e30fe04401e57c"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.conductance_04_s]
+value = 0.0001130664
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.conductance_06_s]
+value = 0.0003544861
+unit = "S"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.conductance_ratio]
+value = 3.135202854252
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.high_v]
+value = 0.9598423
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.knee_code_v]
+value = 0.3413019
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.low_v]
+value = 0.0127078
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.maximum_slope]
+value = -0.0230653158761
+unit = "V/V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.mean_power_w]
+value = 7.855236e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.mid_v]
+value = 0.06234083
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.output_v]
+value = 0.06234083555354
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.power_w]
+value = 9.244295651325e-06
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.recovery_down_v]
+value = 2.190215e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.recovery_up_v]
+value = 4.245877e-08
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.span_v]
+value = 0.9471345
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.measurements.step_span_v]
+value = 0.44081618
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_condition_7.output_sha256]
+op = "e7a951ad0220a7ac237484328a299e95829027bed281e172f3c78b683756481b"
+control = "f7090278512ac9168e6eadb4021bd7397c5705b319f5d8803d1af4e665929491"
+transient = "f95245eb6f3c38fac7044df93c4b2a997475bd51948e1a4f6cff70a5595539c9"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+check = "artifact"
+timeout_seconds = 600
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+check = "drc"
+support = "build/support/input-pair-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+check = "lvs"
+support = "build/support/input-pair-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-eda-open:local"
+support = "build/support/input-pair-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+capacitance_threshold_ff = 0
+timeout_seconds = 600
+gds_readonly = false
+grid_subdivision = 2
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 120
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-res-models"
+
+[toolchain.backends.simulation.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+support = "build/support/analog-res-models"
+timeout_seconds = 600
+
+[qualification]
+reference = "reference/trm_001_vcr.gds"
+
+[origin]
+url = "https://github.com/MacAnalog/spicexplorer-release/tree/263d0322f8900dc331536fbbe6c0e804514fc454/analog-db/circuits/trm_001_vcr"
+
+[presentation]
+category = "Mixed-signal"
+summary = "Controls a resistor-pulled output using an NMOS shunt driven by an analog voltage."

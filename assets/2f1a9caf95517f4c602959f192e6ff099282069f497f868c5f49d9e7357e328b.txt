@@ -1,0 +1,37 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt amp_013_qu2017_azc vss vdd vinn vinp vout vb1
+XM0 vb1 vb1 vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM1 vb4 vb1 vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM10 net063 vinp net019 net019 sg13_lv_pmos w=1u l=1u m=4
+XM11 net094 net050 vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM12 net055 net094 vss vss sg13_lv_nmos w=1u l=1u m=4
+XM13 vout net050 vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM14 voutn net077 dm_2 vss sg13_lv_nmos w=1u l=1u m=4
+XM15 net050 net082 net063 vss sg13_lv_nmos w=1u l=1u m=4
+XM16 net077 dm_2 vss vss sg13_lv_nmos w=1u l=1u m=4
+XM17 net082 net063 vss vss sg13_lv_nmos w=1u l=1u m=4
+XM18 vout net049 vss vss sg13_lv_nmos w=1u l=1u m=4
+XM19 vb4 vb4 vss vss sg13_lv_nmos w=2u l=1u m=4
+XM2 net019 vb1 vdd vdd sg13_lv_pmos w=1u l=1u m=8
+XM20 dm_2 vb4 vss vss sg13_lv_nmos w=7u l=1u m=4
+XM21 net063 vb4 vss vss sg13_lv_nmos w=7u l=1u m=4
+XM22 net094 net051 vss vss sg13_lv_nmos w=1u l=1u m=16
+XM23 net057 net043 vss vss sg13_lv_nmos w=1u l=1u m=12
+XM24 net049 net057 vss vss sg13_lv_nmos w=1u l=1u m=4
+XM3 net078 vb1 vdd vdd sg13_lv_pmos w=1u l=1u m=24
+XM4 voutn voutn vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM5 net050 voutn vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM6 net055 net055 vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM7 net057 net055 vdd vdd sg13_lv_pmos w=1u l=1u m=8
+XM8 net049 vb1 vdd vdd sg13_lv_pmos w=1u l=1u m=8
+XM9 dm_2 vinn net019 net019 sg13_lv_pmos w=1u l=1u m=4
+XC0_0 net063 vout cap_cmim w=23.18u l=23.18u m=1
+XC1_0 net051 vss cap_cmim w=16.36u l=16.36u m=1
+XC2_0 net043 vss cap_cmim w=14.32u l=14.32u m=1
+XR0_0 net078 net077 vss rhigh w=.5u l=11.73u m=1 b=0
+XR1_0 net078 net082 vss rhigh w=.5u l=11.73u m=1 b=0
+XR2_0 net057 R2_s1 vss rhigh w=.5u l=59.08u m=1 b=0
+XR2_1 R2_s1 net051 vss rhigh w=.5u l=59.08u m=1 b=0
+XR3_0 net057 net043 vss rhigh w=.5u l=13.42u m=1 b=0
+.ends amp_013_qu2017_azc

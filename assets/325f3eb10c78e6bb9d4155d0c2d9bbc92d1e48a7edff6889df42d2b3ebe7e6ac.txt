@@ -1,0 +1,6 @@
+电路拓扑和标称尺寸改编自 CircuitOpt 的 FreePDK45 全差分 OTA 示例：
+https://github.com/751K/circuit-optimization-lab/blob/a33c87e1db3223cf964a43c3a08da67e12b64723/examples/freepdk45_fd_ota.json
+
+原项目采用 MIT 许可，见同目录 LICENSE。此 collection 将通用 nmos/pmos
+映射至固定 FreePDK45 NMOS_VTG/PMOS_VTG 模型，并把输入源阻、耦合及输出
+负载保留在测试平台。版图、测试平台、题面及资格验证由本仓库重新开发。

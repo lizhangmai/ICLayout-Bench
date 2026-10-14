@@ -1,0 +1,46 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt ldo_001_analoggym_basic vdd vout vss ib vref vfb sense
+XM0 ib ib vdd vdd sg13_lv_pmos w=5u l=2u m=3
+XM1 vb4 ib vdd vdd sg13_lv_pmos w=5u l=2u m=3
+XM10 net12 net10 net1 net1 sg13_lv_pmos w=8u l=0.5u m=12
+XM11 vout net1 vdd vdd sg13_lv_pmos w=9u l=0.15u m=464
+XM12 vb4 vb3 net28 vss sg13_lv_nmos w=1.5u l=1.5u m=40
+XM13 dm_1 vb3 net31 vss sg13_lv_nmos w=1.5u l=1.5u m=40
+XM14 vb3 vb3 vss vss sg13_lv_nmos w=1.5u l=1.5u m=10
+XM15 voutn vb3 dm_2 vss sg13_lv_nmos w=1.5u l=1.5u m=40
+XM16 net10 vb3 net106 vss sg13_lv_nmos w=1.5u l=1.5u m=40
+XM17 net28 vb4 vss vss sg13_lv_nmos w=1.5u l=1.5u m=40
+XM18 net31 vb4 vss vss sg13_lv_nmos w=1.5u l=1.5u m=40
+XM19 dm_2 vb4 vss vss sg13_lv_nmos w=1.5u l=1.5u m=80
+XM2 dm_1 ib vdd vdd sg13_lv_pmos w=5u l=2u m=3
+XM20 net106 vb4 vss vss sg13_lv_nmos w=1.5u l=1.5u m=80
+XM21 net12 net7 vss vss sg13_lv_nmos w=6u l=2u m=120
+XM22 net7 net7 vss vss sg13_lv_nmos w=6u l=2u m=120
+XM24 net1 ib vdd vdd sg13_lv_pmos w=5u l=2u m=3
+XM3 vb3 ib vdd vdd sg13_lv_pmos w=5u l=2u m=3
+XM4 net20 ib vdd vdd sg13_lv_pmos w=5u l=2u m=6
+XM5 voutn voutn vdd vdd sg13_lv_pmos w=5u l=2u m=3
+XM6 net10 voutn vdd vdd sg13_lv_pmos w=5u l=2u m=3
+XM7 net7 ib vdd vdd sg13_lv_pmos w=5u l=2u m=3
+XM8 dm_2 sense net20 net20 sg13_lv_pmos w=5u l=1u m=6
+XM9 net106 vref net20 net20 sg13_lv_pmos w=5u l=1u m=6
+XC0_0 net106 vout cap_cmim w=42.685u l=42.685u m=3
+XCLOCAL_0 net10 vout cap_cmim w=51.64u l=51.64u m=1
+XR1_0 vout r11 vss rhigh w=1u l=17.465u m=1 b=0
+XR1_1 r11 r12 vss rhigh w=1u l=17.465u m=1 b=0
+XR1_2 r12 r13 vss rhigh w=1u l=17.465u m=1 b=0
+XR1_3 r13 r14 vss rhigh w=1u l=17.465u m=1 b=0
+XR1_4 r14 r15 vss rhigh w=1u l=17.465u m=1 b=0
+XR1_5 r15 r16 vss rhigh w=1u l=17.465u m=1 b=0
+XR1_6 r16 r17 vss rhigh w=1u l=17.465u m=1 b=0
+XR1_7 r17 r18 vss rhigh w=1u l=17.465u m=1 b=0
+XR1_8 r18 r19 vss rhigh w=1u l=17.465u m=1 b=0
+XR1_9 r19 r110 vss rhigh w=1u l=17.465u m=1 b=0
+XR1_10 r110 r111 vss rhigh w=1u l=17.465u m=1 b=0
+XR1_11 r111 vfb vss rhigh w=1u l=17.465u m=1 b=0
+XR2_0 vfb r21 vss rhigh w=1u l=17.465u m=1 b=0
+XR2_1 r21 r22 vss rhigh w=1u l=17.465u m=1 b=0
+XR2_2 r22 r23 vss rhigh w=1u l=17.465u m=1 b=0
+XR2_3 r23 vss vss rhigh w=1u l=17.465u m=1 b=0
+.ends ldo_001_analoggym_basic

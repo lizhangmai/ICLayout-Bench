@@ -1,0 +1,35 @@
+# SKY130 1:1 Interdigitated Current Mirror Layout Task
+
+## Objective
+
+Implement `CMIRROR` from the supplied transistor-level circuit, preserving topology, fixed device parameters, four-terminal body connections and the ordered interface. Submit a candidate GDS for electrical evaluation of its distributed RC extraction.
+
+## Inputs and Interface
+
+Ordered ports are `VREF VCOPY VSS VB`. Declared inputs include `problem.md`, `materials/circuit.spice` and `materials/testbench.spice`. The runtime provides models and process resources; reference layouts, author code and qualification evidence are maintainer-only materials.
+
+## Operating Conditions
+
+Supply 1.8 V; reference currents 10, 30, 60 uA. Sweep output voltage from 0.6 to 1.8 V in 50 mV steps. Observe maximum relative current error and bias voltage. All electrical experiments use fixed TT models at 27 °C; delivered testbenches define interpolation, edges, loads, sweeps, observation times and power intervals.
+
+## Physical Requirements
+
+Submit a nonempty GDS no larger than 10485760 bytes, with top cell `CMIRROR`. Functional geometry must fit within the 60 × 60 um envelope on the declared layer set. Pass complete Magic DRC without waivers and independent Netgen LVS checking named ports, models, dimensions, multiplicities and body/contact connections. After physical and geometric checks pass, extract the candidate's distributed interconnect resistance, capacitance and devices, then run every declared experiment.
+
+## Electrical Requirements and Scoring
+
+Absolute current-ratio error must be nonnegative; bias must be within the declared 0.3–1.2 V operating range. The current-transfer quality target is 3% worst absolute relative error across every declared current and the full output-voltage sweep, with a 0.5 percentage-point normalization scale. It is a challenging continuous quality goal, not a rejection threshold. Power and absolute errors must be nonnegative; all required measurements must be complete, finite and in correct units.
+
+| Metric | Functional requirement or measurement domain | Aggregation | Score weight |
+| --- | --- | --- | ---: |
+| `functional_area` | No fixed performance bound | max | 50% |
+| `ratio_error` | 0 … +∞ 1 | max | 50% |
+| `bias_voltage` | 0.3 … 1.2 V | max | 0% |
+
+Retain independent source-netlist observations under exactly the same conditions. For each candidate worst-sweep error `x`, quality is `2*(t+s)/(t+x+2*s)`, with target `t=0.03` and scale `s=0.005`; take the worst quality across the three currents. Reports distinguish the measured source errors from the declared target. This deterministic metric covers compliance and routing effects; it does not measure statistical matching yield. Zero-weight observations still undergo measurement and functional checks.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+## Tools and Submission
+
+Solve budget: 1 hour. Use the task information, tools and SKY130 resources provided by the runtime protocol. Write only the final GDS to `output/final.gds` and explicitly submit through the declared interface. Source simulation serves characterization; accepted results come from complete physical and RC electrical evaluation of the candidate GDS. Conclusions cover only the declared conditions, excluding PVT, mismatch, reliability and product signoff.

@@ -1,0 +1,92 @@
+** sch_path: /source/xschem/sky130_ef_ip__simple_por.sch
+.subckt sky130_ef_ip__simple_por vdd3v3 vdd1v8 porb_h porb_l por_l vss
+*.PININFO vdd3v3:B vss:B porb_h:O porb_l:O por_l:O vdd1v8:B vss:B
+XC1 net9 vss sky130_fd_pr__cap_mim_m3_1 W=30 L=30 MF=1 m=1
+XC2 vss net9 sky130_fd_pr__cap_mim_m3_2 W=30 L=30 MF=1 m=1
+XM1 net3 net7 net5 vdd3v3 sky130_fd_pr__pfet_g5v0d10v5 L=0.8 W=2 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM2 net2 net3 vss vss sky130_fd_pr__nfet_g5v0d10v5 L=0.8 W=2 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XR1 net4 vdd3v3 vss sky130_fd_pr__res_xhigh_po_0p69 L=500 mult=1 m=1
+XM4 net5 net6 vdd3v3 vdd3v3 sky130_fd_pr__pfet_g5v0d10v5 L=0.8 W=2 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM5 net3 net3 vss vss sky130_fd_pr__nfet_g5v0d10v5 L=0.8 W=14 nf=7 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XR2 vss net4 vss sky130_fd_pr__res_xhigh_po_0p69 L=150 mult=1 m=1
+XM7 net2 net2 net1 vdd3v3 sky130_fd_pr__pfet_g5v0d10v5 L=0.8 W=2 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM8 net1 net1 vdd3v3 vdd3v3 sky130_fd_pr__pfet_g5v0d10v5 L=0.8 W=14 nf=7 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM10 net7 net4 vss vss sky130_fd_pr__nfet_g5v0d10v5 L=0.8 W=2 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM9 net7 net7 net6 vdd3v3 sky130_fd_pr__pfet_g5v0d10v5 L=0.8 W=2 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM11 net6 net6 vdd3v3 vdd3v3 sky130_fd_pr__pfet_g5v0d10v5 L=0.8 W=16 nf=8 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM12 net8 net1 vdd3v3 vdd3v3 sky130_fd_pr__pfet_g5v0d10v5 L=0.8 W=2 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM13 net9 net2 net8 vdd3v3 sky130_fd_pr__pfet_g5v0d10v5 L=0.8 W=2 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XR3 vss vss vss sky130_fd_pr__res_xhigh_po_0p69 L=25 mult=2 m=2
+x2 net10 vss vss vdd3v3 vdd3v3 porb_h sky130_fd_sc_hvl__buf_8
+x3 net10 vss vss vdd1v8 vdd1v8 porb_l sky130_fd_sc_hvl__buf_8
+x4 net10 vss vss vdd1v8 vdd1v8 por_l sky130_fd_sc_hvl__inv_8
+x5 net9 vss vss vdd3v3 vdd3v3 net10 sky130_fd_sc_hvl__schmittbuf_1
+.ends
+
+.subckt sky130_fd_sc_hvl__schmittbuf_1 A VGND VNB VPB VPWR X
+X0 a_117_181# A a_231_463# VPB sky130_fd_pr__pfet_g5v0d10v5 w=750000u l=500000u
+X1 a_117_181# A a_217_207# VNB sky130_fd_pr__nfet_g5v0d10v5 w=420000u l=500000u
+X2 a_78_463# VGND VNB sky130_fd_pr__res_generic_nd__hv w=290000u l=1.355e+06u
+X3 a_64_207# VPWR VPB sky130_fd_pr__res_generic_pd__hv w=290000u l=3.11e+06u
+X4 a_231_463# A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=750000u l=500000u
+X5 a_64_207# a_117_181# a_217_207# VNB sky130_fd_pr__nfet_g5v0d10v5 w=420000u l=500000u
+X6 VGND a_117_181# X VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X7 VPWR a_117_181# X VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X8 a_217_207# A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=420000u l=500000u
+X9 a_78_463# a_117_181# a_231_463# VPB sky130_fd_pr__pfet_g5v0d10v5 w=750000u l=500000u
+.ends
+
+.subckt sky130_fd_sc_hvl__inv_8 A VGND VNB VPB VPWR Y
+X0 VPWR A Y VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X1 VGND A Y VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X2 VGND A Y VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X3 Y A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X4 Y A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X5 Y A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X6 Y A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X7 Y A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X8 VPWR A Y VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X9 VPWR A Y VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X10 VPWR A Y VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X11 VGND A Y VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X12 Y A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X13 Y A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X14 Y A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X15 VGND A Y VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+.ends
+
+.subckt sky130_fd_sc_hvl__buf_8 A VGND VNB VPB VPWR X
+X0 a_45_443# A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X1 X a_45_443# VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X2 X a_45_443# VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X3 X a_45_443# VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X4 X a_45_443# VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X5 VGND A a_45_443# VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X6 VGND a_45_443# X VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X7 VGND a_45_443# X VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X8 a_45_443# A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X9 X a_45_443# VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X10 VGND a_45_443# X VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X11 VGND a_45_443# X VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X12 X a_45_443# VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X13 X a_45_443# VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X14 a_45_443# A VPWR VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X15 VPWR A a_45_443# VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X16 a_45_443# A VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X17 VPWR a_45_443# X VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X18 VPWR a_45_443# X VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X19 X a_45_443# VGND VNB sky130_fd_pr__nfet_g5v0d10v5 w=750000u l=500000u
+X20 VPWR a_45_443# X VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+X21 VPWR a_45_443# X VPB sky130_fd_pr__pfet_g5v0d10v5 w=1.5e+06u l=500000u
+.ends

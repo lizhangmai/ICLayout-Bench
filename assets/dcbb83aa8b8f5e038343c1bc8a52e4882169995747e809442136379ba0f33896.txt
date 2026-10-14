@@ -1,0 +1,51 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt amp_034_fan_chopper_cmfb vinp vinn voutp voutn vdd vss core__vb1 core__vb2 core__vb3 core__vb4 vref_cm core__out1_p core__out1_n vb4o
+MM10_CORE core__out1_n core__vb3 core__casc_src_n vdd sg13_lv_pmos w=10u l=0.3u m=1
+MM11_CORE core__out1_p core__vb3 core__casc_src_p vdd sg13_lv_pmos w=10u l=0.3u m=1
+MM12_CORE core__out1_p core__vb2 core__fold_p vss sg13_lv_nmos w=5u l=0.3u m=1
+MM13_CORE core__out1_n core__vb2 core__fold_n vss sg13_lv_nmos w=5u l=0.3u m=1
+MM14_CORE voutp core__g2_p vss vss sg13_lv_nmos w=20u l=0.25u m=1
+MM15_CORE voutn core__g2_n vss vss sg13_lv_nmos w=20u l=0.25u m=1
+MM16_CORE core__out1_n vdd core__g2_n vss sg13_lv_nmos w=2u l=0.13u m=1
+MM17_CORE core__g2_n vss core__out1_n vdd sg13_lv_pmos w=2u l=0.13u m=1
+MM18_CORE core__out1_p vdd core__g2_p vss sg13_lv_nmos w=2u l=0.13u m=1
+MM19_CORE core__g2_p vss core__out1_p vdd sg13_lv_pmos w=2u l=0.13u m=1
+MM1_CMFB cmfb__ptail cmfb__bias vdd vdd sg13_lv_pmos w=0.33u l=0.26u m=1
+MM1_CORE core__tail core__vb4 vdd vdd sg13_lv_pmos w=20u l=1u m=1
+MM20_CORE core__out1_p vss core__g2_n vss sg13_lv_nmos w=2u l=0.13u m=1
+MM21_CORE core__g2_n vdd core__out1_p vdd sg13_lv_pmos w=2u l=0.13u m=1
+MM22_CORE core__out1_n vss core__g2_p vss sg13_lv_nmos w=2u l=0.13u m=1
+MM23_CORE core__g2_p vdd core__out1_n vdd sg13_lv_pmos w=2u l=0.13u m=1
+MM2_CMFB vb4o cmfb__mirr vss vss sg13_lv_nmos w=2.32u l=1.31u m=1
+MM2_CORE core__fold_p vinp core__tail vdd sg13_lv_pmos w=20u l=0.5u m=1
+MM3_CMFB cmfb__bias cmfb__bias vdd vdd sg13_lv_pmos w=0.88u l=0.26u m=1
+MM3_CORE core__fold_n vinn core__tail vdd sg13_lv_pmos w=20u l=0.5u m=1
+MM4_CMFB cmfb__mirr cmfb__cm_sense cmfb__ptail vdd sg13_lv_pmos w=1.42u l=0.27u m=1
+MM4_CORE core__fold_p core__vb1 vss vss sg13_lv_nmos w=10u l=1u m=1
+MM5_CMFB vb4o vref_cm cmfb__ptail vdd sg13_lv_pmos w=1.42u l=0.27u m=1
+MM5_CORE core__fold_n core__vb1 vss vss sg13_lv_nmos w=10u l=1u m=1
+MM6_CMFB cmfb__mirr cmfb__mirr vss vss sg13_lv_nmos w=2.32u l=1.31u m=1
+MM6_CORE core__casc_src_n core__vb4 vdd vdd sg13_lv_pmos w=10u l=1u m=1
+MM7_CMFB cmfb__bias cmfb__bias vss vss sg13_lv_nmos w=0.3u l=0.22u m=1
+MM7_CORE core__casc_src_p core__vb4 vdd vdd sg13_lv_pmos w=10u l=1u m=1
+MM8O voutp vb4o vdd vdd sg13_lv_pmos w=20u l=1u m=1
+MM9O voutn vb4o vdd vdd sg13_lv_pmos w=20u l=1u m=1
+CCM0_0 vb4o ccm_s1 cap_cmim w=2.11u l=2.11u m=1
+CCM1_0 ccm_s1 ccm_s2 cap_cmim w=2.11u l=2.11u m=1
+CCM2_0 ccm_s2 ccm_s3 cap_cmim w=2.11u l=2.11u m=1
+CCM3_0 ccm_s3 ccm_s4 cap_cmim w=2.11u l=2.11u m=1
+CCM4_0 ccm_s4 ccm_s5 cap_cmim w=2.11u l=2.11u m=1
+CCM5_0 ccm_s5 ccm_s6 cap_cmim w=2.11u l=2.11u m=1
+CCM6_0 ccm_s6 vss cap_cmim w=2.11u l=2.11u m=1
+CM1_CORE_0 core__g2_p voutp cap_cmim w=44.67u l=44.67u m=2
+CM2_CORE_0 core__g2_n voutn cap_cmim w=44.67u l=44.67u m=2
+RRMN_CMFB_0 voutn RMN_CMFB_s1 vss rhigh w=.5u l=84.45u m=1 b=0
+RRMN_CMFB_1 RMN_CMFB_s1 RMN_CMFB_s2 vss rhigh w=.5u l=84.45u m=1 b=0
+RRMN_CMFB_2 RMN_CMFB_s2 RMN_CMFB_s3 vss rhigh w=.5u l=84.45u m=1 b=0
+RRMN_CMFB_3 RMN_CMFB_s3 cmfb__cm_sense vss rhigh w=.5u l=84.45u m=1 b=0
+RRMP_CMFB_0 cmfb__cm_sense RMP_CMFB_s1 vss rhigh w=.5u l=84.45u m=1 b=0
+RRMP_CMFB_1 RMP_CMFB_s1 RMP_CMFB_s2 vss rhigh w=.5u l=84.45u m=1 b=0
+RRMP_CMFB_2 RMP_CMFB_s2 RMP_CMFB_s3 vss rhigh w=.5u l=84.45u m=1 b=0
+RRMP_CMFB_3 RMP_CMFB_s3 voutp vss rhigh w=.5u l=84.45u m=1 b=0
+.ends amp_034_fan_chopper_cmfb

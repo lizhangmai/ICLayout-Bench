@@ -1,0 +1,15 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt amp_022_fer_two_stage vdd vout vinp vinn ibias vss
+XM0 a vinn c vdd sg13_lv_pmos w=8u l=0.4u m=5
+XM1 b vinp c vdd sg13_lv_pmos w=8u l=0.4u m=5
+XM2 vout b vss vss sg13_lv_nmos w=6u l=0.4u m=24
+XM3 a a vss vss sg13_lv_nmos w=6u l=0.4u m=2
+XM4 b a vss vss sg13_lv_nmos w=6u l=0.4u m=2
+XM5 c pbias vdd vdd sg13_lv_pmos w=8u l=0.4u m=3
+XM6 vout pbias vdd vdd sg13_lv_pmos w=8u l=0.4u m=17
+XM7 pbias pbias vdd vdd sg13_lv_pmos w=8u l=0.4u m=3
+XMBD ibias ibias vss vss sg13_lv_nmos w=4u l=0.4u m=1
+XMBS pbias ibias vss vss sg13_lv_nmos w=4u l=0.4u m=1
+XCC_0 b vout cap_cmim w=36.46u l=36.46u m=1
+.ends amp_022_fer_two_stage

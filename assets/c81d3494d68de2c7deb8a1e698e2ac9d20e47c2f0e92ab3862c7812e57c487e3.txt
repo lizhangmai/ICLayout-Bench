@@ -1,0 +1,98 @@
+# Fan Clocked Capacitive Instrumentation Amplifier with Positive Feedback Layout Task
+
+## Objective
+
+Implement the supplied 47 MOS, 2 R, 8 C circuit. Preserve the running input, feedback and output choppers, including the positive-feedback chopper and capacitors. There is no CMFB. Do not add a servo, remove or disable signal/feedback branches, or change the fixed transistor sizing and bias contract.
+
+## Inputs and Interface
+
+- `problem.md`: task description.
+- `materials/circuit.cdl`: physical netlist.
+- `materials/circuit.spice`: simulation circuit.
+- `materials/testbench.spice`: performance tests.
+
+Ordered ports: `vinp vinn voutp voutn vref clk_chin clk_chin_not clk_chfb clk_chfb_not clk_chout clk_chout_not clk_chpf clk_chpf_not vdd vss vb1 vb2 vb3 vb4 inch_p inch_n fbch_p fbch_n g2_p g2_n vsum_p vsum_n pfch_p pfch_n`. Preserve these named connections.
+
+The CDL and simulator netlist are equivalent physical representations. Use their exact ordered interface. Bias sources and clocks are external. Additional inch, fbch, g2 and summing-node and pfch ports are high-impedance monitors, with no external drives or loads. Every ideal upstream passive is implemented with physical MIM or high-poly primitives; no case requires another case's circuit or development source.
+
+## Operating Conditions
+
+TT, 27 C, VDD=1.2 V, input common mode and vref=0.6 V; vb1/vb2/vb3/vb4=0.5/0.75/0.45/0.55 V. Complementary clocks are synchronized at 5 kHz with 50 ns edges, 99.95 us pulse width and 200 us period; positive phases are aligned. Differential sine peak is 10 mV at 100/200 Hz, with 50 fF per output. Maximum step 200 ns adaptively resolves edges. Simulate 40 ms, discard the first 20 ms; 20–40 ms spans 100 chopping periods and 2/4 signal periods, and subwindows 20–30/30–40 ms compare transfer changes. Finite windows do not prove asymptotic periodic stability.
+
+## Physical Requirements
+
+Submit nonempty GDSII of at most 10485760 bytes. Pass native IHP DRC and named-interface LVS without waivers. Functional bounds include devices, wells, contacts and all routing layers, excluding annotations, and are at most 5000 × 1000 um. Retain native physical contacts and all passive cells.
+
+Magic extracts candidate interconnect RC and device junction geometry. Wells/substrate connect to physical-contact supply rails; Source simulation uses the declared logical body connections. The nominal contract excludes distributed substrate effects, statistical mismatch and manufacturing signoff.
+
+The scored functional layer/datatype pairs are `[[1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0], [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0], [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0], [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0], [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0], [133, 0], [134, 0], [139, 0], [152, 0]]`.
+
+## Electrical Requirements and Scoring
+
+Use the supplied transient testbench on the extracted candidate. Time-weighted sine/cosine integrals give complex differential transfer and input admittance. Full-precision cumulative integrals at the 20/30/40 ms clock breakpoints avoid cancellation of rounded measurement averages. The summed endpoint error must not exceed 1 ps; this is measurement validity, not a circuit performance gate. Input impedance is the magnitude of differential voltage divided by differential source current, where input current is -(i(VP)-i(VN))/2. Residual RMS removes the measured DC and fundamental; full output peak-to-peak also includes signal and all ripple. It must not be represented as switching ripple alone. Input and feedback and positive-feedback modulation errors compare clock-demodulated branch voltages to the associated external signals. Raw monitor waveforms support independent checking of the switching paths. Ordinary DC/AC does not replace these measurements.
+
+All measurements must be finite; amplitudes, RMS and total supply/clock consumption power must be nonnegative. Paper gain, input-impedance enhancement and ripple specifications are not hard thresholds. Slow common-mode variation and differences between windows are reported and scored without added CMFB suppression; independent source simulation uses the same devices, clocks, loads and windows. No PAC/PNoise, PSS, noise, mismatch, PVT or power-up startup capability is claimed.
+
+Area quality is Q=73567.47 um2/functional area. The compact estimate sums MOS (W+2.4)(L+2.4), a 3.2² local tap envelope per MOS and one global tap, each MIM (side+2.4)², and forty (.5+2.4)(84.45+2.4) resistor envelopes per bias arm, then adds 50% routing allowance. It is independent of the witness. Gain and input-impedance magnitudes use source ratios; phase is diagnostic to avoid angular-wrap scoring; residual and window variation use inverse ratios with 1 uV floor; output bias uses 1.2 V target scale; power uses inverse ratios with 1 pW floor. Other observations are diagnostics. Coefficient 9 reflects interacting positive/negative signal feedback and impedance control under clock modulation; no common-mode regulation is assumed.
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+`residual_rms_v`, `window_change_v` use `saturating_ratio`: q = 2(b+s)/(b+x+2s), where x is candidate error, b is paired source error and s is the positive scale below. Source equivalence gives q=1; improvement approaches the upper limit 2 with diminishing returns. The scale retains its declared unit and numerical-floor meaning. Normalize each condition before taking the worst quality; other rules follow their declarations.
+
+| Metric | Definition / observation | Unit | Quality / dimension | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `functional_area` | Functional bounding-rectangle area | um2 | area quality Q | positive area | — |
+| `gain_vv` | `2*sqrt(dsmean^2+dcmean^2)/amplitude` | V/V | maximize / ratio / response | 0 … +∞ | 1e-12 |
+| `phase_deg` | `180*ph(dsmean+j(dcmean))/pi` | deg | diagnostic | −∞ … +∞ | — |
+| `zin_ohm` | `amplitude/(2*sqrt(ismean^2+icmean^2))` | ohm | maximize / ratio / response | 0 … +∞ | 1e-12 |
+| `admittance_real_s` | `-2*ismean/amplitude` | S | diagnostic | −∞ … +∞ | — |
+| `admittance_imag_s` | `-2*icmean/amplitude` | S | diagnostic | −∞ … +∞ | — |
+| `dm_mean_v` | `avg dm from=20m to=40m` | V | target / target / bias | −∞ … +∞ | 1.2 |
+| `residual_rms_v` | `rms residual from=20m to=40m` | V | minimize / saturating_ratio / response | 0 … +∞ | 1e-06 |
+| `ripple_pp_v` | `pp dm from=20m to=40m` | V | diagnostic | −∞ … +∞ | — |
+| `cm_mean_v` | `avg cm from=20m to=40m` | V | target / target / bias | −∞ … +∞ | 1.2 |
+| `cm_min_v` | `min cm from=20m to=40m` | V | diagnostic | −∞ … +∞ | — |
+| `cm_max_v` | `max cm from=20m to=40m` | V | diagnostic | −∞ … +∞ | — |
+| `window_change_v` | `2*sqrt((dsfirst-dslast)^2+(dcfirst-dclast)^2)` | V | minimize / saturating_ratio / response | 0 … +∞ | 1e-06 |
+| `modulation_error_rms_v` | `rms modulation_error from=20m to=40m` | V | diagnostic | −∞ … +∞ | — |
+| `feedback_error_rms_v` | `rms feedback_error from=20m to=40m` | V | diagnostic | −∞ … +∞ | — |
+| `power_w` | `avg supplied from=20m to=40m` | W | minimize / ratio / supply | 0 … +∞ | 1e-12 |
+| `clock_power_w` | `avg clocks from=20m to=40m` | W | minimize / ratio / supply | 0 … +∞ | 1e-12 |
+| `pf_error_rms_v` | `rms pf_error from=20m to=40m` | V | diagnostic | −∞ … +∞ | — |
+| `boundary_error_s` | `abs(time[i20]-20m)+abs(time[i30]-30m)+abs(time[i40]-40m)` | s | diagnostic | −∞ … +∞ | — |
+
+Each row applies to every declared load/frequency condition; pair the candidate with `source_` under matching conditions, and see the deck for intermediate vectors. Failed 1 ps endpoint-alignment checks terminate simulation with nonzero exit status before emitting invalid integrals; residuals are diagnostic only. Failure is an evaluation error with unknown score, not electrical functional rejection.
+
+### Score weights
+
+Clocked instrumentation amplifier: signal fidelity 31.3%, drift and ripple 19.6%, input impedance 15.7%, common-mode behavior 15.7%, supply and clock power 7.83%, area 10%; each objective weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `gain_vv` | 0.156521739130 |
+| `residual_rms_v` | 0.156521739130 |
+| `window_change_v` | 0.195652173914 |
+| `zin_ohm` | 0.156521739130 |
+| `cm_mean_v` | 0.078260869565 |
+| `dm_mean_v` | 0.078260869565 |
+| `clock_power_w` | 0.039130434783 |
+| `power_w` | 0.039130434783 |
+
+## Tools and Submission
+
+Solve budget: **10 hours**.
+
+Submit GDS top cell ia_003_fan_chopper_pf. Evaluation runs native DRC/LVS, geometry, Magic candidate-derived RC extraction and ngspice transient measurement using reviewed resources. Reference materials and source checkouts are not solver inputs.
+
+Discover the frozen task, resources and submission interface through `/protocol/task.json`, `/protocol/resources.json` and `/protocol/harness.json`. Declared inputs are in `/task`. Write `/workspace/output/final.gds`, then run `python -I /protocol/submit.py` to submit explicitly; file generation alone is not submission. Feedback follows the capabilities provided by the current runtime protocol.
+
+The authoritative MOS input preserves the original logical groups, W/L/m and all four terminal nets. Verified unit arrays, multiple fingers, shared diffusion and shared wells on the same body net are allowed. Native LVS checks connectivity and equivalent device parameters; native DRC checks actual well/substrate contacts. Contact count, dimensions, area/perimeter and the reference well partition are not circuit constraints. PEX uses actual diffusion geometry and interconnect RC, with logical body nets as its boundary; distributed substrate/well resistance is outside this extraction model.

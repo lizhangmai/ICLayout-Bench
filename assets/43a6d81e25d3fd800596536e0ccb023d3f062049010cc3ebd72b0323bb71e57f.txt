@@ -1,0 +1,80 @@
+# Three-Bit MIM Capacitive Transfer Bank Layout Task
+
+## Objective
+
+Implement `sw_003_binary_capbank` in IHP SG13G2 and submit a self-contained GDS. Twelve minimum-size MOS (W/L = 0.15/0.13 um) select the bottom plates of a 1:1:2:4 MIM capacitor bank between vinp and VCM. Eight identical 25.85 by 25.85 um cap_cmim units implement those weights, each nominally about 1.00647 pF. Explicit physical substrate and well taps are included. For code k, the ideal capacitive transfer is (1+k)/8. Qualification covers all eight static codes, bipolar input steps at each fixed code, and one specified synchronous live-code transition, 011→100. The transition check measures output midpoint-crossing time and settling under the simultaneous ideal selector waveforms below. It does not cover decoder skew, glitches, arbitrary code sequences, ADC conversion, or mismatch linearity.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the authoritative physical circuit; `materials/circuit.spice` is its equivalent simulator representation. `materials/testbench.spice` supplies measurement apparatus. This problem is the description input. The ordered ports are `vinp vout VCM VDD VSS V_D0 V_D0_NOT V_D1 V_D1_NOT V_D2 V_D2_NOT`: signal input, floating output, common-mode reference, supply/return and three independent pairs of complementary code controls. SPICE names are case-insensitive; preserve these physical labels.
+
+Preserve connections, MOS W/L/m, capacitor dimensions and cell multiplicities, and body terminals/contacts. Placement and routing are free; device splitting/merging and source/drain exchange must follow declared native LVS equivalence rules. Common-centroid geometry and statistical matching are not scored; ideal external sources, loads and measurement fixtures remain outside the DUT.
+
+## Operating Conditions
+
+Use typical IHP low-voltage MOS, resistor and capacitor models at 27 C, VDD=1.5 V and VSS=0 V. Each node has a declared 1e12 ohm numerical shunt. Transient uses second-order Gear with both output and maximum steps 1 ns. Source models retain finite body-contact resistance; Magic idealizes well/substrate connections. Distributed substrate resistance, statistical mismatch, PVT, noise and RF/EM are outside coverage.
+
+The separate code-transition deck uses the same TT, 27 C models and supply. Starting at 0 ns, the ideal complementary selector sources hold code 011 through 10 ns and switch synchronously over 2 ns to code 100. VINP is fixed at 0.65 V and VCM at 0.75 V. The transient ends at 30 ns and uses a 10 ps output and maximum step. Midpoint time is measured from the 10 ns transition start to the first output crossing of the midpoint between the 9 ns and 30 ns output values. Settling error is the maximum absolute deviation from the 30 ns output value over 12.1–30 ns, giving a 100 ps guard after the selector transition. These ideal simultaneous controls intentionally exclude decoder skew and glitch behavior.
+
+All eight binary codes are separate required conditions. Bit k is driven by 1.5*bk V and its complement by 1.5*(1-bk) V; controls remain static. VCM = 0.75 V. VINP has DC 0.65 V and unit AC amplitude. AC uses 50 points/decade from 1 kHz to 100 MHz; acceptance measurements are at 10 kHz. VINP stays at 0.65 V through 10 us, rises to 0.85 V at 10.002 us, holds through 30 us, returns to 0.65 V at 30.002 us and holds through 50 us. Vout has an external 1e12 ohm return to ground, in addition to the numerical shunt; no ideal external holding capacitor is added. Absolute output DC is not a retained sample requirement: measurements compare increments. The testbench expected-value voltage source is measurement apparatus only.
+
+## Physical Requirements
+
+The GDS top cell is `sw_003_binary_capbank`, with a 10 MiB maximum file size. Provide physical, correctly connected and accessible labeled interface metal; retain every named port. Pass IHP main and maximal DRC (density and antenna excluded for this standalone block), strict named-interface LVS and a functional bounding box no larger than 460 by 75 um. No DRC waivers are used. The functional footprint includes device, passive, implant, well and complete routing layers; excludes annotations/pin text and nonfunctional markers. Its explicit GDS layer/datatype set is `[[1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0], [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0], [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0], [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0], [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0], [133, 0], [134, 0], [139, 0], [152, 0]]`. The area is the bounding-box area of those layers, not summed metal area.
+
+Candidate GDS first passes file, DRC, LVS and hard geometry checks; Magic then extracts distributed interconnect RC with zero coupling-capacitance threshold and retains internal MIM. The supplied testbench uses the candidate extracted circuit; source simulation cannot replace acceptance. This is nominal module verification, not manufacturing signoff.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+`gain_error`, `step_error`, `return_error_v`, `settling_error_v` and `transition_settling_error_v` use `saturating_ratio`: q = 2(b+s)/(b+x+2s), where x is candidate error, b is paired source error and s is the positive scale below. Source equivalence gives q=1; improvement approaches the upper limit 2 with diminishing returns. s retains the declared units and numeric-floor meaning; normalize each condition before taking the worst quality, and apply other rules as declared.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `gain_vv` | Magnitude V(out)/V(vinp) at 10 kHz, unit AC input | V/V | target / target | −∞ … +∞ | 1.0 |
+| `phase_deg` | Phase of V(out)/V(vinp) at 10 kHz, in degrees | deg | target / target | −∞ … +∞ | 180 |
+| `input_cap_f` | Imaginary part of -I(VI), divided by 2 pi f at 10 kHz, unit AC input | F | minimize / ratio | 0 … +∞ | 1e-21 |
+| `gain_error` | Absolute gain_vv minus (1+code)/8 | V/V | minimize / saturating_ratio | 0 … +∞ | 1e-09 |
+| `step_gain` | [V(out) at 29 us minus V(out) at 9 us] / 0.2 V | V/V | target / target | −∞ … +∞ | 1.0 |
+| `step_error` | Absolute step_gain minus (1+code)/8 | V/V | minimize / saturating_ratio | 0 … +∞ | 1e-09 |
+| `return_error_v` | Absolute V(out) at 49 us minus V(out) at 9 us | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 |
+| `settling_error_v` | Maximum absolute V(out) minus its 29 us value, over 20–29 us | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 |
+| `code_midpoint_time_ns` | Time from the start of the simultaneous 011→100 selector transition (10 ns) until V(out) first crosses the midpoint between its 9 ns and 30 ns values | ns | minimize / ratio against same-condition source | 0 … +∞ | source-paired |
+| `transition_settling_error_v` | Maximum absolute V(out) minus its 30 ns value, over 12.1–30 ns (after the 2 ns selector transition and a 100 ps guard) | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 |
+
+The area scoring target is **7626.224 um2**, 80% of the engineering estimate 9532.78 um2. The estimate includes 22 device/contact envelopes totaling 6227.9559 um2, plus 50% routing and total 1.2 um outer allowance, using `ceil(100 * (1.5 * envelope_sum + 1.2 * sqrt(envelope_sum) + 1.2^2 / 4)) / 100`. This benchmark does not represent a process minimum or a verified achievable area, and the target is not a hard outline limit.
+
+The capability coefficient is **5**, independent of this task's reference-normalized score.
+
+### Score weights
+
+Binary capacitor bank: code transfer accuracy 54%; recovery and code-transition response 27%; phase 9%; area 10%. The 27% budget is split across return error (13.5%), static settling error (4.5%), code midpoint time (4.5%) and transition settling error (4.5%). Redundant transfer and loading observations are retained with zero weight; their measurement validity and bounds still apply. The ideal simultaneous selector sources do not model decoder skew or glitch behavior.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `gain_error` | 0.270000000000 |
+| `step_error` | 0.270000000000 |
+| `return_error_v` | 0.135000000000 |
+| `settling_error_v` | 0.045000000000 |
+| `phase_deg` | 0.090000000000 |
+| `gain_vv` | 0 |
+| `input_cap_f` | 0 |
+| `step_gain` | 0 |
+| `code_midpoint_time_ns` | 0.045000000000 |
+| `transition_settling_error_v` | 0.045000000000 |
+
+## Tools and Submission
+
+Solve budget: **3 hours**.
+
+Use reviewed SG13G2 devices/rules/models from `/protocol/resources.json` and the task from `/protocol/task.json`. KLayout handles layout and physical checks, Magic extracts candidate RC, and ngspice runs declared decks. Discover feedback through the runtime protocol and explicitly submit workspace `output/final.gds`; reference layouts, the source repository and author scripts are not solver inputs.

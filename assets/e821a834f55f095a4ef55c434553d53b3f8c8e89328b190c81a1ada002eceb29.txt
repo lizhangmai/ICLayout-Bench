@@ -1,0 +1,138 @@
+# Physical NMOS Sample-and-Hold Layout Task
+
+## Objective
+
+Implement `smp_001_nmos_th`: a single-NMOS sampling switch with an internal
+physical storage capacitor. Preserve the switch and stored-charge node, and
+meet acquisition, turn-off pedestal, isolated-input feedthrough, hold drift
+and reacquisition requirements at the specified input and temperature points.
+
+## Inputs and Interface
+
+- `materials/circuit.cdl`: authoritative native physical circuit.
+- `materials/circuit.spice`: equivalent simulator representation.
+- `materials/testbench.spice`: independent stimuli and measurements.
+
+The ordered interface is `vin clk vout vss`. VIN is driven through an external
+1 kohm source resistance; CLK receives the external clock; VOUT is the storage
+node. The source's unused VDD port is removed. There is no DUT supply-current
+metric or added artificial supply connection. Tie VSS to ground.
+
+Retain the `sg13_lv_nmos` with W=2 um, L=0.13 um, m=1 and drain/gate/source
+connected to VIN/CLK/VOUT. Its body connects through the explicit VSS substrate
+tap. One `cap_cmim` with W=L=18.2 um connects its top plate to VOUT and bottom
+plate to VSS, nominally 499.772 fF at TT, 27 C. Preserve plate orientation.
+The capacitor is internal physical storage, not a testbench load or an ideal
+replacement. The native and simulator circuits include the same explicit tap.
+
+Preserve models, sizes and connectivity. Equivalent parallel fingering is
+permitted only when all physical and electrical checks pass. Do not add a
+buffer, complementary switch, dummy cancellation device, hold-node servo,
+external storage capacitor or other topology change.
+
+## Operating Conditions
+
+Use typical MOS and capacitor models at 27 and 85 C. CLK is externally driven
+between 0 and 1.2 V, with 2 ns linear transitions. The ideal signal source SRC
+drives VIN through 1 kohm. Qualify four sampled levels, `sample_v` = 0.1, 0.4,
+0.6 and 0.7 V, at both temperatures. At each point the off-state input is
+separately driven to `hold_v` = 0 or 1.2 V: sixteen conditions. These are
+specified sample points, not rail-to-rail or continuous-range qualification.
+
+The finite sequence starts from a solved DC operating point with SRC=0 and
+CLK=1.2 V. SRC moves to `sample_v` during 20–22 ns. CLK falls during
+200–202 ns, isolating the storage node. SRC moves to `hold_v` during
+400–402 ns while CLK remains zero. SRC returns to `sample_v` during
+11.2–11.202 us; CLK rises during 11.4–11.402 us. Stop at 11.7 us.
+No output load, DC bias source or discharge resistor is attached to VOUT.
+
+Use Gear order 2, KLU, maximum time step 2 ns, `gmin=1e-15`,
+`rshunt=1e15`, `reltol=1e-6`, `abstol=1e-15` and `vntol=1e-9`.
+The numerical shunt is not a specified physical retention load. Save SRC,
+VIN, CLK, VOUT and both ideal voltage-source currents.
+
+## Physical Requirements
+
+Submit GDSII top cell `smp_001_nmos_th`, at most 10 MiB, within an 80 × 80 um
+functional outline. Pass native IHP main/maximal DRC without waivers
+(standalone scope with density/antenna disabled), strict named-port LVS,
+functional geometry and candidate-derived Magic RC extraction. Functional
+area includes the complete device/contact/routing layers enumerated by the
+runtime outline; annotation and pin layers do not count.
+
+Post-layout simulation must consume the submitted layout's extracted NMOS,
+physical MIM, junction geometry and interconnect RC. The isolated Magic import
+uses half-grid subdivision and `gds_readonly=false`; the submitted GDS remains
+immutable. No diagnostic is waived. Source simulation retains the finite tap
+model; Magic idealizes the tap connection. Distributed substrate noise and
+fabrication signoff are outside this contract.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations remain required evidence. The explicit quality targets below supply scoring anchors; otherwise the paired source value is used. Reports retain every paired result.
+
+Let x be the post-layout measurement and b the declared quality target, or the same-condition source measurement when no target is declared:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+The measurements below use the supplied SPICE node and source names. `v(n)` is a node voltage; `i(V)` is current flowing into a voltage source, so delivered power uses a negative sign. `db(z)=20*log10(abs(z))`; `mag/abs` denote magnitude, and `cph` denotes continuous phase in radians. `find`, `when`, `from/to` and `rise/fall` follow the deck's interpolation, window and crossing conventions. SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/milli/mega/giga. Nested `avg`, `min`, `max`, `vecmin/vecmax` and `deriv` represent window averages, extrema and sampled derivatives. Measure each operating condition independently, pair it with the source result under that condition, and take the worst paired quality within each metric group.
+
+For metrics declaring `saturating_ratio`, q = 2(b+s)/(b+x+2*s), using the quality anchor b and the positive scale s in the metric’s units. Equality to the anchor gives raw quality 1; improvements approach raw quality 2 but credited quality stays at 1. Normalize each condition before selecting the worst quality. These scales and targets do not add acceptance cutoffs.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale | Dimension |
+| --- | --- | --- | --- | --- | --- | --- |
+| `track_error_v` | Maximum absolute VOUT minus target over 80–190 ns; target is VSRC sampled at 180 ns. | V | minimize / saturating_ratio | 0 … +∞ | 1e-05 | response |
+| `pedestal_abs_v` | Absolute difference between VOUT at 220 ns and 180 ns (held minus tracked sample). | V | minimize / saturating_ratio | 0 … +∞ | 0.0001 | response |
+| `feedthrough_peak_v` | Maximum absolute VOUT minus its 390 ns sample over 400–450 ns, during the input transition in hold. | V | minimize / saturating_ratio | 0 … +∞ | 5e-06 | response |
+| `hold_drift_v` | Absolute difference between VOUT at 11 us and 1 us. | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 | response |
+| `hold_error_v` | Maximum absolute VOUT minus target over 220 ns–11 us; target is VSRC at 180 ns. | V | minimize / saturating_ratio | 0 … +∞ | 0.001 | response |
+| `reacquire_error_v` | Maximum absolute VOUT minus target over 11.48–11.69 us; target is VSRC at 180 ns. | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 | response |
+| `clock_energy_j` | Integral of max(-V(CLK)*I(VCLK), 0) over 0–11.7 us; returned clock energy is excluded. | J | minimize / ratio | 0 … +∞ | 1e-21 | supply |
+| `target` | TRAN: Value of `v(src) at=180n`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `track_v` | TRAN: Value of `v(vout) at=180n`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `held_v` | TRAN: Value of `v(vout) at=220n`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `before_input_v` | TRAN: Value of `v(vout) at=390n`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `after_input_v` | TRAN: Value of `v(vout) at=450n`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `hold_start_v` | TRAN: Value of `v(vout) at=1u`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `hold_end_v` | TRAN: Value of `v(vout) at=11u`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `reacquired_v` | TRAN: Value of `v(vout) at=11.65u`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `pedestal_v` | Signed VOUT(220 ns) − VOUT(180 ns). | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `feedthrough_v` | Signed VOUT(450 ns) − VOUT(390 ns). | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `drift_v` | Signed VOUT(11 us) − VOUT(1 us). | V | — | −∞ … +∞ | — | unscored diagnostic |
+
+
+The capability coefficient is **5**, independent of this task's reference-normalized score.
+
+### Quality targets and weights
+
+The area quality target is **400 um2**. It is an integration budget, not a hard limit or a proven process minimum.
+
+The fixed 18.2 um square storage plate occupies 331.24 um2, already exceeding the former 300 um2 goal. A 400 um2 integration budget leaves 68.76 um2 beyond that plate for enclosure, the sampling switch, body tap and routing and carries 30%. Held-value accuracy carries 25%; pedestal, off-state feedthrough, tracking and clock energy carry 10% each; reacquisition carries 5%. Hold drift is retained as a diagnostic decomposition of held-value error. Explicit physical goals avoid defining perfect accuracy from near-zero source samples, while the worst of all 16 sample/temperature/off-state conditions determines each quality factor.
+
+| Metric | Quality anchor | Unit | Scale | Weight |
+| --- | --- | --- | --- | ---: |
+| `functional_area` | 400 | um2 | — | 0.3 |
+| `reacquire_error_v` | 5e-06 | V | 1e-06 | 0.05 |
+| `track_error_v` | 0.001 | V | 1e-05 | 0.1 |
+| `feedthrough_peak_v` | 5e-05 | V | 5e-06 | 0.1 |
+| `hold_error_v` | 0.015 | V | 0.001 | 0.25 |
+| `pedestal_abs_v` | 0.003 | V | 0.0001 | 0.1 |
+| `clock_energy_j` | 3e-15 | J | 1e-21 | 0.1 |
+
+Zero-weight observations: `hold_drift_v`. Original functional requirements remain enforced; grouped metrics listed above carry their stated weight once.
+
+The targets affect continuous quality only. A complete feasible reference may miss them; there is no minimum qualifying score.
+
+## Tools and Submission
+
+Solve budget: **1 hour**.
+
+Use `/protocol/task.json`, `/protocol/resources.json` and `/protocol/harness.json`
+for the frozen inputs, requirements, reviewed IHP primitives and harness
+feedback. Work with the supplied KLayout, Magic and ngspice resources.
+Write `/workspace/output/final.gds` and explicitly submit through the harness.
+Reference GDS, source records and host configuration are not standard inputs.

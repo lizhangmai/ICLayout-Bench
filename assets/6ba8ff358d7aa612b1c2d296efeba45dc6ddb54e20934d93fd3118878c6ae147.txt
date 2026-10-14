@@ -1,0 +1,79 @@
+# Five-Transistor OTA with Bias and Dummies Layout Task
+
+## Objective
+
+Implement `ota_5t` in GF180MCU D, preserving circuit, sizes and ordered interface. Measure small-signal differential gain, common-mode rejection and unity-gain frequency at common mode 1.65 V, bias 10 uA and load 1 pF.
+
+## Inputs and Interface
+
+Inputs are this description, `materials/circuit.spice` (the authoritative circuit) and `materials/testbench.spice` (stimuli and measurements). Runtime task metadata supplies consistent frozen constraints, evaluation conditions and output declarations.
+
+Ordered subcircuit and GDS interface: `vdd, out, in_p, in_n, i_bias, vss`.
+vdd/vss: supply/return; out: single-ended output; in_p/in_n: differential inputs; i_bias: current-bias input.
+
+Preserve topology, total device widths, channel lengths, multiplicities, resistor dimensions and body connections. Equivalent hierarchy, diffusion sharing and parallel fingers are allowed when connectivity and electrical checks pass; preserve source models and dimensions without idealizing internal devices. Retain dummy devices even when all their terminals are shorted.
+
+## Operating Conditions
+
+Use 3.3 V and 27 C, a 10 uA current from vdd into i_bias, input common mode 1.65 V and 1 pF from out to ground. The differential AC excitation is 1 V (in_p: +0.5 V; in_n: -0.5 V). Measure the DC output and supply power, then sweep 10 Hz to 1 GHz at 40 points/decade.
+
+The paired CMRR measurement uses two independent copies of the same circuit and load in one AC run: 1 V differential excitation (+0.5/-0.5 V) and 1 V common-mode excitation (+1/+1 V), both biased at 1.65 V. CMRR is the differential voltage gain minus the common-mode voltage gain at 10 Hz; both gains are normalized to their stated 1 V input amplitude.
+
+Use reviewed typical primitive models with statistical variation disabled. Numerical parameters from runtime simulation jobs generate the testbench's `parameters.spice`; interpolation and detailed PWL follow the delivered deck. Scope is limited to nominal compact-model conditions, excluding temperature/process corners, mismatch yield, noise, RF/EM and full-chip density closure.
+
+## Physical Requirements
+
+Submit a nonempty GDS with top cell `ota_5t`, no larger than 10485760 bytes. The functional bounding box must fit within 320 × 80 um and includes relevant device and routing polygons, implants/wells, passive markers, contacts, vias and dummy routing. The complete layer/datatype set is:
+
+`[[5,0],[11,17],[11,39],[12,0],[13,17],[21,0],[22,0],[22,4],[24,0],[24,5],[30,0],[30,4],[31,0],[32,0],[33,0],[34,0],[34,3],[34,4],[34,5],[35,0],[36,0],[36,3],[36,4],[36,5],[37,0],[38,0],[40,0],[41,0],[42,0],[42,3],[42,4],[42,5],[46,0],[46,3],[46,4],[46,5],[49,0],[53,0],[53,3],[53,4],[53,5],[55,0],[62,0],[75,0],[80,5],[81,0],[81,3],[81,4],[81,5],[82,0],[86,17],[88,17],[96,1],[100,5],[100,7],[100,8],[108,5],[110,5],[110,11],[110,12],[110,13],[110,14],[110,15],[110,16],[111,5],[112,1],[115,5],[116,5],[117,5],[117,10],[118,5],[119,5],[122,5],[123,5],[124,5],[125,5],[127,5],[128,17],[137,5],[151,5],[152,5],[153,51],[166,5],[167,5],[173,5],[178,0],[183,0],[184,0],[185,0],[204,0],[210,0],[220,0],[226,0],[227,0],[241,0]]`.
+
+Area excludes text and nonfunctional boundary layers 0/0 and 63/0; functional geometry must remain on functional layers. Pass the fixed GF180 D FEOL, BEOL, connectivity, grid and antenna checks without waivers. Use five metal layers, the 1.1 um top-metal option and the 1 kOhm/square high-resistance poly option. Chip density and seal-ring closure belong to higher-level integration.
+
+LVS checks topology, dimensions, body terminals and all named top-level ports, case-insensitively. Physically implement supply and substrate/well contacts; do not short different nets through adjoining silicided diffusion. After validity and geometric checks pass, extract candidate devices and distributed interconnect RC, then simulate the extracted circuit. The substrate model is one equipotential body region with explicit well/body contacts, rather than a distributed silicon-substrate network. Unreliable extraction, missing ports or incomplete measurements cannot establish success.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations remain the same-condition electrical evidence; reports retain every paired result. The explicit bandwidth quality target is 26 MHz. Other electrical quality anchors use their paired source measurements.
+
+Let x be the post-layout measurement and b the declared quality target, or the same-condition source measurement when no target is declared:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `gain` | 20 log10 of the single-ended differential voltage gain at 10 Hz. | dB | maximize / db20 | −∞ … +∞ | — |
+| `cmrr` | Differential voltage gain minus common-mode voltage gain at 10 Hz under the paired excitations above. | dB | maximize / db20 | −∞ … +∞ | — |
+| `unity` | First falling 0 dB gain crossing in the declared AC sweep. | Hz | maximize / ratio | 0 … +∞ | — |
+| `output_bias` | DC operating-point voltage at out. | V | target / target | 0 … 3.3 | 0.01 |
+| `supply` | DC power delivered by the 3.3 V source, including the bias-current branch. | W | minimize / ratio | 0 … +∞ | 1e-12 |
+
+The area scoring target is **100 um2**, a compact 10 × 10 um integration budget. It rewards shared diffusion, compact dummy placement and short routes while preserving every device and body contact. This is a challenging quality goal, not a hard limit, process minimum or claim that the feasibility witness is compact. Area quality is uncapped.
+
+The bandwidth quality target is **26 MHz at 1 pF**, retaining nearly all nominal source bandwidth after extraction. The **10 mV** output-bias scale resolves routing-induced bias changes. Gain, CMRR and power retain their source anchors, with modest weights because fixed device sizes largely determine these nominal DC quantities. Neither target nor scale adds an electrical rejection cutoff.
+
+The capability coefficient is **4**, independent of this task's reference-normalized score.
+
+### Score weights
+
+Compactness and loaded bandwidth carry most of the score; the remaining metrics preserve gain, common-mode rejection and operating conditions.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.50 |
+| `gain` | 0.08 |
+| `cmrr` | 0.07 |
+| `unity` | 0.30 |
+| `output_bias` | 0.03 |
+| `supply` | 0.02 |
+
+## Tools and Submission
+
+Solve budget: **1 hour**.
+
+Discover inputs and reviewed GF180 resources through the runtime task, resource and submission protocols. Trusted feedback executes the declared physical and post-layout evaluation; source simulation only assists design. Write the final GDS to `/workspace/output/final.gds` and explicitly submit through the runtime protocol. File generation or a successful standalone simulation alone does not complete the task.
+
+Use a GDS database unit of 0.001 um as required by GF180MCU DRC rules.

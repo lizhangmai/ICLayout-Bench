@@ -1,0 +1,93 @@
+# Folded-Cascode LDO Layout Task
+
+## Objective
+
+Implement `ldo_002_analoggym_folded_cascode` as a GDS layout preserving the complete declared circuit. Nine-MOS folded-cascode error amplifier and a PMOS pass array, with direct output feedback, series RZ/CC and the physical minimum-load bleed. The fixed GF180 6 V binding expands to 259 MOS, three 2 fF/um2 MIM units, one nulling resistor and two series bleed segments. VB1, VB2 and VREF remain external sources; the original 0 V VLP measurement marker becomes a wire.
+
+## Inputs and Interface
+
+- `materials/circuit.cdl`: authoritative physical circuit and ordered named interface.
+- `materials/circuit.spice`: equivalent source simulation including physical passives.
+- `materials/testbench.spice`: performance observations.
+- `materials/startup.spice`: startup observations.
+- `materials/regulation.spice`: regulation observations.
+- `problem.md`: task description.
+
+Ordered ports: `vdd vout vss vb1 vb2 vref`. `vss` is ground, `vdd` the positive rail; signal/output and bias/reference ports have the functions and directions specified below. Every named interface must be preserved. Device multipliers are explicitly expanded; series/parallel passive realizations are already declared in the circuit. The reference layout and development source are not solver inputs.
+
+## Operating Conditions
+
+Nominal supply 2.0 V, external reference 1.8 V, VB1=1.0 V and VB2=0.025 V; 27 C, typical GF180 models with statistical variation disabled. Native 6 V DRC requires NMOS L>=0.70 um and PMOS L>=0.55 um; only undersized lengths are increased to those physical minima. All default widths and the 250-fold 10 um pass-device multiplier are retained. R_bleed is 100 kohm inside the physical DUT and consumes Vout^2/R power; external 1/2 mA load currents are additional, not replacements. CC=2 pF and RZ=3 kohm retain their original connections. External output capacitance is 1 nF with 0.1 ohm series ESR. Evaluate no disturbance, 1-to-2 mA load pulse, and +0.1 V input pulse, plus independent DC points at nominal+0.1 V/1 mA and nominal/2 mA. Pulses start at 100 us, have 1 us edges and 100 us high width; restoration finishes at 202 us. Observe 0–400 us with 10 ns maximum step; pre-step/high/recovery windows are 80–100/180–200/380–400 us. Supply rejection is measured at 1 kHz from a 1 V AC supply input (100 samples/decade, 1 Hz–100 MHz). Ascending DC sweeps cover nominal supply to nominal+0.1 V in 10 mV increments at 1 mA and 1–2 mA load in 0.1 mA increments at nominal supply; adjustment metrics are absolute endpoint slopes. These are finite ranges, not dropout measurements. Startup ramps VDD from zero to nominal in 10 us with fixed external references and a resistive 1 mA nominal load (target voltage/1 mA); it uses the ordinary initial DC solution, no UIC or forced initial output, and observes through 400 us. Startup extrema and late-window output/ripple are diagnostics. No dropout, loop gain or phase margin is claimed. Source and candidate use identical decks and parameters; no numerical shunt is used.
+
+## Physical Requirements
+
+Use native GF180MCU D standalone-module FEOL/BEOL, connectivity, grid, dummy and antenna rules, excluding chip density/seal-ring coverage. Pass named-port LVS and extract distributed candidate Magic RC. Functional area includes active/poly, passives and all routing metal/vias. Capacitor-substrate and resistor-terminal models follow the frozen PDK configuration, with no DRC waivers. Core topology, bodies and physical compensation are fixed; geometrically equivalent implementations must preserve named ports and device parameters. Maximum outline is 20000 × 2000 um, limiting supported module area rather than electrical quality.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+`regulation_error_v`, `quiet_ripple_v`, `recovery_ripple_v`, `late_error_v`, `excursion_v`, `line_reg_v_per_v`, `load_reg_ohm` use `saturating_ratio`: q = 2(b+s)/(b+x+2s), where x is candidate error, b is paired source error and s is the positive scale below. Source-equivalent error gives q=1; improvement approaches the upper limit 2 with diminishing returns. s retains the declared units and numeric-floor meaning. Normalize each condition before taking the worst quality; other normalization and functional rules follow their own declarations.
+
+| Metric | Unit | Definition | Purpose |
+|---|---|---|---|
+| output_v | V | DC output | bias; target (scale 1.8) |
+| regulation_error_v | V | Absolute DC setpoint error | response; saturating_ratio (scale 0.001) |
+| power_w | W | Total input rail DC power, including physical bleed/divider and external current bias | supply; ratio (scale 1e-12) |
+| psrr_db | dB | Input supply rejection at 1 kHz | response; db20 |
+| quiet_ripple_v | V | Peak-to-peak pre-perturbation output 80–100 us | response; saturating_ratio (scale 0.001) |
+| recovery_ripple_v | V | Peak-to-peak recovered output 380–400 us | response; saturating_ratio (scale 0.001) |
+| excursion_v | V | Full output range 100–400 us | response; saturating_ratio (scale 0.001) |
+| late_error_v | V | Mean absolute setpoint error 380–400 us | response; saturating_ratio (scale 0.001) |
+| mean_power_w | W | Mean input rail power 0–400 us | supply; ratio (scale 1e-12) |
+| quiet_v | V | Finite-window quiet_v | diagnostic; unscored |
+| high_v | V | Finite-window high_v | diagnostic; unscored |
+| recovery_v | V | Finite-window recovery_v | diagnostic; unscored |
+| startup_final_v | V | 10 us input ramp with resistive load: startup_final_v | diagnostic; unscored |
+| startup_ripple_v | V | 10 us input ramp with resistive load: startup_ripple_v | diagnostic; unscored |
+| startup_min_v | V | 10 us input ramp with resistive load: startup_min_v | diagnostic; unscored |
+| startup_max_v | V | 10 us input ramp with resistive load: startup_max_v | diagnostic; unscored |
+| line_reg_v_per_v | V/V | Absolute ascending supply-sweep endpoint slope, nominal to nominal + 0.1 V, 1 mA load | response; saturating_ratio (scale 0.001) |
+| load_reg_ohm | ohm | Absolute ascending load-sweep endpoint slope, 1 to 2 mA, nominal supply | response; saturating_ratio (scale 1) |
+| kcl_a | A | Absolute external DC current-balance residual; producer validity guard at 10 nA | diagnostic; unscored |
+
+Complete every required job with finite, valid measurements. The 10 nA DC KCL residual bounds numerical validity; nonnegative power, error and range requirements follow physical definitions. Other test-apparatus validity conditions are stated above and in runtime task metadata. No datasheet gain, regulation-accuracy or speed bounds are imposed. Extraction failure, invalid measurements or missing jobs cannot be replaced by a low score.
+
+Area anchor: 29211.12 um2. 1.5 times the sum over expanded physical MOS, resistor and capacitor units of (W + 4 um)*(L + 4 um). The 4 um allowances cover local contacts/isolation; 50% covers compact routing. Body taps are covered by the allowance, not counted twice. For ordinary GF180 resistors this envelope conservatively uses the sheet-only length before contact correction; the explicit parallel 1-ohm bank uses its native dimensions. This is an analytical compact-area anchor, not the witness footprint.
+
+Coefficient 7 covers regulation, frequency response and recovery across loads. The provenance chain distinguishes the Apache-2.0 sky130_ldo_rl netlist from the BSD-3-Clause AnalogGym sizing/testbench; the actual circuit is the pinned MacAnalog GF180 binding, not another reference implementation.
+
+### Score weights
+
+GF180 supply/load regulator: regulation 30%, load and supply recovery 30%, ripple and rejection 20%, power 10%, area 10%; each objective weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `line_reg_v_per_v` | 0.075000000000 |
+| `load_reg_ohm` | 0.075000000000 |
+| `output_v` | 0.075000000000 |
+| `regulation_error_v` | 0.075000000000 |
+| `excursion_v` | 0.149999999999 |
+| `late_error_v` | 0.150000000000 |
+| `psrr_db` | 0.066666666667 |
+| `quiet_ripple_v` | 0.066666666667 |
+| `recovery_ripple_v` | 0.066666666667 |
+| `mean_power_w` | 0.050000000000 |
+| `power_w` | 0.050000000000 |
+
+## Tools and Submission
+
+Solve budget: **8 hours**.
+
+Use the runtime task/resource discovery interface for the frozen tool image, PDK and declared feedback operations. The evaluator checks the submitted GDS independently and extracts its parasitics. Submit `output/final.gds`, top cell `ldo_002_analoggym_folded_cascode`; do not submit a source netlist in place of a layout. Keep all named ports. The resource bundle contains the approved open PDK and native EDA tools.
+
+Both source and candidate extracted circuits require an absolute external DC current-conservation residual `kcl_a <= 1e-08 A`. Exceeding it terminates simulation with an evaluation error and an unknown score, rather than functional rejection. The residual is diagnostic and unscored.

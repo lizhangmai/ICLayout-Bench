@@ -1,0 +1,87 @@
+# Fan Two-Stage OTA Layout Task
+
+## Objective
+
+Implement the supplied 23-MOS, two-capacitor two-stage OTA with its statically straight-through output chopper. Preserve all devices, connections and dimensions. The cross branches remain present and off; no CMFB exists or may be added. Four MIM units realize the two 6 pF compensation capacitors (44.67 um square each).
+
+## Inputs and Interface
+
+- `problem.md`: task description.
+- `materials/circuit.cdl`: physical netlist.
+- `materials/circuit.spice`: simulation circuit.
+- `materials/testbench.spice`: performance tests.
+
+Ordered ports: `vinp vinn voutp voutn vdd vss vb1 vb2 vb3 vb4`; retain all named connections.
+
+Native CDL and simulation SPICE describe the same circuit. VINP/VINN are differential inputs, VOUTP/VOUTN outputs, VDD/VSS supply/return, and VB1–VB4 bias ports. Independent bias sources remain outside the physical core; well/substrate contacts must be physically implemented.
+
+## Operating Conditions
+
+TT, 27 C, VDD=1.2 V, input common mode 0.6 V; vb1/vb2/vb3/vb4=0.3983759766/0.65/0.45/0.55 V. Loads are 1 and 10 pF per output. Differential steps are ±50 mV at 10 us, returning at 40.02 us; 5 uA per output common-mode injection runs from 60 to 61.02 us. Maximum transient step is 2 ns, duration 100 us. An external ideal differential unity-feedback fixture drives the signal test; it does not sense or regulate output common mode. AC transfer divides the output difference by the actual input difference.
+
+## Physical Requirements
+
+Submit nonempty GDSII of at most 10485760 bytes. Pass native IHP DRC and strict named-interface LVS without waivers; preserve contact geometry and compact-device parameters. Functional devices, wells, contacts and routing layers define area, excluding annotations; bounds must fit within 5000 × 1000 um.
+
+Magic extracts candidate interconnect RC and device junction geometry. Wells/substrate connect to physical-contact supply rails; Source simulation uses the declared logical body connections. The nominal contract excludes distributed substrate effects, statistical mismatch and manufacturing signoff.
+
+The scored functional layer/datatype pairs are `[[1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0], [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0], [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0], [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0], [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0], [133, 0], [134, 0], [139, 0], [152, 0]]`.
+
+## Electrical Requirements and Scoring
+
+All declared measurements must be finite and use the candidate extracted circuit. The deck observes gain/phase at 10 Hz/100 kHz, output bias, power, small differential steps and common-mode disturbance recovery. The step is response over 38–39 us minus baseline over 8–9 us; common-mode baseline is 58–59 us, peak 60–62 us and residual 98–99 us. Continuous quality is paired with independent source results under matching conditions. Nonnegative supply power and absolute error follow physical definitions, not upstream performance specifications.
+
+Q is 14924.75 um2 divided by functional area. The frozen anchor estimates (W+2.4)(L+2.4) per MOS unit and 3.2² um2 per reference local tap plus one global tap, adds four (44.67+2.4)² um2 MIM envelopes, then applies a 50% routing allowance. It is an engineering estimate, not a foundry minimum. Response metrics use source-paired dB gain, target phase (180 degree scale), target step (50 mV scale), with common-mode kick/recovery retained as unscored diagnostics because this core has no common-mode regulator; bias uses a 1.2 V target scale; power uses an inverse ratio with 1 pW floor. Coefficient 7 reflects multistage compensation and loaded differential response; common-mode drift and kick response remain observations, not proof of regulation. Qualification does not require matching paper performance and does not cover PVT, noise, mismatch or an RRL system.
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+| Metric | Definition / observation | Unit | Quality / dimension | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `functional_area` | Functional bounding-rectangle area | um2 | area quality Q | positive area | — |
+| `cm_bias_v` | `(v(outp)+v(outn))/2` | V | target / target / bias | −∞ … +∞ | 1.2 |
+| `dm_bias_v` | `v(outp)-v(outn)` | V | target / target / bias | −∞ … +∞ | 1.2 |
+| `power_w` | `-v(vdd)*i(VDD)-v(vb1)*i(VB1)-v(vb2)*i(VB2)-v(vb3)*i(VB3)-v(vb4)*i(VB4)` | W | minimize / ratio / supply | 0 … +∞ | 1e-12 |
+| `gain_db` | `find gain at=10` | dB | maximize / db20 / response | −∞ … +∞ | — |
+| `gain_100khz_db` | `find gain at=100k` | dB | maximize / db20 / response | −∞ … +∞ | — |
+| `phase_100khz_deg` | `find phase_deg at=100k` | deg | target / target / response | −∞ … +∞ | 180 |
+| `step_response_v` | `dm_high_v-dm_before_v` | V | target / target / response | −∞ … +∞ | 0.05 |
+| `cm_before_v` | `avg cm from=58u to=59u` | V | diagnostic | −∞ … +∞ | — |
+| `cm_kick_v` | `max cm_delta from=60u to=62u` | V | functional check | 0 … +∞ | — |
+| `cm_recovery_v` | `max cm_delta from=98u to=99u` | V | functional check | 0 … +∞ | — |
+| `cm_min_v` | `min cm from=0 to=100u` | V | diagnostic | −∞ … +∞ | — |
+| `cm_max_v` | `max cm from=0 to=100u` | V | diagnostic | −∞ … +∞ | — |
+
+Each row applies to every declared load/frequency condition; pair the candidate with the `source_` job under matching conditions. Intermediate vectors for expressions are in the supplied deck.
+
+### Score weights
+
+Differential OTA cores: differential response 66%; bias 6%; power 18%; area 10%. Each objective's weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `gain_100khz_db` | 0.165000000000 |
+| `gain_db` | 0.165000000000 |
+| `phase_100khz_deg` | 0.165000000000 |
+| `step_response_v` | 0.165000000000 |
+| `cm_bias_v` | 0.030000000000 |
+| `dm_bias_v` | 0.030000000000 |
+| `power_w` | 0.180000000000 |
+
+## Tools and Submission
+
+Solve budget: **6 hours**.
+
+Use the reviewed IHP resources. Submit only the GDS with top cell amp_026_fan_chopper_ota. Evaluation runs native DRC/LVS, area, candidate-derived Magic RC extraction and ngspice post-layout observations. The source circuit is independently simulated for scoring.
+
+Discover the frozen task, resources and submission interface through `/protocol/task.json`, `/protocol/resources.json` and `/protocol/harness.json`. Declared inputs are in `/task`. Write `/workspace/output/final.gds`, then run `python -I /protocol/submit.py` to submit explicitly; file generation alone is not submission. Feedback follows the capabilities provided by the current runtime protocol.
+
+The authoritative MOS input preserves the original logical groups, W/L/m and all four terminal nets. Verified unit arrays, multiple fingers, shared diffusion and shared wells on the same body net are allowed. Native LVS checks connectivity and equivalent device parameters; native DRC checks actual well/substrate contacts. Contact count, dimensions, area/perimeter and the reference well partition are not circuit constraints. PEX uses actual diffusion geometry and interconnect RC, with logical body nets as its boundary; distributed substrate/well resistance is outside this extraction model.

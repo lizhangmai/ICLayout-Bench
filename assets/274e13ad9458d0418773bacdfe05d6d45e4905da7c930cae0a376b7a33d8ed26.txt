@@ -1,0 +1,5 @@
+OpenFASOC GLayout designs
+Source: https://github.com/idea-fasoc/OpenFASOC
+Commit: 426c17025c7c01d6e7d4d259fb7f9e7d741cc5c4
+Original project and file-specific copyright notices apply.
+Local adaptations and verification are described in each case README.

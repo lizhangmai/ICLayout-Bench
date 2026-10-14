@@ -1,0 +1,4 @@
+Efabless SKY130 operational amplifier, Apache-2.0.
+Upstream https://github.com/efabless/sky130_ef_ip__opamp
+Commit f0eb5cd47112d90fd6d7792ba68e763beacac8e7
+Local source and geometry adaptations are recorded in cases/opamp/design/provenance.json.

@@ -1,0 +1,6 @@
+* Fixed SKY130 GLayout current mirror: dimensions in micrometres.
+.subckt CMIRROR VREF VCOPY VSS VB
+XA VREF VREF VSS VB sky130_fd_pr__nfet_01v8 l=2 w=3 m=3
+XB VCOPY VREF VSS VB sky130_fd_pr__nfet_01v8 l=2 w=3 m=3
+XDUMMY VB VB VB VB sky130_fd_pr__nfet_01v8 l=2 w=3 m=2
+.ends CMIRROR

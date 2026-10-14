@@ -1,0 +1,19 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt cmfb_002_5t_pmos_input vinp vinn vcmfb vref vdd vss
+XM1 ptail bias vdd vdd sg13_lv_pmos w=0.33u l=0.27u m=1
+XM2 vcmfb mirr vss vss sg13_lv_nmos w=2.32u l=1.31u m=1
+XM3 bias bias vdd vdd sg13_lv_pmos w=0.88u l=0.26u m=1
+XM4 mirr cm_sense ptail vdd sg13_lv_pmos w=1.42u l=0.27u m=1
+XM5 vcmfb vref ptail vdd sg13_lv_pmos w=1.42u l=0.27u m=1
+XM6 mirr mirr vss vss sg13_lv_nmos w=2.32u l=1.31u m=1
+XM7 bias bias vss vss sg13_lv_nmos w=0.29u l=0.22u m=1
+XRMN_0 vinn RMN_s1 vss rhigh w=.5u l=84.45u m=1 b=0
+XRMN_1 RMN_s1 RMN_s2 vss rhigh w=.5u l=84.45u m=1 b=0
+XRMN_2 RMN_s2 RMN_s3 vss rhigh w=.5u l=84.45u m=1 b=0
+XRMN_3 RMN_s3 cm_sense vss rhigh w=.5u l=84.45u m=1 b=0
+XRMP_0 cm_sense RMP_s1 vss rhigh w=.5u l=84.45u m=1 b=0
+XRMP_1 RMP_s1 RMP_s2 vss rhigh w=.5u l=84.45u m=1 b=0
+XRMP_2 RMP_s2 RMP_s3 vss rhigh w=.5u l=84.45u m=1 b=0
+XRMP_3 RMP_s3 vinp vss rhigh w=.5u l=84.45u m=1 b=0
+.ends cmfb_002_5t_pmos_input

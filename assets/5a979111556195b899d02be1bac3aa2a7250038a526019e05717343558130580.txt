@@ -1,0 +1,121 @@
+# Current-Buffer and Active-Feedforward OTA Layout Task
+
+## Objective
+
+Lay out `amp_002_alfio_raffc` with its physical compensation and fixed transistor network,
+for the declared loop response and sustained unity-feedback step recovery.
+
+The folded PMOS-input stage drives `net050`; a PMOS common-source stage
+drives `net013`, then a PMOS stage and NMOS mirror at `net043` drive the
+output NMOS. An active feedforward path drives the output PMOS directly
+from `net050`. One capacitor connects output to `net063`, the source side
+of the first-stage NMOS cascode; the second connects `net050` to `net013`.
+The current-buffer compensation terminal and the additional active path
+are real connection differences from the dual-capacitor and shared-resistor
+representatives. This case is not counted from a changed circuit name or size.
+
+The maintained circuit retains all 24 source MOS groups as 89 physical
+fingers, 4 MIM units and 0 high-poly segments. MOS W/L are rounded to the nearest 0.01 um process grid. The original W=18/20/30 um devices use 2×9/2×10/3×10 um parallel fingers; the resulting short-width model behavior is calibrated independently.
+The source's 14.3293 uA sink is external through `net1`. Physical
+substrate and separate N-well contacts retain the input PMOS bodies at their
+common source `net31`, electrically separate from the VDD well. No internal
+ideal bias source or output servo is introduced. Capacitor values are rounded
+to physical geometry; every branch remains internal to the DUT.
+
+## Inputs and Interface
+
+- `materials/circuit.cdl`: authoritative native LVS circuit.
+- `materials/circuit.spice`: simulation circuit bound to the process models.
+- `materials/testbench.spice`: bias, AC injection and transient tests.
+
+Ordered ports: `vss vdd vinn vinp vout net1`. VSS is return, VDD is supply,
+VINN/VINP are inverting/noninverting inputs, VOUT is output, and `net1`
+connects the external 14.3293 uA sink to VSS. Input PMOS bodies retain
+the separate source-tied well; other PMOS bodies use the VDD well and NMOS
+bodies use the VSS substrate contact. Preserve device W/L/m, body connectivity,
+all internal branches and total multiplicities in the authoritative netlist.
+Native equivalent parallel fingers are allowed only when LVS and electrical
+requirements pass. Do not short distinct ports or create extra driven monitors.
+
+Internal passive devices are listed below; external loads are declared separately:
+
+- `c0`: `net063` → `vout`, 3 parallel `cap_cmim` unit(s), each 43.46 × 43.46 um; nominal total 8.520333 pF.
+- `c1`: `net050` → `net013`, 1 parallel `cap_cmim` unit(s), each 36.515 × 36.515 um; nominal total 2.0058602 pF.
+
+## Operating Conditions
+
+Use typical MOS/MIM/poly models at 27 C, VDD=1.2 V and the declared external bias. All three output loads, 5/10/20 pF, must pass. At DC, VINP=0.5 V and VOUT feeds back to VINN through a zero-volt measurement source. For AC, inject 1 V in series with the feedback connection and set VINP AC=0; the return ratio at the high-impedance MOS input boundary is `T=-V(vout)/V(vm)`. Sweep 150 points per decade from 0.01 Hz to 100 MHz with continuous phase, without arbitrary correction of the low-frequency phase offset. The first falling 0 dB crossing defines unity-gain frequency, and `180+phase(T)` at that crossing defines phase margin. A missing crossing is an evaluation error.
+
+VINP rises from 0.5 V to 0.7 V during 2–2.02 us and falls during 10.02–10.04 us, repeating every 16 us. Simulate 0–18 us with second-order Gear, a maximum step of 2 ns, `rshunt=1e12`, `reltol=1e-5`, `abstol=1e-14` and `vntol=1e-8`. Numerical shunt branches are not physical bias or startup devices. PVT, mismatch, noise, distortion, rail-to-rail operation, power-up and stability under arbitrary loads are outside scope.
+
+## Physical Requirements
+
+Submit GDSII top cell `amp_002_alfio_raffc`, at most 10 MiB. Pass native IHP main/maximal
+DRC without waivers (standalone scope; density/antenna disabled), strict
+named-interface LVS with explicit taps and a 1500 × 130 um
+functional envelope. All functional device, contact and routing drawing layers
+listed in the runtime `outline` constraint contribute to bounding-box area;
+annotation and pin-purpose layers do not.
+
+Post-layout simulation uses the candidate's Magic RC netlist, including physical MIM/poly devices and interconnect parasitics, with explicit handling of half-grid GDS import. Magic idealizes substrate/well contacts; source simulation retains finite contact models. Distributed substrate resistance, substrate noise and manufacturing signoff are outside scope.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+The measurements below use the supplied SPICE node and source names. `v(n)` is a node voltage; `i(V)` is current flowing into a voltage source, so delivered power uses a negative sign. `db(z)=20*log10(abs(z))`; `mag/abs` denote magnitude, and `cph` denotes continuous phase in radians. `find`, `when`, `from/to` and `rise/fall` follow the deck's interpolation, window and crossing conventions. SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/milli/mega/giga. Nested `avg`, `min`, `max`, `vecmin/vecmax` and `deriv` represent window averages, extrema and sampled derivatives. Measure each operating condition independently, pair it with the source result under that condition, and take the worst paired quality within each metric group.
+
+`recovery_up_v` and `recovery_down_v` use `saturating_ratio`. Candidate error x, paired source error b and the positive scale s below define q = 2(b+s)/(b+x+2s). Source-equivalent error gives q=1; decreasing error approaches the upper quality limit 2 with diminishing returns. The scale retains its declared unit and numerical-floor meaning. Normalize each operating condition before taking the worst paired quality; other metrics retain their own declared normalization and functional requirements.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale | Dimension |
+| --- | --- | --- | --- | --- | --- | --- |
+| `output_v` | DC operating point: `v(vout)`. | V | target / target | 0 … 1.2 | 1.2 | bias |
+| `bias_v` | DC operating point: `v(net1)`. | V | target / target | 0 … 1.2 | 1.2 | bias |
+| `power_w` | DC operating point: `-v(vdd)*i(VDD)`. | W | minimize / ratio | 0 … +∞ | 1e-12 | supply |
+| `dc_gain_db` | AC: Value of `(db((-v(vout)/v(vm)))) at=0.01`. | dB | maximize / db20 | −∞ … +∞ | — | response |
+| `unity_hz` | AC: Crossing coordinate where `(db((-v(vout)/v(vm))))=0 fall=1`. | Hz | maximize / ratio | 0 … +∞ | — | response |
+| `phase_margin_deg` | AC: `180+(find (180*cph((-v(vout)/v(vm)))/pi) when (db((-v(vout)/v(vm))))=0 fall=1)`. | deg | target / target | 0 … 180 | 180 | response |
+| `recovery_up_v` | TRAN: Maximum of `(abs(v(vout)-v(vp))) from=5u to=9.5u`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 | response |
+| `recovery_down_v` | TRAN: Maximum of `(abs(v(vout)-v(vp))) from=13u to=17.5u`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 | response |
+| `step_gain` | Transient: `((avg v(vout) from=9u to=9.5u)-(avg v(vout) from=17u to=17.5u))/0.2`. | V/V | target / target | −∞ … +∞ | 1.0 | response |
+| `mean_power_w` | TRAN: Mean of `(-v(vdd)*i(VDD)) from=2u to=18u`. | W | minimize / ratio | 0 … +∞ | 1e-12 | supply |
+| `peak_v` | TRAN: Maximum of `v(vout) from=2u to=10u`. | V | target / target | 0 … 1.2 | 1.2 | response |
+| `trough_v` | TRAN: Minimum of `v(vout) from=10.04u to=18u`. | V | target / target | 0 … 1.2 | 1.2 | response |
+
+Area reference: **20690.01 um2**. The expanded circuit has 96 device instances, a sum of device/contact envelopes 13605.7469 um2, a one-sided envelope margin of 0.6 um, a routing allowance of 50%, and a total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across both sides, and the envelope sum is displayed to four decimal places. MOS/passive envelopes use W/L (or resistor dimensions) and multiplicity, including explicit contacts and HBT emitter/contact envelopes. This is a frozen engineering estimate, not a process minimum or a proven achievable area.
+
+The capability coefficient is **7**, independent of this task's reference-normalized score.
+
+### Score weights
+
+Compensated feedback amplifiers: loaded recovery 28.6%, loop margin 20.5%, gain and bandwidth 16.4%, step transfer and extrema 8.18%, bias 4.09%, power 12.3%, area 10%. Each objective's weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `recovery_down_v` | 0.143181818182 |
+| `recovery_up_v` | 0.143181818182 |
+| `phase_margin_deg` | 0.204545454543 |
+| `dc_gain_db` | 0.081818181818 |
+| `unity_hz` | 0.081818181818 |
+| `peak_v` | 0.027272727273 |
+| `step_gain` | 0.027272727273 |
+| `trough_v` | 0.027272727273 |
+| `bias_v` | 0.020454545455 |
+| `output_v` | 0.020454545455 |
+| `mean_power_w` | 0.061363636364 |
+| `power_w` | 0.061363636364 |
+
+## Tools and Submission
+
+Solve budget: **3 hours**.
+
+Discover inputs, resources and feedback through `/protocol/task.json`, `/protocol/resources.json` and `/protocol/harness.json`. Use the provided IHP primitives and KLayout, Magic and ngspice. Write `/workspace/output/final.gds`, then submit explicitly through the runtime protocol. Host configuration, source records and reference layouts are not standard solver inputs.

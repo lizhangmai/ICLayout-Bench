@@ -1,0 +1,43 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt amp_016_song_dacfc vss vdd vinn vinp vout net013
+XM0 net013 net013 vdd vdd sg13_lv_pmos w=1u l=1u m=16
+XM1 vb4 net013 vdd vdd sg13_lv_pmos w=1u l=1u m=16
+XM10 net043 net4 vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM11 vout net4 vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM12 vb4 vb3 net54 vss sg13_lv_nmos w=1u l=1u m=16
+XM13 dm_1 vb3 net56 vss sg13_lv_nmos w=1u l=1u m=16
+XM14 vb3 vb3 vss vss sg13_lv_nmos w=1u l=1u m=4
+XM15 voutn vb3 dm_2 vss sg13_lv_nmos w=1u l=1u m=16
+XM16 net4 vb3 net063 vss sg13_lv_nmos w=1u l=1u m=16
+XM17 net54 vb4 vss vss sg13_lv_nmos w=1u l=1u m=16
+XM18 net56 vb4 vss vss sg13_lv_nmos w=1u l=1u m=16
+XM19 dm_2 vb4 vss vss sg13_lv_nmos w=1u l=1u m=32
+XM2 dm_1 dm_1 vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM20 net063 vb4 vss vss sg13_lv_nmos w=1u l=1u m=32
+XM21 net043 net043 vss vss sg13_lv_nmos w=1u l=1u m=4
+XM22 net049 net043 vss vss sg13_lv_nmos w=1u l=1u m=4
+XM23 vout net049 vss vss sg13_lv_nmos w=1u l=1u m=4
+XM3 vb3 net013 vdd vdd sg13_lv_pmos w=1u l=1u m=16
+XM4 net31 net013 vdd vdd sg13_lv_pmos w=1u l=1u m=8
+XM5 net5 voutn vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM57 net043 vinn net1 net1 sg13_lv_pmos w=1u l=1u m=4
+XM58 net049 vinp net1 net1 sg13_lv_pmos w=1u l=1u m=4
+XM59 net1 net013 vdd vdd sg13_lv_pmos w=1u l=1u m=8
+XM6 net050 voutn vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM60 voutn dm_1 net5 vdd sg13_lv_pmos w=1u l=1u m=16
+XM61 net4 dm_1 net050 vdd sg13_lv_pmos w=1u l=1u m=16
+XM62 voutn dm_1 net3 vdd sg13_lv_pmos w=1u l=1u m=16
+XM63 net70 dm_1 net2 vdd sg13_lv_pmos w=1u l=1u m=16
+XM64 net85 vb4 vss vss sg13_lv_nmos w=1u l=1u m=32
+XM65 net69 vb4 vss vss sg13_lv_nmos w=1u l=1u m=32
+XM68 net2 net70 vdd vdd sg13_lv_pmos w=1u l=1u m=16
+XM69 net3 net70 vdd vdd sg13_lv_pmos w=1u l=1u m=16
+XM7 net049 voutn vdd vdd sg13_lv_pmos w=1u l=1u m=4
+XM70 net70 vb3 net69 vss sg13_lv_nmos w=1u l=1u m=16
+XM71 voutn vb3 net85 vss sg13_lv_nmos w=1u l=1u m=16
+XM8 dm_2 vinn net31 net31 sg13_lv_pmos w=1u l=1u m=4
+XM9 net063 vinp net31 net31 sg13_lv_pmos w=1u l=1u m=4
+XC0_0 vout net70 cap_cmim w=31.57u l=31.57u m=1
+XC2_0 net4 vss cap_cmim w=21.55u l=21.55u m=1
+.ends amp_016_song_dacfc

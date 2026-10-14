@@ -1,0 +1,37 @@
+* Nominal TT, 27 C code transition from 011 to 100.
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerRES.lib res_typ
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.include dut.spice
+.include parameters.spice
+.temp 27
+.option rshunt=1e12 method=gear maxord=2
+VDD vdd 0 1.5
+VI vinp 0 0.65
+VC vcm 0 0.75
+VD0 d0 0 PWL(0 1.5 10n 1.5 12n 0 30n 0)
+VDN0 dn0 0 PWL(0 0 10n 0 12n 1.5 30n 1.5)
+VD1 d1 0 PWL(0 1.5 10n 1.5 12n 0 30n 0)
+VDN1 dn1 0 PWL(0 0 10n 0 12n 1.5 30n 1.5)
+VD2 d2 0 PWL(0 0 10n 0 12n 1.5 30n 1.5)
+VDN2 dn2 0 PWL(0 1.5 10n 1.5 12n 0 30n 0)
+RL out 0 1e12
+XD vinp out vcm vdd 0 d0 dn0 d1 dn1 d2 dn2 sw_003_binary_capbank
+.save v(out)
+.control
+set noaskquit
+set numdgt=12
+tran 10p 30n 0 10p
+meas tran initial_v find v(out) at=9n
+meas tran final_v find v(out) at=30n
+let midpoint_v=(initial_v+final_v)/2
+meas tran midpoint_time_s when v(out)=midpoint_v cross=1
+let code_midpoint_time_ns=(midpoint_time_s-10n)/1n
+let transition_error=abs(v(out)-final_v)
+meas tran transition_settling_error_v max transition_error from=12.1n to=30n
+print initial_v final_v midpoint_time_s code_midpoint_time_ns
+write transition.raw all
+quit
+.endc
+.GLOBAL GND
+.end

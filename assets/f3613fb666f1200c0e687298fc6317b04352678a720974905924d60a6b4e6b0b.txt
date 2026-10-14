@@ -1,0 +1,68 @@
+# SKY130 Buffered Sample-and-Hold Layout Task
+
+## Objective
+
+Implement the supplied transistor-level buffered sample-and-hold in SKY130A, preserving topology, device parameters, body connections and ordered ports; perform acquisition in both directions, hold during input reversal, and reacquisition.
+
+## Inputs and Interface
+
+Inputs are this description, `materials/circuit.spice` (authoritative circuit) and `materials/testbench.spice` (excitation and measurements). Both the top-level GDS cell and LVS subcircuit are `sky130_ef_ip__samplehold`, with ordered ports:
+
+```text
+dvdd dvss hold vdd out in ena vss
+```
+
+Reference layout and maintainer schematic are not solver inputs. The supplied testbench defines measurement details.
+
+## Operating Conditions
+
+Use pinned TT models at 27 C, analog supply 3.3 V, digital supply and control 1.8 V, and external output load 1 pF. Test 0.8→2.4 V and 2.4→0.8 V acquisition separately.
+
+| Event or observation | Time |
+| --- | --- |
+| Enable rise | 2 us |
+| Input step | 10 us |
+| Tracking-error sample | 19 us |
+| HOLD high | 20–40 us |
+| Input reversal during hold | 25 us |
+| Held-value-error sample | 39 us |
+| Hold-drift observation | 21–39 us |
+| Reacquisition-error sample | 59 us |
+
+Coverage is limited to the operating range above; no PVT, mismatch, reliability or product signoff is claimed.
+
+## Physical Requirements
+
+Submit nonempty, readable GDS of at most 10485760 bytes, preserving the declared top cell and port labels. Functional geometry must fit within 160 × 160 um; see the runtime task contract for the complete layer set.
+
+Independent evaluation sequentially runs file checks, full Magic DRC, Netgen LVS, functional geometry measurement, distributed RC extraction and declared electrical tests. Physical and functional requirements must pass; source simulation cannot replace evaluation after candidate extraction.
+
+## Electrical Requirements and Scoring
+
+Every condition must produce finite, usable measurements. Absolute errors and voltage changes must be nonnegative, and circuit supply energy must represent consumption rather than generation. Missing or unusable measurements are evaluation errors.
+
+| Metric | Measurement domain | Observation aggregation | Weight |
+| --- | --- | --- | --- |
+| `functional_area` (um2) | Functional area measured on declared layers | max | 50% |
+| `track_error` (V) | Nonnegative absolute tracking error | max | 15% |
+| `hold_error` (V) | Nonnegative absolute hold error | max | 25% |
+| `droop` (V) | Nonnegative absolute voltage change | max | 0% |
+| `reacquire_error` (V) | Nonnegative absolute reacquisition error | max | 5% |
+| `supply_power` (W) | Nonnegative supply consumption | max | 5% |
+
+The 3000 um2 footprint is a compact buffered-sampler goal. Area receives 50%; held-value error after input reversal receives 25%, tracking 15%, and reacquisition and power 5% each. Tracking and reacquisition approach the same equilibrium, so their repeated observation no longer doubles the main accuracy reward. Error targets refer to the declared sampling times and do not claim faster acquisition or additional corners.
+
+| Metric | Quality anchor | Unit | Normalization | Scale |
+| --- | --- | --- | --- | --- |
+| `track_error` | 0.02 | V | saturating_ratio | 0.001 |
+| `hold_error` | 0.015 | V | saturating_ratio | 0.001 |
+| `reacquire_error` | 0.02 | V | saturating_ratio | 0.001 |
+| `supply_power` | paired source | W | saturating_ratio | 0.0001 |
+
+Independent source/candidate measurements remain paired under identical conditions. For a cost measurement x, saturating quality is `2*(b+s)/(b+x+2*s)`; target quality is `1/(1+abs(x-b)/s)`. Here b is the quality anchor above, and s is the declared scale. Take the worst quality across each metric’s conditions. Targets and scales do not add acceptance cutoffs; zero-weight observations remain checked.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+## Tools and Submission
+
+Solve budget: **1.5 hours**. Use the installed toolchain and SKY130 resources explicitly supplied by the task. Write top cell `sky130_ef_ip__samplehold` into `output/final.gds` and explicitly submit through the session submission interface.

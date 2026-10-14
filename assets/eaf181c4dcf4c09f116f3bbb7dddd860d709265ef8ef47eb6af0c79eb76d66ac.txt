@@ -1,0 +1,65 @@
+# CMOS Inverter Threshold Core Layout Task
+
+## Objective
+
+The fixed binding is a CMOS inverter: one 1/0.13 um NMOS and one 2.5/0.13 um PMOS, each m=1. Bodies connect to their respective rails through native physical contacts. It provides a threshold decision core; there is no sampling, independent reference, encoding or complete ADC. Target top cell: `adc_001_inv1b`.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the authoritative logical circuit netlist; `materials/circuit.spice` is the same compact-device circuit for simulation. `materials/testbench.spice` supplies the external fixture. Both source and extracted candidate use the exact same deck, bias, loads, excitation, initial-state procedure and measurement windows. Ordered ports: vdd (1.2 V rail), vin (gate input), vout (drain output), vss (return).
+
+## Operating Conditions
+
+IHP LV MOS TT, 27 C, VDD=1.2 V. Input driver impedance is 50 ohm; output capacitance is 20 fF. DC input sweeps 0–1.2 V in 1 mV steps. The transient driver starts at 0 V, rises at 10 ns, falls at 20.1 ns, has 100 ps edges and a 20 ns period. The initial DC output is high. The 31 ns run uses a maximum 1 ps step. Power is the net energy from supply and input driver divided by the 10–30 ns window.
+
+## Physical Requirements
+
+Use IHP native KLayout main and maximum rule decks and named-interface LVS; Magic full RC extraction. No case-specific waivers. Candidate extraction must preserve every model, multiplicity, size, resistor value, connection and ordered port. The functional outline includes devices, wells, contacts and all routing layers declared in the public task; annotation and pin labels do not add area. Maximum outline: 5000 by 1000 um. Maximum GDS size: 10485760 bytes. Every device and resistor must be physical; no ideal internal macro or auxiliary servo may be added. External sources, probe loads and storage capacitors belong to the testbench.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+| Metric | Unit | Definition | Bound | Quality |
+| --- | --- | --- | --- | --- |
+| `threshold_v` | V | Unique DC output=0.6 V crossing | unbounded to unbounded | response: target, target, scale=0.6 |
+| `delay_s` | s | Worst 50% input to opposite 50% output delay | 0 to unbounded | response: ratio, minimize, scale=1e-12 |
+| `transition_s` | s | Worst output 10–90% or 90–10% transition | 0 to unbounded | response: ratio, minimize, scale=1e-12 |
+| `power_w` | W | Mean net supply and input-driver power from 10–30 ns | 0 to unbounded | supply: ratio, minimize, scale=1e-12 |
+| `swing_v` | V | DC high minus low output; meaningful logic transition | 0.6 to unbounded | diagnostic / functional only |
+
+The DC threshold is the unique output=0.6 V crossing, not a scan endpoint. Delay is the worse input 50% to opposite output 50% delay. Transition is the worse output 10–90% rise or 90–10% fall. Guards reject missing or multiple DC/transition crossings; independent audits require the intended 10–15 ns and 20–25 ns windows and correct ordering. DC high/low output uses actual endpoint samples, with a minimum 0.6 V swing establishing a meaningful logic transition. This is nominal loaded characterization, not Liberty/PVT or ADC accuracy.
+
+Static output bounds check the corresponding supply domain; nonnegative power/error conditions define the measurement domain; KCL checks reject inconsistent DC solutions. Every condition must be valid; upstream advertised performance is not a hard threshold. The metric table declares target scales and normalization floors; floors handle zero-error ratios, and neither scales nor floors are acceptance tolerances.
+
+Each metric uses the worst source-paired quality over matching conditions. Target quality is `1/(1+abs(candidate-source)/scale)`, and minimizing ratio quality is `(source+scale)/(candidate+scale)`. Missing, nonfinite or invalid source/candidate measurements and tool failures make the score unknown; confirmed physical/functional rejection scores zero. Gates apply separately to every observation.
+
+Compact area anchor: 120 um2 = 20 um2 NMOS contact envelope + 30 um2 PMOS/well envelope + 20 um2 body-contact/isolation allowance + 50 um2 routing. These envelopes follow the fixed widths and contact/isolation needs, not the witness bounding box. Coefficient 1: a single logic stage with loaded transitions and connectivity. The circuit and these anchors are fixed before participant evaluation.
+
+### Score weights
+
+Inverter threshold element: switching threshold 25.5%; delay 34%; transition 12.8%; power 12.8%; area 15%. Each objective's weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.15 |
+| `threshold_v` | 0.255000000000 |
+| `delay_s` | 0.340000000000 |
+| `transition_s` | 0.127500000000 |
+| `power_w` | 0.127500000000 |
+
+## Tools and Submission
+
+Solve budget: **6 hours**.
+
+Discover tools and feedback through the runtime task, protocol and reviewed resource bundle. Explicitly submit `/workspace/output/final.gds` through the protocol; writing a file alone does not submit it. Reference assets and maintainer source records are not solver inputs.
+
+The authoritative MOS input preserves the original logical groups, W/L/m and all four terminal nets. Verified unit arrays, multiple fingers, shared diffusion and shared wells on the same body net are allowed. Native LVS checks connectivity and equivalent device parameters; native DRC checks actual well/substrate contacts. Contact count, dimensions, area/perimeter and the reference well partition are not circuit constraints. PEX uses actual diffusion geometry and interconnect RC, with logical body nets as its boundary; distributed substrate/well resistance is outside this extraction model.

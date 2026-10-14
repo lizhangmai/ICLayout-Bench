@@ -1,0 +1,26 @@
+* Dual-supply POR startup, external load 1 pF per output.
+.include "/workspace/support/models.spice"
+.include "parameters.spice"
+.include "dut.spice"
+.temp 27
+.option klu rshunt=1e12 method=gear
+Va avdd 0 PWL(0 0 100u 0 {ramp_time} 3.3)
+Vd dvdd 0 PWL(0 0 300u 0 {ramp_time+300u} 1.8)
+Xdut avdd dvdd porbh porbl porl 0 sky130_ef_ip__simple_por
+Ch porbh 0 1p
+Cl porbl 0 1p
+Ci porl 0 1p
+.control
+save i(va) i(vd) v(avdd) v(dvdd) v(porbh) v(porbl) v(porl)
+tran 1u 30m
+meas tran release_time WHEN v(porbh)=1.65 RISE=1
+meas tran low_domain_release WHEN v(porbl)=0.9 RISE=1
+meas tran high_final FIND v(porbh) AT=29m
+meas tran low_final FIND v(porbl) AT=29m
+meas tran reset_final FIND v(porl) AT=29m
+let supply_power=-v(avdd)*i(Va)-v(dvdd)*i(Vd)
+meas tran startup_power AVG supply_power FROM=0 TO=30m
+write transient.raw v(avdd) v(dvdd) v(porbh) v(porbl) v(porl)
+quit
+.endc
+.end

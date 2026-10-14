@@ -1,0 +1,698 @@
+kind = "layout_case"
+id = "sky130A.sky130_ef_ip__simple_por.simple_por"
+title = "SKY130 Dual-Supply Power-On Reset"
+status = "qualified"
+in_core = true
+core_order = 13
+
+[origin]
+url = "https://github.com/efabless/sky130_ef_ip__simple_por/tree/d8a9581533238bdb99cb0389fd4387587969dc12"
+
+[[assets]]
+path = "reference/simple_por.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "35433f6de882b75252512575d1f917b52a1f462ebf1091c3aa3a4a46ad8af037"
+
+[task]
+kind = "netlist_to_gds"
+hours = 1.5
+family = "sky130_power_on_reset"
+coefficient = 2
+environment = "sky130A-tt-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "cde0a6b7f34866d7e954a5bfd65cc07fa83debbbb915e4e4b09cd2d1f344f3b4"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+subcircuit = "sky130_ef_ip__simple_por"
+sha256 = "f90ab6095d6c49a8009519251c598c9ed91da9a69c08b0b55f6ed0bf14780bda"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "35e3bfce2d4c4690b3531d13f4b91a206d8ebd51ac58dc68981ab75e566e338b"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "sky130_ef_ip__simple_por"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        64,
+        20,
+    ],
+    [
+        65,
+        20,
+    ],
+    [
+        65,
+        44,
+    ],
+    [
+        66,
+        20,
+    ],
+    [
+        66,
+        44,
+    ],
+    [
+        67,
+        20,
+    ],
+    [
+        67,
+        44,
+    ],
+    [
+        68,
+        20,
+    ],
+    [
+        68,
+        44,
+    ],
+    [
+        69,
+        20,
+    ],
+    [
+        69,
+        44,
+    ],
+    [
+        70,
+        20,
+    ],
+    [
+        70,
+        44,
+    ],
+    [
+        71,
+        20,
+    ],
+    [
+        71,
+        44,
+    ],
+    [
+        72,
+        20,
+    ],
+    [
+        93,
+        44,
+    ],
+    [
+        94,
+        20,
+    ],
+]
+max_width_um = 200
+max_height_um = 200
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd3v3",
+    "vdd1v8",
+    "porb_h",
+    "porb_l",
+    "por_l",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "fast"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+release_time = "s"
+low_domain_release = "s"
+high_final = "V"
+low_final = "V"
+reset_final = "V"
+startup_power = "W"
+
+[task.evaluation.jobs.parameters.values]
+ramp_time = 0.001
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+release_time = "s"
+low_domain_release = "s"
+high_final = "V"
+low_final = "V"
+reset_final = "V"
+startup_power = "W"
+
+[task.evaluation.jobs.parameters.values]
+ramp_time = 0.005
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "slow"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+release_time = "s"
+low_domain_release = "s"
+high_final = "V"
+low_final = "V"
+reset_final = "V"
+startup_power = "W"
+
+[task.evaluation.jobs.parameters.values]
+ramp_time = 0.01
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "release_time"
+category = "performance"
+observations = [
+    "fast:release_time",
+    "nominal:release_time",
+    "slow:release_time",
+]
+unit = "s"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_fast:release_time",
+    "source_nominal:release_time",
+    "source_slow:release_time",
+]
+normalization = "target"
+scale = 0.0001
+dimension = "response"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 0.03
+rationale = "The required reset-release crossing must exist during the complete 0 to 30 ms startup observation; timing relative to the source fixture remains a quality objective."
+
+[[task.evaluation.metrics]]
+id = "low_domain_release"
+category = "performance"
+observations = [
+    "fast:low_domain_release",
+    "nominal:low_domain_release",
+    "slow:low_domain_release",
+]
+unit = "s"
+direction = "target"
+aggregation = "max"
+baseline = [
+    "source_fast:low_domain_release",
+    "source_nominal:low_domain_release",
+    "source_slow:low_domain_release",
+]
+normalization = "target"
+scale = 0.0001
+dimension = "response"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 0.03
+rationale = "The required reset-release crossing must exist during the complete 0 to 30 ms startup observation; timing relative to the source fixture remains a quality objective."
+
+[[task.evaluation.metrics]]
+id = "startup_power"
+category = "performance"
+observations = [
+    "fast:startup_power",
+    "nominal:startup_power",
+    "slow:startup_power",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_fast:startup_power",
+    "source_nominal:startup_power",
+    "source_slow:startup_power",
+]
+normalization = "saturating_ratio"
+scale = 1e-06
+dimension = "supply"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared powered circuit must consume nonnegative net energy from its supplies and driven references over the stated observation; power magnitude remains a quality objective."
+
+[[task.evaluation.metrics]]
+id = "high_final"
+category = "performance"
+observations = [
+    "fast:high_final",
+    "nominal:high_final",
+    "slow:high_final",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+lower = 3.0
+upper = 3.4
+rationale = "The declared output or bias must stay in its specified operating or logic-level interval under the supplied rail, feedback or full-scale reference conditions; an out-of-range output violates that interface."
+
+[[task.evaluation.metrics]]
+id = "low_final"
+category = "performance"
+observations = [
+    "fast:low_final",
+    "nominal:low_final",
+    "slow:low_final",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+lower = 1.6
+upper = 1.9
+rationale = "The declared output or bias must stay in its specified operating or logic-level interval under the supplied rail, feedback or full-scale reference conditions; an out-of-range output violates that interface."
+
+[[task.evaluation.metrics]]
+id = "reset_final"
+category = "performance"
+observations = [
+    "fast:reset_final",
+    "nominal:reset_final",
+    "slow:reset_final",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+lower = -0.1
+upper = 0.2
+rationale = "The declared output or bias must stay in its specified operating or logic-level interval under the supplied rail, feedback or full-scale reference conditions; an out-of-range output violates that interface."
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 1500.0
+rationale = "The 1500 um2 area goal rewards compact placement of the startup network. Release timing remains centered on each ramp-specific source crossing: earlier release is not automatically better. A 100 us deviation scale makes parasitic shifts visible without imposing a timing tolerance. Area receives 45%, the two domain-release metrics 20% each, and startup energy rate 15%; both output domains remain functionally checked."
+
+[task.evaluation.scoring.weights]
+release_time = 0.2
+low_domain_release = 0.2
+startup_power = 0.15
+functional_area = 0.45
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "ac765824cae4287ee2d91e0f4eb3b459933747b52ab3db3bdd2fb05a0d15616b"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"dfbdf2f93297bbe7d8b576fb988504bd0ecf85b93ef47c314a0f2c9c8830c3e7\", \"compatibility\": \"hsa\", \"cpu_budget\": 8, \"execution_sha256\": \"495aa9623759f70228a236eb4825c2ae443ef6a741816d8cfc17d1830841dcef\", \"image_id\": \"sha256:060fee64f9f6e71a647e5e958b788d723c9d51d2928ff93e6a295db1959bc37f\", \"limits\": {\"cpus\": 8, \"memory_mb\": 4096, \"pids\": 256}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"cba8c3811d06b88752a21414d16575ef72011a8b2f05214e29076a9ae90ffb9c\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 240.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_fast]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_fast.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_fast.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_fast.parameters.measurements]
+release_time = "s"
+low_domain_release = "s"
+high_final = "V"
+low_final = "V"
+reset_final = "V"
+startup_power = "W"
+
+[task.evaluation.pre_layout.jobs.source_fast.parameters.values]
+ramp_time = 0.001
+
+[task.evaluation.pre_layout.jobs.source_fast.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_fast.input_sha256]
+deck = "35e3bfce2d4c4690b3531d13f4b91a206d8ebd51ac58dc68981ab75e566e338b"
+dut = "f90ab6095d6c49a8009519251c598c9ed91da9a69c08b0b55f6ed0bf14780bda"
+
+[task.evaluation.pre_layout.jobs.source_fast.measurements.high_final]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_fast.measurements.low_domain_release]
+value = 0.01156506
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_fast.measurements.low_final]
+value = 1.8
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_fast.measurements.release_time]
+value = 0.01156505
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_fast.measurements.reset_final]
+value = 5.002317e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_fast.measurements.startup_power]
+value = 2.672761e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_fast.output_sha256]
+transient = "08cd1d93a72e9af6bd549e034f319c274eb64814cb48ecafcd99ec4d54cde383"
+
+[task.evaluation.pre_layout.jobs.source_nominal]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_nominal.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_nominal.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.measurements]
+release_time = "s"
+low_domain_release = "s"
+high_final = "V"
+low_final = "V"
+reset_final = "V"
+startup_power = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.values]
+ramp_time = 0.005
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.input_sha256]
+deck = "35e3bfce2d4c4690b3531d13f4b91a206d8ebd51ac58dc68981ab75e566e338b"
+dut = "f90ab6095d6c49a8009519251c598c9ed91da9a69c08b0b55f6ed0bf14780bda"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.high_final]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.low_domain_release]
+value = 0.0152751
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.low_final]
+value = 1.8
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.release_time]
+value = 0.0152751
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.reset_final]
+value = 5.002317e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.startup_power]
+value = 2.61099e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.output_sha256]
+transient = "fdbbafd18a2f9fd3ddccca5647fd394f28e82a6dbd9042afb2569a1aa272be1c"
+
+[task.evaluation.pre_layout.jobs.source_slow]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_slow.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_slow.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_slow.parameters.measurements]
+release_time = "s"
+low_domain_release = "s"
+high_final = "V"
+low_final = "V"
+reset_final = "V"
+startup_power = "W"
+
+[task.evaluation.pre_layout.jobs.source_slow.parameters.values]
+ramp_time = 0.01
+
+[task.evaluation.pre_layout.jobs.source_slow.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_slow.input_sha256]
+deck = "35e3bfce2d4c4690b3531d13f4b91a206d8ebd51ac58dc68981ab75e566e338b"
+dut = "f90ab6095d6c49a8009519251c598c9ed91da9a69c08b0b55f6ed0bf14780bda"
+
+[task.evaluation.pre_layout.jobs.source_slow.measurements.high_final]
+value = 3.3
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_slow.measurements.low_domain_release]
+value = 0.01991391
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_slow.measurements.low_final]
+value = 1.8
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_slow.measurements.release_time]
+value = 0.01991391
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_slow.measurements.reset_final]
+value = 5.002317e-09
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_slow.measurements.startup_power]
+value = 2.533789e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_slow.output_sha256]
+transient = "0954341c76c9e29e06c2c62025b5a0ca3744544275a05ff88a1deca21e7e21b6"
+
+[qualification]
+reference = "reference/simple_por.gds"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "artifact"
+
+[toolchain.backends.drc]
+type = "magic-physical-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "drc"
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "drc(full)"
+grid_subdivision = 2
+support = "external-cache/physical"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "magic-physical-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "lvs"
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "ngspice()"
+setup = "sky130A_setup.tcl"
+grid_subdivision = 2
+support = "external-cache/physical"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+gds_readonly = false
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "ngspice()"
+grid_subdivision = 2
+support = "external-cache/magic"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+compatibility = "hsa"
+support = "external-cache/models"
+
+[toolchain.backends.simulation.support_profiles]
+support = "models"
+
+[presentation]
+category = "Power & references"
+summary = "Generates reset outputs during staggered dual-supply startup and releases them after the supply ramps."

@@ -1,0 +1,30 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Pinned upstream MOS W/L/m and body nets; native MIM binding.
+.subckt amp_014_ramos_pfc vss vdd vinn vinp vout net1
+C0 net050 vout cap_cmim w=51.18u l=51.18u m=16
+C1 net050 net049 cap_cmim w=48.74u l=48.74u m=7
+MM0 net1 net1 vdd vdd sg13_lv_pmos w=1u l=1u m=71
+MM1 vb4 net1 vdd vdd sg13_lv_pmos w=1u l=1u m=71
+MM10 net043 net050 vdd vdd sg13_lv_pmos w=1u l=1u m=81
+MM11 vout net050 vdd vdd sg13_lv_pmos w=1u l=1u m=400
+MM12 vb4 vb3 net54 vss sg13_lv_nmos w=1u l=1u m=80
+MM13 dm_1 vb3 net56 vss sg13_lv_nmos w=1u l=1u m=80
+MM14 vb3 vb3 vss vss sg13_lv_nmos w=1u l=1u m=20
+MM15 voutn vb3 dm_2 vss sg13_lv_nmos w=1u l=1u m=80
+MM16 net050 vb3 net063 vss sg13_lv_nmos w=1u l=1u m=80
+MM17 net54 vb4 vss vss sg13_lv_nmos w=1u l=1u m=80
+MM18 net56 vb4 vss vss sg13_lv_nmos w=1u l=1u m=80
+MM19 dm_2 vb4 vss vss sg13_lv_nmos w=1u l=1u m=160
+MM2 dm_1 net1 vdd vdd sg13_lv_pmos w=1u l=1u m=71
+MM20 net063 vb4 vss vss sg13_lv_nmos w=1u l=1u m=160
+MM21 net043 net043 vss vss sg13_lv_nmos w=1u l=1u m=1
+MM22 net049 net043 vss vss sg13_lv_nmos w=1u l=1u m=1
+MM23 vout net049 vss vss sg13_lv_nmos w=1u l=1u m=203
+MM3 vb3 net1 vdd vdd sg13_lv_pmos w=1u l=1u m=71
+MM4 net31 net1 vdd vdd sg13_lv_pmos w=1u l=1u m=284
+MM5 voutn voutn vdd vdd sg13_lv_pmos w=1u l=1u m=71
+MM6 net050 voutn vdd vdd sg13_lv_pmos w=1u l=1u m=71
+MM7 net049 net1 vdd vdd sg13_lv_pmos w=1u l=1u m=71
+MM8 dm_2 vinn net31 net31 sg13_lv_pmos w=1u l=1u m=148
+MM9 net063 vinp net31 net31 sg13_lv_pmos w=1u l=1u m=148
+.ends amp_014_ramos_pfc

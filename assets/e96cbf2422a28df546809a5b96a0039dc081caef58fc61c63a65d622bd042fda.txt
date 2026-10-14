@@ -1,0 +1,46 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt amp_011_peng_iac vss vdd vinn vinp vout vb1
+MM0 net2 vb1 vdd vdd sg13_lv_pmos w=2.22u l=0.84u m=16
+MM1 net3 vb1 vdd vdd sg13_lv_pmos w=2.22u l=0.84u m=16
+MM10 net043 voutp vdd vdd sg13_lv_pmos w=4.88u l=2.36u m=24
+MM11 vout voutp vdd vdd sg13_lv_pmos w=4.46u l=0.98u m=9
+MM12 vb4 vb3 net54 vss sg13_lv_nmos w=0.47u l=2.1u m=8
+MM13 net7 vb3 net56 vss sg13_lv_nmos w=0.47u l=2.1u m=8
+MM14 vb3 vb3 vss vss sg13_lv_nmos w=0.47u l=2.1u m=2
+MM15 voutn vb3 dm_2 vss sg13_lv_nmos w=0.47u l=2.1u m=16
+MM16 voutp vb3 net063 vss sg13_lv_nmos w=0.47u l=2.1u m=16
+MM17 net54 vb4 vss vss sg13_lv_nmos w=0.47u l=2.1u m=8
+MM18 net56 vb4 vss vss sg13_lv_nmos w=0.47u l=2.1u m=8
+MM19 dm_2 vb4 vss vss sg13_lv_nmos w=0.47u l=2.1u m=16
+MM2 net6 vb1 vdd vdd sg13_lv_pmos w=2.22u l=0.84u m=16
+MM20 net063 vb4 vss vss sg13_lv_nmos w=0.47u l=2.1u m=16
+MM23 vout net10 vss vss sg13_lv_nmos w=9.59u l=0.51u m=3
+MM3 net8 vb1 vdd vdd sg13_lv_pmos w=2.22u l=0.84u m=16
+MM4 net31 vb1 vdd vdd sg13_lv_pmos w=2.22u l=0.84u m=32
+MM5 voutn voutn vdd vdd sg13_lv_pmos w=2.22u l=0.84u m=16
+MM57 vb1 vb2 net2 vdd sg13_lv_pmos w=2.22u l=0.84u m=16
+MM58 vb4 vb2 net3 vdd sg13_lv_pmos w=2.22u l=0.84u m=16
+MM6 voutp voutn vdd vdd sg13_lv_pmos w=2.22u l=0.84u m=16
+MM61 net7 vb2 net6 vdd sg13_lv_pmos w=2.22u l=0.84u m=16
+MM62 vb3 vb2 net8 vdd sg13_lv_pmos w=2.22u l=0.84u m=16
+MM63 vb2 vb3 net9 vss sg13_lv_nmos w=0.47u l=2.1u m=8
+MM64 net9 vb4 vss vss sg13_lv_nmos w=0.47u l=2.1u m=8
+MM65 vb2 vb2 vdd vdd sg13_lv_pmos w=2.22u l=0.84u m=4
+MM66 net10 vb2 net049 vdd sg13_lv_pmos w=0.97u l=0.81u m=16
+MM67 net043 vb3 net1 vss sg13_lv_nmos w=0.47u l=2.1u m=64
+MM68 net1 vb4 vss vss sg13_lv_nmos w=8.71u l=2.9u m=3
+MM69 net10 net043 vss vss sg13_lv_nmos w=1.68u l=8.05u m=3
+MM7 net049 vb1 vdd vdd sg13_lv_pmos w=2.22u l=0.84u m=64
+MM70 net1 net043 vss vss sg13_lv_nmos w=1.68u l=8.05u m=3
+MM8 dm_2 vinn net31 net31 sg13_lv_pmos w=9.9u l=1.89u m=3
+MM9 net063 vinp net31 net31 sg13_lv_pmos w=9.9u l=1.89u m=3
+C0_0 voutp vout cap_cmim w=36.06u l=36.06u m=1
+C1_0 net10 net4 cap_cmim w=37.96u l=37.96u m=2
+RR0_0 net4 R0_s1 vss rhigh w=.5u l=82.46u m=1 b=0
+RR0_1 R0_s1 R0_s2 vss rhigh w=.5u l=82.46u m=1 b=0
+RR0_2 R0_s2 R0_s3 vss rhigh w=.5u l=82.46u m=1 b=0
+RR0_3 R0_s3 R0_s4 vss rhigh w=.5u l=82.46u m=1 b=0
+RR0_4 R0_s4 R0_s5 vss rhigh w=.5u l=82.46u m=1 b=0
+RR0_5 R0_s5 vss vss rhigh w=.5u l=82.46u m=1 b=0
+.ends amp_011_peng_iac

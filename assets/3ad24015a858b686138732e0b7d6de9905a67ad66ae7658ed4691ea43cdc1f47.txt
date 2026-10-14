@@ -1,0 +1,29 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt amp_026_fan_chopper_ota vinp vinn voutp voutn vdd vss vb1 vb2 vb3 vb4
+XM1 tail vb4 vdd vdd sg13_lv_pmos w=20u l=1u m=1
+XM10 out1_n vb3 casc_src_n vdd sg13_lv_pmos w=10u l=0.3u m=1
+XM11 out1_p vb3 casc_src_p vdd sg13_lv_pmos w=10u l=0.3u m=1
+XM12 out1_p vb2 fold_p vss sg13_lv_nmos w=5u l=0.3u m=1
+XM13 out1_n vb2 fold_n vss sg13_lv_nmos w=5u l=0.3u m=1
+XM14 voutp g2_p vss vss sg13_lv_nmos w=20u l=0.25u m=1
+XM15 voutn g2_n vss vss sg13_lv_nmos w=20u l=0.25u m=1
+XM16 out1_n vdd g2_n vss sg13_lv_nmos w=2u l=0.13u m=1
+XM17 g2_n vss out1_n vdd sg13_lv_pmos w=2u l=0.13u m=1
+XM18 out1_p vdd g2_p vss sg13_lv_nmos w=2u l=0.13u m=1
+XM19 g2_p vss out1_p vdd sg13_lv_pmos w=2u l=0.13u m=1
+XM2 fold_p vinp tail vdd sg13_lv_pmos w=20u l=0.5u m=1
+XM20 out1_p vss g2_n vss sg13_lv_nmos w=2u l=0.13u m=1
+XM21 g2_n vdd out1_p vdd sg13_lv_pmos w=2u l=0.13u m=1
+XM22 out1_n vss g2_p vss sg13_lv_nmos w=2u l=0.13u m=1
+XM23 g2_p vdd out1_n vdd sg13_lv_pmos w=2u l=0.13u m=1
+XM3 fold_n vinn tail vdd sg13_lv_pmos w=20u l=0.5u m=1
+XM4 fold_p vb1 vss vss sg13_lv_nmos w=10u l=1u m=1
+XM5 fold_n vb1 vss vss sg13_lv_nmos w=10u l=1u m=1
+XM6 casc_src_n vb4 vdd vdd sg13_lv_pmos w=10u l=1u m=1
+XM7 casc_src_p vb4 vdd vdd sg13_lv_pmos w=10u l=1u m=1
+XM8 voutp vb4 vdd vdd sg13_lv_pmos w=20u l=1u m=1
+XM9 voutn vb4 vdd vdd sg13_lv_pmos w=20u l=1u m=1
+XCM1_0 g2_p voutp cap_cmim w=44.67u l=44.67u m=2
+XCM2_0 g2_n voutn cap_cmim w=44.67u l=44.67u m=2
+.ends amp_026_fan_chopper_ota

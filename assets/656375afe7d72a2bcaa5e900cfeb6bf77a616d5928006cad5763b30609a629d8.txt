@@ -1,0 +1,123 @@
+# Broadband SiGe PAM4 Driver Layout Task
+
+## Objective
+
+Lay out the upstream inductorless, three-cell current-steering PAM4 driver as
+`pam4drv_pam4_lay`. One LSB cell and two parallel MSB cells contain twelve
+three-finger `npn13G2` HBTs, twelve physical `rsil` resistors and three physical
+MIM degeneration capacitors. Preserve the supplied topology and dimensions.
+The task coefficient is 4.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the native LVS authority;
+`materials/circuit.spice` is its simulator representation;
+`materials/testbench.spice` defines the electrical measurements.
+
+Ordered ports: `lsbp lsbn msbp msbn outp outn vcc vcasc vcmb tmsb0 tlsb0 tmsb1 sub`.
+The first four ports are differential LSB/MSB inputs, `outp/outn` are differential
+outputs, `vcc` is the supply, `vcasc` biases the cascode bases, `vcmb` is the input
+termination reference, the three tail ports connect to external current sinks,
+and `sub` is the ideal substrate reference. The three testbench VCCS tails are
+external bias apparatus, not missing physical transistors.
+
+## Operating Conditions
+
+Use the upstream **layout signoff point**, not its separate static sizing point:
+4 V supply, 3.35 V cascode bias, 1.9 V input common mode and 15 mA per cell.
+The nominal corners are `hbt_typ`, `res_typ` and `cap_typ` at 27 °C. HBTs have
+`Nx=3`. Physical dimensions are fixed by the netlists; the nominal targets are
+50 Ω collector loads, 48 Ω input terminations, 3.2 Ω degeneration and 16 fF
+bridging capacitance. PDK geometry models determine their actual values.
+
+Both RF ports use 50 Ω per side (100 Ω differential). AC gain is differential
+power-wave S21 = `2*Vout/Vsrc`, measured at 1 GHz; bandwidth is checked by the
+50 GHz gain relative to 1 GHz. S11 is evaluated at **32 GHz**, and S22 at
+**50 GHz**, using the testbench's 20 points/decade sweep and interpolation.
+Do not substitute the preceding sweep samples for these endpoints.
+
+The large-signal test drives LSB and MSB in phase at 1 GHz through the same
+source impedances, with ±0.8 V per source around 1.9 V. Supplies and bias ramp
+from zero over 8 ns; sine excitation starts at 9 ns. The 16–21 ns measurement
+window contains five periods. Swing is twice the fundamental phasor amplitude
+using the exported transient samples, rather than raw peak-to-peak excursion.
+
+## Physical Requirements
+
+Submit GDS with the exact top-cell name, all thirteen labeled ports, and at most
+10 MiB. Native SG13G2 DRC checks main and extra maximal rules without density or
+antenna; no marker waivers apply. Native LVS compares devices, dimensions,
+connectivity and named ports. Functional width/height must not exceed 160/120 µm.
+The published `outline` layer list covers HBT, resistor, MIM, substrate-contact,
+seven-metal and via geometry; pin/text and presentation layers are excluded.
+
+Post-layout simulation uses KPEX 0.3.12 nominal 2.5D **coupling capacitance** from
+the submitted GDS. Native extracted devices are checked against the candidate's
+independent LVS database. MIM devices retain extracted endpoints and `w/l/m`;
+no MIM layers are stripped and no source devices are reinserted. The process
+reference plane is tied to `sub`. Distributed wire resistance, inductance,
+pads/package, statistical yield and process-corner robustness are not claimed
+by this upstream CC characterization contract. Finite substrate/tail-generator
+circuits are outside the physical core. A PAM4 eye/RLM result is not established by these tone and small-signal checks.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations remain required evidence; the binary-weighting target below replaces its source scoring anchor. Reports retain every paired result.
+
+Let x be the post-layout measurement and b the declared quality target, or the same-condition source measurement when no target is declared:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+All measurements and their paired source observations must be finite and usable.
+Performance is scored continuously against the declared quality anchors;
+upstream data-sheet targets are not acceptance thresholds. Supply consumption
+and output swing must be nonnegative; zero or otherwise unusable ratio baselines
+cannot establish a score. Physical checks remain mandatory.
+
+| Metric | Definition | Unit | Quality normalization | Functional range |
+| --- | --- | --- | --- | --- |
+| `lsb_gain_db` | LSB S21 at 1 GHz | dB | maximize / db20 | None |
+| `msb_gain_db` | MSB S21 at 1 GHz | dB | maximize / db20 | None |
+| `dac_weight_db` | MSB minus LSB gain | dB | ideal 2:1 target | None |
+| `lsb_rel50_db` | LSB S21(50 GHz) minus S21(1 GHz) | dB | maximize / db20 | None |
+| `msb_rel50_db` | MSB S21(50 GHz) minus S21(1 GHz) | dB | maximize / db20 | None |
+| `s11_32g_db` | MSB input reflection coefficient, 20 log10(abs(S11)), at 32 GHz | dB | minimize / db20 | None |
+| `s22_50g_db` | Output reflection coefficient, 20 log10(abs(S22)), at 50 GHz | dB | minimize / db20 | None |
+| `power_mw` | Power drawn from the 4 V rail at OP | mW | minimize / ratio | ≥ 0 |
+| `swing_vpp` | Differential output fundamental swing | V | maximize / ratio | ≥ 0 |
+
+Independent source simulation uses the same deck, conditions and models. Binary weighting uses **20*log10(2) = 6.020599913279624 dB** as its quality target and **0.1 dB** as its deviation scale. Gain, relative bandwidth, port reflections, swing and power retain their paired source anchors. Reflection-coefficient dB is the negative of positive return loss, so smaller values improve quality.
+
+The area quality target is **700 um2**. Neither this area target nor the electrical quality target is an acceptance cutoff.
+
+The 700 um2 area budget demands compact HBT/resistor placement while RF quality carries 80%. Binary weighting gets 20% with a 0.1 dB deviation scale (about 1.16% amplitude-ratio change), replacing the previous 6.02 dB scale that hid weighting error. Gain rolloff and port reflection retain distinct frequency measurements and source anchors. Supply power and fundamental swing retain 5% each; fixed DC bias does not dominate the score.
+
+### Score weights
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.2 |
+| `dac_weight_db` | 0.2 |
+| `lsb_rel50_db` | 0.1 |
+| `msb_rel50_db` | 0.1 |
+| `s11_32g_db` | 0.1 |
+| `s22_50g_db` | 0.1 |
+| `lsb_gain_db` | 0.05 |
+| `msb_gain_db` | 0.05 |
+| `swing_vpp` | 0.05 |
+| `power_mw` | 0.05 |
+
+## Tools and Submission
+
+Solve budget: **1.5 hours**.
+
+Use the reviewed SG13G2 resources and the runtime task/protocol metadata.
+Ngspice must be ≥45 with `ngbehavior=hsa`, compiled R3_CMC support and the
+specified HBT/capacitor models. The toolchain provides native KLayout checks,
+candidate-derived KPEX capacitance and ngspice feedback. Write
+`/workspace/output/final.gds` and explicitly submit it through the runtime
+submission interface. Reference and maintainer material is not a solver input.

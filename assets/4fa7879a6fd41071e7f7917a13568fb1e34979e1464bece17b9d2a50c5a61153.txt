@@ -1,0 +1,5 @@
+Efabless SKY130 continuous comparator, Apache-2.0.
+Upstream https://github.com/efabless/sky130_ef_ip__ccomp3v
+Commit b051f6131efe5c1169e52a826f893c1a4f65eff0.
+The ccomp3v_cl variant provides the synchronized source/layout pair.
+HVL subcircuits from the pinned SkyWater PDK are Apache-2.0.

@@ -1,0 +1,602 @@
+kind = "layout_case"
+id = "sky130A.sky130_ef_ip__samplehold.samplehold"
+title = "SKY130 Buffered Sample and Hold"
+status = "qualified"
+in_core = true
+core_order = 7
+
+[[assets]]
+path = "reference/samplehold.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "ecf8e4b7dfd4502f16b77b7994419310ce9eded44b4bc71f84cc2f96791accd4"
+
+[origin]
+url = "https://github.com/efabless/sky130_ef_ip__samplehold/tree/5d5c1e9e172c4afc1a48adc3fe18fbe62642ca39"
+
+[task]
+kind = "netlist_to_gds"
+hours = 1.5
+family = "sky130_samplehold"
+coefficient = 4
+environment = "sky130A-tt-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "f3613fb666f1200c0e687298fc6317b04352678a720974905924d60a6b4e6b0b"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+subcircuit = "sky130_ef_ip__samplehold"
+sha256 = "a21526db3ce690a5ba08ef84f7af7a3679523c79024654357708880e0801f8cb"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "3d030c29c01f89988f2fe55b573dc9cae33c52e133c1e9559ff8bd44b6728fd0"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "sky130_ef_ip__samplehold"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        64,
+        20,
+    ],
+    [
+        65,
+        20,
+    ],
+    [
+        65,
+        44,
+    ],
+    [
+        66,
+        20,
+    ],
+    [
+        66,
+        44,
+    ],
+    [
+        67,
+        20,
+    ],
+    [
+        67,
+        44,
+    ],
+    [
+        68,
+        20,
+    ],
+    [
+        68,
+        44,
+    ],
+    [
+        69,
+        20,
+    ],
+    [
+        69,
+        44,
+    ],
+    [
+        70,
+        20,
+    ],
+    [
+        70,
+        44,
+    ],
+    [
+        71,
+        20,
+    ],
+    [
+        71,
+        44,
+    ],
+    [
+        72,
+        20,
+    ],
+    [
+        93,
+        44,
+    ],
+    [
+        94,
+        20,
+    ],
+]
+max_width_um = 160
+max_height_um = 160
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "dvdd",
+    "dvss",
+    "hold",
+    "vdd",
+    "out",
+    "in",
+    "ena",
+    "vss",
+]
+
+[[task.evaluation.jobs]]
+id = "rising"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+track_error = "V"
+hold_error = "V"
+droop = "V"
+reacquire_error = "V"
+supply_power = "W"
+
+[task.evaluation.jobs.parameters.values]
+start_voltage = 0.8
+sample_voltage = 2.4
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "falling"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+track_error = "V"
+hold_error = "V"
+droop = "V"
+reacquire_error = "V"
+supply_power = "W"
+
+[task.evaluation.jobs.parameters.values]
+start_voltage = 2.4
+sample_voltage = 0.8
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "track_error"
+category = "performance"
+observations = [
+    "rising:track_error",
+    "falling:track_error",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_rising:track_error",
+    "source_falling:track_error",
+]
+normalization = "saturating_ratio"
+scale = 0.001
+dimension = "response"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "Tracking error is an absolute voltage difference; a negative value cannot represent the declared measurement."
+
+[task.evaluation.metrics.quality_target]
+value = 0.02
+rationale = "Aim for no more than 20 mV tracking error at 19 us for either acquisition direction."
+
+[[task.evaluation.metrics]]
+id = "hold_error"
+category = "performance"
+observations = [
+    "rising:hold_error",
+    "falling:hold_error",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_rising:hold_error",
+    "source_falling:hold_error",
+]
+normalization = "saturating_ratio"
+scale = 0.001
+dimension = "response"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "Held-value error is an absolute voltage difference; a negative value cannot represent the declared measurement."
+
+[task.evaluation.metrics.quality_target]
+value = 0.015
+rationale = "Aim for no more than 15 mV held-value error at 39 us after the input reverses during hold."
+
+[[task.evaluation.metrics]]
+id = "droop"
+category = "performance"
+observations = [
+    "rising:droop",
+    "falling:droop",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "Droop is an absolute held-voltage change; a negative value cannot represent the declared measurement."
+
+[[task.evaluation.metrics]]
+id = "reacquire_error"
+category = "performance"
+observations = [
+    "rising:reacquire_error",
+    "falling:reacquire_error",
+]
+unit = "V"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_rising:reacquire_error",
+    "source_falling:reacquire_error",
+]
+normalization = "saturating_ratio"
+scale = 0.001
+dimension = "response"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "Reacquisition error is an absolute voltage difference; a negative value cannot represent the declared measurement."
+
+[task.evaluation.metrics.quality_target]
+value = 0.02
+rationale = "Aim for no more than 20 mV error at 59 us after reacquisition in either direction."
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = [
+    "rising:supply_power",
+    "falling:supply_power",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_rising:supply_power",
+    "source_falling:supply_power",
+]
+normalization = "saturating_ratio"
+scale = 0.0001
+dimension = "supply"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The enabled sample-and-hold circuit consumes energy from its analog and digital supplies; negative delivered power would not represent this powered interface."
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 3000.0
+rationale = "The 3000 um2 footprint is a compact buffered-sampler goal. Area receives 50%; held-value error after input reversal receives 25%, tracking 15%, and reacquisition and power 5% each. Tracking and reacquisition approach the same equilibrium, so their repeated observation no longer doubles the main accuracy reward. Error targets refer to the declared sampling times and do not claim faster acquisition or additional corners."
+
+[task.evaluation.scoring.weights]
+track_error = 0.15
+hold_error = 0.25
+reacquire_error = 0.05
+supply_power = 0.05
+functional_area = 0.5
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "668588ebd1f73ddd8f265fc80f917369cf7f25e5ea8a61c873ea412fef35f847"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"dfbdf2f93297bbe7d8b576fb988504bd0ecf85b93ef47c314a0f2c9c8830c3e7\", \"compatibility\": \"hsa\", \"cpu_budget\": 8, \"execution_sha256\": \"495aa9623759f70228a236eb4825c2ae443ef6a741816d8cfc17d1830841dcef\", \"image_id\": \"sha256:060fee64f9f6e71a647e5e958b788d723c9d51d2928ff93e6a295db1959bc37f\", \"limits\": {\"cpus\": 8, \"memory_mb\": 4096, \"pids\": 256}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"cba8c3811d06b88752a21414d16575ef72011a8b2f05214e29076a9ae90ffb9c\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 240.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_rising]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_rising.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_rising.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_rising.parameters.measurements]
+track_error = "V"
+hold_error = "V"
+droop = "V"
+reacquire_error = "V"
+supply_power = "W"
+
+[task.evaluation.pre_layout.jobs.source_rising.parameters.values]
+start_voltage = 0.8
+sample_voltage = 2.4
+
+[task.evaluation.pre_layout.jobs.source_rising.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_rising.input_sha256]
+deck = "3d030c29c01f89988f2fe55b573dc9cae33c52e133c1e9559ff8bd44b6728fd0"
+dut = "a21526db3ce690a5ba08ef84f7af7a3679523c79024654357708880e0801f8cb"
+
+[task.evaluation.pre_layout.jobs.source_rising.measurements.droop]
+value = 8.9e-05
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_rising.measurements.hold_error]
+value = 0.018503
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_rising.measurements.reacquire_error]
+value = 0.0122614
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_rising.measurements.supply_power]
+value = 0.0003477607
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_rising.measurements.track_error]
+value = 0.019117
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_rising.output_sha256]
+transient = "acfabcd69b6e7456ba2ca38a1a3607702703721130b5123ca38f237e883e6efa"
+
+[task.evaluation.pre_layout.jobs.source_falling]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_falling.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_falling.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_falling.parameters.measurements]
+track_error = "V"
+hold_error = "V"
+droop = "V"
+reacquire_error = "V"
+supply_power = "W"
+
+[task.evaluation.pre_layout.jobs.source_falling.parameters.values]
+start_voltage = 2.4
+sample_voltage = 0.8
+
+[task.evaluation.pre_layout.jobs.source_falling.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_falling.input_sha256]
+deck = "3d030c29c01f89988f2fe55b573dc9cae33c52e133c1e9559ff8bd44b6728fd0"
+dut = "a21526db3ce690a5ba08ef84f7af7a3679523c79024654357708880e0801f8cb"
+
+[task.evaluation.pre_layout.jobs.source_falling.measurements.droop]
+value = 6.5e-06
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_falling.measurements.hold_error]
+value = 0.0119921
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_falling.measurements.reacquire_error]
+value = 0.019117
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_falling.measurements.supply_power]
+value = 0.0003441492
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_falling.measurements.track_error]
+value = 0.0122614
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_falling.output_sha256]
+transient = "64760a96d32457aca5b6800ced93cd0cad361df13b3749e4e3b6902bd17a6759"
+
+[qualification]
+reference = "reference/samplehold.gds"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "artifact"
+
+[toolchain.backends.drc]
+type = "magic-physical-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "drc"
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "drc(full)"
+grid_subdivision = 2
+support = "external-cache/physical"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "magic-physical-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "lvs"
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "ngspice()"
+setup = "sky130A_setup.tcl"
+grid_subdivision = 2
+support = "external-cache/physical"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+gds_readonly = false
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "ngspice()"
+grid_subdivision = 2
+support = "external-cache/magic"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+compatibility = "hsa"
+support = "external-cache/models"
+
+[toolchain.backends.simulation.support_profiles]
+support = "models"
+
+[presentation]
+category = "Mixed-signal"
+summary = "Tracks, holds and reacquires an analog input using a buffered sample-and-hold circuit."

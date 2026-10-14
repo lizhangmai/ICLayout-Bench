@@ -1,0 +1,18 @@
+* Copyright 2026 Danial Noori Zadeh. See collection LICENSE and NOTICE.
+* Logical upstream MOS W/L/m and body nets; reviewed native passives.
+.subckt amp_029_two_stage_miller_comp vinp vinn voutp voutn vdd vss ref vbl
+MM1 stg1p vinp tail vss sg13_lv_nmos w=10u l=0.5u m=1
+MM10 voutn ref vss vss sg13_lv_nmos w=6u l=1u m=1
+MM2 stg1n vinn tail vss sg13_lv_nmos w=10u l=0.5u m=1
+MM3 stg1p vbl vdd vdd sg13_lv_pmos w=10u l=1u m=1
+MM4 stg1n vbl vdd vdd sg13_lv_pmos w=10u l=1u m=1
+MM5 voutp stg1p vdd vdd sg13_lv_pmos w=12u l=0.5u m=1
+MM6 ref ref vss vss sg13_lv_nmos w=2u l=1u m=1
+MM7 voutp ref vss vss sg13_lv_nmos w=6u l=1u m=1
+MM8 tail ref vss vss sg13_lv_nmos w=2u l=1u m=1
+MM9 voutn stg1n vdd vdd sg13_lv_pmos w=12u l=0.5u m=1
+C1_0 mill_p voutp cap_cmim w=16.28u l=16.28u m=1
+C2_0 mill_n voutn cap_cmim w=16.28u l=16.28u m=1
+RR1_0 stg1p mill_p vss rhigh w=.5u l=10.04u m=1 b=0
+RR2_0 stg1n mill_n vss rhigh w=.5u l=10.04u m=1 b=0
+.ends amp_029_two_stage_miller_comp

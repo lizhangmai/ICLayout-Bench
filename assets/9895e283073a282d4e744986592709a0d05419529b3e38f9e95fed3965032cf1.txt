@@ -1,0 +1,87 @@
+# Self-Biased LDO Error Amplifier Layout Task
+
+## Objective
+
+Implement `amp_032_ti_ldo_error_selfbias` as a GF180MCU D layout. Eleven MOS devices form the fixed upstream two-stage amplifier, with a level-shifted PMOS mirror, its 500 kohm gate-rail tie, diode-connected self-bias and series Miller compensation. The fixed netlist uses a direct common-source output stage.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the authoritative physical circuit, `materials/circuit.spice` its native simulation-model wrapper, and `materials/testbench.spice` defines all measurements. Ordered ports are `vdd vout vinp vinn vss`, respectively supply, output, differential positive/negative inputs and ground; no external bias current is needed. Preserve connectivity and total device sizes; equivalent parallel fingering is allowed, but the amplifier topology must not be replaced.
+
+## Operating Conditions
+
+Typical native GF180 6 V MOS models, 3.3 V supply, 27 C, statistics disabled.
+Input common mode is 1.6 V. Both 1 pF and 10 pF output loads are evaluated.
+DC uses unity feedback. AC uses a 1 TH feedback inductor and 1 F input shunt
+from 1 Hz to 1 GHz, 100 points/decade. Transient replaces these fixture elements
+with 1 pH and 1 aF: the input rises 10 mV at 1 us and falls at 3 us, each in
+10 ns. The simulation ends at 5 us, with a 1 ns requested step.
+These ideal fixture elements are external test apparatus, outside the DUT.
+
+## Physical Requirements
+
+GDS database unit 0.001 um; maximum 10 MiB; top cell `amp_032_ti_ldo_error_selfbias`.
+Native standalone DRC includes geometry, connectivity, manufacturing grid,
+dummy fill and antenna rules; chip density and seal-ring closure are excluded.
+Native LVS must match devices, parameters and every named port. All device,
+well, implant, contact, passive-marker and routing layers listed in the runtime
+outline form the functional bounding rectangle; text annotations are excluded.
+Maximum outline is 5000 by 1000 um. Labels belong on native Metal1 text.
+
+Minimum channel lengths for 6 V devices are NMOS 0.70 um and PMOS 0.55 um. Upstream dimensions are rounded to 5 nm, increasing only lengths below minimum. Physical passives use 1 kohm/square poly and MIM-B between M4/M5 (2 fF/um2); long resistors are segmented in series and capacitors tiled in parallel. Geometry realizes nominal values; source/candidate use identical native models. The candidate determines MOS diffusion areas/perimeters and interconnect parasitics; Magic extracts nominal coupling capacitance and distributed resistance with zero omission threshold. Ideal well/substrate connections do not cover distributed substrate noise, and no inductance, RF/EM or statistical performance is claimed. Source/candidate observations must be finite and each operating point must pass functional checks; incomplete evaluation cannot establish success.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+`tracking_error_v` uses `saturating_ratio`: q = 2(b+s)/(b+x+2s), where x is candidate error, b is paired source error, and s is the positive scale below. Source-equivalent error gives q=1; improvement approaches the upper limit 2 with diminishing returns. s retains the declared units and numeric-floor meaning. Normalize each condition before taking the worst quality; other normalization and functional rules follow their own declarations.
+
+| Metric | Definition | Unit | Dimension | Normalization |
+| --- | --- | --- | --- | --- |
+| `output_v` | DC output voltage | V | bias | target |
+| `power_w` | DC supply power: -VDD*I(VDD) | W | supply | ratio |
+| `gain_db` | Open-loop magnitude at 10 Hz in dB | dB | response | db20 |
+| `unity_hz` | First falling unity-gain crossing | Hz | response | ratio |
+| `phase_margin` | 180 degrees plus unwrapped phase at unity crossing | deg | response | target |
+| `tracking_error_v` | Mean absolute unity-buffer tracking error over 1–5 us | V | response | saturating_ratio |
+| `step_response_v` | Mean output at 2–3 us minus mean output at 4–5 us; nonnegative sign-domain check (zero is allowed) | V | functional | unscored |
+
+DC output must lie between the supply rails; power, absolute tracking error and signed output-step observations must be nonnegative, with zero allowed. These gates express physical domains and buffer function. Required measurements must be finite; missing or failed measurements are evaluation errors rather than low performance. Upstream datasheet targets are not gates; phase margin supports continuous comparison without upstream thresholds.
+
+Pair each quality observation with independent source simulation using exactly the same deck, load, supply, temperature and models. Output target scale is 3.3 V and phase scale 180 degrees; the power-ratio floor 1 pW and tracking-error floor 1 mV are normalization units, not tolerances.
+
+Area target: **19112.51 um2**. Device/contact envelopes sum to 12143.285500 um2,
+using `(W+2)*(L+2)` per expanded MOS, resistor segment and capacitor tile
+in micrometers. The estimate adds 50% routing plus a 2 um outer margin:
+`ceil(100*(1.5*envelope_sum+8*sqrt(envelope_sum)+16))/100`.
+This engineering anchor is independent of the witness footprint and is not a
+foundry minimum. Coefficient **6** reflects a complete compensated two-stage
+loop with self-bias and load-dependent transient response.
+
+### Score weights
+
+Self-biased Miller buffer: tracking 36%, phase margin 22.5%, gain and bandwidth 18%, bias 4.5%, power 9%, area 10%; each objective weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `tracking_error_v` | 0.360000000000 |
+| `phase_margin` | 0.225000000000 |
+| `gain_db` | 0.090000000000 |
+| `unity_hz` | 0.090000000000 |
+| `output_v` | 0.045000000000 |
+| `power_w` | 0.090000000000 |
+
+## Tools and Submission
+
+Solve budget: **3 hours**.
+
+Obtain the frozen task, reviewed PDK and protocol through `/protocol/task.json`, `/protocol/resources.json`, `/protocol/harness.json`. KLayout checks physical validity, Magic extracts the submitted layout, and ngspice measures it; use `process-feedback` if available. Write `/workspace/output/final.gds`, then explicitly submit with `python -I /protocol/submit.py`.

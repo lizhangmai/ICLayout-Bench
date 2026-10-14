@@ -1,0 +1,32 @@
+* Layout-Bench PTAT temperature sweep; SPDX-License-Identifier: MIT
+.include support/models.spice
+.include dut.spice
+.include parameters.spice
+.temp -20
+.option method=gear maxord=2
+VDD vdd 0 DC {supply_v}
+CL vout 0 100f
+XDUT vdd vout 0 tsn_002_ptat_classic
+.save v(vdd) v(vout) i(vdd)
+.control
+set noaskquit
+set numdgt=12
+* Match the original -20 C operating-point initialization before the sweep.
+op
+dc temp -20 100 1
+let vv=v(vout)
+let pp=-v(vdd)*i(vdd)
+meas dc cold_v find vv at=-20
+meas dc hot_v find vv at=100
+let slope_v_per_c=(hot_v-cold_v)/120
+let error_v=abs(vv-(cold_v+slope_v_per_c*vector(length(vv))))
+meas dc curvature_v max error_v
+let local_slope=deriv(vv)
+meas dc minimum_slope min local_slope
+meas dc maximum_slope max local_slope
+meas dc peak_power_w max pp
+print slope_v_per_c
+write temperature.raw all
+quit
+.endc
+.end

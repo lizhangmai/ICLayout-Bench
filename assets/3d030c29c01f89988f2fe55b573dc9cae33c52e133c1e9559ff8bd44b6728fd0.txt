@@ -1,0 +1,33 @@
+* Track, hold under input reversal, and reacquire at TT 27 C.
+.include "/workspace/support/models.spice"
+.include "parameters.spice"
+.include "dut.spice"
+.temp 27
+.option klu rshunt=1e12 method=gear
+Va avdd 0 3.3
+Vd dvdd 0 1.8
+Ven ena 0 PWL(0 0 2u 0 2.01u 1.8)
+Vhold hold 0 PULSE(0 1.8 20u 2n 2n 20u 80u)
+Vin inp 0 PWL(0 {start_voltage} 10u {start_voltage} 10.02u {sample_voltage} 25u {sample_voltage} 25.02u {start_voltage})
+Xdut dvdd 0 hold avdd out inp ena 0 sky130_ef_ip__samplehold
+Cload out 0 1p
+.save v(inp) v(hold) v(out) i(Va) i(Vd) i(Ven)
+.control
+tran 20n 60u
+let power=-3.3*i(Va)-1.8*i(Vd)-1.8*i(Ven)
+meas tran supply_power AVG power FROM=10u TO=60u
+meas tran track_value FIND v(out) AT=19u
+meas tran sampled_input FIND v(inp) AT=19u
+meas tran hold_start FIND v(out) AT=21u
+meas tran hold_end FIND v(out) AT=39u
+meas tran final_value FIND v(out) AT=59u
+meas tran final_input FIND v(inp) AT=59u
+let track_error=abs(track_value-sampled_input)
+let hold_error=abs(hold_end-sampled_input)
+let droop=abs(hold_end-hold_start)
+let reacquire_error=abs(final_value-final_input)
+print track_error hold_error droop reacquire_error
+write transient.raw v(inp) v(hold) v(out)
+quit
+.endc
+.end

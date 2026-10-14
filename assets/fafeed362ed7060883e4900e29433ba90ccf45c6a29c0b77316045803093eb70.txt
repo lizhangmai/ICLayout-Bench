@@ -1,0 +1,27 @@
+* Closed-loop small-signal supply rejection. SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include parameters.spice
+.include dut.spice
+.temp 27
+.option rshunt=1e12 reltol=1e-5 abstol=1e-14 vntol=1e-8
+VDD vdd 0 dc {supply_v} ac 1
+VREF vref 0 0.5
+IBIAS vdd nbias 20u
+VPROBE sense fb dc 0 ac 0
+IINJ 0 sense dc 0 ac 0
+ILOAD vout 0 dc {load_a}
+XDUT vdd vout 0 nbias vref fb sense ldo_008_fer_mirror_ota
+.save v(vout) v(vdd)
+.control
+set numdgt=12
+op
+ac dec 300 10 10meg
+let psrr_db=db(v(vdd)/v(vout))
+meas ac psrr_1khz_db find psrr_db at=1k
+meas ac psrr_1mhz_db find psrr_db at=1meg
+write ac.raw frequency v(vdd) v(vout) psrr_db
+quit
+.endc
+.end

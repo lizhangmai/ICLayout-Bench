@@ -1,0 +1,180 @@
+# Clocked Capacitive Instrumentation Amplifier with CMFB Layout Task
+
+## Objective
+
+Implement `ia_006_fan_chopper_cmfb`: a complete capacitively coupled differential
+instrumentation amplifier with input, feedback and interstage/output chopping,
+a two-stage amplifier and transistor common-mode feedback (CMFB). Preserve the
+physical signal/feedback capacitors, both bias-return paths, compensation and
+the actual common-mode controller. Validate operation with all clocks running.
+
+## Inputs and Interface
+
+- `materials/circuit.cdl`: authoritative physical circuit for native LVS.
+- `materials/circuit.spice`: equivalent process-model simulator representation.
+- `materials/testbench.spice`: independent bias, clocks, loads and measurements.
+
+The ordered interface is:
+
+```text
+vinp vinn voutp voutn vref
+clk_chin clk_chin_not clk_chfb clk_chfb_not clk_chout clk_chout_not
+vdd vss core__vb1 core__vb2 core__vb3 core__vb4 vref_cm
+core__vsum_p core__vsum_n
+```
+
+VINP/VINN and VOUTP/VOUTN are the differential input and output. VREF biases
+the summing nodes through physical high-poly return arms; VREF_CM is the
+reference for the actual transistor common-mode controller. The four CORE__VB
+ports supply the declared core bias voltages. The final two ports are
+high-impedance summing-node monitors: the testbench observes them without
+applying voltage/current drive, a servo or an external load. Keep these named
+connections; they also distinguish the symmetric native LVS branches.
+
+Use the fixed models, dimensions, multiplicities and connections in the
+netlist. The 46 source MOS groups have a maintained 61-finger implementation;
+parallel fingering/merging is allowed when all checks pass. Core matching pairs
+have fixed total W*m/L and on-grid finger dimensions; do not replace them with
+unqualified model widths. NMOS and resistor bodies connect to SUB through the
+explicit VSS substrate tap, and PMOS bodies to WELL through the VDD well tap.
+Do not drive the internal CMFB actuator VB4O externally.
+
+Physical passive requirements are:
+
+| Branch | Physical implementation | Nominal value at TT, 27 C |
+| --- | --- | --- |
+| Each input arm | Four parallel 51.6 × 51.6 um `cap_cmim` units | 16.008384 pF |
+| Each capacitive feedback arm | One 23.11 × 23.11 um `cap_cmim` | 0.80480575 pF |
+| Each differential Miller path | One 51.6 × 51.6 um `cap_cmim` | 4.002096 pF |
+| CMFB actuator to VSS | One 25.85 × 25.85 um `cap_cmim` | 1.00646975 pF |
+| Each summing-node return to VREF | 41 series `rhigh` segments, W=1 um, L=180 um, m=1, b=0 | 10.46156 Mohm |
+| Each output-to-common-mode-sense arm | Four of the same high-poly segments | 1.02064 Mohm |
+
+The input/feedback capacitor ratio is approximately 19.891. All internal
+passives are physical DUT devices, distinct from external output loads. Preserve
+MIM plate orientation. The maintained compensation is deliberately retuned for
+the physical combined loop; the source's ideal 1 pF Miller / 1 fF controller
+values do not define this task.
+
+## Operating Conditions
+
+Use TT MOS/capacitor/resistor models at 27 C and VDD/VSS=1.2/0 V. VREF and
+VREF_CM are both 0.6 V. Relative to VSS, CORE__VB1/2/3/4 are respectively
+0.5/0.75/0.45/0.589 V. There is no ideal external output-common-mode or
+differential-feedback servo. Each output has a 1 pF or 5 pF external load.
+At each load, run both signs of a 10 mV differential input step: four conditions.
+
+The input common mode stays at 0.6 V. Both inputs initially equal 0.6 V.
+In the differential-response suite, VINP and VINN move oppositely by ±5 mV during 500–501 us, hold for 500 us, then return during 1001–1002 us. A separate common-mode rejection suite holds the differential input at zero and moves both inputs together from 0.6 V to 0.61 V over 1 us at 500 us, holds through 1001 us and returns over 1 us. It runs at both 1 pF and 5 pF loads while all three clock pairs continue switching. The additional `cm_to_dm_peak_v` measurement is the maximum absolute differential output change from its 400–500 us pre-step baseline during 900 us–1 ms.
+The pulse period is 10 ms; only the finite 0–1.5 ms sequence is measured.
+
+All three true/complement clock pairs run synchronously at 20 kHz between
+0 and 1.2 V. True clocks begin high, fall during 25–25.05 us, hold low for
+24.95 us, then rise during 50–50.05 us; the 50 us pattern repeats. Complement
+clocks have exactly opposite levels with the same 50 ns edges. Finite
+complementary slopes may produce overlap or dead intervals according to device
+thresholds; no ideal break-before-make behavior is assumed. Input, feedback and
+output/interstage clocks all switch; frozen-clock gain is not an acceptance test.
+
+Transient starts from the solved DC operating point. Use Gear order 2, the
+KLU solver, maximum time step 500 ns, `rshunt=1e13`, `reltol=1e-5`,
+`abstol=1e-13` and `vntol=1e-8`. Save the declared port voltages and source
+currents. The settled observation windows contain integer clock periods;
+startup from a zero-supply state is not covered.
+
+## Physical Requirements
+
+Submit GDSII top cell `ia_006_fan_chopper_cmfb`, no larger than 10 MiB.
+Pass native IHP main/maximal DRC without waivers (standalone scope with
+density/antenna disabled), strict named-interface LVS including taps, and a
+3000 × 700 um functional outline. Device, contact and complete routing layers
+are enumerated by the runtime outline constraint. Pin/annotation layers are
+excluded from area and cannot conceal functional geometry.
+
+The submitted layout must provide the actual capacitors, resistor segments and
+matching-aware core. Post-layout simulation consumes candidate-derived Magic
+RC with device junction geometry and interconnect. Extraction subdivides the
+initial Magic grid by two and uses `gds_readonly=false` on an isolated import;
+the submitted GDS remains immutable. No extraction diagnostic is waived.
+Magic idealizes the explicit tap devices while retaining its extracted RC
+network; the source simulator includes finite tap models. Distributed substrate
+noise and manufacturing signoff are not qualified.
+
+## Electrical Requirements and Scoring
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations remain required evidence. The explicit quality targets below supply scoring anchors; otherwise the paired source value is used. Reports retain every paired result.
+
+Let x be the post-layout measurement and b the declared quality target, or the same-condition source measurement when no target is declared:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+The measurements below use the supplied SPICE node and source names. `v(n)` is a node voltage; `i(V)` is current flowing into a voltage source, so delivered power uses a negative sign. `db(z)=20*log10(abs(z))`; `mag/abs` denote magnitude, and `cph` denotes continuous phase in radians. `find`, `when`, `from/to` and `rise/fall` follow the deck's interpolation, window and crossing conventions. SPICE suffixes p/n/u/m/meg/g mean pico/nano/micro/milli/mega/giga. Nested `avg`, `min`, `max`, `vecmin/vecmax` and `deriv` represent window averages, extrema and sampled derivatives. Measure each operating condition independently, pair it with the source result under that condition, and take the worst paired quality within each metric group.
+
+For metrics declaring `saturating_ratio`, q = 2(b+s)/(b+x+2*s), using the quality anchor b and the positive scale s in the metric’s units. Equality to the anchor gives raw quality 1; improvements approach raw quality 2 but credited quality stays at 1. Normalize each condition before selecting the worst quality. These scales and targets do not add acceptance cutoffs.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale | Dimension |
+| --- | --- | --- | --- | --- | --- | --- |
+| `gain_vv` | Transient: `((avg (v(voutp)-v(voutn)) from=900u to=1m)-(avg (v(voutp)-v(voutn)) from=400u to=500u))/(2*((avg v(vinp) from=900u to=1m)-.6))`. | V/V | target / target | −∞ … +∞ | 0.2 | response |
+| `baseline_error_v` | Transient: `abs((avg (v(voutp)-v(voutn)) from=400u to=500u))`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-07 | response |
+| `return_error_v` | Transient: `abs((avg (v(voutp)-v(voutn)) from=1.4m to=1.5m)-(avg (v(voutp)-v(voutn)) from=400u to=500u))`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-07 | response |
+| `high_drift_v` | Transient: `abs((avg (v(voutp)-v(voutn)) from=950u to=1m)-(avg (v(voutp)-v(voutn)) from=900u to=950u))`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 | response |
+| `return_drift_v` | Transient: `abs((avg (v(voutp)-v(voutn)) from=1.45m to=1.5m)-(avg (v(voutp)-v(voutn)) from=1.4m to=1.45m))`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 | response |
+| `ripple_rms_v` | Transient: `sqrt((avg (((v(voutp)-v(voutn))-(avg (v(voutp)-v(voutn)) from=900u to=1m))^2) from=900u to=1m))`. | V | minimize / saturating_ratio | 0 … +∞ | 0.001 | response |
+| `ripple_pp_v` | Transient: `(max (v(voutp)-v(voutn)) from=900u to=1m)-(min (v(voutp)-v(voutn)) from=900u to=1m)`. | V | minimize / saturating_ratio | 0 … +∞ | 0.01 | response |
+| `cm_mean_v` | TRAN: Mean of `((v(voutp)+v(voutn))/2) from=900u to=1m`. | V | target / target | 0 … 1.2 | 1.2 | bias |
+| `cm_min_v` | TRAN: Minimum of `((v(voutp)+v(voutn))/2) from=400u to=1.5m`. | V | target / target | 0 … 1.2 | 1.2 | bias |
+| `cm_max_v` | TRAN: Maximum of `((v(voutp)+v(voutn))/2) from=400u to=1.5m`. | V | target / target | 0 … 1.2 | 1.2 | bias |
+| `sum_cm_v` | TRAN: Mean of `((v(monp)+v(monn))/2) from=900u to=1m`. | V | target / target | 0 … 1.2 | 1.2 | bias |
+| `sum_error_v` | Transient: `abs((avg ((v(monp)-v(monn))*(v(clk_chin)/.6-1)) from=900u to=1m))`. | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 | response |
+| `cm_to_dm_peak_v` | Maximum `abs((v(voutp)-v(voutn))-baseline)` from 900 us to 1 ms after both inputs step 0.6→0.61 V; both clock polarities active; 1 pF and 5 pF output loads | V | minimize / saturating_ratio | 0 … +∞ | 5e-06 | response |
+| `mean_power_w` | TRAN: Mean of `(-1.2*i(VDD)) from=400u to=1.5m`. | W | minimize / ratio | 0 … +∞ | 1e-12 | supply |
+| `clock_power_w` | Mean sum of positive delivered power from all six chopper clock sources over 900 us–1 ms; negative (returned) power from each source is clipped to zero before summation. | W | minimize / ratio | 0 … +∞ | 1e-12 | supply |
+| `dc_cm_v` | DC operating point: `(v(voutp)+v(voutn))/2`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `dc_dm_v` | DC operating point: `v(voutp)-v(voutn)`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `baseline_v` | TRAN: Mean of `(v(voutp)-v(voutn)) from=400u to=500u`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `plateau_v` | TRAN: Mean of `(v(voutp)-v(voutn)) from=900u to=1m`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `return_v` | TRAN: Mean of `(v(voutp)-v(voutn)) from=1.4m to=1.5m`. | V | — | −∞ … +∞ | — | unscored diagnostic |
+| `dc_power_w` | DC operating point: `-1.2*i(VDD)`. | W | — | −∞ … +∞ | — | unscored diagnostic |
+
+
+The capability coefficient remains **10**; it is independent of
+the reference-relative task score.
+
+### Quality targets and weights
+
+The area quality target is **40000 um2**. It is an integration budget, not a hard limit or a proven process minimum.
+
+The 40000 um2 integration budget contains 28361.9667 um2 of fixed MIM plates plus physical high-poly chains, taps, MOS and routing, and carries 25%. Common-mode-to-differential rejection carries 20%; RMS and peak-to-peak clock ripple, gain preservation and clock power carry 10% each; baseline error, return error and mean supply power carry 5% each. The 8 mV RMS and 100 mV peak-to-peak goals are distinct: the source has about 7.9 mV RMS but 104 mV peak-to-peak ripple, so a crest budget is not a duplicate of average ripple energy. The 25 uV common-mode disturbance budget and 1 nW clock-drive budget apply to the declared 20 kHz continuously switching clock pairs. Drift and broad common-mode summaries remain diagnostics.
+
+RMS and peak-to-peak ripple have separate 10% weights. Both use the existing 900 us–1 ms window; the RMS goal is 8 mV and the peak-to-peak goal is 100 mV. Their source values are approximately 7.9 mV and 104 mV respectively, demonstrating that short clock spikes are not represented by the RMS budget alone.
+
+| Metric | Quality anchor | Unit | Scale | Weight |
+| --- | --- | --- | --- | ---: |
+| `functional_area` | 40000 | um2 | — | 0.25 |
+| `baseline_error_v` | 1e-06 | V | 1e-07 | 0.05 |
+| `gain_vv` | paired source | V/V | 0.2 | 0.1 |
+| `return_error_v` | 1e-06 | V | 1e-07 | 0.05 |
+| `ripple_pp_v` | 0.1 | V | 0.01 | 0.1 |
+| `ripple_rms_v` | 0.008 | V | 0.001 | 0.1 |
+| `clock_power_w` | 1e-09 | W | 1e-12 | 0.1 |
+| `mean_power_w` | paired source | W | 1e-12 | 0.05 |
+| `cm_to_dm_peak_v` | 2.5e-05 | V | 5e-06 | 0.2 |
+
+Zero-weight observations: `high_drift_v`, `return_drift_v`, `cm_max_v`, `cm_mean_v`, `cm_min_v`, `sum_cm_v`, `sum_error_v`. Original functional requirements remain enforced; grouped metrics listed above carry their stated weight once.
+
+The targets affect continuous quality only. A complete feasible reference may miss them; there is no minimum qualifying score.
+
+## Tools and Submission
+
+Solve budget: **1.5 hours**.
+
+Discover frozen task inputs, requirements, reviewed resources and harness
+feedback in `/protocol/task.json`, `/protocol/resources.json` and
+`/protocol/harness.json`. Use the supplied IHP primitives and KLayout, Magic
+and ngspice. Write `/workspace/output/final.gds` and explicitly submit through
+the harness protocol. Source records, reference GDS and host configuration
+remain outside standard solver inputs.

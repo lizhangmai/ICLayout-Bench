@@ -1,0 +1,79 @@
+# MIM-Compensated Local-Feedback Source Follower Layout Task
+
+## Objective
+
+Implement `buf_001_super_follower` in ihp-sg13g2 and submit self-contained GDS. Six MOS entries expand to 17 physical MOS instances in a local-feedback source follower. Fixed IHP W/L/m are retained. The internal na-to-VSS 250 fF compensation is implemented as a 12.85 by 12.85 um cap_cmim (nominally 249.74 fF at 27 C, including model perimeter capacitance); it is not removed or moved to the output. Explicit physical taps and the MIM dimensions are common to LVS, source simulation and extracted simulation.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the authoritative physical circuit. `materials/circuit.spice` is its equivalent simulator model-call representation. `materials/testbench.spice` defines measurements, and this problem is the description input.
+Ordered ports: `vdd vout vin ibias vss`. In order: Supply, output, signal input, reference-current input, and return.
+
+Preserve connectivity, W/L/m, passive geometry and body terminals, with physical contacts. Placement and routing are free; splitting and source/drain exchange must satisfy the declared LVS equivalence rules. Statistical matching and common-centroid placement are unscored. Ideal external sources, loads and test apparatus belong to the testbench, outside the DUT.
+
+## Operating Conditions
+
+Temperature is 27 C. Typical IHP low-voltage MOS and resistor models and typical capacitor models; explicit finite physical tap models and a 1e12 ohm ngspice numerical shunt at each node. Candidate Magic RC is extracted with zero coupling-capacitance threshold.
+
+VDD = 1.5 V; VSS = 0 V; a 20 uA current source from VDD into ibias. VIN = 0.55 V DC, AC amplitude 1 V. External output loads are 5, 10 and 20 pF. AC uses 100 points/decade from 1 Hz to 1 GHz. VIN stays at 0.55 V through 1 us, ramps to 0.65 V at 1.001 us, holds through 3 us, ramps back at 3.001 us and holds through 5 us. Transient output/max step is 0.2 ns. Recovered errors compare output to its 2.5 us and 0.5 us samples, over 1.5–2.9 us and 3.5–4.9 us respectively.
+
+## Physical Requirements
+
+Top cell `buf_001_super_follower`, named ports, resolved hierarchy, at most 10 MiB. Pass artifact, IHP main and maximal DRC, with density and antenna outside this standalone scope; strict named-port LVS; geometry, without DRC waivers. Functional bounding box must fit within 160 by 45 um. The footprint includes every process device and routing drawing layer in the frozen runtime outline list: active, wells, implants, poly, contacts, metals/vias and device/passive markers. Annotation and pin-purpose shapes are excluded. All functional routing must use drawing layers.
+
+Every scored simulation consumes the submitted GDS-derived distributed wiring RC and extracted device geometry. This is a level-shifting source follower with about 0.84 small-signal gain, not a unity-gain rail-to-rail buffer. Qualification is restricted to the stated low-input range; higher input bias compresses the gain. Noise, mismatch, other input levels, PVT and RF/EM are outside scope. Fabrication signoff is not claimed.
+
+## Electrical Requirements and Scoring
+
+All three conditions must complete, and each finite observation must satisfy its inclusive interval; aggregation cannot hide a failed condition. Missing measurements/crossings or incomplete extraction cannot establish success.
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(q_i ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; better valid solutions may exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+`recovery_up_v` and `recovery_down_v` use `saturating_ratio`. Candidate error x, paired source error b and the positive scale s below define q = 2(b+s)/(b+x+2s). Source-equivalent error gives q=1; decreasing error approaches the upper quality limit 2 with diminishing returns. The scale retains its declared unit and numerical-floor meaning. Normalize each operating condition before taking the worst paired quality; other metrics retain their own declared normalization and functional requirements.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `output_v` | DC output/control voltage | V | target / target | 0 … 1.5 | 1.5 |
+| `bias_v` | DC V(ibias) | V | target / target | 0 … 1.5 | 1.5 |
+| `power_w` | DC power delivered by VDD, -V(vdd)*I(VDD) | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `gain_vv` | Magnitude V(vout) at 10 Hz with unit AC input | V/V | target / target | −∞ … +∞ | 1.0 |
+| `bandwidth_hz` | First falling 3 dB crossing relative to the 10 Hz gain | Hz | maximize / ratio | 0 … +∞ | — |
+| `step_gain` | (Vout at 2.5 us - Vout at 0.5 us) / 0.1 V | V/V | target / target | −∞ … +∞ | 1.0 |
+| `recovery_up_v` | Maximum absolute recovered error over the upward-step window | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 |
+| `recovery_down_v` | Maximum absolute recovered error over the downward-step window | V | minimize / saturating_ratio | 0 … +∞ | 1e-06 |
+| `mean_power_w` | Time-average -V(vdd)*I(VDD) over the complete transient | W | minimize / ratio | 0 … +∞ | 1e-12 |
+
+Area reference: **1242.88 um2**. The expanded circuit has 20 device instances, a sum of device/contact envelopes 782.8540 um2, a one-sided envelope margin of 0.6 um, a routing allowance of 50%, and a total outer width/height allowance 1.2 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across both sides, and the envelope sum is displayed to four decimal places. MOS/passive envelopes use W/L (or resistor dimensions) and multiplicity, including explicit contacts and HBT emitter/contact envelopes. This is a frozen engineering estimate, not a process minimum or a proven achievable area.
+
+The capability coefficient is **5**, independent of this task's reference-normalized score.
+
+### Score weights
+
+Super source follower: loaded recovery 36%; source-follower transfer 27%; bandwidth 13.5%; bias 4.5%; power 9%; area 10%. Each objective's weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.1 |
+| `recovery_down_v` | 0.180000000000 |
+| `recovery_up_v` | 0.180000000000 |
+| `gain_vv` | 0.135000000000 |
+| `step_gain` | 0.135000000000 |
+| `bandwidth_hz` | 0.135000000000 |
+| `bias_v` | 0.022500000000 |
+| `output_v` | 0.022500000000 |
+| `mean_power_w` | 0.045000000000 |
+| `power_w` | 0.045000000000 |
+
+## Tools and Submission
+
+Solve budget: **3 hours**.
+
+Use the reviewed resources in `/protocol/resources.json`: KLayout for checks, Magic for RC extraction and ngspice for simulation. Frozen constraints and requirements are in `/protocol/task.json`; the runtime protocol is in `/protocol/harness.json`. If `process-feedback` is provided, its public helpers may be used for intermediate checks. Write `/workspace/output/final.gds`, then run `python -I /protocol/submit.py` to submit explicitly.

@@ -1,0 +1,92 @@
+# Two-Input NAND Layout Task
+
+## Objective
+
+Implement ZN = NOT (A1 AND A2) with the supplied VTL transistors, preserving authoritative netlist models, W/L, interface and connections; top cell is `NAND2_X1`.
+
+## Inputs and Interface
+
+Ordered SPICE ports: `A1 A2 ZN VDD VSS`. Names are case-insensitive, but different names are not interchangeable. Inputs are this description, `materials/circuit.spice` and `materials/testbench.spice`. The reviewed resource package supplies models and extraction resources; reference geometry and qualification evidence are not solver inputs.
+
+## Operating Conditions
+
+Use nominal FreePDK45 BSIM4 models at **1.0 V and 27 C**, with ground at 0 V. Every transistor has channel length 50 nm; widths and model types follow the netlist.
+
+ZN load is 5 fF. Excite A1/A2 with 00, 01, 11, 10, 00, 10, 11, 01, 00, using 500 ps slots and 10 ps edges; sample +110 ps after each slot starts, covering the truth table and each single-input transition in both directions. Average DUT supply power over 0–4.4 ns.
+
+The deck precisely defines stimuli and observation times, testing only through external ports. Validation covers these nominal conditions, excluding PVT, mismatch, array integration, substrate noise and manufacturing signoff.
+
+## Physical Requirements
+
+Submit a nonempty GDSII no larger than 10 MiB. Enable every check in the supplied KLayout DRC deck, including grid and antenna checks, without waivers. Strict LVS checks named ports, models, W/L and physical well/contact connectivity, with library-specific implicit or global power connections disabled. The upstream deck does not implement its documented spacing rule for wells at different potentials and does not provide complete foundry signoff.
+
+The hard functional-outline limit is 100 um × 100 um. Its bounding box includes all functional geometry on drawing layers 1/0–29/0: active regions, wells, implants, threshold markers, poly, contacts, ten metal layers and nine via layers. Area is scored in um2. Keep functional geometry on these layers, excluding pin-purpose and annotation geometry. Electrical labels use poly or metal drawing layers (9/0, 11/0, 13/0, …, 29/0); nonelectrical annotation text is not extracted.
+
+Translation, equivalent hierarchy and internal instance renaming are allowed. LVS permits source/drain exchange and equivalent parallel devices; the candidate must still pass the same RC electrical evaluation. Preserve top-level port identities and explicit body connections.
+
+The standard-cell functional frame has fixed height 1.63 um and width on a 0.01 um grid. Coordinates below are relative to its lower-left corner; global translation is allowed. Supply rails are continuous on metal1 and bound to their corresponding named supplies by LVS.
+
+- `VDD`: center y=1.515 um, thickness at least 0.07 um, extending from +0.115 um inside the left boundary to the right boundary −0.03 um.
+- `VSS`: center y=0.115 um, thickness at least 0.07 um, with the same horizontal extent as above.
+
+## Electrical Requirements and Scoring
+
+Extract the candidate GDS only after file, DRC, LVS and geometry checks pass. Simulate its Magic RC netlist directly, with independent source simulation supplying the scoring baseline. Independent LVS first checks VTG/VTL device types, then uses the matching extraction configuration. Extraction includes poly/metal sheet resistance, contacts/vias, geometry-dependent coupling and ground capacitance, and device junction areas/perimeters. Wells use lumped connectivity; BSIM4 describes device and junction behavior. Interconnect RC uses estimated coefficients and native capacitance placement from the fixed community FreePDK45 Magic technology. The adapter binds VTG/VTL models, preserves annotation layers and corrects dimension-unit conversion. This is a predictive approximation without field-solver signoff accuracy.
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations remain required evidence; the quality targets below set the scoring anchors without depending on the submitted GDS. Reports retain every source/candidate pair.
+
+Let x be the post-layout measurement and b the declared quality target, or the same-condition source measurement when no target is declared:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical or functional rejection scores zero; missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `state_0` | `find v(ZN) at=0.110n` | V | functional check | 0.9 … +∞ | — |
+| `state_1` | `find v(ZN) at=0.610n` | V | functional check | 0.9 … +∞ | — |
+| `state_2` | `find v(ZN) at=1.110n` | V | functional check | −∞ … 0.1 | — |
+| `state_3` | `find v(ZN) at=1.610n` | V | functional check | 0.9 … +∞ | — |
+| `state_4` | `find v(ZN) at=2.110n` | V | functional check | 0.9 … +∞ | — |
+| `state_5` | `find v(ZN) at=2.610n` | V | functional check | 0.9 … +∞ | — |
+| `state_6` | `find v(ZN) at=3.110n` | V | functional check | −∞ … 0.1 | — |
+| `state_7` | `find v(ZN) at=3.610n` | V | functional check | 0.9 … +∞ | — |
+| `state_8` | `find v(ZN) at=4.110n` | V | functional check | 0.9 … +∞ | — |
+| `supply` | `avg par('-v(vdd)*i(Vdd)') from=0 to=4.400n` | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `propagation_delay` | Worst paired quality over: delay_a1_fall_2, delay_a2_rise_3, delay_a2_fall_6, delay_a1_rise_7. | s | minimize / ratio | 0 … +∞ | — |
+| `output_transition` | Worst paired quality over: transition_a1_fall_2, transition_a2_rise_3, transition_a2_fall_6, transition_a1_rise_7. | s | minimize / ratio | 0 … +∞ | — |
+
+The area scoring target is **0.7 um2**. It is a continuous quality goal, not a hard limit, process minimum or a percentage of the current feasibility witness.
+
+- `propagation_delay`: **1.6e-11 s**. Keep every sensitized input-to-output transition within 16 ps at the declared 5 fF output load.
+
+A 0.7 um2 footprint rewards a compact four-transistor NAND with shared series diffusion. Area 50%, propagation delay 35% and output transition 10% capture physical density and loaded path quality; power is 5%. The 16 ps delay goal is near the slowest source path (about 15.2 ps) and does not replace truth-table or logic-level checks.
+
+Quality targets do not impose additional functional cutoffs. Metrics without an explicit target retain their same-condition source anchors.
+
+The capability coefficient is **1**, independent of this task's reference-normalized score.
+
+### Standard-cell design guidance
+
+You may plan device rows, supply rails and signal access before routing. Represent pull-up/pull-down connections as transistor-edge graphs and explore compatible Euler paths and alternative orders to share diffusion and reduce breaks. Choose a legal arrangement considering routing length, parasitics and signal access. Keep fixed netlist sizes, models and connections; do not optimize sizing.
+
+Use the declared row height, grid and supply-rail geometry. Keep local routing compact and signal pins accessible, avoiding routing layers with no benefit. Check DRC and named-port LVS, then extract the candidate and compare transitions in both directions and power against source simulation; iterate using parasitic measurements. These methods are optional and do not prescribe an algorithm or reference layout.
+
+These methods refer to Sections 2–3 of Xu et al., *Standard Cell Library Design and Optimization Methodology for ASAP7 PDK* (https://arxiv.org/abs/1807.11396). Its FinFET sizing, track count and process-specific dimensions do not apply to this task.
+
+### Score weights
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.5 |
+| `propagation_delay` | 0.35 |
+| `output_transition` | 0.1 |
+| `supply` | 0.05 |
+
+## Tools and Submission
+
+Solve budget: **1 hour**.
+
+Use the reviewed FreePDK45 KLayout, Magic and ngspice resources in `/protocol/resources.json`. Magic RC extraction uses `/resources/support/magic-vtl/freepdk45.tech`, including model and unit adaptation. `/protocol/task.json` supplies consistent constraints, measurements and scoring; `/task` contains only declared inputs. Write `/workspace/output/final.gds`, then run `python -I /protocol/submit.py` to submit explicitly. If `process-feedback` is provided, intermediate checks use the frozen plan and backend identities; their snapshots are not final submissions.

@@ -1,0 +1,45 @@
+# FreePDK45 Fully Differential Telescopic OTA Layout Task
+
+## Objective
+
+Implement the fully differential OTA from the supplied 16-transistor netlist, with a telescopic common-source/common-gate signal path and transistor-based continuous-time output common-mode feedback (CMFB). Evaluation uses extracted connectivity and post-layout RC simulation. Solve budget: **8 hours**.
+
+## Inputs and Interface
+
+Inputs are this description, `materials/circuit.spice`, `materials/testbench.spice`. Ordered fd_ota ports are G1 G2 OUTP OUTN VDD GND VCM_REF VB_N VB_CN VB_CP. Preserve all 16 transistors, NMOS_VTG/PMOS_VTG models, sizes, bodies, ports and connections; external bias sources belong to the test fixture.
+
+VINP/VINN connect to G1/G2 through 1 kΩ source resistors and 2 pF AC-coupling capacitors; input gates are biased to 0.65 V through 1 MΩ, and each output has 0.2 pF to ground. These R/C elements and ideal bias sources are external; transistor CMFB is physical circuitry and must not be replaced by an ideal servo.
+
+## Operating Conditions
+
+Nominal conditions are 27 °C, 1.0 V, VCM_REF=0.50 V, VB_N=0.44 V, VB_CN=0.814 V, VB_CP=0.35 V, VCMI=0.65 V. VINP/VINN DC are both 0.65 V, and differential AC is +0.5/−0.5 V; source and candidate use the same excitation and loads.
+
+Nominal DC measures output common mode (OUTP+OUTN)/2, differential output OUTP−OUTN and power from the 1.0 V source. Increase VCM_REF from 0.50 V to 0.55 V and observe output common-mode change. AC sweeps 30 points per decade from 1 kHz to 100 GHz, measures differential dB gain at 1 MHz and takes the first descending 0 dB crossing as unity-gain frequency. Only these nominal conditions and declared predictive FreePDK45 RC are scored.
+
+## Physical Requirements
+
+Submit `output/final.gds`, top cell `fd_ota`, nonempty and at most 10 MiB. Pass FreePDK45 KLayout DRC and strict four-terminal LVS without waivers, including models, sizes and bodies. Research rules do not constitute manufacturing signoff.
+
+Functional geometry on layers 1/0–29/0 must fit within 100 µm × 100 µm; this outline is a hard limit, and area also contributes to quality scoring. Magic extracts RC used for electrical evaluation.
+
+## Electrical Requirements and Scoring
+
+Nominal output common mode must be 0.35–0.65 V and differential output −0.10–+0.10 V, rejecting bias failure or obvious imbalance. Increasing VCM_REF by 50 mV must increase output common mode by 25–75 mV, verifying physical CMFB response without excessive DC gain.
+
+Differential gain, unity-gain frequency, power, output common/differential modes and CMFB step are paired with source-netlist measurements under matching conditions. Area quality is 1000 µm²/candidate area; output common/differential quality is 1/(1+|candidate−source|/1 V), and CMFB-change quality 1/(1+|candidate−source|/0.05 V). Gain quality is 10^((candidate dB−source dB)/20), frequency is candidate/source, and power is (source+1 pW)/(candidate+1 pW). Each metric takes the worst paired quality.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.15 |
+| `output_cm` | 0.1 |
+| `output_diff` | 0.05 |
+| `cmfb_shift` | 0.05 |
+| `gain` | 0.25 |
+| `unity` | 0.25 |
+| `supply` | 0.15 |
+
+Total score is 100 × q_area^0.15 × q_output_cm^0.10 × q_output_diff^0.05 × q_cmfb_shift^0.05 × q_gain^0.25 × q_unity^0.25 × q_supply^0.15. Gain/bandwidth each weigh 25%, power/area each 15%, and bias/balance/CMFB together 20%. 1000 µm² is a quality target, not a validity limit; reference functional area is approximately 1340.1675 µm². Target area with source-equivalent electrical behavior scores 100; better valid solutions may exceed 100, while physical/functional failure scores zero.
+
+## Tools and Submission
+
+Use declared FreePDK45 resources and the open-source toolchain, submitting only `output/final.gds` with top cell `fd_ota`. Evaluation independently checks layout, extracts RC and runs ngspice post-layout simulation; submission contains no reference assets or author layout generator.

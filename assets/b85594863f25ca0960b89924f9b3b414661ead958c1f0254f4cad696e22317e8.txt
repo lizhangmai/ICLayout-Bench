@@ -1,0 +1,1183 @@
+kind = "layout_case"
+id = "module_3_8_bit_SAR_ADC.part_5_analog_layout.comparator"
+title = "IHP AnalogAcademy comparator"
+status = "qualified"
+in_core = false
+
+[[assets]]
+path = "reference/DIFF_COMPARATOR.gds"
+role = "physical-witness"
+visibility = "maintainer"
+format = "gds"
+sha256 = "9f2548f157ccfc4448820dbd71f26c60d9a0525043e86d8928ea448cf56d7279"
+
+[task]
+hours = 3
+coefficient = 6
+kind = "netlist_to_gds"
+family = "ihp_sg13g2_analog_comparator"
+environment = "ihp-sg13g2-comparator-rc-tt"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "2a80ec3a49eab643333d8121018e7228a1ba1dd2464a1370d8837611c7e88f3e"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+subcircuit = "DIFF_COMPARATOR"
+sha256 = "0fe0279db5d2975dec32196670118a05d0dd9a240e7f70b642c94e0a7ec80a4c"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "daffa3508cb005a2a96651e48ec56909c94596208d48cbc099e24702f8f72221"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "61d8165d7b359539cebe3a94815dcbd22cede35ca87c393e345832523f3c4c8e"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 45
+max_height_um = 45
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "DIFF_COMPARATOR"
+max_bytes = 10485760
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 502.96
+rationale = "Clocked comparators: decision delay 71.1%; supply power 18.9%; area 10%. Each objective's weight is divided equally among its metrics."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.1
+worst_delay = 0.710526315789
+supply_power = 0.189473684211
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+database = "job:lvs:database"
+binding = "job:lvs:binding"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+top_cell = "DIFF_COMPARATOR"
+ports = [
+    "vdd",
+    "gnd",
+    "V+",
+    "V-",
+    "clk",
+    "out-",
+    "out+",
+    "vbias",
+]
+
+[[task.evaluation.jobs]]
+id = "negative_5mv"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_difference = -0.005
+polarity = -1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "comparator.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+supply_power = "W"
+delay_c02 = "s"
+margin_c02 = "V"
+delay_c03 = "s"
+margin_c03 = "V"
+delay_c04 = "s"
+margin_c04 = "V"
+delay_c05 = "s"
+margin_c05 = "V"
+delay_c06 = "s"
+margin_c06 = "V"
+delay_c07 = "s"
+margin_c07 = "V"
+delay_c08 = "s"
+margin_c08 = "V"
+delay_c09 = "s"
+margin_c09 = "V"
+
+[[task.evaluation.jobs]]
+id = "negative_3mv"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_difference = -0.003
+polarity = -1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "comparator.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+supply_power = "W"
+delay_c02 = "s"
+margin_c02 = "V"
+delay_c03 = "s"
+margin_c03 = "V"
+delay_c04 = "s"
+margin_c04 = "V"
+delay_c05 = "s"
+margin_c05 = "V"
+delay_c06 = "s"
+margin_c06 = "V"
+delay_c07 = "s"
+margin_c07 = "V"
+delay_c08 = "s"
+margin_c08 = "V"
+delay_c09 = "s"
+margin_c09 = "V"
+
+[[task.evaluation.jobs]]
+id = "positive_3mv"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_difference = 0.003
+polarity = 1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "comparator.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+supply_power = "W"
+delay_c02 = "s"
+margin_c02 = "V"
+delay_c03 = "s"
+margin_c03 = "V"
+delay_c04 = "s"
+margin_c04 = "V"
+delay_c05 = "s"
+margin_c05 = "V"
+delay_c06 = "s"
+margin_c06 = "V"
+delay_c07 = "s"
+margin_c07 = "V"
+delay_c08 = "s"
+margin_c08 = "V"
+delay_c09 = "s"
+margin_c09 = "V"
+
+[[task.evaluation.jobs]]
+id = "positive_5mv"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+input_difference = 0.005
+polarity = 1
+
+[task.evaluation.jobs.parameters.exports]
+waveform = "comparator.raw"
+
+[task.evaluation.jobs.parameters.measurements]
+supply_power = "W"
+delay_c02 = "s"
+margin_c02 = "V"
+delay_c03 = "s"
+margin_c03 = "V"
+delay_c04 = "s"
+margin_c04 = "V"
+delay_c05 = "s"
+margin_c05 = "V"
+delay_c06 = "s"
+margin_c06 = "V"
+delay_c07 = "s"
+margin_c07 = "V"
+delay_c08 = "s"
+margin_c08 = "V"
+delay_c09 = "s"
+margin_c09 = "V"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "worst_delay"
+category = "performance"
+observations = [
+    "negative_5mv:delay_c02",
+    "negative_5mv:delay_c03",
+    "negative_5mv:delay_c04",
+    "negative_5mv:delay_c05",
+    "negative_5mv:delay_c06",
+    "negative_5mv:delay_c07",
+    "negative_5mv:delay_c08",
+    "negative_5mv:delay_c09",
+    "negative_3mv:delay_c02",
+    "negative_3mv:delay_c03",
+    "negative_3mv:delay_c04",
+    "negative_3mv:delay_c05",
+    "negative_3mv:delay_c06",
+    "negative_3mv:delay_c07",
+    "negative_3mv:delay_c08",
+    "negative_3mv:delay_c09",
+    "positive_3mv:delay_c02",
+    "positive_3mv:delay_c03",
+    "positive_3mv:delay_c04",
+    "positive_3mv:delay_c05",
+    "positive_3mv:delay_c06",
+    "positive_3mv:delay_c07",
+    "positive_3mv:delay_c08",
+    "positive_3mv:delay_c09",
+    "positive_5mv:delay_c02",
+    "positive_5mv:delay_c03",
+    "positive_5mv:delay_c04",
+    "positive_5mv:delay_c05",
+    "positive_5mv:delay_c06",
+    "positive_5mv:delay_c07",
+    "positive_5mv:delay_c08",
+    "positive_5mv:delay_c09",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_negative_5mv:delay_c02",
+    "source_negative_5mv:delay_c03",
+    "source_negative_5mv:delay_c04",
+    "source_negative_5mv:delay_c05",
+    "source_negative_5mv:delay_c06",
+    "source_negative_5mv:delay_c07",
+    "source_negative_5mv:delay_c08",
+    "source_negative_5mv:delay_c09",
+    "source_negative_3mv:delay_c02",
+    "source_negative_3mv:delay_c03",
+    "source_negative_3mv:delay_c04",
+    "source_negative_3mv:delay_c05",
+    "source_negative_3mv:delay_c06",
+    "source_negative_3mv:delay_c07",
+    "source_negative_3mv:delay_c08",
+    "source_negative_3mv:delay_c09",
+    "source_positive_3mv:delay_c02",
+    "source_positive_3mv:delay_c03",
+    "source_positive_3mv:delay_c04",
+    "source_positive_3mv:delay_c05",
+    "source_positive_3mv:delay_c06",
+    "source_positive_3mv:delay_c07",
+    "source_positive_3mv:delay_c08",
+    "source_positive_3mv:delay_c09",
+    "source_positive_5mv:delay_c02",
+    "source_positive_5mv:delay_c03",
+    "source_positive_5mv:delay_c04",
+    "source_positive_5mv:delay_c05",
+    "source_positive_5mv:delay_c06",
+    "source_positive_5mv:delay_c07",
+    "source_positive_5mv:delay_c08",
+    "source_positive_5mv:delay_c09",
+]
+normalization = "ratio"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The observed frequency or ordered-event interval has a nonnegative measurement domain, and its required crossing must exist for a usable observation."
+
+[[task.evaluation.metrics]]
+id = "decision_margin"
+category = "performance"
+observations = [
+    "negative_5mv:margin_c02",
+    "negative_5mv:margin_c03",
+    "negative_5mv:margin_c04",
+    "negative_5mv:margin_c05",
+    "negative_5mv:margin_c06",
+    "negative_5mv:margin_c07",
+    "negative_5mv:margin_c08",
+    "negative_5mv:margin_c09",
+    "negative_3mv:margin_c02",
+    "negative_3mv:margin_c03",
+    "negative_3mv:margin_c04",
+    "negative_3mv:margin_c05",
+    "negative_3mv:margin_c06",
+    "negative_3mv:margin_c07",
+    "negative_3mv:margin_c08",
+    "negative_3mv:margin_c09",
+    "positive_3mv:margin_c02",
+    "positive_3mv:margin_c03",
+    "positive_3mv:margin_c04",
+    "positive_3mv:margin_c05",
+    "positive_3mv:margin_c06",
+    "positive_3mv:margin_c07",
+    "positive_3mv:margin_c08",
+    "positive_3mv:margin_c09",
+    "positive_5mv:margin_c02",
+    "positive_5mv:margin_c03",
+    "positive_5mv:margin_c04",
+    "positive_5mv:margin_c05",
+    "positive_5mv:margin_c06",
+    "positive_5mv:margin_c07",
+    "positive_5mv:margin_c08",
+    "positive_5mv:margin_c09",
+]
+unit = "V"
+direction = "maximize"
+aggregation = "min"
+
+[task.evaluation.metrics.requirement]
+lower = 1.0
+rationale = "The clocked comparator must hold the polarity-correct 1 V differential logic decision throughout every declared decision window, matching the decision threshold used for timing."
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = [
+    "negative_5mv:supply_power",
+    "negative_3mv:supply_power",
+    "positive_3mv:supply_power",
+    "positive_5mv:supply_power",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+dimension = "supply"
+baseline = [
+    "source_negative_5mv:supply_power",
+    "source_negative_3mv:supply_power",
+    "source_positive_3mv:supply_power",
+    "source_positive_5mv:supply_power",
+]
+normalization = "ratio"
+scale = 1e-12
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared powered circuit or driven switching network must consume nonnegative net supply/driver energy or quiescent current under the complete stated observation."
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "a394889677327cea33683d1a1d7656cb18c7cabc8363cc74d777e22d3f6f9afd"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"dfbdf2f93297bbe7d8b576fb988504bd0ecf85b93ef47c314a0f2c9c8830c3e7\", \"compatibility\": null, \"cpu_budget\": 8, \"execution_sha256\": \"495aa9623759f70228a236eb4825c2ae443ef6a741816d8cfc17d1830841dcef\", \"image_id\": \"sha256:060fee64f9f6e71a647e5e958b788d723c9d51d2928ff93e6a295db1959bc37f\", \"limits\": {\"cpus\": 8, \"memory_mb\": 4096, \"pids\": 256}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"dce84f0cb44c7192511c807348bb3852682b1b4ec71ee94055876cb79ccbbdb1\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 600.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Thu Sep 17 13:42:47 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.parameters.values]
+input_difference = -0.005
+polarity = -1
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.parameters.exports]
+waveform = "comparator.raw"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.parameters.measurements]
+supply_power = "W"
+delay_c02 = "s"
+margin_c02 = "V"
+delay_c03 = "s"
+margin_c03 = "V"
+delay_c04 = "s"
+margin_c04 = "V"
+delay_c05 = "s"
+margin_c05 = "V"
+delay_c06 = "s"
+margin_c06 = "V"
+delay_c07 = "s"
+margin_c07 = "V"
+delay_c08 = "s"
+margin_c08 = "V"
+delay_c09 = "s"
+margin_c09 = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.input_sha256]
+deck = "61d8165d7b359539cebe3a94815dcbd22cede35ca87c393e345832523f3c4c8e"
+dut = "daffa3508cb005a2a96651e48ec56909c94596208d48cbc099e24702f8f72221"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.delay_c02]
+value = 1.779459e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.delay_c03]
+value = 1.779459e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.delay_c04]
+value = 1.779459e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.delay_c05]
+value = 1.779459e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.delay_c06]
+value = 1.779459e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.delay_c07]
+value = 1.779459e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.delay_c08]
+value = 1.779459e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.delay_c09]
+value = 1.779459e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.margin_c02]
+value = 1.199985
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.margin_c03]
+value = 1.199985
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.margin_c04]
+value = 1.199985
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.margin_c05]
+value = 1.199985
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.margin_c06]
+value = 1.199985
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.margin_c07]
+value = 1.199985
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.margin_c08]
+value = 1.199985
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.margin_c09]
+value = 1.199985
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.measurements.supply_power]
+value = 5.722953e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_negative_5mv.output_sha256]
+waveform = "2e45ec295299cba6a91602496fcf77c74a8f04ee22222d58138d5d8d6c1198b5"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.parameters.values]
+input_difference = -0.003
+polarity = -1
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.parameters.exports]
+waveform = "comparator.raw"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.parameters.measurements]
+supply_power = "W"
+delay_c02 = "s"
+margin_c02 = "V"
+delay_c03 = "s"
+margin_c03 = "V"
+delay_c04 = "s"
+margin_c04 = "V"
+delay_c05 = "s"
+margin_c05 = "V"
+delay_c06 = "s"
+margin_c06 = "V"
+delay_c07 = "s"
+margin_c07 = "V"
+delay_c08 = "s"
+margin_c08 = "V"
+delay_c09 = "s"
+margin_c09 = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.input_sha256]
+deck = "61d8165d7b359539cebe3a94815dcbd22cede35ca87c393e345832523f3c4c8e"
+dut = "daffa3508cb005a2a96651e48ec56909c94596208d48cbc099e24702f8f72221"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.delay_c02]
+value = 1.860315e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.delay_c03]
+value = 1.860315e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.delay_c04]
+value = 1.860315e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.delay_c05]
+value = 1.860315e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.delay_c06]
+value = 1.860315e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.delay_c07]
+value = 1.860315e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.delay_c08]
+value = 1.860315e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.delay_c09]
+value = 1.860315e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.margin_c02]
+value = 1.199975
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.margin_c03]
+value = 1.199975
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.margin_c04]
+value = 1.199975
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.margin_c05]
+value = 1.199975
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.margin_c06]
+value = 1.199975
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.margin_c07]
+value = 1.199975
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.margin_c08]
+value = 1.199975
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.margin_c09]
+value = 1.199975
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.measurements.supply_power]
+value = 5.815247e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_negative_3mv.output_sha256]
+waveform = "e5129f1f45095560be335028e88030799611d03e1be05e2264b6a4972b92b76b"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.parameters.values]
+input_difference = 0.003
+polarity = 1
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.parameters.exports]
+waveform = "comparator.raw"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.parameters.measurements]
+supply_power = "W"
+delay_c02 = "s"
+margin_c02 = "V"
+delay_c03 = "s"
+margin_c03 = "V"
+delay_c04 = "s"
+margin_c04 = "V"
+delay_c05 = "s"
+margin_c05 = "V"
+delay_c06 = "s"
+margin_c06 = "V"
+delay_c07 = "s"
+margin_c07 = "V"
+delay_c08 = "s"
+margin_c08 = "V"
+delay_c09 = "s"
+margin_c09 = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.input_sha256]
+deck = "61d8165d7b359539cebe3a94815dcbd22cede35ca87c393e345832523f3c4c8e"
+dut = "daffa3508cb005a2a96651e48ec56909c94596208d48cbc099e24702f8f72221"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.delay_c02]
+value = 1.871706e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.delay_c03]
+value = 1.871706e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.delay_c04]
+value = 1.871706e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.delay_c05]
+value = 1.871706e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.delay_c06]
+value = 1.871706e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.delay_c07]
+value = 1.871706e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.delay_c08]
+value = 1.871706e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.delay_c09]
+value = 1.871706e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.margin_c02]
+value = 1.199971
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.margin_c03]
+value = 1.199971
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.margin_c04]
+value = 1.199971
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.margin_c05]
+value = 1.199971
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.margin_c06]
+value = 1.199971
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.margin_c07]
+value = 1.199971
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.margin_c08]
+value = 1.199971
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.margin_c09]
+value = 1.199971
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.measurements.supply_power]
+value = 5.782437e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_positive_3mv.output_sha256]
+waveform = "a73ee16b6882e0ee905cd0fe3e2cb743b88f70a944da2030e20d47b3c5cd2a01"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.inputs]
+deck = "input:performance"
+dut = "input:simulation"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.outputs]
+waveform = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.parameters.values]
+input_difference = 0.005
+polarity = 1
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.parameters.exports]
+waveform = "comparator.raw"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.parameters.measurements]
+supply_power = "W"
+delay_c02 = "s"
+margin_c02 = "V"
+delay_c03 = "s"
+margin_c03 = "V"
+delay_c04 = "s"
+margin_c04 = "V"
+delay_c05 = "s"
+margin_c05 = "V"
+delay_c06 = "s"
+margin_c06 = "V"
+delay_c07 = "s"
+margin_c07 = "V"
+delay_c08 = "s"
+margin_c08 = "V"
+delay_c09 = "s"
+margin_c09 = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.input_sha256]
+deck = "61d8165d7b359539cebe3a94815dcbd22cede35ca87c393e345832523f3c4c8e"
+dut = "daffa3508cb005a2a96651e48ec56909c94596208d48cbc099e24702f8f72221"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.delay_c02]
+value = 1.797676e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.delay_c03]
+value = 1.797676e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.delay_c04]
+value = 1.797676e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.delay_c05]
+value = 1.797676e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.delay_c06]
+value = 1.797676e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.delay_c07]
+value = 1.797676e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.delay_c08]
+value = 1.797676e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.delay_c09]
+value = 1.797676e-09
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.margin_c02]
+value = 1.199982
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.margin_c03]
+value = 1.199982
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.margin_c04]
+value = 1.199982
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.margin_c05]
+value = 1.199982
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.margin_c06]
+value = 1.199982
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.margin_c07]
+value = 1.199982
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.margin_c08]
+value = 1.199982
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.margin_c09]
+value = 1.199982
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.measurements.supply_power]
+value = 5.667991e-05
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_positive_5mv.output_sha256]
+waveform = "96f7d3ea97f82f75fc54b1bf367873f9f7fce58dab855672c5b5a5c60db8836f"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+check = "artifact"
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+check = "drc"
+support = "build/support/comparator-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+check = "lvs"
+support = "build/support/comparator-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 120
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.rc.settings]
+image = "iclayout-eda-open:local"
+support = "build/support/comparator-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+capacitance_threshold_ff = 0
+timeout_seconds = 600
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "analog-models"
+
+[toolchain.backends.simulation.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+support = "build/support/comparator-analog-models"
+timeout_seconds = 600
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[qualification]
+reference = "reference/DIFF_COMPARATOR.gds"
+
+[origin]
+url = "https://github.com/IHP-GmbH/IHP-AnalogAcademy/tree/133ecf657572e021b5921b5a1b7693abfb209623/modules/module_3_8_bit_SAR_ADC/part_5_analog_layout/comparator"
+
+[presentation]
+category = "Mixed-signal"
+summary = "Compares two input voltages using a clocked regenerative decision."

@@ -1,0 +1,31 @@
+* GF180MCU typical-model common-mode rejection characterization.
+.include "support/models.spice"
+.include "dut.spice"
+.include "parameters.spice"
+.temp 27
+VDD_DIFF vdd_diff 0 3.3
+IBIAS_DIFF vdd_diff ib_diff 10u
+VP_DIFF inp_diff 0 DC 1.65 AC .5
+VN_DIFF inn_diff 0 DC 1.65 AC -.5
+CLOAD_DIFF out_diff 0 1p
+XDUT_DIFF vdd_diff out_diff inp_diff inn_diff ib_diff 0 ota_5t
+VDD_CM vdd_cm 0 3.3
+IBIAS_CM vdd_cm ib_cm 10u
+VP_CM inp_cm 0 DC 1.65 AC 1
+VN_CM inn_cm 0 DC 1.65 AC 1
+CLOAD_CM out_cm 0 1p
+XDUT_CM vdd_cm out_cm inp_cm inn_cm ib_cm 0 ota_5t
+.control
+op
+save v(out_cm) v(out_diff)
+ac dec 40 10 1G
+let db_diff = vdb(out_diff)
+let db_cm = vdb(out_cm)
+meas ac gain_diff_db find db_diff at=10
+meas ac gain_cm_db find db_cm at=10
+let cmrr_db = gain_diff_db-gain_cm_db
+print cmrr_db
+write waveform.raw
+quit
+.endc
+.end
