@@ -198,8 +198,19 @@ same-key replay instead of creating a replacement.
 The isolated local service saves workspace checkpoints by default; use
 `--no-recoverable` to disable them. The participant runner enables checkpoints
 and same-session continuation by default for supported native harnesses; its
-frozen `resume_session` policy can explicitly disable both. A checkpoint atomically
-binds workspace bytes to HTTP state after a file write or command completion.
+frozen `resume_session` policy can explicitly disable both.
+The participant runner also supplies bounded service transport retries and
+automatically continues recognized native connection failures and, for supported
+harnesses, transient provider rate limits in the saved
+session, as described in the [recovery guide](running.md#failures-retry-ownership-and-recovery).
+Automatic network and rate-limit retries do not create a new solve; exhausted retries retain
+the recoverable session under its original deadline.
+
+A checkpoint atomically binds workspace bytes to HTTP state after a file write
+or command completion.
+An unchanged workspace reuses its committed archive while still persisting the
+new HTTP state. Changed archives are hashed during streaming, without rereading
+the written file; archive and manifest durability remain required.
 Restart restores that checkpoint in a new isolated container with the original session ID, scoped
 token, conditions, identities and deadline. Downtime consumes the budget.
 Command effects beyond the checkpoint are rolled back; their execution receipts
@@ -216,7 +227,8 @@ override it. It is covered by task identity and cannot change during recovery.
 The creation response's `limits` contains `wall_seconds`, `cpus`, `memory_mb`,
 `pids`, `workspace_mb`, `max_file_bytes`, `max_response_bytes`,
 `max_candidate_bytes`, `max_command_seconds`, `max_log_bytes`,
-`opinion_requests`. The server enforces them. A command is
+`opinion_requests`. CPU, memory and PID limits are `null` by default, meaning
+no framework quota is requested; other limits remain enforced. A command is
 capped by remaining session time. The local service sets `max_command_seconds`
 to `wall_seconds`; the built-in participant runner adds no mutation-count budget
 or shorter execution deadline. Repetitions belong to experiment scheduling.
@@ -334,6 +346,10 @@ secret redaction and retains those records under `native/` before runtime
 cleanup. Observation exports carry the same records in `native-traces.zip`.
 Native contents remain participant-reported and never change evaluation trust
 or scores. Shared export and recovery modules do not interpret vendor logs.
+An adapter may prove delivery of a completed bridge reply through the optional
+`tool_reply_delivered` hook. The bridge checks its own durable request/result
+records and records confirmation before clearing the delivery marker; only the
+adapter interprets the matching native conversation. No operation is replayed.
 
 
 <a id="ownership"></a>
@@ -458,3 +474,20 @@ scored candidate, independent evaluation and optional EDA preview to a terminal
 participant export using an explicit service-store path. It does not call a model.
 New exports do not generate Markdown reports. Consumers render structured results;
 legacy report assets remain readable without changing their scores or identities.
+
+`benchmarking.results.statistics` owns shared arithmetic. `wilson` supplies a
+95% binomial score interval; `usage_summary` and `inference_summary` preserve
+unknown resource usage. `planned_score_summary(values, scheduled)` distinguishes
+missing observations from observed unknown scores and returns a complete-sample
+mean only when every planned score is known. `weighted_score` combines explicit
+task coefficient/score pairs, keeping the suite score unknown if any task score
+is unknown. Callers own sample selection, cohort membership and frozen suite
+bindings; these functions do not read operator batch plans or authorize releases.
+
+`benchmarking.service.launch.launch_service` starts the installed local service
+from explicit CLI arguments, an output directory and a process environment. It
+owns readiness detection and bounded process-group shutdown, including failed
+startup. Credentials stay in the supplied environment. A caller may explicitly
+retain a ready service for recovery; that caller owns its durable process
+identity and subsequent shutdown. Participant launchers and operator deployments
+use the same mechanism with their respective runtime and retention settings.

@@ -73,7 +73,13 @@ def classify_evidence(evidence, exit_code=None, timed_out=False):
     for category in ("quota_exhausted", "authentication", "rate_limit", "network_transient"):
         for code in codes:
             if isinstance(code, str) and mapping.get(code) == category:
-                return failure(category, "harness_event", code)
+                result = failure(category, "harness_event", code)
+                if category in {"rate_limit", "network_transient"}:
+                    result["retryable"] = (not evidence.tool_failure and (exit_code is None or exit_code >= 0)
+                                           and all(isinstance(c, str) and mapping.get(c) == category for c in codes))
+                    if evidence.retry_after is not None:
+                        result["retry_after"] = evidence.retry_after
+                return result
     if evidence.tool_failure:
         return evidence.tool_failure
     if exit_code is not None and exit_code < 0:

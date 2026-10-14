@@ -1,7 +1,10 @@
 """Bounded host access to a live isolated solver workspace."""
 
+import hashlib
 import json
 import os
+import re
+import selectors
 import subprocess
 import time
 
@@ -71,17 +74,77 @@ class SessionWorkspace:
                                   capture_output=True, timeout=self.access_timeout(), check=True)
         return json.loads(response.stdout)
 
-    def checkpoint(self, destination, limit):
-        """Write an fsync-backed archive; no solver directory reaches the host."""
-        with destination.open('wb') as stream:
-            os.chmod(destination, 0o600)
-            subprocess.run([*self.reader(), '/protocol/workspace.py', 'checkpoint', str(limit)],
-                           stdout=stream, stderr=subprocess.PIPE, check=True,
-                           timeout=self.access_timeout())
-            stream.flush()
-            os.fsync(stream.fileno())
-        if destination.stat().st_size > 2 * limit + 16 * 1024 * 1024:
-            raise ValueError('Workspace checkpoint exceeds allocation')
+    def checkpoint(self, destination, limit, *, previous=None):
+        """Hash the stream once; unchanged workspaces produce no archive write."""
+        timeout = self.access_timeout()
+        deadline = None if timeout is None else time.monotonic() + timeout
+        command = [*self.reader(), '/protocol/workspace.py', 'checkpoint', str(limit)]
+        if previous is not None:
+            command.append(previous)
+        header, errors = bytearray(), bytearray()
+        metadata, stream, size = None, None, 0
+        digest = hashlib.sha256()
+        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as process:
+            try:
+                with selectors.DefaultSelector() as selector:
+                    selector.register(process.stdout, selectors.EVENT_READ, 'output')
+                    selector.register(process.stderr, selectors.EVENT_READ, 'error')
+                    while selector.get_map():
+                        remaining = None if deadline is None else deadline - time.monotonic()
+                        if remaining is not None and remaining <= 0:
+                            raise subprocess.TimeoutExpired(command, timeout)
+                        ready = selector.select(remaining)
+                        if not ready:
+                            raise subprocess.TimeoutExpired(command, timeout)
+                        for key, _ in ready:
+                            content = os.read(key.fileobj.fileno(), 1024 * 1024)
+                            if not content:
+                                selector.unregister(key.fileobj)
+                                continue
+                            if key.data == 'error':
+                                errors.extend(content[:max(0, 65536-len(errors))])
+                                continue
+                            if metadata is None:
+                                header.extend(content)
+                                if b'\n' not in header:
+                                    if len(header) > 4096:
+                                        raise ValueError('Invalid checkpoint header')
+                                    continue
+                                line, content = bytes(header).split(b'\n', 1)
+                                if len(line) > 4096:
+                                    raise ValueError('Invalid checkpoint header')
+                                metadata = json.loads(line)
+                                if (not re.fullmatch('[0-9a-f]{64}', metadata.get('workspace_digest', ''))
+                                        or type(metadata.get('unchanged')) is not bool
+                                        or (metadata['unchanged'] and metadata['workspace_digest'] != previous)):
+                                    raise ValueError('Invalid checkpoint identity')
+                                header.clear()
+                                if not metadata['unchanged']:
+                                    stream = destination.open('wb')
+                                    os.chmod(destination, 0o600)
+                            if content:
+                                size += len(content)
+                                if stream is None or size > 2 * limit + 16 * 1024 * 1024:
+                                    raise ValueError('Workspace checkpoint exceeds allocation')
+                                stream.write(content)
+                                digest.update(content)
+                    remaining = None if deadline is None else max(0, deadline-time.monotonic())
+                    process.wait(timeout=remaining)
+                if process.returncode:
+                    raise subprocess.CalledProcessError(process.returncode, command, stderr=bytes(errors))
+                if metadata is None:
+                    raise ValueError('Missing checkpoint header')
+                if stream is not None:
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                return metadata | {'sha256': digest.hexdigest() if stream is not None else None}
+            except BaseException:
+                process.kill()
+                process.wait()
+                raise
+            finally:
+                if stream is not None:
+                    stream.close()
 
     def restore(self, source, limit):
         with source.open('rb') as stream:

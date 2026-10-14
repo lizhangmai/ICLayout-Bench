@@ -4,7 +4,6 @@ from pathlib import Path
 
 from benchmarking.files import Asset
 
-from ..tools.docker import DockerTool
 from .spectre import SpectreDocker
 
 
@@ -35,8 +34,8 @@ class SpectreAPSDocker(SpectreDocker):
     adapter = 'spectre-aps-docker'
 
     def __init__(self, *, threads=4, aps_preset=None, postlayout=None, **settings):
-        if type(threads) is not int or not 1 <= threads <= DockerTool.CPUS:
-            raise ValueError('APS threads must fit the tool CPU allocation')
+        if type(threads) is not int or threads < 1:
+            raise ValueError('APS threads must be a positive integer')
         if aps_preset not in (None, 'conservative', 'moderate', 'liberal'):
             raise ValueError('APS preset must be conservative, moderate or liberal')
         if postlayout not in (None, 'upa', 'hpa', 'default'):

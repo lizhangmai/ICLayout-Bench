@@ -13,11 +13,12 @@ from dotenv import dotenv_values
 from benchmarking.files import atomic_write
 
 from ..credentials import credential_values
+from ..native_home import stage_file
 from . import dsh_events
 from .contracts import HarnessMetadata, LaunchContext, ParticipantSelection
 from .native import confined_files
 
-METADATA = HarnessMetadata('dsh', 'DSH_HOME', '.dsh', None)
+METADATA = HarnessMetadata('dsh', 'DSH_HOME', '.dsh', None, 'settings.yaml')
 
 CAPABILITIES = {"resume_session": True, "capacity_resumes": False}
 
@@ -86,8 +87,8 @@ def _credential_values(path):
     return secrets
 
 
-def stage_credentials(private, env):
-    original = METADATA.home(env)
+def stage_credentials(private, env, settings=None):
+    original = Path(settings['native_home']) if settings and 'native_home' in settings else METADATA.home(env)
     home = private / 'native-home'
     home.mkdir(mode=0o700, exist_ok=True)
     redactions = set()
@@ -97,7 +98,9 @@ def stage_credentials(private, env):
         source, target = original / filename, home / filename
         if source.is_file():
             redactions.update(_credential_values(source))
-            if not target.exists():
+            if settings and 'native_home' in settings:
+                stage_file(source, target, private)
+            elif not target.exists():
                 atomic_write(target, source.read_bytes())
         redactions.update(_credential_values(target))
     env['DSH_HOME'] = str(home.resolve())
@@ -110,7 +113,7 @@ def credential_redactions(output):
                          confined_files(home, '.credentials.yaml', '.env')))
 
 
-def resolve(model, effort, env):
+def resolve(model, effort, env, *, home=None):
     rows, settings, selected = configuration(env)
     model = model or selected.get("model")
     provider = selected.get("provider")

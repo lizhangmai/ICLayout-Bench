@@ -5,7 +5,7 @@ import stat
 import sys
 
 
-def snapshot(root, path, limit):
+def snapshot(root, path, limit, *, single_link=True):
     parts = path.split("/")
     if any(p in {"", ".", ".."} for p in parts) or path.startswith("/"):
         raise ValueError("Submission path must stay inside the workspace")
@@ -18,8 +18,10 @@ def snapshot(root, path, limit):
         file = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptor)
         with os.fdopen(file, "rb") as stream:
             before = os.fstat(stream.fileno())
-            if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+            if not stat.S_ISREG(before.st_mode) or (single_link and before.st_nlink != 1):
                 raise ValueError("Submission must be a regular file without links")
+            if limit is None:
+                limit = before.st_size
             if before.st_size > limit:
                 raise ValueError("Submission exceeds the task size limit")
             content = stream.read(limit + 1)
@@ -35,7 +37,12 @@ def snapshot(root, path, limit):
 
 if __name__ == "__main__":
     try:
-        sys.stdout.buffer.write(snapshot("/workspace", sys.argv[1], int(sys.argv[2])))
+        limit = None if sys.argv[2] == 'none' else int(sys.argv[2])
+        # Tool exports are read after their writers have been stopped; retain
+        # ordinary hardlinked EDA outputs. Participant submissions still require
+        # the default single-link rule in a live workspace.
+        single_link = len(sys.argv) < 4 or sys.argv[3] != 'allow-hardlinks'
+        sys.stdout.buffer.write(snapshot("/workspace", sys.argv[1], limit, single_link=single_link))
     except (OSError, ValueError) as error:
         print(str(error), file=sys.stderr)
         raise SystemExit(1) from error

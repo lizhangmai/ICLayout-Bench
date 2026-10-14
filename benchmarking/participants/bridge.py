@@ -39,6 +39,51 @@ TOOLS = [
 ]
 
 
+def _record(log, value):
+    with log.open('a') as stream:
+        stream.write(json.dumps(value, ensure_ascii=False) + '\n')
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def confirm_native_delivery(output, harness):
+    """After native exit, acknowledge only a proven persisted bridge reply."""
+    from . import adapters
+
+    confirm = getattr(adapters.get(harness), 'tool_reply_delivered', None)
+    if confirm is None:
+        return False
+    delivery, log = output / 'tools.delivery.json', output / 'tools.jsonl'
+    try:
+        raw = delivery.read_bytes()
+        entry = json.loads(raw)
+        rows = [json.loads(line) for line in log.read_text().splitlines() if line.strip()]
+        if not isinstance(entry, dict) or any(not isinstance(row, dict) for row in rows):
+            return False
+        requests = [row for row in rows if 'arguments' in row]
+        replies = [row for row in rows if 'result' in row]
+        request = requests[-1]
+        if (set(entry) != {'tool', 'key', 'result'} or not request.get('mutation')
+                or request.get('key') != entry['key'] or request.get('tool') != entry['tool']
+                or not isinstance(entry['key'], str) or not entry['key'] or replies[-1] != entry):
+            return False
+        # Repeated identical operations can have identical results. Count their
+        # distinct bridge requests so an older native reply cannot confirm one.
+        occurrences = {row['key'] for row in requests
+                       if row['tool'] == request['tool'] and row['arguments'] == request['arguments']}
+        if not confirm(output, request, entry['result'], len(occurrences)):
+            return False
+        if delivery.read_bytes() != raw:
+            return False
+        confirmation = {'tool': entry['tool'], 'key': entry['key'], 'recovery': 'native_reply_confirmed'}
+        if confirmation not in rows:
+            _record(log, confirmation)
+        delivery.unlink()
+        return True
+    except (OSError, ValueError, KeyError, TypeError, IndexError):
+        return False
+
+
 class Bridge:
     def __init__(self, client, session, log, command_seconds=None):
         self.client, self.session = client, session
@@ -48,10 +93,7 @@ class Bridge:
         self.delivery_unknown = self.delivery.exists()
 
     def record(self, value):
-        with self.log.open("a") as stream:
-            stream.write(json.dumps(value, ensure_ascii=False) + "\n")
-            stream.flush()
-            os.fsync(stream.fileno())
+        _record(self.log, value)
 
     def call(self, name, args):
         spec = next((t for t in TOOLS if t["name"] == name), None)

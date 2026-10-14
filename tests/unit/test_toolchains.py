@@ -114,14 +114,11 @@ def test_branch_resistors_reject_semantics_they_cannot_preserve(card):
     {'max_parallel_jobs': 0}, {'max_parallel_jobs': True}, {'threads': 0},
     {'threads': 1.5}, {'cpu_budget': False}, {'cpu_budget': 0},
     {'max_parallel_jobs': 4, 'threads': 4, 'cpu_budget': 8},
-    {'max_parallel_jobs': 1, 'threads': 9, 'cpu_budget': 16},
 ])
 def test_ngspice_rejects_invalid_resource_allocations_before_tool_start(settings, monkeypatch):
     from benchmarking.engine.backends import ngspice
 
     class UnavailableTool:
-        CPUS = 8
-
         def __init__(self, *args, **kwargs):
             pytest.fail('Invalid resource settings must not start Docker')
 
@@ -141,8 +138,6 @@ def test_ngspice_resource_settings_bind_through_toolchain_and_preserve_startup(t
     calls = []
 
     class Tool:
-        CPUS = 8
-
         def __init__(self, *args):
             self.identity = {'image_id': 'test'}
 
@@ -163,7 +158,7 @@ def test_ngspice_resource_settings_bind_through_toolchain_and_preserve_startup(t
     config = toolchain_config('''
 [backends.simulation]
 type = "ngspice-docker"
-settings = {image = "test", support = "models", max_parallel_jobs = 2, threads = 4, cpu_budget = 8}
+settings = {image = "test", support = "models", max_parallel_jobs = 2, threads = 16, cpu_budget = 32}
 [bindings]
 "circuit.simulate" = "simulation"
 ''')
@@ -177,8 +172,8 @@ settings = {image = "test", support = "models", max_parallel_jobs = 2, threads =
     assert result.measurements['response'].value == 1.25
     files, environment = calls[0]
     assert files['support/.spiceinit'].content.startswith(b'echo keep-model-startup\n')
-    assert b'set num_threads=4\n' in files['support/.spiceinit'].content
-    assert environment['OMP_NUM_THREADS'] == environment['OMP_THREAD_LIMIT'] == '4'
+    assert b'set num_threads=16\n' in files['support/.spiceinit'].content
+    assert environment['OMP_NUM_THREADS'] == environment['OMP_THREAD_LIMIT'] == '16'
     assert config.read_bytes() == original
 
 

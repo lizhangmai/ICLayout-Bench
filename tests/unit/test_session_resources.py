@@ -108,3 +108,43 @@ def test_external_solver_cannot_shadow_trusted_inputs_or_reader(target, environm
     runtime = SimpleNamespace(mounts=[{'target': target}], environment=environment, profile={})
     with pytest.raises(ValueError, match='trusted session'):
         DockerSession('unused', runtime=runtime)
+
+
+@pytest.mark.parametrize('limited', [False, True])
+def test_service_default_has_no_cpu_memory_or_pid_quota(executable_case, monkeypatch, limited):
+    from benchmarking.engine.sessions.config import RunConfig
+    from benchmarking.engine.sessions.docker import DockerSession
+    from benchmarking.service.contracts import session_limits
+    from benchmarking.tasks import load_task
+
+    task = load_task(executable_case)
+    budgets = session_limits(task, seconds=10)
+    assert (budgets['cpus'], budgets['memory_mb'], budgets['pids']) == (None, None, None)
+    quotas = (128, 1, 16) if limited else (None, None, None)
+    config = RunConfig('fixture', 'fixture-image', ('python', '/agent/cli.py'),
+                       budgets['wall_seconds'], *quotas, budgets['workspace_mb'],
+                       {'cli.py': Asset(b'print("fixture")', 'python')}, {}, Asset(b'fixture', 'text'))
+    commands = []
+
+    def docker(command, **kwargs):
+        if command[:3] == ['docker', 'image', 'inspect']:
+            return json.dumps([{'Id': 'sha256:fixture', 'Config': {}}])
+        if command[:2] == ['docker', 'info']:
+            return json.dumps(['name=rootless'])
+        commands.append(command)
+        raise RuntimeError('Container creation observed')
+
+    monkeypatch.setattr('benchmarking.engine.sessions.docker.subprocess.check_output', docker)
+    with pytest.raises(RuntimeError, match='Container creation observed'):
+        DockerSession('fixture-image').run(task, config, {}, 'fixture')
+    command, = commands
+    if limited:
+        for flag, value in {'--memory': '128m', '--memory-swap': '128m',
+                            '--cpus': '1', '--pids-limit': '16'}.items():
+            assert command[command.index(flag) + 1] == value
+    else:
+        assert not {'--memory', '--memory-swap', '--cpus', '--pids-limit'} & set(command)
+    assert '--read-only' in command
+    assert command[command.index('--network') + 1] == 'none'
+    assert command[command.index('--cap-drop') + 1] == 'ALL'
+    assert command[command.index('--security-opt') + 1] == 'no-new-privileges'

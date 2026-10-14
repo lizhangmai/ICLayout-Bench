@@ -1,4 +1,4 @@
-"""Kimi Code terminal stderr interpretation, never shared with other harnesses."""
+"""Kimi Code native record interpretation, never shared with other harnesses."""
 
 import json
 import re
@@ -24,7 +24,61 @@ def json_events(path):
                 yield event
 
 
+def conversation_messages(events):
+    """Read legacy messages and main-agent loop events in journal order."""
+    messages, open_steps, pending = [], set(), set()
+    use_loop = any(record.get('type') == 'context.append_loop_event' and record.get('agentId') == 'main'
+                   for record in events)
+    for record in events:
+        kind = record.get('type')
+        if kind == 'agent.message.appended' and record.get('agentId', 'main') == 'main':
+            # New journals also append transcript events that mirror the loop.
+            # Only context records govern native restoration in this format.
+            if not use_loop:
+                messages.append(record['message']['message'])
+        elif record.get('agentId') != 'main':
+            continue
+        elif kind in {'context.clear', 'context.undo', 'context.apply_compaction'}:
+            # Native history rewrites invalidate earlier delivery evidence.
+            messages.append({'role': 'context_reset'})
+            open_steps.clear()
+            pending.clear()
+        elif kind == 'context.append_loop_event':
+            event = record['event']
+            if event['type'] == 'step.begin':
+                # Kimi closes outstanding replies before starting a new step;
+                # a late result for a prior step does not enter its context.
+                pending.clear()
+                open_steps.add(event['uuid'])
+            elif event['type'] == 'step.end':
+                open_steps.discard(event['uuid'])
+            elif event['type'] == 'tool.call':
+                if (event.get('stepUuid') not in open_steps
+                        or not isinstance(event.get('uuid'), str) or not event['uuid']
+                        or not isinstance(event.get('toolCallId'), str) or not event['toolCallId']
+                        or not isinstance(event.get('args'), dict)):
+                    raise ValueError('Invalid Kimi loop tool call')
+                call = {'type': 'function', 'id': event['toolCallId'], 'name': event['name'],
+                        'arguments': json.dumps(event['args']), 'nativeUuid': event['uuid']}
+                messages.append({'role': 'assistant', 'toolCalls': [call]})
+                pending.add(call['id'])
+            elif event['type'] == 'tool.result':
+                call_id = event['toolCallId']
+                if call_id not in pending:
+                    continue
+                native_result = event['result']
+                messages.append({'role': 'tool', 'toolCallId': call_id,
+                                 'parentUuid': event.get('parentUuid'),
+                                 'isError': native_result.get('isError'),
+                                 'note': native_result.get('note'),
+                                 'content': [{'type': 'text', 'text': native_result['output']}]})
+                pending.remove(call_id)
+    return messages
+
+
 def _code(detail):
+    if detail == 'The provided authorization grant is invalid':
+        return 'authentication_error'
     match = ERROR.fullmatch(detail)
     if match is None:
         return None

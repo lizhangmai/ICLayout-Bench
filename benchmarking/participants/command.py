@@ -1,7 +1,5 @@
 """Supervise an operator-selected participant process without choosing its actions."""
 
-import os
-
 from benchmarking.client import Client
 from benchmarking.files import atomic_write
 from benchmarking.observe import export_observation
@@ -14,6 +12,8 @@ from benchmarking.participants.process import execute
 from benchmarking.protocol import json_bytes
 from benchmarking.results.analysis import export_session_result
 
+from .config import clean_env
+
 
 def run_command(access, task_id, frozen, output, *, creation_key):
     output.mkdir(mode=0o700)
@@ -22,7 +22,7 @@ def run_command(access, task_id, frozen, output, *, creation_key):
     client = Client(access.endpoint, created['session_token'], timeout=60)
     atomic_write(output / 'session.json', json_bytes({k: v for k, v in created.items() if k != 'session_token'}))
     atomic_write(output / 'conditions.json', json_bytes(frozen))
-    env = {k: v for k, v in os.environ.items() if not k.startswith('ICLAYOUT_BENCH_')}
+    env = clean_env()
     env.update(ICLAYOUT_BENCH_ENDPOINT=access.endpoint, ICLAYOUT_BENCH_TOKEN=created['session_token'],
                ICLAYOUT_BENCH_SESSION=sid, ICLAYOUT_BENCH_TASK_FILE=str(output / 'session.json'))
     error, exit_code = None, None

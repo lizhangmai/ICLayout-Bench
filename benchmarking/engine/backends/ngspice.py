@@ -60,8 +60,6 @@ class NgspiceDocker:
                             ("threads", threads), ("cpu_budget", cpu_budget)):
             if type(value) is not int or value < 1:
                 raise ValueError(f"ngspice {name} must be a positive integer")
-        if threads > DockerTool.CPUS:
-            raise ValueError("ngspice threads must fit the tool CPU allocation")
         if max_parallel_jobs * threads > cpu_budget:
             raise ValueError("ngspice concurrent jobs and threads exceed the CPU budget")
         self.max_parallel_jobs, self.threads, self.cpu_budget = max_parallel_jobs, threads, cpu_budget

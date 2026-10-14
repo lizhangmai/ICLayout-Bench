@@ -28,7 +28,7 @@ def session_limits(task, seconds=None):
         raise ValueError("Task must explicitly declare hours before serving a solve")
     if not math.isfinite(seconds) or seconds <= 0:
         raise ValueError('Session budget must be positive and finite')
-    return {'wall_seconds': seconds, 'budget_policy': 'soft', 'cpus': 4, 'memory_mb': 8192, 'pids': 512, 'workspace_mb': 2048,
+    return {'wall_seconds': seconds, 'budget_policy': 'soft', 'cpus': None, 'memory_mb': None, 'pids': None, 'workspace_mb': 2048,
                            'max_file_bytes': 4*1024*1024, 'max_response_bytes': 8*1024*1024,
                            'max_candidate_bytes': task.output.max_bytes, 'max_command_seconds': seconds,
                            'max_log_bytes': 4*1024*1024, 'opinion_requests': 0}

@@ -12,7 +12,6 @@ from helpers.harness import native_session
 
 from benchmarking.client import ClientError
 from benchmarking.participants.adapters.contracts import (
-    HARNESSES,
     LaunchContext,
     ParticipantSelection,
 )
@@ -445,25 +444,6 @@ if __name__ == '__main__':
     unittest.main()
 
 
-@pytest.mark.parametrize('event,exit_code,category', [
-    ({'type': 'error', 'error': {'code': 'insufficient_quota'}}, 1, 'quota_exhausted'),
-    ({'type': 'error', 'error': {'type': 'authentication_error'}}, 1, 'authentication'),
-    ({'type': 'turn.failed', 'error': {'code': 'rate_limit_exceeded'}}, 1, 'rate_limit'),
-    ({'type': 'error', 'message': 'Selected model is at capacity. Please try a different model.'}, 1, 'provider_overloaded'),
-    ({'type': 'turn.failed', 'error': {'message': 'Selected model is at capacity. Please try a different model.'}}, 1, 'provider_overloaded'),
-    ({'type': 'turn.failed', 'error': {'code': 'server_is_overloaded', 'retry_after': 45}}, 1, 'provider_overloaded'),
-    ({'type': 'item.completed', 'item': {'type': 'agent_message', 'text': 'Selected model is at capacity. Please try a different model.'}}, 1, 'unknown'),
-    ({'type': 'error', 'message': 'Selected model is at capacity. Please try a different model.',
-      'error': {'code': 'invalid_api_key'}}, 1, 'authentication'),
-    ({'type': 'assistant', 'text': 'insufficient_quota'}, 3, 'unknown'),
-    ({}, -9, 'harness_crash'),
-])
-def test_failure_uses_evidence_not_exit_code_or_assistant_text(tmp_path, event, exit_code, category):
-    from benchmarking.participants.adapters.codex import harness_failure
-    (tmp_path / 'harness.jsonl').write_text(json.dumps(event) + '\n')
-    assert harness_failure(tmp_path, exit_code)['category'] == category
-
-
 @pytest.mark.parametrize('harness,stop', [
     *[('codex', stop) for stop in ('success', 'limit', 'deadline', 'insufficient_budget', 'pending_tool', 'pending_after_wait',
                                  'missing_thread', 'authentication', 'retry_after', 'service_error', 'disabled')],
@@ -471,6 +451,8 @@ def test_failure_uses_evidence_not_exit_code_or_assistant_text(tmp_path, event, 
     ('codex', 'reconnect_then_capacity'),
     ('codex', 'rotated_credentials'),
     ('claude-code', 'rotated_credentials'),
+    ('codex', 'rate_limit_success'),
+    ('claude-code', 'rate_limit_success'),
 ])
 def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, monkeypatch, harness, stop):
     """Run real child processes emitting native events; only the service/provider boundaries are fixtures."""
@@ -482,6 +464,9 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
 
     reconnect_then_capacity = stop == 'reconnect_then_capacity'
     rotated_credentials = stop == 'rotated_credentials'
+    rate_limited = stop == 'rate_limit_success'
+    if rate_limited:
+        stop = 'success'
     if reconnect_then_capacity or rotated_credentials:
         stop = 'success'
 
@@ -490,7 +475,7 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
     output = tmp_path / 'participant'
     selected = {'harness': harness, 'model': 'fixture-model', 'effort_resolved': 'xhigh', 'effort_requested': 'xhigh'}
     row = {'name': 'trial', 'harness': harness, 'task': 'fixture',
-           'recovery': DISABLED | {'resume_session': stop == 'limit', 'capacity_resumes': 2, 'capacity_backoff_seconds': 30,
+           'recovery': DISABLED | {'resume_session': stop in {'limit', 'service_error'}, 'capacity_resumes': 2, 'capacity_backoff_seconds': 30,
                                    'capacity_max_backoff_seconds': 300}}
     if stop == 'success':
         del row['recovery']  # Capacity continuation must work without opting in.
@@ -502,6 +487,10 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
     capacity = {'type': 'turn.failed', 'error': {'message': 'Selected model is at capacity. Please try a different model.'}}
     if harness == 'claude-code':
         capacity = {'type': 'error', 'error': {'type': 'overloaded_error'}}
+    if rate_limited:
+        capacity = ({'type': 'turn.failed', 'error': {'code': 'rate_limit_exceeded'}} if harness == 'codex' else
+                    {'type': 'assistant', 'error': 'rate_limit', 'message': {'content': [
+                        {'type': 'text', 'text': 'API Error: Request rejected (429) fixture rate limit'}]}})
     if stop == 'retry_after':
         capacity['error']['retry_after'] = 400
 
@@ -573,14 +562,14 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
     with patch.object(fixture, 'create', wraps=fixture.create) as create:
         summary = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
     assert create.call_count == 1
-    assert fixture.closed == ['fixture-session']
+    assert fixture.closed == ([] if stop == 'service_error' else ['fixture-session'])
     if rotated_credentials:
         for path in (output / 'observation').rglob('*'):
             if path.is_file():
                 assert b'rotated-native-secret-1' not in path.read_bytes()
                 assert b'rotated-native-secret-2' not in path.read_bytes()
         assert b'rotated-native-secret-1' in (output / 'launch-1-harness.jsonl').read_bytes()
-    assert summary['state'] == 'finished'
+    assert summary['state'] == ('suspended' if stop == 'service_error' else 'finished')
     assert summary['session_id'] == 'fixture-session'
     if stop == 'success':
         frozen = json.loads((output / 'conditions.json').read_text())
@@ -620,6 +609,120 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
         assert summary['failure']['category'] == {'authentication': 'authentication', 'service_error': 'network_transient'}.get(stop, 'provider_overloaded')
     if stop in {'pending_tool', 'missing_thread', 'retry_after', 'service_error', 'insufficient_budget'}:
         assert not delays
+
+
+@pytest.mark.parametrize('harness,stop', [
+    *[('codex', stop) for stop in ('success', 'limit', 'deadline', 'pending_tool', 'pending_after_wait',
+                                 'missing_native', 'disabled', 'resume_disabled', 'authentication',
+                                 'quota', 'mixed_failure', 'successful_exit')],
+    ('claude-code', 'success'), ('claude-code', 'limit'),
+])
+def test_network_continuation_preserves_session_and_can_resume_after_exhaustion(tmp_path, monkeypatch, harness, stop):
+    """Native disconnection must continue the saved solve, never create a new one."""
+    import sys
+    from types import SimpleNamespace
+
+    from benchmarking.participants.runner import CONTINUE_PROMPT, run_one
+
+    fixture = ServiceFixture()
+    fixture.remaining = 1000
+    selected = {'harness': harness, 'model': 'fixture-model', 'effort_resolved': 'high', 'effort_requested': 'high'}
+    row = {'name': 'trial', 'harness': harness, 'task': 'fixture'}
+    if stop != 'success':
+        row['recovery'] = {'network_resumes': 2}
+    if stop == 'disabled':
+        row['recovery']['network_resumes'] = 0
+    if stop == 'resume_disabled':
+        row['recovery']['resume_session'] = False
+    output = tmp_path / 'participant'
+    launches, delays, timeouts = [], [], []
+    clock = [0]
+    manually_recovered = [False]
+
+    def launch(context):
+        env = context.selection.environment
+        launches.append(dict(env))
+        if stop != 'missing_native':
+            native_session(output, harness, env['ICLAYOUT_BENCH_NATIVE_ID'])
+        if len(launches) > 1:
+            assert context.prompt == CONTINUE_PROMPT
+        failing = not manually_recovered[0] and (len(launches) == 1 or stop == 'limit')
+        events = [{'type': 'thread.started', 'thread_id': env['ICLAYOUT_BENCH_NATIVE_ID']}]
+        code = 'connection_error' if failing else {'authentication': 'invalid_api_key', 'quota': 'insufficient_quota'}.get(stop)
+        if code:
+            events.append({'type': 'turn.failed', 'error': {'code': code}})
+        else:
+            events.append({'type': 'turn.completed'})
+        if stop == 'mixed_failure':
+            events.append({'type': 'error', 'error': {'code': 'unrecognized_failure'}})
+        if stop == 'pending_tool':
+            (output / 'tools.pending.json').write_text('{}')
+        raw = '\n'.join(json.dumps(e) for e in events)
+        exit_code = 0 if stop == 'successful_exit' else int(bool(code))
+        return [sys.executable, '-c', f'import sys; print({raw!r}); sys.exit({exit_code})']
+
+    from benchmarking.participants.process import execute as actual_execute
+
+    def execute(*args, **kwargs):
+        timeouts.append(kwargs['timeout'])
+        return actual_execute(*args, **kwargs)
+
+    def sleep(seconds):
+        delays.append(seconds)
+        clock[0] += seconds
+        fixture.remaining = 0 if stop == 'deadline' else fixture.remaining - seconds
+        if stop == 'pending_after_wait':
+            (output / 'tools.delivery.json').write_text('{}')
+
+    monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *a, **kw: fixture)
+    monkeypatch.setattr('benchmarking.participants.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
+    monkeypatch.setattr('benchmarking.participants.adapters.prepare', launch)
+    monkeypatch.setattr('benchmarking.participants.runner.execute', execute)
+    monkeypatch.setattr('benchmarking.participants.recovery.network_delay', lambda settings, n: min(300, 30 * 2 ** n))
+    monkeypatch.setattr('benchmarking.participants.runner.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
+    with patch.object(fixture, 'create', wraps=fixture.create) as create:
+        summary = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
+        assert create.call_count == 1
+        assert summary['session_id'] == 'fixture-session'
+        assert len(launches) == (3 if stop == 'limit' else 2 if stop in {'success', 'authentication', 'quota'} else 1)
+        for env in launches:
+            assert env['ICLAYOUT_BENCH_SESSION'] == 'fixture-session'
+            transport = json.loads(env['ICLAYOUT_BENCH_RECOVERY'])
+            assert transport['http_attempts'] == 3
+        for env in launches[1:]:
+            assert env['ICLAYOUT_BENCH_RESUME_ID'] == launches[0]['ICLAYOUT_BENCH_NATIVE_ID']
+            assert env['ICLAYOUT_BENCH_TOKEN'] == launches[0]['ICLAYOUT_BENCH_TOKEN']
+        assert timeouts == ([1000, 970, 910] if stop == 'limit' else [1000, 970] if len(launches) == 2 else [1000])
+        if stop in {'disabled', 'resume_disabled', 'mixed_failure', 'successful_exit'}:
+            assert 'network_recovery' not in summary
+            assert not delays
+        else:
+            recovery = summary['network_recovery']
+            assert recovery['outcome'] == {'success': 'recovered', 'limit': 'limit_reached',
+                                          'deadline': 'deadline', 'pending_tool': 'unsafe_to_resume',
+                                          'pending_after_wait': 'unsafe_to_resume', 'missing_native': 'unsafe_to_resume',
+                                          'authentication': 'stopped_on_other_error', 'quota': 'stopped_on_other_error'}[stop]
+        if stop in {'success', 'resume_disabled'}:
+            assert summary['state'] == 'finished'
+            assert fixture.closed == ['fixture-session']
+        else:
+            assert summary['state'] == 'suspended'
+            assert not fixture.closed
+        if stop == 'success':
+            assert summary['harness_error'] is None
+            assert delays == [30]
+            assert (output / 'launch-1-harness.jsonl').exists()
+        if stop == 'limit':
+            assert delays == [30, 60]
+            assert summary['network_recovery']['resumes'] == 2
+            assert (output / '.private/recovery.json').is_file()
+            manually_recovered[0] = True
+            fixture.remaining = 30
+            resumed = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
+            assert create.call_count == 1
+            assert resumed['state'] == 'finished'
+            assert resumed['network_recovery']['outcome'] == 'recovered'
+            assert timeouts[-1] == 30
 
 
 def test_local_capacity_recovery_exports_both_launches_before_removing_runtime(tmp_path, monkeypatch):
@@ -706,8 +809,9 @@ def test_repeated_capacity_interruptions_cool_only_related_new_dispatch(tmp_path
         assert calls[2] == ('first', 'c', 300)
 
 
-@pytest.mark.parametrize('service_restarted', [False, True])
-@pytest.mark.parametrize('harness', ['codex', 'claude-code'])
+@pytest.mark.parametrize('harness,service_restarted', [
+    ('codex', False), ('codex', True), ('claude-code', False),
+])
 def test_same_session_resume_preserves_budget_and_private_credentials(tmp_path, service_restarted, harness):
     import sys
 
@@ -1004,15 +1108,20 @@ def test_replacement_rejects_active_remote_session(tmp_path, monkeypatch):
         validate_replacement(tmp_path, identity)
 
 
-def test_quota_halts_related_dispatch_without_creating_extra_repetitions(tmp_path, monkeypatch):
-    from benchmarking.participants.recovery import failure
+@pytest.mark.parametrize('harness', ['codex', 'kimi-code'])
+def test_fatal_provider_errors_halt_related_dispatch_without_creating_extra_repetitions(tmp_path, monkeypatch, harness):
+    from benchmarking.participants import adapters
     from benchmarking.run import main
     config = tmp_path / 'trial.toml'
-    config.write_text('harness="codex"\nmodel="fixture"\neffort="high"\ntasks=["test"]\nconcurrency=1\nrepetitions=3\n')
+    config.write_text(f'harness="{harness}"\nmodel="fixture"\neffort="high"\ntasks=["test"]\nconcurrency=1\nrepetitions=3\n')
+    (tmp_path / 'harness.jsonl').write_text('{"type":"error","code":"insufficient_quota"}\n' if harness == 'codex' else '')
+    if harness == 'kimi-code':
+        (tmp_path / 'harness.stderr').write_text('error: failed to run prompt: The provided authorization grant is invalid\n')
+    problem = adapters.harness_failure(harness, tmp_path, exit_code=1)
     monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'secret')
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection({'harness': 'codex', 'model': 'fixture'}, {}, {}))
-    with patch('benchmarking.participants.runner.run_one', return_value={'state': 'suspended', 'harness_error': 'billing',
-               'failure': failure('quota_exhausted', 'harness_event')}) as run:
+    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection({'harness': harness, 'model': 'fixture'}, {}, {}))
+    with patch('benchmarking.participants.runner.run_one', return_value={'state': 'suspended', 'harness_error': 'cli_exit_1',
+               'failure': problem}) as run:
         assert main(['--config', str(config), '--endpoint', 'http://localhost:1',
                      '--output', str(tmp_path / 'batch')]) == 1
     assert run.call_count == 1
@@ -1764,85 +1873,6 @@ def test_kimi_isolates_native_configuration_and_delivers_task_via_mcp(tmp_path, 
     assert 'private-provider-key' not in (output / 'conditions.json').read_text()
 
 
-@pytest.mark.parametrize('ending, exit_code, timed_out, category', [
-    ([{'type': 'turn.completed'}], 0, False, None),
-    ([{'type': 'turn.failed'}], 0, False, 'unknown'),
-    ([], 0, False, 'unknown'),
-    ([{'type': 'turn.completed'}], 1, False, 'unknown'),
-    ([{'type': 'turn.completed'}], 0, True, 'budget_exhausted'),
-    ([{'type': 'turn.started'}, {'type': 'turn.completed'}], 0, False, 'unknown'),
-    ([{'type': 'turn.completed'}, {'type': 'error', 'message': 'unrecognized failure'}], 0, False, 'unknown'),
-    ([{'type': 'error', 'error': {'code': 'invalid_api_key'}}, {'type': 'turn.completed'}], 0, False, 'authentication'),
-    ([{'type': 'error', 'error': {'code': 'insufficient_quota'}}, {'type': 'turn.completed'}], 0, False, 'quota_exhausted'),
-    ([{'type': 'item.completed', 'item': {'type': 'mcp_tool_call', 'server': 'layout',
-                                       'tool': 'execute', 'status': 'failed', 'error': {'message': 'transport failed'}}},
-      {'type': 'turn.completed'}], 0, False, 'unknown'),
-])
-def test_reconnect_recovery_requires_successful_same_turn(tmp_path, ending, exit_code, timed_out, category):
-    """Observed Codex reconnect events are diagnostic after successful recovery.
-
-    Existing single-error tests miss recovered sequences. The real classifier
-    consumes minimized native events; unrelated failures and turn boundaries
-    must retain failure evidence. No model or EDA behavior is asserted.
-    """
-    from benchmarking.participants.adapters.codex import harness_failure
-
-    events = [{'type': 'turn.started'}, {'type': 'error',
-              'message': 'Reconnecting... 2/5 (stream disconnected before completion: tls handshake eof)'}] + ending
-    trace = tmp_path / 'harness.jsonl'
-    original = '\n'.join(json.dumps(e) for e in events)
-    trace.write_text(original)
-    problem = harness_failure(tmp_path, exit_code=exit_code, timed_out=timed_out)
-    assert (problem['category'] if problem else None) == category
-    assert trace.read_text() == original
-
-
-@pytest.mark.parametrize('event, recovered', [
-    ({'type': 'error', 'error': {'code': 'connection_error'}}, True),
-    ({'type': 'error', 'message': 'Selected model is at capacity. Please try a different model.'}, True),
-    ({'type': 'error', 'message': 'unrecognized failure'}, False),
-    ({'type': 'error', 'message': 'Reconnecting... 2/5 (stream disconnected before completion: tls handshake eof)',
-      'error': {'code': 'insufficient_quota'}}, False),
-])
-def test_reconnect_recognition_preserves_other_error_evidence(tmp_path, event, recovered):
-    from benchmarking.participants.adapters.codex import harness_failure
-
-    events = [{'type': 'turn.started'}, event, {'type': 'turn.completed'}]
-    (tmp_path / 'harness.jsonl').write_text('\n'.join(json.dumps(e) for e in events))
-    assert (harness_failure(tmp_path, exit_code=0) is None) == recovered
-
-
-def test_capacity_error_cannot_hide_another_failure(tmp_path):
-    from benchmarking.participants.adapters.codex_events import (
-        CAPACITY_MESSAGE,
-        harness_failure,
-    )
-
-    events = [{'type': 'error', 'message': 'unrecognized failure'},
-              {'type': 'turn.failed', 'error': {'message': CAPACITY_MESSAGE}}]
-    (tmp_path / 'harness.jsonl').write_text('\n'.join(json.dumps(event) for event in events))
-    assert harness_failure(tmp_path, exit_code=1)['category'] == 'unknown'
-
-
-@pytest.mark.parametrize('message', [
-    'Reconnecting... 2/5 (request timed out)',
-    'Reconnecting... 2/5 (workspace routing discovery timed out)',
-    'Reconnecting... waiting for network (Connection failed: error sending request)',
-    'Reconnecting... 2/5 (unexpected status 503 Service Unavailable: upstream connect error)',
-])
-@pytest.mark.parametrize('completed', [False, True])
-def test_observed_reconnect_variants_require_successful_completion(tmp_path, message, completed):
-    from benchmarking.participants.adapters.codex import harness_failure
-
-    events = [{'type': 'turn.started'}, {'type': 'error', 'message': message},
-              {'type': 'turn.completed' if completed else 'turn.failed'}]
-    raw = '\n'.join(json.dumps(e) for e in events)
-    (tmp_path / 'harness.jsonl').write_text(raw)
-    problem = harness_failure(tmp_path, exit_code=0 if completed else 1)
-    assert (problem is None) == completed
-    assert (tmp_path / 'harness.jsonl').read_text() == raw
-
-
 @pytest.mark.parametrize('scoped,stop_dispatch', [(False, False), (True, False), (True, True)])
 def test_resume_observes_orphans_and_refills_before_the_slow_case_finishes(tmp_path, monkeypatch, scoped, stop_dispatch):
     """Inherited locks reproduce supervisor loss; no provider or EDA calls occur."""
@@ -2017,33 +2047,6 @@ def test_collect_only_waits_for_the_shared_case_lease(tmp_path, repetitions):
                 owner.wait(timeout=5)
 
 
-@pytest.mark.parametrize("harness", HARNESSES)
-@pytest.mark.parametrize("structured", [False, True])
-def test_capacity_messages_are_interpreted_only_by_the_owning_adapter(tmp_path, harness, structured):
-    from benchmarking.participants import adapters
-
-    event = {"type": "error", "message": "Selected model is at capacity. Please try a different model."}
-    if structured:
-        event["error"] = {"type": "overloaded_error", "retry_after": 45}
-    (tmp_path / "harness.jsonl").write_text(json.dumps(event))
-    problem = adapters.harness_failure(harness, tmp_path, exit_code=1)
-    assert problem["category"] == ("provider_overloaded" if structured or harness == "codex" else "unknown")
-    if structured:
-        assert problem["retry_after"] == 45
-
-
-@pytest.mark.parametrize("harness", HARNESSES)
-def test_reconnect_turn_semantics_are_specific_to_codex(tmp_path, harness):
-    from benchmarking.participants import adapters
-
-    events = [{"type": "turn.started"},
-              {"type": "error", "message": "Reconnecting... 2/5 (request timed out)"},
-              {"type": "turn.completed"}]
-    (tmp_path / "harness.jsonl").write_text("\n".join(json.dumps(event) for event in events))
-    problem = adapters.harness_failure(harness, tmp_path, exit_code=0)
-    assert (problem is None) == (harness == "codex")
-
-
 def test_status_requires_no_provider_and_excludes_private_record_fields(tmp_path, capsys):
     import os
 
@@ -2118,8 +2121,19 @@ def test_command_runner_uses_service_budget_and_retains_last_submission(tmp_path
                              'budget': {'policy': policy}, 'last_submission': {'candidate': 'accepted'}},
         close=lambda sid, **kw: calls.append('close'), result=lambda sid: terminal)
     access = SimpleNamespace(endpoint='http://localhost', create=lambda *a, **kw: created)
+    monkeypatch.setenv('LAYOUT_BENCH_SESSION', 'unrelated-session')
+    monkeypatch.setenv('ICLAYOUT_BENCH_ACCESS_TOKEN', 'unrelated-access')
+    monkeypatch.setenv('PYTHONPATH', '/unrelated/source')
     monkeypatch.setattr(command, 'Client', lambda *a, **kw: client)
-    monkeypatch.setattr(command, 'execute', lambda *a, **kw: (calls.append(kw['timeout']) or 0, False))
+    def execute(*args, **kwargs):
+        environment = kwargs['env']
+        assert all(name not in environment for name in
+                   ('LAYOUT_BENCH_SESSION', 'ICLAYOUT_BENCH_ACCESS_TOKEN', 'PYTHONPATH'))
+        assert environment['ICLAYOUT_BENCH_SESSION'] == 'session'
+        assert environment['ICLAYOUT_BENCH_TOKEN'] == 'secret'
+        calls.append(kwargs['timeout'])
+        return 0, False
+    monkeypatch.setattr(command, 'execute', execute)
     monkeypatch.setattr(command, 'export_session_result', lambda *a, **kw: None)
     monkeypatch.setattr(command, 'export_observation', lambda *a, **kw: None)
     output = tmp_path / 'attempt'

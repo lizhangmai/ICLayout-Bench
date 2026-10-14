@@ -1,4 +1,5 @@
 """Trusted helpers for operating an existing session container (not a new runtime)."""
+import hashlib
 import json
 import os
 import signal
@@ -11,8 +12,8 @@ import uuid
 from pathlib import Path
 
 
-def checkpoint(limit):
-    """Stream workspace data without following links or copying special files."""
+def workspace_archive(output, mode, limit):
+    """Traverse the same bounded tree for its identity and its recovery archive."""
     total = 0
 
     def regular(member):
@@ -24,9 +25,27 @@ def checkpoint(limit):
             raise ValueError('Workspace checkpoint exceeds allocation')
         return member
 
-    with tarfile.open(fileobj=sys.stdout.buffer, mode='w|gz', dereference=False) as archive:
+    with tarfile.open(fileobj=output, mode=mode, dereference=False) as archive:
         for entry in sorted(Path('/workspace').iterdir()):
             archive.add(entry, arcname=entry.name, filter=regular)
+
+
+def checkpoint(limit, previous=None):
+    """Reuse unchanged content while committing fresh HTTP completion metadata."""
+    digest = hashlib.sha256()
+
+    class Sink:
+        def write(self, content):
+            digest.update(content)
+            return len(content)
+
+    workspace_archive(Sink(), 'w|', limit)
+    identity = digest.hexdigest()
+    unchanged = identity == previous
+    sys.stdout.buffer.write((json.dumps({'workspace_digest': identity, 'unchanged': unchanged}) + '\n').encode())
+    sys.stdout.buffer.flush()
+    if not unchanged:
+        workspace_archive(sys.stdout.buffer, 'w|gz', limit)
 
 
 def restore(limit):
@@ -132,7 +151,7 @@ if __name__ == '__main__':
                 raise ValueError('Invalid execution ID')
             (Path('/tmp')/('lb-cancel-'+path)).touch()
         elif action == 'checkpoint':
-            checkpoint(int(path))
+            checkpoint(int(path), sys.argv[3] if len(sys.argv) > 3 else None)
         elif action == 'restore':
             restore(int(path))
         else:

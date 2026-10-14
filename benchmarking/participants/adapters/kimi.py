@@ -14,7 +14,7 @@ from ..credentials import credential_values
 from . import kimi_events
 from .contracts import HarnessMetadata, LaunchContext, ParticipantSelection
 
-METADATA = HarnessMetadata('kimi', 'KIMI_CODE_HOME', '.kimi-code', None)
+METADATA = HarnessMetadata('kimi', 'KIMI_CODE_HOME', '.kimi-code', None, 'config.toml')
 
 CAPABILITIES = {"resume_session": True, "capacity_resumes": True}
 
@@ -32,7 +32,7 @@ def _credential_path(oauth):
     return Path('credentials') / (name + '.json')
 
 
-def resolve(model, effort, env):
+def resolve(model, effort, env, *, home=None):
     home = Path(env.get("KIMI_CODE_HOME", str(Path.home() / ".kimi-code")))
     config = tomllib.loads((home / "config.toml").read_text())
     model = model or config.get("default_model")
@@ -63,7 +63,8 @@ def resolve(model, effort, env):
     if connection.get('api_key_env') in env:
         credential_fields.append({'api_key': env[connection['api_key_env']]})
     settings = {"credential_fields": credential_fields, "config": {"default_model": model, "providers": {provider: connection},
-                           "models": {model: entry}}, "credentials": credentials}
+                           "models": {model: entry}}, "credentials": credentials,
+                "credential_home": str(home.resolve())}
     condition = {"harness": "kimi-code", "model": model, "provider": provider,
             "effort_requested": effort, "effort_resolved": resolved,
             "effort_source": "experiment" if effort else "kimi configuration",
@@ -80,13 +81,26 @@ def prepare(context: LaunchContext) -> list[str]:
 
     home = directory.parent / "kimi-home"
     home.mkdir(mode=0o700, exist_ok=True)
-    for key, raw in settings["credentials"].items():
-        target = home / key
-        target.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
-        if not target.exists():
-            # Native refresh may rotate tokens. A continuation must retain the
-            # private copy instead of reverting to the original host snapshot.
-            atomic_write(target, raw.encode('utf-8'))
+    if settings["credentials"]:
+        original = Path(settings["credential_home"])
+        # Native atomic token replacement and refresh locks must address the
+        # same managed store across cases and other authenticated CLI sessions.
+        # Configuration, conversations and tools still use the isolated home.
+        for name in ('credentials', 'oauth'):
+            source, target = original / name, home / name
+            source.mkdir(parents=True, mode=0o700, exist_ok=True)
+            if target.is_symlink():
+                if target.resolve() != source.resolve():
+                    raise ValueError('Kimi Code OAuth storage changed during continuation')
+            elif target.exists():
+                raise ValueError('Kimi Code OAuth storage must use the managed credential directory')
+            else:
+                target.symlink_to(source.resolve(), target_is_directory=True)
+        (original / 'credentials').chmod(0o700)
+        for key in settings["credentials"]:
+            path = original / key
+            if path.is_file():
+                path.chmod(0o600)
     # Host overrides must not change the frozen model, effort or tool environment.
     credential_env = {v["api_key_env"]: env[v["api_key_env"]]
                       for v in settings["config"]["providers"].values()
@@ -166,6 +180,45 @@ def session_id(output, state):
     # still owns its persisted conversation; ambiguity never permits a launch.
     root = _session_root(output)
     return root.name if root is not None else None
+
+
+def tool_reply_delivered(output, request, result, occurrences):
+    """Match the latest layout call and reply in the persisted main conversation."""
+    root = _session_root(output)
+    if root is None:
+        return False
+    try:
+        events = [json.loads(line) for line in (root / 'agents/main/wire.jsonl').read_text().splitlines()
+                  if line.strip()]
+        messages = kimi_events.conversation_messages(events)
+        calls = [(index, call) for index, message in enumerate(messages) if message.get('role') == 'assistant'
+                 for call in message.get('toolCalls', [])
+                 if call.get('name', '').startswith('mcp__layout__')]
+        index, call = calls[-1]
+        name = 'mcp__layout__' + request['tool']
+        if (call.get('type') != 'function' or not call.get('id') or call['name'] != name
+                or json.loads(call['arguments']) != request['arguments']):
+            return False
+        matching = [candidate for _, candidate in calls if candidate['name'] == name
+                    and json.loads(candidate['arguments']) == request['arguments']]
+        if len(matching) != occurrences or sum(candidate.get('id') == call['id'] for _, candidate in calls) != 1:
+            return False
+        replies = [message for offset, message in enumerate(messages) if offset > index and message.get('role') == 'tool'
+                   and message.get('toolCallId') == call['id']]
+        if len(replies) != 1:
+            return False
+        reply = replies[0]
+        if any(message.get('role') == 'context_reset' for message in messages[index + 1:]):
+            return False
+        if ('nativeUuid' in call
+                and (reply.get('parentUuid') != call['nativeUuid'] or reply.get('isError') or reply.get('note')
+                     or sum(candidate.get('nativeUuid') == call['nativeUuid'] for _, candidate in calls) != 1)):
+            return False
+        content = reply['content']
+        return (len(content) == 1 and content[0].get('type') == 'text'
+                and json.loads(content[0]['text']) == result)
+    except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):
+        return False
 
 
 def credential_redactions(output):

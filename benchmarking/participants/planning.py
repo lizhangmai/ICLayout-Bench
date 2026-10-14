@@ -107,7 +107,8 @@ def plan_conditions(request: ExperimentRequest):
         validate(row)
     # Resolve every condition before creating any sessions; no credentials enter the plan.
     return ExperimentPlan(tuple(
-        PlannedCondition(row, group, resolve(row["harness"], row.get("model"), row.get("effort")))
+        PlannedCondition(row, group, resolve(row["harness"], row.get("model"), row.get("effort"),
+            **({"harness_home": row["harness_home"]} if "harness_home" in row else {})))
         for row, group in zip(rows, groups, strict=True)
     ))
 

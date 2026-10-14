@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from benchmarking.files import atomic_write, relative
 
 from ..credentials import credential_values
+from ..native_home import select_home, stage_file, sync_files
 from .contracts import EFFORTS as EFFORTS
 from .contracts import (
     HARNESS_MODULES,
@@ -55,22 +56,35 @@ def harness_version(harness):
     return match.group(1), raw
 
 
-def stage_credentials(harness, private, env):
+def stage_credentials(harness, private, env, settings=None):
     adapter = get(harness)
     stage = getattr(adapter, 'stage_credentials', None)
     if stage:
-        return stage(private, env)
+        return stage(private, env, settings)
     metadata = adapter.METADATA
+    return stage_file_credentials(metadata, private, env, settings)
+
+
+def stage_file_credentials(metadata, private, env, settings=None):
+    """Seed a native file store without replacing credentials refreshed by the CLI."""
     filename = metadata.credential_file
     if filename is None:
         return set()
-    original = metadata.home(env)
+    original = Path(settings["native_home"]) if settings and "native_home" in settings else metadata.home(env)
     target = private / "native-home"
     target.mkdir(mode=0o700, exist_ok=True)
+    if settings is not None and filename not in settings.get("credential_files", [filename]):
+        env[metadata.home_environment] = str(target.resolve())
+        return set()
     credential = original / filename
     redactions = set()
+    if settings and "native_home" in settings and not credential.is_file():
+        raise ValueError("Native credential file is missing: " + str(credential))
     if credential.is_file():
-        raw = credential.read_bytes()
+        if settings and "native_home" in settings:
+            raw = stage_file(credential, target / filename, private)
+        else:
+            raw = credential.read_bytes()
         if not (target / filename).exists():
             atomic_write(target / filename, raw)
         try:
@@ -78,7 +92,22 @@ def stage_credentials(harness, private, env):
         except ValueError:
             pass  # Native CLI owns validation of its opaque credential format.
     env[metadata.home_environment] = str(target.resolve())
-    return redactions | credential_redactions(harness, private.parent)
+    return redactions | credential_redactions_for_file(target / filename)
+
+
+def credential_redactions_for_file(path):
+    if path.is_file():
+        try:
+            return credential_values(json.loads(path.read_bytes()))
+        except (ValueError, UnicodeError):
+            pass
+    return set()
+
+
+def sync_credentials(harness, private, env, settings):
+    """Let file-backed adapters retain refreshed authentication before cleanup."""
+    if "native_home" in settings:
+        sync_files(private)
 
 
 def credential_redactions(harness, output):
@@ -108,9 +137,16 @@ def harness_failure(harness, output, exit_code=None, timed_out=False):
 
 
 def resolve(
-    harness: str, model: str | None, effort: str | None, env: dict[str, str]
+    harness: str, model: str | None, effort: str | None, env: dict[str, str], *, home: Path | None = None
 ) -> ParticipantSelection:
-    return get(harness).resolve(model, effort, env)
+    adapter = get(harness)
+    if home is None:
+        return adapter.resolve(model, effort, env)
+    env = env.copy()
+    home = select_home(adapter.METADATA, env, home)
+    selection = adapter.resolve(model, effort, env, home=home)
+    return ParticipantSelection(selection.condition, selection.environment,
+                                dict(selection.settings, native_home=str(home)))
 
 
 def prepare(context: LaunchContext) -> list[str]:

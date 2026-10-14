@@ -2,6 +2,7 @@
 import json
 import math
 import os
+import signal
 import subprocess
 import time
 from dataclasses import replace
@@ -24,6 +25,7 @@ from .recovery import (
     credential_values,
     failure,
     plan_capacity_resume,
+    plan_network_resume,
     policy,
 )
 from .scheme import check as check_scheme
@@ -67,22 +69,24 @@ def _safe_continuation(output, row, state, status):
         return None
 
 
-def resume_after_capacity(client, sid, row, output, attempt, settings, problem):
+def resume_after_failure(client, sid, row, output, attempt, settings, problem, kind):
     """Keep the service alive while waiting; no new workspace, model or deadline."""
     state = attempt.state
-    attempt.record_capacity_interruption(problem)
-    count = state.capacity_resumes
-    status = client.session(sid) if count < settings["capacity_resumes"] else None
+    attempt.record_interruption(kind, problem)
+    count = getattr(state, kind + "_resumes")
+    limit = settings[kind + "_resumes"]
+    status = client.session(sid) if count < limit else None
     native_id = _safe_continuation(output, row, state, status) if status is not None else None
-    decision = plan_capacity_resume(settings, count, problem, status, native_id)
-    attempt.apply_capacity_decision(decision)
+    plan = plan_capacity_resume if kind == "capacity" else plan_network_resume
+    decision = plan(settings, count, problem, status, native_id)
+    attempt.apply_resume_decision(kind, decision)
     if decision.outcome == "waiting":
-        print(f"CAPACITY_RETRY task={row['task']} model={row.get('model', '')} "
-              f"resume={count + 1}/{settings['capacity_resumes']} delay_seconds={decision.delay_seconds:.3f}", flush=True)
+        print(f"{kind.upper()}_RETRY task={row['task']} model={row.get('model', '')} "
+              f"resume={count + 1}/{limit} delay_seconds={decision.delay_seconds:.3f}", flush=True)
         time.sleep(decision.delay_seconds)
         status = client.session(sid)
         decision = capacity_ready(status, _safe_continuation(output, row, state, status))
-        attempt.apply_capacity_decision(decision)
+        attempt.apply_resume_decision(kind, decision)
     return decision.native_id if decision.outcome == "continued" else None
 
 
@@ -168,12 +172,15 @@ def run_participant(access, row, output, selection: ParticipantSelection):
             attempt.begin_launch()
             first_launch = False
             with (output / "harness.jsonl").open("w") as out, (output / "harness.stderr").open("w") as err:
-                exit_code, timed_out = execute(args, cwd=context.directory, env=env, stdout=out, stderr=err,
-                                              prompt=context.prompt, timeout=participant_timeout(created, {'remaining_seconds': remaining}),
-                                              pass_fds=tuple(int(env[k]) for k in ["ICLAYOUT_BENCH_LEASE_FD"] if k in env))
-            # Retain each launch's refreshed secrets even if a later launch
-            # rotates the native credential store again before terminal export.
-            attempt.add_redactions(adapters.credential_redactions(row['harness'], output))
+                try:
+                    exit_code, timed_out = execute(args, cwd=context.directory, env=env, stdout=out, stderr=err,
+                                                  prompt=context.prompt, timeout=participant_timeout(created, {'remaining_seconds': remaining}),
+                                                  pass_fds=tuple(int(env[k]) for k in ["ICLAYOUT_BENCH_LEASE_FD"] if k in env))
+                finally:
+                    # Keep refreshed secrets in redactions before credential synchronization,
+                    # including native process failures and interrupted launches.
+                    attempt.add_redactions(adapters.credential_redactions(row['harness'], output))
+                    adapters.sync_credentials(row['harness'], output / '.private', env, settings)
             if timed_out:
                 error = "harness_timeout"
             elif exit_code:
@@ -186,9 +193,20 @@ def run_participant(access, row, output, selection: ParticipantSelection):
             save(output / "failure.json", problem)
             save(output / "harness-summary.json", {"error": error, "failure": problem, "exit_code": exit_code,
                  "elapsed_seconds": round(time.monotonic() - start, 3), "final_receipt": receipt})
-            if (settings_policy["capacity_resumes"] and problem
-                    and problem["category"] == "provider_overloaded"):
-                native_id = resume_after_capacity(client, sid, row, output, attempt, settings_policy, problem)
+            kind = None
+            rate_limited = (settings_policy["resume_session"] and problem
+                            and exit_code is not None and exit_code > 0
+                            and problem["category"] == "rate_limit" and problem["source"] == "harness_event"
+                            and problem["retryable"])
+            if settings_policy["capacity_resumes"] and problem and (problem["category"] == "provider_overloaded" or rate_limited):
+                kind = "capacity"
+            elif (settings_policy["resume_session"] and settings_policy["network_resumes"] and problem
+                    and exit_code is not None and exit_code > 0
+                    and problem["category"] == "network_transient" and problem["source"] == "harness_event"
+                    and problem["retryable"]):
+                kind = "network"
+            if kind:
+                native_id = resume_after_failure(client, sid, row, output, attempt, settings_policy, problem, kind)
                 if native_id:
                     env["ICLAYOUT_BENCH_RESUME_ID"] = native_id
                     continue
@@ -199,7 +217,9 @@ def run_participant(access, row, output, selection: ParticipantSelection):
     # Persist before cleanup/transport calls, which can themselves fail.
     suspend = (error and settings_policy["resume_session"] and error != "harness_timeout"
                and not (problem and problem["category"] == "harness_configuration")
-               and not state.capacity_interruptions)
+               and (not state.capacity_interruptions
+                    or exit_code in {-signal.SIGINT, -signal.SIGTERM, 128 + signal.SIGINT, 128 + signal.SIGTERM}
+                    or problem and problem["category"] in {"network_transient", "rate_limit"}))
     recovery = attempt.complete(error, suspended=bool(suspend))
     save(output / "failure.json", problem)
     save(output / "harness-summary.json", {"error": error, "failure": problem, "exit_code": exit_code,
@@ -276,8 +296,9 @@ def run_one(access, row, output, selection, *, collect_only=False):
             "task_success": result.get("task_success"), "evaluation_mode": evaluation_mode(result),
             "harness_error": error, **({"result": "analysis/result.json"} if result.get("state") != "active" else {})}
     launch = json.loads((output / "harness-summary.json").read_text()) if (output / "harness-summary.json").exists() else {}
-    if "capacity_recovery" in launch:
-        summary["capacity_recovery"] = launch["capacity_recovery"]
+    for key in ("capacity_recovery", "network_recovery"):
+        if key in launch:
+            summary[key] = launch[key]
     if problem and problem["category"] == "harness_configuration":
         summary["evaluation_result"] = {key: summary[key] for key in ("outcome", "score", "task_success")}
         summary.update(outcome="error", score=None, task_success=None)

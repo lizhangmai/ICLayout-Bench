@@ -1,5 +1,6 @@
 """Recover HTTP receipts when report completion precedes their projection."""
 
+import hashlib
 import json
 from types import SimpleNamespace
 
@@ -23,8 +24,10 @@ def test_checkpoint_restores_committed_state_without_replaying_commands(tmp_path
     state.register(data)
 
     class Workspace:
-        def checkpoint(self, destination, limit):
+        def checkpoint(self, destination, limit, *, previous=None):
             destination.write_bytes(b'committed workspace')
+            sha = hashlib.sha256(b'committed workspace').hexdigest()
+            return {'unchanged': False, 'sha256': sha, 'workspace_digest': sha}
 
     state.checkpoint(data, Workspace())
     data['requests']['files:uncertain'] = {'response': {'path': 'uncertain.py'}}
@@ -67,7 +70,7 @@ def test_failed_checkpoint_blocks_successful_mutation_replay(tmp_path, executabl
         active = True
         def write(self, *args):
             pass
-        def checkpoint(self, *args):
+        def checkpoint(self, *args, **kwargs):
             raise OSError('disk full')
     class Control(SessionControl):
         def workspace(self, sid):

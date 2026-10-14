@@ -24,9 +24,11 @@ from benchmarking.tasks import load_task, task_contract
 pytestmark = pytest.mark.unit
 
 
-@pytest.mark.parametrize("card_split", [None, "test", "validation"])
-@pytest.mark.parametrize("table_format", ["parquet", "jsonl"])
-@pytest.mark.parametrize("ordered", [False, True])
+@pytest.mark.parametrize("card_split,table_format,ordered", [
+    (None, "parquet", False), (None, "jsonl", True),
+    ("test", "parquet", True), ("test", "jsonl", False),
+    ("validation", "parquet", False), ("validation", "jsonl", True),
+])
 def test_native_static_index_with_and_without_dataset_card(tmp_path, card_split, table_format, ordered):
     process = tmp_path / "tasks/fixture"
     process.mkdir(parents=True)

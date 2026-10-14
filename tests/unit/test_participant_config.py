@@ -19,6 +19,163 @@ from benchmarking.participants.config import read_configs, read_matrix, resolve
 pytestmark = pytest.mark.unit
 
 
+@pytest.mark.parametrize('harness,matrix', [
+    ('codex', False), ('claude-code', False), ('dsh', False), ('kimi-code', False), ('zcode', False),
+    ('codex', True),
+])
+def test_native_home_paths_are_relative_to_each_configuration(tmp_path, monkeypatch, harness, matrix):
+    import tomli_w
+
+    config_dir = tmp_path / 'configs' / harness
+    config_dir.mkdir(parents=True)
+    home = config_dir / 'subscription'
+    home.mkdir()
+    row = {'name': 'fixture', 'harness': harness, 'harness_home': 'subscription',
+           'model': 'fixture', 'effort': 'high', 'tasks': ['fixture'], 'concurrency': 1, 'repetitions': 1}
+    path = config_dir / 'experiment.toml'
+    path.write_text(tomli_w.dumps({'defaults': row, 'runs': [{}]} if matrix else row))
+    monkeypatch.chdir(tmp_path)
+    selected, = (read_matrix(path) if matrix else read_configs([path]))
+    assert selected['harness_home'] == str(home)
+    assert selected['model'] == 'fixture'
+
+
+@pytest.mark.parametrize('harness,configuration,credential', [
+    ('codex', 'config.toml', 'auth.json'),
+    ('claude-code', 'settings.json', '.credentials.json'),
+])
+def test_native_home_selection_never_falls_back_to_host_authentication(tmp_path, monkeypatch, harness, configuration, credential):
+    from benchmarking.participants import adapters
+
+    host = tmp_path / 'host'; host.mkdir()
+    chosen = tmp_path / 'chosen'; chosen.mkdir()
+    text = 'cli_auth_credentials_store="file"\nforced_login_method="chatgpt"\n' if harness == 'codex' else '{}'
+    (host / configuration).write_text(text)
+    (chosen / configuration).write_text(text)
+    raw = json.dumps({'tokens': {'access_token': 'selected-fixture-token'}})
+    (host / credential).write_text(raw)
+    metadata = adapters.get(harness).METADATA
+    monkeypatch.setenv(metadata.home_environment, str(host))
+    monkeypatch.setenv('CODEX_API_KEY', 'host-fixture-key')
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'host-fixture-key')
+    with pytest.raises(ValueError, match='authentication|credentials'):
+        resolve(harness, 'fixture', 'high', harness_home=chosen)
+    (chosen / credential).write_text(raw)
+    selection = resolve(harness, 'fixture', 'high', harness_home=chosen)
+    assert selection.environment[metadata.home_environment] == str(chosen)
+    assert selection.settings['native_home'] == str(chosen)
+    assert 'CODEX_API_KEY' not in selection.environment if harness == 'codex' else 'ANTHROPIC_API_KEY' not in selection.environment
+    assert 'selected-fixture-token' not in json.dumps(selection.condition) + repr(selection)
+    (chosen / configuration).unlink()
+    with pytest.raises(ValueError, match='configuration must be a regular file'):
+        resolve(harness, 'fixture', 'high', harness_home=chosen)
+
+
+def test_codex_selected_connection_controls_provider_but_cannot_enable_tools(tmp_path, monkeypatch):
+    import tomli_w
+
+    home = tmp_path / 'api'; home.mkdir()
+    config = {'model_provider': 'fixture', 'model_providers': {'fixture': {
+        'name': 'fixture', 'base_url': 'https://fixture.example/v1', 'env_key': 'EXPERIMENT_KEY', 'wire_api': 'responses'}}}
+    path = home / 'config.toml'
+    path.write_text(tomli_w.dumps(config))
+    monkeypatch.setenv('EXPERIMENT_KEY', 'selected-fixture-key')
+    monkeypatch.setenv('CODEX_API_KEY', 'host-fixture-key')
+    monkeypatch.setenv('OPENAI_BASE_URL', 'https://host.example/v1')
+    selection = resolve('codex', 'fixture-model', 'medium', harness_home=home)
+    assert selection.condition['auth_method'] == 'api'
+    assert selection.condition['provider'] == 'fixture'
+    assert 'CODEX_API_KEY' not in selection.environment and 'OPENAI_BASE_URL' not in selection.environment
+    selection.environment['ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS'] = '120'
+    args = prepare_harness_args(selection.condition, selection.environment, selection.settings,
+                                tmp_path / 'mcp.json', tmp_path)
+    values = dict(argument.split('=', 1) for argument in args if '=' in argument)
+    assert json.loads(values['model_providers.fixture.base_url']) == 'https://fixture.example/v1'
+    assert json.loads(values['features.shell_tool']) is False
+    assert args[args.index('-m') + 1] == 'fixture-model'
+    assert json.loads(values['model_reasoning_effort']) == 'medium'
+    assert 'selected-fixture-key' not in json.dumps(selection.condition) + str(args)
+    for field, value in [('hooks', {}), ('mcp_servers', {'unreviewed': {}}), ('model', 'different-model')]:
+        path.write_text(tomli_w.dumps(config | {field: value}))
+        with pytest.raises(ValueError, match='connection settings only'):
+            resolve('codex', 'fixture-model', 'medium', harness_home=home)
+
+
+@pytest.mark.parametrize('home', [' ', 1, '\x00'])
+def test_invalid_native_home_is_rejected(tmp_path, home):
+    import tomli_w
+
+    path = tmp_path / 'experiment.toml'
+    path.write_text(tomli_w.dumps({'harness': 'codex', 'harness_home': home, 'model': 'fixture',
+                                  'effort': 'high', 'tasks': ['fixture'], 'concurrency': 1, 'repetitions': 1}))
+    with pytest.raises(ValueError, match='harness_home'):
+        read_configs([path])
+
+
+def test_dry_run_can_select_subscription_and_api_homes_in_one_invocation(tmp_path, monkeypatch, capsys):
+    import tomli_w
+
+    from benchmarking.participants.cli import main
+
+    paths = []
+    for mode in ('chatgpt', 'api'):
+        home = tmp_path / mode; home.mkdir()
+        (home / 'config.toml').write_text(f'cli_auth_credentials_store="file"\nforced_login_method="{mode}"\n')
+        auth = {'tokens': {'access_token': 'subscription-fixture-token'}} if mode == 'chatgpt' else {'OPENAI_API_KEY': 'api-fixture-key'}
+        (home / 'auth.json').write_text(json.dumps(auth))
+        config = {'harness': 'codex', 'harness_home': mode, 'model': 'fixture', 'effort': 'medium',
+                  'tasks': ['fixture'], 'concurrency': 1, 'repetitions': 1}
+        path = tmp_path / (mode + '.toml'); path.write_text(tomli_w.dumps(config)); paths.append(str(path))
+    monkeypatch.setenv('CODEX_HOME', str(tmp_path / 'missing-host'))
+    monkeypatch.setenv('CODEX_API_KEY', 'ambient-fixture-key')
+    assert main(['--config', *paths, '--dry-run']) == 0
+    raw = capsys.readouterr().out
+    assert [row['resolved']['auth_method'] for row in json.loads(raw)] == ['chatgpt', 'api']
+    assert 'fixture-token' not in raw and 'fixture-key' not in raw
+    assert not (tmp_path / 'results').exists()
+
+
+def test_codex_native_auth_mode_selects_the_matching_stored_credentials(tmp_path):
+    (tmp_path / 'config.toml').write_text('forced_login_method="chatgpt"\n')
+    (tmp_path / 'auth.json').write_text(json.dumps({'auth_mode': 'chatgpt',
+        'tokens': {'access_token': 'selected-chatgpt-token'}, 'OPENAI_API_KEY': 'inactive-api-key'}))
+    selected = resolve('codex', 'fixture', 'medium', harness_home=tmp_path)
+    assert selected.condition['auth_method'] == 'chatgpt'
+    assert 'selected-chatgpt-token' not in json.dumps(selected.condition)
+
+
+@pytest.mark.parametrize('explicit', [False, True])
+def test_local_service_inherits_the_operator_cache_without_session_controls(tmp_path, monkeypatch, explicit):
+    from benchmarking.participants.local_service import service
+
+    monkeypatch.setenv('XDG_CACHE_HOME', str(tmp_path / 'xdg'))
+    monkeypatch.delenv('ICLAYOUT_BENCH_CACHE_DIR', raising=False)
+    expected = tmp_path / 'xdg/iclayout-bench'
+    if explicit:
+        expected = tmp_path / 'chosen-cache'
+        monkeypatch.setenv('ICLAYOUT_BENCH_CACHE_DIR', str(expected))
+    monkeypatch.setenv('ICLAYOUT_BENCH_SESSION', 'unrelated-session')
+    monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'unrelated-token')
+    process = Mock(pid=123456)
+    process.stdout.readline.return_value = 'Local development service: http://localhost:1234\n'
+    spawned = Mock(return_value=process)
+    monkeypatch.setattr('benchmarking.service.launch.subprocess.Popen', spawned)
+    selector = Mock()
+    selector.select.return_value = [object()]
+    selector_context = Mock()
+    selector_context.__enter__ = Mock(return_value=selector)
+    selector_context.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr('benchmarking.service.launch.selectors.DefaultSelector',
+                        lambda: selector_context)
+    output = tmp_path / 'run'
+    output.mkdir()
+    with service({'dataset': 'fixture', 'case': 'fixture'}, output, 'fixture'):
+        environment = spawned.call_args.kwargs['env']
+        assert environment['ICLAYOUT_BENCH_CACHE_DIR'] == str(expected)
+        assert 'ICLAYOUT_BENCH_SESSION' not in environment
+        assert 'ICLAYOUT_BENCH_TOKEN' not in environment
+
+
 @pytest.mark.parametrize('name,known', [('execute', True), ('check', True), ('submit', True), ('write', False)])
 def test_checkpoint_tool_reconciliation_observes_without_replaying(tmp_path, name, known):
     from benchmarking.participants.bridge import reconcile_restarted_tools
@@ -362,22 +519,28 @@ def test_bridge_restart_does_not_assume_last_reply_was_delivered(tmp_path):
     assert client.files['a'] == b'once'
 
 
-@pytest.mark.parametrize('harness,expected', [
-    ('codex', 5), ('claude-code', 5), ('dsh', 0), ('kimi-code', 5), ('command', 0),
+@pytest.mark.parametrize('harness,expected,continuation,overrides', [
+    ('codex', 5, True, None), ('claude-code', 5, True, None), ('dsh', 0, True, None),
+    ('kimi-code', 5, True, None), ('zcode', 0, False, None), ('command', 0, False, None),
+    ('codex', 5, True, {}), ('codex', 5, True, {'http_attempts': 4}),
+    ('codex', 5, False, {'resume_session': False}),
 ])
-@pytest.mark.parametrize('configured', [False, True])
-def test_recovery_defaults_follow_harness_support(harness, expected, configured):
+def test_recovery_defaults_follow_harness_support(harness, expected, continuation, overrides):
     from benchmarking.participants.config import validate
-    from benchmarking.participants.recovery import DISABLED, policy
+    from benchmarking.participants.recovery import policy
 
     row = {'name': 'fixture', 'harness': harness, 'model': 'fixture', 'effort': 'high',
            'tasks': ['fixture'], 'concurrency': 1, 'repetitions': 1}
-    if configured:
-        row['recovery'] = DISABLED | {'http_attempts': 3}
+    if overrides is not None:
+        row['recovery'] = overrides
     validate(row)
     settings = policy(row.get('recovery'), harness=harness)
     assert settings['capacity_resumes'] == expected
-    assert settings['resume_session'] is (not configured and harness != 'command')
+    assert settings['resume_session'] is continuation
+    assert settings['http_attempts'] == (4 if overrides == {'http_attempts': 4} else 3)
+    assert settings['backoff_seconds'] == 1
+    assert settings['max_backoff_seconds'] == 8
+    assert settings['network_resumes'] == (0 if harness in {'command', 'zcode'} else 5)
 
 
 def test_dsh_supports_manual_resume_but_not_ambiguous_capacity_recovery():
@@ -396,15 +559,28 @@ def test_dsh_supports_manual_resume_but_not_ambiguous_capacity_recovery():
     ('codex', {'capacity_backoff_seconds': float('nan')}),
     ('codex', {'capacity_backoff_seconds': 60, 'capacity_max_backoff_seconds': 30}),
     ('command', {'capacity_resumes': 5}),
+    ('codex', {'network_resumes': True}),
+    ('codex', {'network_backoff_seconds': float('nan')}),
+    ('codex', {'network_backoff_seconds': 60, 'network_max_backoff_seconds': 30}),
+    ('command', {'network_resumes': 5}),
 ])
 def test_capacity_recovery_rejects_invalid_or_unsupported_policies(harness, recovery):
     from benchmarking.participants.config import validate
     from benchmarking.participants.recovery import DISABLED
 
-    with pytest.raises(ValueError, match='capacity'):
+    with pytest.raises(ValueError, match='capacity|network'):
         validate({'name': 'fixture', 'harness': harness, 'model': 'fixture', 'effort': 'high',
                   'tasks': ['fixture'], 'concurrency': 1, 'repetitions': 1,
                   'recovery': DISABLED | recovery})
+
+
+@pytest.mark.parametrize('recovery', [[], {'http_attempts': 0}, {'resume_session': 1}, {'unexpected': 3},
+                                       {'backoff_seconds': 9}, {'network_resumes': -1}])
+def test_recovery_overrides_preserve_validation(recovery):
+    from benchmarking.participants.recovery import policy
+
+    with pytest.raises(ValueError):
+        policy(recovery, harness='codex')
 
 
 @pytest.mark.parametrize('resume', [False, True])

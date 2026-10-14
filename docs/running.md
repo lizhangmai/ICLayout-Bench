@@ -1,5 +1,110 @@
 # Participation and Result Analysis
 
+## Experiment environment
+
+Maintain a participant project outside the framework checkout. It owns concrete
+model combinations, provider settings, configurations and complete experiment
+results. This repository supplies the installed framework and documents its
+configuration and execution interfaces.
+
+Run persistent experiments with a fixed, non-editable Bench wheel and locked
+dependencies. Select the reviewed release before starting a batch; repetitions
+and recovery reuse that installation. For an unpublished implementation, build a
+wheel from the selected clean commit and retain the exact artifact. Record its
+SHA-256, Python version and dependency lock alongside the experiment configuration.
+Keep `pyproject.toml`, `uv.lock`, `.python-version`, the reviewed wheel artifacts
+in `wheels/`, experiment TOMLs in `configs/`, and complete runs in `results/`.
+The participant project's `.venv` is its persistent experiment environment;
+the framework checkout's root `.venv` serves editable development and tests.
+The scheduler and local service use the selected host
+interpreter, while EDA execution uses separately resolved tool image IDs.
+
+For a new participant project, using an already installed Python 3.12 interpreter:
+
+```bash
+uv init --bare --vcs none --python 3.12 /path/to/experiment
+cd /path/to/experiment
+mkdir -p configs wheels
+# Obtain the reviewed wheel from your package store and retain it in wheels/.
+uv add --no-sync "./wheels/iclayout_bench-VERSION-py3-none-any.whl[results]"
+uv sync --locked --no-python-downloads
+```
+
+Replace `VERSION` with the exact reviewed version. The wheel SHA-256 is retained
+in `uv.lock`; archive the project, lockfile, Python version and wheel with each
+experiment's environment records. For an unpublished implementation, use
+[the distribution workflow](../CONTRIBUTING.md#verification) from its selected
+clean commit. Retain artifacts required by historical and unfinished runs.
+Select and sync a different package between experiments, then start a fresh batch.
+
+Create your TOML using [the configuration contract](#multiple-combinations-and-repetitions),
+with a model and effort supported by the selected CLI. For a single condition,
+save the following as `configs/experiment-medium.toml` and replace `your-model-id`:
+
+```toml
+harness = "codex"
+model = "your-model-id"
+efforts = ["medium"]
+concurrency = 1
+repetitions = 1
+
+[dataset]
+source_env = "ICLAYOUT_BENCH_DATASET"
+name = "core"
+split = "test"
+```
+
+Install and authenticate the chosen vendor CLI separately, and run from your
+participant project:
+
+```bash
+export ICLAYOUT_BENCH_DATASET=/path/to/dataset
+uv run --no-sync python -I -m benchmarking.run \
+  --config configs/experiment-medium.toml --dry-run
+```
+
+`--no-sync` preserves the installed environment, and Python `-I` keeps imports
+independent of the working directory and `PYTHONPATH`. Alternatively, invoke
+that environment's absolute interpreter path with `-I -m benchmarking.run`.
+The dry run checks selection and bindings without model or Docker calls.
+Real experiments use the same command without `--dry-run`, with a compatible
+tool image for local evaluation or `--endpoint` for a remote service.
+Keep credentials in native harness storage or a protected environment file;
+machine-specific paths and credentials remain outside framework sources.
+
+## Environment variables
+
+CLI arguments take precedence over environment-backed defaults. The launcher's
+process environment overrides values in an explicitly selected dotenv file;
+application defaults apply last. Native Python commands consume their process
+environment and do not search the checkout or parent directories for `.env` files.
+
+Use uv's existing dotenv loader with the installed project environment when a
+file is needed:
+
+```bash
+uv run --project /path/to/experiment --no-sync --env-file /protected/iclayout.env \
+  python -I -m benchmarking.run --config /path/to/experiment/configs/experiment-medium.toml --dry-run
+```
+
+`UV_ENV_FILE=/protected/iclayout.env` selects the same file for subsequent
+`uv run --no-sync` commands. An explicit `--env-file` replaces that selection;
+`--no-env-file` disables loading. Keep paths absolute and files outside Git.
+This loader reuses the existing environment without installing or upgrading
+dependencies. In the participant project, omit `--project` and use paths relative
+to that directory. Direct `python` commands use already exported values. The
+default `results/` directory is relative to the command's working directory;
+use `--output` when invoking the runner from elsewhere.
+
+Shared host settings use `ICLAYOUT_BENCH_*`; provider and EDA variables retain
+their native names. The [cache resolver](tools.md#agent-pdk-resources) is shared
+by installed-package consumers. A locally launched evaluation service inherits
+that resolved cache root, while unrelated session controls are removed. Native
+and custom participant launches use the same environment filtering; the current
+session adds its own scoped variables. Solver and EDA containers receive only
+declared inputs, resource environment and approved license settings, independently
+of the operator's dotenv file. Paths are interpreted in the receiving environment.
+
 ## Local self-testing
 
 Use the [README workflow](../README.md#install-and-run) with an HF Dataset repo ID
@@ -57,7 +162,7 @@ native Dataset rows.
 
 ## Experiment runner
 
-Use the same entry point for `dsh`, `claude-code`, `codex`, `kimi-code` or a custom `command`.
+Use the same entry point for `dsh`, `claude-code`, `codex`, `kimi-code`, `zcode` or a custom `command`.
 `benchmarking.participants` supplies launch/configuration adapters and a scoped
 MCP bridge. These adapters configure and supervise native processes; they do not
 choose the next Agent action. Native harnesses retain their own conversation/tool
@@ -70,14 +175,14 @@ selected vendor CLI separately; the Public wheel does not install vendor CLIs.
 Preview a condition without creating a session or making model calls:
 
 ```bash
-python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml --dry-run
+python -m benchmarking.run --config configs/experiment-medium.toml --dry-run
 ```
 
 Run it against locally Dataset resources:
 
 ```bash
-python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
-  --dataset /path/to/dataset --output results/codex-xhigh-1
+python -m benchmarking.run --config configs/experiment-medium.toml \
+  --dataset /path/to/dataset --output results/experiment-medium-1
 ```
 
 For an operator service, replace `--dataset ...` with `--endpoint https://...`
@@ -92,7 +197,7 @@ cases require `--resume` together with `--output`. Use a fresh directory for cha
 For a small experiment, reuse a saved configuration and select a case directly:
 
 ```bash
-python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
+python -m benchmarking.run --config configs/experiment-medium.toml \
   --case NAND2_X1 --repetitions 1 --concurrency 1 --output results/nand2-trial
 ```
 
@@ -153,7 +258,7 @@ server and placed its reviewed script and dependency lock beside this TOML:
 ```toml
 [defaults]
 harness = "codex"
-model = "gpt-6-astra"
+model = "your-model-id"
 effort = "medium"
 tasks = ["freepdk45.OpenRAM.cell_6t"]
 concurrency = 1
@@ -233,6 +338,72 @@ Unknown usage stays unknown, and adding tools grants no new time or repetitions.
 
 ### Native harness configuration
 
+Set `harness_home` in an experiment TOML or matrix row to select a native
+configuration and authentication directory explicitly:
+
+```toml
+harness = "codex"
+harness_home = "subscription"
+model = "your-model-id"
+efforts = ["medium"]
+tasks = ["your-case-id"]
+concurrency = 1
+repetitions = 1
+```
+
+Relative homes resolve from the experiment TOML or matrix directory, regardless
+of the launch working directory. Each condition can select a different home in
+the same invocation. The directory and the native configuration file must exist;
+an explicit selection never falls back to the caller's default home. Authenticate
+the chosen directory with the vendor CLI before running. Omitting `harness_home`
+retains the caller's existing native home/environment behavior. This field applies
+to native harnesses; a custom `command` owns its declared launch configuration.
+
+| Harness | Home variable used for the selected directory | Required native configuration |
+| --- | --- | --- |
+| `codex` | `CODEX_HOME` | `config.toml` |
+| `claude-code` | `CLAUDE_CONFIG_DIR` | `settings.json` |
+| `dsh` | `DSH_HOME` | `settings.yaml` |
+| `kimi-code` | `KIMI_CODE_HOME` | `config.toml` |
+| `zcode` | `ZCODE_DATA_BASE_DIR` and an isolated child process home | `config.json` |
+
+The shared launcher selects the directory and stages file-backed credentials;
+each adapter resolves its vendor's connection format and prepares an isolated
+invocation. The model, effort and reviewed tool configuration remain experiment
+conditions. Do not archive the native home with the experiment TOML: it contains
+credentials and may contain login diagnostics or other native state. Paths and
+declared environment variable names can enter local conditions; credential values
+remain private and are redacted from exported traces. A dry run verifies local
+configuration, not token validity, provider access or available quota.
+
+An explicit Codex home accepts connection settings only: `model_provider`,
+`model_providers`, `cli_auth_credentials_store`, `forced_login_method`,
+`forced_chatgpt_workspace_id` and `chatgpt_base_url`. File credential storage is
+required. Use `forced_login_method = "chatgpt"` or `"api"` with the corresponding
+native `auth.json`; sign in with the chosen `CODEX_HOME`. A custom provider can
+instead use its declared `env_key` or `env_http_headers` references from the
+existing process/dotenv entry point. Supported provider fields are `name`,
+`base_url`, `env_key`, `env_http_headers`, `wire_api`, `requires_openai_auth`,
+`request_max_retries`, `stream_max_retries`, `stream_idle_timeout_ms` and
+`supports_websockets`. Inline bearer tokens, static headers and command-backed
+authentication helpers are not accepted in this connection configuration.
+Endpoints must be HTTP(S) URLs without embedded credentials, query parameters or
+fragments. Unrelated inherited OpenAI/Codex authentication and endpoint overrides
+are removed; explicitly declared environment references remain available.
+The adapter passes approved connection settings as CLI overrides while retaining
+`--ignore-user-config` and `--ignore-rules`. Model, effort, hooks, skills, plugins
+and MCP configuration do not belong in this native connection file.
+
+An explicit Claude home uses its `settings.json` provider environment or key
+helper, or its native `.credentials.json`. Inherited Anthropic/Claude provider
+settings do not select a different authentication method. DSH composes its native
+headless configuration with the selected `DSH_HOME`; its credential store and
+native `.env` fallback come from that directory. Kimi resolves aliases, provider
+connections and its managed OAuth storage from the selected `KIMI_CODE_HOME`.
+ZCode reads API provider/model connections from its selected `config.json` and
+generates native runtime configuration in each case's private directory. See
+[ZCode](#zcode) for its connection format and supported capabilities.
+
 The Codex adapter explicitly sets
 `mcp_servers.layout.default_tools_approval_mode = "approve"` for its benchmark
 MCP server while retaining `approval_policy = "never"`, a read-only host sandbox
@@ -253,7 +424,8 @@ not establish equal computation across providers.
 | `dsh` | Headless composed profile and `$DSH_HOME/settings.yaml` | Private native home and credential store; explicit model/effort, MCP-only tools and JSON headless output; requires `--json` and `--session-id` support |
 | `claude-code` | Claude user provider environment, model, effort and optional key helper | Reuses authentication with an isolated invocation; passes the configured effort explicitly |
 | `codex` | Codex user model/effort, including its selected profile | Uses existing authentication and explicitly resolved model/effort with the layout MCP tools |
-| `kimi-code` | `$KIMI_CODE_HOME/config.toml` (default `~/.kimi-code`) model aliases and provider credentials | Private home, explicit supported effort, MCP-only custom agent and stream-JSON print mode |
+| `kimi-code` | `$KIMI_CODE_HOME/config.toml` (default `~/.kimi-code`) model aliases and provider credentials | Private home, shared managed OAuth storage and refresh locks, explicit supported effort, MCP-only custom agent and stream-JSON print mode |
+| `zcode` | Selected `config.json` API provider/model definitions | Private native data and OS home, explicit reasoning selection, declared MCP servers, disabled host tools and stream-JSON prompt mode |
 
 Personal hooks, skills, host shell tools and subagents are excluded from these
 experimental native harness conditions. Custom provider deployments requiring
@@ -265,31 +437,43 @@ Flash as of September 16, 2026 ([DeepSeek announcement](https://www.deepseek.com
 
 ### Failures, retry ownership and recovery
 
-Codex, Claude Code and Kimi Code automatically continue after recognized capacity errors by
-default, with up to five additional launches in the same session and deadline.
-No `[recovery]` table is needed. Adapters without native continuation support
-(DSH and command) keep capacity continuation disabled.
+Codex, Claude Code and Kimi Code automatically continue after recognized capacity
+errors and transient provider rate limits by default, with up to five additional
+launches in the same session and deadline. Kimi's concurrent-request-limit 403 is
+included. No `[recovery]` table is needed. DSH and command keep this continuation
+disabled.
+
+Codex, Claude Code, DSH and Kimi Code also automatically continue after a failed
+native process reports a recognized connection error. Network recovery permits
+up to five additional launches, with exponential waits starting at 30 seconds
+and capped at 300 seconds, including up to 20% positive jitter. `NETWORK_RETRY`
+reports each wait. The original conversation, workspace, credentials, model,
+effort and deadline remain in use. Unknown or mixed failures, process signals,
+authentication/quota errors and unresolved tool operations do not authorize a
+network continuation. A successful native exit never triggers one.
 
 Same-session continuation is enabled by default for Codex, Claude Code, DSH and
 Kimi Code. Their local services save workspace checkpoints automatically, so
 an interrupted batch can continue with `--resume` under its original deadline.
-Custom `command` harnesses keep native continuation disabled.
+ZCode and custom `command` harnesses keep native continuation disabled.
 
-HTTP retries remain opt-in in each experiment TOML
-(or `[defaults.recovery]` in a matrix). To override recovery settings, declare
-the four transport/manual-continuation fields together; capacity fields are
-optional. There are no CLI policy overrides:
+The experiment runner enables service HTTP retries by default: three total
+attempts, with exponential waits starting at one second and capped at eight
+seconds. This covers session creation, scoped requests, layout MCP and result
+collection. The generic `Client` API retains its single-attempt default unless
+given an explicit retry policy; the runner supplies its experiment policy.
+Experiment configurations can omit `[recovery]` entirely. An optional table
+(or `[defaults.recovery]` in a matrix) overrides only the fields it declares;
+omitted fields keep the framework defaults. For example:
 
 ```toml
 [recovery]
-http_attempts = 3
-backoff_seconds = 1
-max_backoff_seconds = 8
-resume_session = true
+http_attempts = 5
+network_resumes = 8
 ```
 
-These are the default capacity settings for supported harnesses. Add them to
-that table only to override the defaults:
+These are the default capacity settings for supported harnesses. Declare only
+the values that need to change:
 
 ```toml
 capacity_resumes = 5
@@ -299,15 +483,16 @@ capacity_cooldown_seconds = 300
 ```
 
 `capacity_resumes` defaults to five for Codex, Claude Code and Kimi Code, accepts 0–10,
-and bounds additional native launches across this service session. Set it to zero
-to disable automatic capacity continuation. Explicitly enabling it for an
-unsupported harness is rejected before dispatch. The remaining capacity fields
+and bounds additional native launches for capacity errors and rate limits together
+across this service session. Set it to zero to disable this automatic continuation.
+Explicitly enabling it for an unsupported harness is rejected before dispatch.
+The remaining capacity fields
 default to 30/300/300 seconds and accept finite values from 0–3600; the maximum
 backoff must be at least the initial backoff. Delays grow exponentially with up
 to 20% positive jitter, capped by the maximum. Native numeric `retry_after` is a
 minimum delay; a hint above that maximum ends automatic recovery.
 
-Only recognized `provider_overloaded` events authorize automatic continuation:
+Recognized `provider_overloaded` events authorize automatic capacity continuation:
 the structured codes `model_at_capacity`, `overloaded_error`, `server_overloaded` and
 `server_is_overloaded`. The Codex adapter also recognizes the exact message
 `Selected model is at capacity. Please try a different model.` in its native
@@ -316,10 +501,26 @@ Adapters normalize native evidence; shared classification and recovery policy
 consume that evidence without interpreting vendor prose. Assistant text, tool output, mixed failures and
 arbitrary messages cannot authorize one. Authentication/quota errors and
 unresolved tool operations stop automatic recovery.
+Kimi Code can confirm a completed bridge reply from its persisted native conversation
+when the call ID, tool, arguments and result match. Repeated identical calls must
+also match their occurrence; confirming delivery never replays the operation.
+It reads legacy messages or, when present, main-agent loop events; mirrored
+transcript events do not count as additional calls. Loop replies must belong
+to an existing call in a valid step and retain the exact unannotated result;
+late replies after a new step and evidence preceding a history rewrite cannot
+confirm delivery.
 Kimi's adapter reads its terminal `error: failed to run prompt:` stderr only
 after a failed native exit. It recognizes `provider.overloaded` and the Kimi
 429 engine-overload response, distinguishes account quota from transient rate
 limits, and maps native authentication and connection failures independently.
+Its terminal OAuth error `The provided authorization grant is invalid` is an
+authentication failure and stops related dispatch without automatic continuation.
+Recognized `rate_limit` events from a failed native process also use the capacity
+waits and shared resume limit. These include the structured codes `rate_limit_error`
+and `rate_limit_exceeded`, and Kimi's terminal 403 concurrent-request-limit response.
+Rate-limit continuation requires `resume_session` to be enabled and unambiguous
+rate-limit evidence; successful exits, process signals and mixed errors never
+authorize it. Authentication failures and account usage limits remain terminal.
 Claude's adapter reads native `assistant.error` fields and terminal results.
 It distinguishes authentication, billing and rate limits, and recognizes HTTP
 529 only inside its native `server_error` message. Native retries followed by a
@@ -338,16 +539,27 @@ prompt:
 
 The original wall budget includes every launch and wait. No new attempt,
 repetition or model is introduced. Exhausted retries, an insufficient remaining
-budget, missing native state or a changed error end automatic recovery and run
-the existing final submission/evaluation procedure, even when manual continuation
-was also enabled. A candidate's independent score remains separate from the
+budget, missing native state or a changed error end automatic continuation.
+Overload errors then run the existing final submission/evaluation procedure.
+Rate-limit and network interruptions retain the session and local checkpoints
+when `resume_session` is enabled, including after automatic retries are exhausted
+or a service request still fails after HTTP retries. Use the original configuration and
+`--output` with `--resume` to continue; downtime still consumes the original budget.
+Interrupting a native process retains its session when continuation is enabled,
+including after an earlier automatic recovery; interruption never triggers an automatic relaunch.
+`network_resumes` accepts 0–10 and defaults to five for supported native harnesses;
+zero disables automatic network continuation. `network_backoff_seconds` and
+`network_max_backoff_seconds` default to 30 and 300, accept finite values from
+0–3600, and the maximum must be at least the initial wait. Explicit
+`resume_session = false` also disables network continuation and local checkpoints.
+A candidate's independent score remains separate from the
 participant interruption. Independent case workers survive a scheduler exit and
 finish their existing solve, settlement and export. Untouched cases need explicit
 batch recovery. If a case worker itself is interrupted, use the collection
 procedure below to settle its retained session without continuing the model.
 
-Two consecutively collected case results with capacity interruptions trigger a
-`capacity_cooldown_seconds` pause before new dispatch for the same
+Two consecutively collected case results with capacity or rate-limit
+interruptions trigger a `capacity_cooldown_seconds` pause before new dispatch for the same
 harness/provider/model, including recovered interruptions. Already running cases
 continue; other model conditions do not inherit the pause. A case without these
 interruptions resets the consecutive count; zero cooldown disables the pause.
@@ -355,8 +567,10 @@ interruptions resets the consecutive count; zero cooldown disables the pause.
 `execution.capacity_recovery` and the case summary retain interruption history,
 resume count and recovery outcome. `agent.jsonl` retains all launches in order
 with the existing credential redaction.
+`execution.network_recovery` and the case summary similarly retain network
+interruptions, resume count and recovery outcome.
 
-Without this table, HTTP requests have one attempt and same-session continuation
+Without this table, experiment HTTP requests have three attempts and same-session continuation
 is enabled for supported native harnesses; automatic capacity continuation remains
 enabled for harnesses that support it. Set `resume_session = false` explicitly
 to disable native continuation and local workspace checkpoints.
@@ -388,7 +602,7 @@ artifacts before arranging a distinct replacement attempt. A successful creation
 still replays its original response after a lost HTTP reply.
 
 The client owns service-transport retries. Native harnesses own their provider/SDK
-retry loops. Automatic capacity continuation starts another turn only after the
+retry loops. Automatic capacity or network continuation starts another turn only after the
 native process has stopped; it does not replay individual model or tool requests.
 Provider-native retry limits are not normalized across vendors. Both manual and
 automatic continuation use the original server deadline, not a renewed three-hour
@@ -456,7 +670,7 @@ configuration failures. Existing archived batches are not rewritten by an upgrad
 Recover using the **same TOML and endpoint/input arguments**:
 
 ```bash
-python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
+python -m benchmarking.run --config configs/experiment-medium.toml \
   --endpoint https://evaluation.example.org --output results/my-batch --resume
 ```
 
@@ -485,7 +699,7 @@ For a long single-condition experiment, run the installed coordinator independen
 of the launching terminal or agent session:
 
 ```bash
-python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
+python -m benchmarking.run --config configs/experiment-medium.toml \
   --dataset /path/to/dataset --output results/my-batch --detach
 python -m benchmarking.run --status --output results/my-batch
 ```
@@ -557,10 +771,16 @@ Recovery distinguishes these operations:
   runner and no unresolved mutation/reply. Local `--dataset` sessions also
   recover from committed workspace checkpoints after service or host restart,
   resolving interrupted tool calls through recorded receipts without replaying them.
+- **Automatic network continuation:** enabled by default (`network_resumes = 5`),
+  Codex, Claude, Kimi Code or DSH continues its saved conversation after recognized
+  connection failures. If automatic attempts are exhausted, the retained session
+  can still be continued using `--resume` under its original deadline.
 - **Automatic capacity continuation:** enabled by default (`capacity_resumes = 5`),
   Codex, Claude or Kimi Code continues while the runner and original local or remote service are
   alive. It shares the same safety checks and deadline, and does not require
-  `resume_session = true` or an external endpoint.
+  `resume_session = true` or an external endpoint for overload errors. Recognized
+  rate limits share these waits and this resume limit, require `resume_session`
+  (enabled by default), and retain the session after exhausted retries.
 
 Supported native harnesses enable `resume_session` by default, without a
 `[recovery]` table. The runner starts its isolated service with
@@ -570,7 +790,7 @@ the whole case directory, including `.runtime/`, after interruption. With the
 same TOML, Dataset, image, framework release and native CLI, continue using:
 
 ```bash
-python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
+python -m benchmarking.run --config configs/experiment-medium.toml \
   --dataset /path/to/dataset --output results/my-batch --resume --detach
 ```
 
@@ -581,7 +801,9 @@ consumes the original budget. Partial command writes after that checkpoint are
 discarded, and those executions become `error` with no inferred exit code.
 The continuation prompt reports recovered tool outcomes so the Agent can decide
 its next action. Recovery never automatically replays a command. `/tmp` and live
-processes are transient. Workspace checkpoints add disk and execution overhead
+processes are transient. Unchanged workspaces reuse the previous archive and
+commit fresh HTTP state; changed workspaces stream a new durable archive and hash
+it during the write. Workspace checkpoints add disk and execution overhead
 and do not support external solver runtimes with writable mounts or network side
 effects. Sessions created without checkpoints and already terminal results
 cannot gain this capability by changing the TOML after interruption.
@@ -590,8 +812,9 @@ Codex uses `codex exec ... resume <thread-id> -`; Claude uses
 `claude -p ... --resume <session-id>`. Both persist native histories in
 `participant/.private/native-home/` within the run storage (`.runtime/` for default
 cases) and reuse the same private working directory.
-File-backed native authentication is copied from the caller's CLI home at
-the first launch. Later launches preserve refreshed private credentials;
+For Codex and Claude, file-backed native authentication is copied from the selected
+CLI home (`harness_home`, or the caller's home when omitted) at the first launch.
+Later launches preserve refreshed private credentials;
 API environment variables remain runtime-only. OS-keychain/custom login flows
 that cannot use this isolated home need an adapter extension. Codex and Claude
 require persisted main-session histories in the original private workspace,
@@ -600,6 +823,20 @@ rather than trusting an announced session ID alone. DSH uses an isolated
 fallback, and resumes with `--session-id <session-id>` only when exactly one
 persisted main session matches the original working directory. All adapters
 retain refreshed credential values for export redaction after each launch.
+
+With an explicit `harness_home`, the shared credential lifecycle synchronizes
+refreshed Codex, Claude and DSH file credentials back to the selected source after
+each native invocation, including failed or interrupted processes, before terminal
+runtime cleanup. It uses a file lock and atomic replacement only when the source
+still matches the bytes originally staged by that case. A competing source change
+or login is preserved; conflicting private refreshes are not written over it.
+Private synchronization records remain with unfinished runtime evidence. Native
+refreshes and credential rotation do not change experiment identity. Kimi continues
+to use its selected shared managed OAuth store and native refresh locks rather
+than snapshot writeback. Default caller-home launches keep their existing behavior.
+The lock coordinates framework writebacks; coordinate native CLI login changes
+separately while no experiment is using the same authentication source. This does
+not serialize concurrent OAuth refresh requests made inside native CLI processes.
 
 Reproduce the CLI capability inspection without model calls:
 
@@ -662,7 +899,7 @@ Create a `configs/` directory in your participant project and save TOML experime
 
 ```toml
 harness = "codex"
-model = "gpt-6-astra"
+model = "your-model-id"
 efforts = ["high", "xhigh"]
 tasks = ["freepdk45.OpenRAM.cell_6t"]
 concurrency = 1
@@ -688,8 +925,8 @@ For machine-specific sources, replace `source` with
 Dataset path or HF ID. Exactly one of `source` and `source_env` is required;
 missing or empty variables fail before Dataset loading. Relative paths resolve
 against the configuration file in both forms. The resolved Dataset identity is
-recorded, not the variable name. See the [participant examples](../examples/README.md)
-for setting the Dataset source without importing the source checkout.
+recorded, not the variable name. Set the source in your
+[independent experiment project](#experiment-environment); no source checkout import is needed.
 
 `ICLAYOUT_BENCH_IMAGE` and `ICLAYOUT_BENCH_OUTPUT` supply defaults for `--image`
 and `--output`; explicit flags take precedence. An empty output variable retains
@@ -724,8 +961,8 @@ output for overlapping cases.
 Select one or several files (shell wildcards also work):
 
 ```bash
-python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml --dry-run
-python -m benchmarking.run --config configs/codex-gpt-6-astra-medium.toml \
+python -m benchmarking.run --config configs/experiment-medium.toml --dry-run
+python -m benchmarking.run --config configs/experiment-medium.toml \
   --dataset /path/to/dataset --output results/comparison-1
 ```
 
@@ -926,6 +1163,13 @@ ignore rules provide neither backup nor permission to delete results.
 
 ## Observation and analysis
 
+Solver containers have no default CPU, memory or PID quota; service limits and
+run identities report `null` for these values. Control host load through the
+experiment's `concurrency` and the EDA backend's job and thread settings.
+Standalone run configurations may explicitly set `cpus`, `memory_mb` or `pids`;
+omitting them leaves that resource uncapped. Solve deadlines and workspace,
+candidate, response and log size limits remain in force.
+
 ICLayout-Bench provides the evaluation environment, service observation and scoring.
 The selected Agent harness owns its reasoning and tool loop. Every completed
 trial exports `participant/observation/`: service events and result are separate
@@ -1048,6 +1292,13 @@ only. Result charts and report presentation belong to the consuming website;
 these local exports remain subject to the operator's disclosure review.
 Directories must be new. Conditions, tool identities,
 budgets and evaluation modes form separate cohorts; task digests remain distinct.
+
+Python consumers can use `benchmarking.results.statistics` for shared arithmetic.
+`score_summary` describes known observations; `planned_score_summary` also takes
+the expected sample count and keeps its mean unknown when observations are
+missing or scores are unknown. `weighted_score` preserves unknown task scores
+when combining task coefficients. Operators select comparable samples and verify
+their experiment bindings before calling these functions.
 Tables show per-task mean and sample standard deviation only over known scores,
 alongside measured/unknown counts and distinct outcome counts. A lone sample has
 no sample standard deviation. Error or incomplete scores are missing, not zero;
@@ -1264,16 +1515,20 @@ still controls score and file publication independently.
 ### Kimi Code
 
 Authenticate with `kimi login` and configure the desired model alias before
-running `harness = "kimi-code"`. The K3 example uses `model = "kimi-code/k3"`
-and explicit `efforts = ["high"]`. The adapter rejects efforts missing from the
+running `harness = "kimi-code"`. Set `model` to an alias in your Kimi configuration
+and specify an effort from that model's supported values. The adapter rejects efforts missing from the
 model's effective `support_efforts`, rather than allowing the CLI to fall back.
 It targets Kimi Code's `kimi -p` interface, not the older Python `kimi-cli`.
 
-Each attempt receives a private Kimi home containing only the selected model,
-provider and referenced file OAuth credential. OAuth keys are native logical
+Each attempt receives a private Kimi home containing the selected model,
+provider, conversation and tool configuration. OAuth keys are native logical
 token names: `oauth/kimi-code` resolves to `credentials/kimi-code.json`.
-Credentials cross private coordinator/worker pipes as JSON-compatible text and
-are staged with mode `0600`. Provider `api_key_env` is supported.
+The private home links its `credentials/` and `oauth/` directories to the caller's
+managed Kimi storage. Kimi's native atomic token writes and cross-process refresh
+locks then share the same token state across cases and other CLI sessions.
+Deleting an experiment's private home preserves that managed login. Credential
+files use mode `0600`; values retained for redaction cross private worker pipes
+as JSON-compatible text. Provider `api_key_env` is supported.
 The original configuration, hooks, plugins, skills and unrelated MCP servers are
 not copied. A custom agent and global tool allowlist expose only the evaluation
 MCP and explicitly declared scheme servers. Tool timeouts follow the task budget.
@@ -1281,7 +1536,7 @@ Same-session continuation uses the single persisted conversation in that
 attempt's private home, including after failures that omit a resume hint.
 The adapter checks its saved model, effort and MCP-only agent binding before
 passing `--session`; it omits `--agent-file` because Kimi restores the bound
-agent. Rotated private OAuth tokens are retained across launches. Same-session
+agent. Native OAuth refreshes remain available across launches and subsequent cases. Same-session
 continuation is enabled by default and supports an independently running remote
 service or a checkpointed local session, as with other supported harnesses;
 capacity continuation also works in local mode.
@@ -1295,3 +1550,67 @@ Print mode already selects Kimi's non-interactive permission mode; adding
 See Kimi's [configuration reference](https://www.kimi.com/code/docs/en/kimi-code-cli/configuration/config-files),
 [agent tool policy](https://www.kimi.com/code/docs/en/kimi-code-cli/customization/agents)
 and [MCP reference](https://www.kimi.com/code/docs/en/kimi-code-cli/customization/mcp.html).
+
+### ZCode
+
+Select `harness = "zcode"`, an explicit `harness_home`, a `provider/model`
+reference and an effort declared by that model. The selected directory contains
+`config.json` with API connections only. For example:
+
+```json
+{
+  "provider": {
+    "team": {
+      "kind": "anthropic",
+      "options": {
+        "baseURL": "https://provider.example/api",
+        "apiKeyEnv": "TEAM_MODEL_KEY"
+      },
+      "models": {
+        "your-model-id": {
+          "reasoning": {"levels": ["high"], "defaultLevel": "high"}
+        }
+      }
+    }
+  }
+}
+```
+
+Use `model = "team/your-model-id"` in the experiment TOML. Supported provider
+kinds are `anthropic`, `openai-compatible` and `openai`, corresponding to
+Messages, Chat Completions and Responses. Supply the API root rather than the
+final operation URL. `apiKeyEnv` is an adapter-resolved environment reference;
+its value comes from the existing process/dotenv entry point. Native inline
+`options.apiKey` is also supported in a protected profile. Choose one credential
+source. No account login or default-home credential import is performed.
+
+An optional `network` object in the selected profile accepts native `httpProxy`
+and `noProxy` strings. Use an HTTP(S) proxy URL without credentials, for example
+`"network": {"httpProxy": "http://127.0.0.1:7890", "noProxy": "localhost,127.0.0.1"}`.
+These connection settings are recorded with the condition and copied into each
+isolated native configuration. ZCode model requests do not automatically use the
+shell's generic `HTTP_PROXY`/`HTTPS_PROXY`; inherited `ZCODE_*` overrides remain
+filtered, so configure the proxy in the selected profile.
+
+The adapter creates the native versioned Personal Provider configuration in the
+case's private home and sets its default model selection, including the explicit
+reasoning level. Declared levels must also be supported by the native runtime's
+model registry; declarations do not add capabilities or rewrite provider options.
+Inherited ZCode and unrelated provider authentication/endpoint overrides are
+removed. The native data root, OS home, storage and provider configuration all
+point into the case's private directory. Selected connection files are never
+modified by an invocation.
+
+The adapter supplies only declared MCP servers, disables personal plugins,
+skills, hooks, memory and subagents, and removes native host tools with
+`--disallowed-tools`. Print mode uses noninteractive `yolo` permission for the
+remaining declared MCP operations. Model/effort/tool isolation was checked with
+ZCode 0.16.9 against a local provider fixture. Structured terminal provider errors
+and retryable transport failures are classified from ZCode's `turn.failed`
+envelope. Native model-I/O and JSONL
+diagnostics are retained under `native/zcode/` with shared credential redaction;
+provider configuration and credential files are excluded from those traces.
+
+Native same-session continuation and automatic capacity continuation are
+disabled for this adapter. Enabling them in a recovery table is rejected. Each
+new run starts its own native session under the normal service deadline.

@@ -37,6 +37,9 @@ class AttemptState:
     capacity_interruptions: list[dict] = field(default_factory=list)
     capacity_resumes: int = 0
     capacity_outcome: str | None = None
+    network_interruptions: list[dict] = field(default_factory=list)
+    network_resumes: int = 0
+    network_outcome: str | None = None
 
 
 @dataclass
@@ -89,26 +92,29 @@ class ParticipantAttempt:
     def begin_finalization(self, error):
         self._persist(phase="finalizing", error=error)
 
-    def record_capacity_interruption(self, problem):
+    def record_interruption(self, kind, problem):
         entry = {"launch": self.state.launches, "failure": problem, "status": "interrupted"}
-        self._persist(capacity_interruptions=[*self.state.capacity_interruptions, entry])
+        key = kind + "_interruptions"
+        self._persist(**{key: [*getattr(self.state, key), entry]})
 
-    def apply_capacity_decision(self, decision):
+    def apply_resume_decision(self, kind, decision):
         """Persist the decision before sleeping or starting another native launch."""
-        entries = self.state.capacity_interruptions
+        key = kind + "_interruptions"
+        entries = getattr(self.state, key)
         if not entries:
-            raise ValueError("Capacity recovery requires a recorded interruption")
+            raise ValueError("Recovery requires a recorded interruption")
         entry = dict(entries[-1], status=decision.outcome)
         if decision.delay_seconds is not None:
             entry['delay_seconds'] = decision.delay_seconds
-        changes = {"capacity_interruptions": [*entries[:-1], entry]}
+        changes = {key: [*entries[:-1], entry]}
         if decision.outcome == "waiting":
-            changes['phase'] = "capacity_wait"
+            changes['phase'] = kind + "_wait"
         elif decision.outcome == "continued":
-            changes.update(phase="ready", capacity_resumes=self.state.capacity_resumes + 1,
-                           capacity_outcome="continuing")
+            changes.update(phase="ready")
+            changes[kind + "_resumes"] = getattr(self.state, kind + "_resumes") + 1
+            changes[kind + "_outcome"] = "continuing"
         else:
-            changes['capacity_outcome'] = decision.outcome
+            changes[kind + "_outcome"] = decision.outcome
         self._persist(**changes)
 
     def complete(self, error, *, suspended):
@@ -116,18 +122,21 @@ class ParticipantAttempt:
         state = self.state
         recovery = {}
         changes = {}
-        if state.capacity_interruptions:
-            outcome = state.capacity_outcome
+        for kind in ("capacity", "network"):
+            entries = getattr(state, kind + "_interruptions")
+            if not entries:
+                continue
+            outcome = getattr(state, kind + "_outcome")
             if not error:
                 outcome = "recovered"
             elif outcome in {None, "continuing"}:
                 outcome = "stopped_on_other_error"
-            entries = state.capacity_interruptions
             if entries[-1]['status'] in {"interrupted", "waiting"}:
                 entries = [*entries[:-1], dict(entries[-1], status=outcome)]
-            changes.update(capacity_interruptions=entries, capacity_outcome=outcome)
-            recovery = {"capacity_recovery": {"resumes": state.capacity_resumes,
-                        "outcome": outcome, "interruptions": entries}}
+            changes[kind + "_interruptions"] = entries
+            changes[kind + "_outcome"] = outcome
+            recovery[kind + "_recovery"] = {"resumes": getattr(state, kind + "_resumes"),
+                                          "outcome": outcome, "interruptions": entries}
         self._persist(error=error, phase="suspended" if suspended else "finalizing", **changes)
         return recovery
 

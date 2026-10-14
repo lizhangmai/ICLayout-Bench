@@ -69,24 +69,24 @@ class CalibreConfiguration:
     rc: RCSettings
 
     @classmethod
-    def parse(cls, check, deck, settings, *, connectivity, thread_limit):
+    def parse(cls, check, deck, settings, *, connectivity):
         remaining = copy.deepcopy(dict(settings, deck=deck))
         configuration = cls(check, connectivity, _group(RuleSettings, remaining),
                             _group(DRCSettings, remaining), _group(LVSSettings, remaining),
                             _group(RCSettings, remaining))
         if remaining:
             raise TypeError('Unknown Calibre settings: ' + ', '.join(sorted(remaining)))
-        configuration.validate(thread_limit)
+        configuration.validate()
         return configuration
 
-    def validate(self, thread_limit):
+    def validate(self):
         if self.check not in {'drc', 'lvs', 'rc'}:
             raise ValueError('Unknown Calibre operation')
         if self.connectivity not in {'xrc', 'cci'} or (self.connectivity == 'cci' and self.check != 'rc'):
             raise ValueError('CCI connectivity requires an extraction operation')
-        if (type(self.drc.threads) is not int or not 1 <= self.drc.threads <= thread_limit
+        if (type(self.drc.threads) is not int or self.drc.threads < 1
                 or (self.drc.threads != 1 and self.check != 'drc')):
-            raise ValueError('Calibre DRC threads must fit the tool CPU allocation')
+            raise ValueError('Calibre threads must be positive and are only configurable for DRC')
         if (type(self.lvs.finfet) is not bool
                 or (self.lvs.finfet and (self.rc.require_junctions or self.rc.mos_models or self.rc.mos_junctions))):
             raise ValueError('FinFET extraction retains native MOS models and FinFET junction properties')

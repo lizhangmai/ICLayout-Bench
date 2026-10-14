@@ -2,28 +2,17 @@
 import json
 import os
 import secrets
-import selectors
 import signal
-import subprocess
-import sys
 import time
 from contextlib import contextmanager
 
 from benchmarking.client import Client
+from benchmarking.engine.resources.installation import cache_root
 from benchmarking.files import append_event, write_json
+from benchmarking.service.launch import launch_service
 from benchmarking.service.process import process_start
 
 from .config import clean_env
-
-
-def stop(process, signum=signal.SIGTERM):
-    if process.poll() is None:
-        os.killpg(process.pid, signum)
-        try:
-            process.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
-            process.wait(timeout=10)
 
 
 def local_service_owner(output):
@@ -77,10 +66,9 @@ def service(case, output, image, recoverable=True):
                 stop_local_service(output)
         return
     env = clean_env()
+    env['ICLAYOUT_BENCH_CACHE_DIR'] = str(cache_root())
     env["ICLAYOUT_BENCH_LOCAL_TOKEN"] = token
-    with (output / "service.log").open("a") as log:
-        process = subprocess.Popen([
-            sys.executable, "-I", "-m", "benchmarking.service", "--dataset", case["dataset"], "--case", case["case"],
+    arguments = ["--dataset", case["dataset"], "--case", case["case"],
             *(["--revision", case["revision"]] if case.get("revision") else []),
             *(["--offline"] if case.get("offline") else []),
             *(["--dataset-name", case["dataset_name"], "--dataset-split", case["dataset_split"]]
@@ -89,24 +77,13 @@ def service(case, output, image, recoverable=True):
             "--owner-record", str(private / "owner.json"),
             "--image", image, "--token-env", "ICLAYOUT_BENCH_LOCAL_TOKEN",
             "--recoverable" if recoverable else "--no-recoverable",
-        ], cwd=output, env=env, stdout=subprocess.PIPE, stderr=log, text=True, start_new_session=True)
-        append_event(output / 'lifecycle.jsonl', 'service_spawned', durable=True, pid=process.pid)
-        ready = False
+        ]
+    def event(kind, **data):
+        append_event(output / 'lifecycle.jsonl', kind, durable=True, **data)
+
+    with launch_service(arguments, output=output, environment=env, on_event=event) as running:
         try:
-            with selectors.DefaultSelector() as selector:
-                selector.register(process.stdout, selectors.EVENT_READ)
-                if not selector.select(timeout=600):
-                    raise TimeoutError("Local service did not start; see service.log")
-            line = process.stdout.readline().strip()
-            prefix = "Local development service: "
-            if not line.startswith(prefix):
-                raise RuntimeError("Local service failed; see service.log")
-            ready = True
-            append_event(output / 'lifecycle.jsonl', 'service_ready', durable=True, pid=process.pid)
-            yield Client(line.removeprefix(prefix), token, timeout=60)
+            yield Client(running.endpoint, token, timeout=60)
         finally:
-            if not ready or (output.parent / "participant/analysis/manifest.json").exists():
-                stop(process, signal.SIGINT)
-                append_event(output / 'lifecycle.jsonl', 'service_exit', durable=True, pid=process.pid,
-                             exit_code=process.returncode, ready=ready)
-            process.stdout.close()
+            if not (output.parent / "participant/analysis/manifest.json").exists():
+                running.retain()

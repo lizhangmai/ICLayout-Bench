@@ -1,4 +1,4 @@
-"""Offline CLI execution with host-enforced resources and explicit GDS snapshots."""
+"""Offline CLI execution with isolated inputs and explicit GDS snapshots."""
 
 import json
 import os
@@ -101,8 +101,7 @@ class DockerSession:
         subprocess.run([
             "docker", "run", "--rm", "--network", "none", "--read-only",
             "--cap-drop", "ALL", "--cap-add", "CHOWN", "--user", "0:0",
-            "--security-opt", "no-new-privileges", "--memory", "64m", "--cpus", "1",
-            "--pids-limit", "16", *mounts, "--entrypoint", "python", self.image_id,
+            "--security-opt", "no-new-privileges", *mounts, "--entrypoint", "python", self.image_id,
             "-I", "-c", "import os,sys; [os.chown(p,int(sys.argv[1]),int(sys.argv[2])) for p in sys.argv[3:]]",
             str(uid), str(gid), *paths,
         ], check=True, capture_output=True, timeout=30)
@@ -165,11 +164,17 @@ class DockerSession:
             protocol = None
             attached = False
             try:
+                limits = []
+                if config.memory_mb is not None:
+                    limits.extend(["--memory", f"{config.memory_mb}m", "--memory-swap", f"{config.memory_mb}m"])
+                if config.cpus is not None:
+                    limits.extend(["--cpus", str(config.cpus)])
+                if config.pids is not None:
+                    limits.extend(["--pids-limit", str(config.pids)])
                 cid = subprocess.check_output([
                     "docker", "create", "--network", self.runtime.network if self.runtime else "none", "--read-only", "--cap-drop", "ALL",
                     "--security-opt", "no-new-privileges", "--user", f"{uid}:{gid}", "--workdir", "/workspace",
-                    "--memory", f"{config.memory_mb}m", "--memory-swap", f"{config.memory_mb}m",
-                    "--cpus", str(config.cpus), "--pids-limit", str(config.pids), "--shm-size", "16m",
+                    *limits, "--shm-size", "16m",
                     "--tmpfs", f"/workspace:rw,nosuid,nodev,size={config.workspace_mb}m,uid={uid},gid={gid},mode=700",
                     "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m,mode=1777", "--log-driver", "none",
                     "--env", "HOME=/tmp", "--env", "PYTHONDONTWRITEBYTECODE=1",

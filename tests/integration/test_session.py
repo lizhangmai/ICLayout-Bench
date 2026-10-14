@@ -23,7 +23,7 @@ from benchmarking.engine.sessions.recorder import (
     recover_submissions,
 )
 from benchmarking.engine.tools.docker import DockerTool
-from benchmarking.files import Asset
+from benchmarking.files import Asset, ReadOnlyMount
 from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
 from benchmarking.tasks import load_task
 
@@ -60,6 +60,96 @@ def execute(code, seconds=10, task=None):
     task = task or session_task()
     config = configuration(code, seconds)
     return DockerSession(config.image).run(task, config, {}, task_message(task, config))
+
+
+@pytest.mark.acceptance
+@pytest.mark.acceptance_container
+@pytest.mark.parametrize('entry', ['solver', 'tool'])
+def test_unrestricted_execution_preserves_container_isolation(monkeypatch, entry):
+    observed = []
+    original_output = subprocess.check_output
+
+    def output(command, **kwargs):
+        result = original_output(command, **kwargs)
+        if command[:2] == ['docker', 'create']:
+            host = json.loads(original_output(
+                ['docker', 'inspect', '--format', '{{json .HostConfig}}', result.strip()], text=True))
+            observed.append({name: host[name] for name in
+                             ('Memory', 'MemorySwap', 'NanoCpus', 'CpuQuota', 'PidsLimit',
+                              'NetworkMode', 'CapDrop', 'SecurityOpt', 'ReadonlyRootfs')})
+        return result
+
+    monkeypatch.setattr(subprocess, 'check_output', output)
+    if entry == 'solver':
+        config = replace(configuration('''
+output.write_bytes(b'unlimited-default')
+assert submit()['accepted']
+'''), memory_mb=None, cpus=None, pids=None)
+        task = session_task()
+        result = DockerSession(IMAGE).run(task, config, {}, task_message(task, config))
+        assert result.termination == 'completed', result.console.content
+        assert result.candidate.content == b'unlimited-default'
+        assert observed[0]['ReadonlyRootfs'] is True
+    else:
+        tool = DockerTool(IMAGE, ['python', '--version'], 10)
+        result = tool.run(['python', '-c', "from pathlib import Path; Path('out.txt').write_text('unlimited-default')"],
+                          {}, {'out.txt': 'text'})
+        assert result.returncode == 0, result.reason
+        assert result.files['out.txt'].content == b'unlimited-default'
+        assert observed[0]['ReadonlyRootfs'] is True
+    host, = observed
+    assert all(host[name] == 0 for name in ('Memory', 'MemorySwap', 'NanoCpus', 'CpuQuota'))
+    assert host['PidsLimit'] in (None, 0, -1)
+    assert host['NetworkMode'] == 'none'
+    assert host['CapDrop'] == ['ALL']
+    assert 'no-new-privileges' in host['SecurityOpt']
+
+
+@pytest.mark.acceptance
+@pytest.mark.acceptance_container
+@pytest.mark.parametrize('ending', ['complete', 'error', 'timeout'])
+def test_tool_memory_workspace_retains_private_outputs_after_failure(tmp_path, ending):
+    model = tmp_path / 'model.txt'
+    model.write_bytes(b'mounted model')
+    model.chmod(0o444)
+    tool = DockerTool(IMAGE, ['python', '--version'], 10)
+    if ending == 'timeout':
+        tool.timeout_seconds = .5
+    script = '''import os, sys, time
+from pathlib import Path
+source = Path('inputs/source.txt')
+model = Path('models/model.txt')
+for path in (source, model):
+    try:
+        path.write_bytes(b'overwrite')
+    except OSError:
+        pass
+    else:
+        raise AssertionError('Frozen input is writable')
+Path('models/derived.txt').write_bytes(source.read_bytes() + b' / ' + model.read_bytes())
+Path('models/derived.txt').chmod(0o600)
+os.link('models/derived.txt', 'linked-output.txt')
+print('tool evidence', flush=True)
+if sys.argv[1] == 'timeout':
+    time.sleep(5)
+elif sys.argv[1] == 'error':
+    sys.exit(9)
+'''
+    result = tool.run(['python', '-c', script, ending],
+                      {'inputs/source.txt': Asset(b'frozen input', 'text'),
+                       'models/model.txt': ReadOnlyMount(model, Asset(b'model recipe', 'text'))},
+                      {'models/derived.txt': 'text', 'linked-output.txt': 'text'})
+    assert 'models/derived.txt' in result.files, (result.reason, result.evidence)
+    assert result.files['models/derived.txt'].content == b'frozen input / mounted model'
+    assert result.files['linked-output.txt'].content == b'frozen input / mounted model'
+    assert b'tool evidence' in result.evidence['console'].content
+    assert model.read_bytes() == b'mounted model'
+    if ending == 'complete':
+        assert result.returncode == 0 and not result.reason
+    elif ending == 'error':
+        assert result.returncode == 9 and result.reason
+    else:
+        assert result.returncode is None and 'time limit' in result.reason
 
 
 @pytest.mark.acceptance

@@ -8,7 +8,7 @@ from . import claude_events
 from .contracts import EFFORTS, HarnessMetadata, LaunchContext, ParticipantSelection
 from .native import confined_files, json_events, traces
 
-METADATA = HarnessMetadata('claude', 'CLAUDE_CONFIG_DIR', '.claude', '.credentials.json')
+METADATA = HarnessMetadata('claude', 'CLAUDE_CONFIG_DIR', '.claude', '.credentials.json', 'settings.json')
 
 CAPABILITIES = {"resume_session": True, "capacity_resumes": True}
 
@@ -17,7 +17,7 @@ def harness_failure(output, exit_code=None, timed_out=False):
     return claude_events.harness_failure(output, exit_code, timed_out)
 
 
-def resolve(model, effort, env):
+def resolve(model, effort, env, *, home=None):
     path = Path(env.get("CLAUDE_CONFIG_DIR", str(Path.home() / ".claude"))) / "settings.json"
     settings = json.loads(path.read_text()) if path.exists() else {}
     provider_env = {
@@ -33,6 +33,13 @@ def resolve(model, effort, env):
             "API_TIMEOUT_MS",
         }
     }
+    if home is not None:
+        for key in list(env):
+            if key.startswith(("ANTHROPIC_", "CLAUDE_")) and key != METADATA.home_environment:
+                del env[key]
+        if (not (home / METADATA.credential_file).is_file() and not settings.get("apiKeyHelper")
+                and not any(provider_env.get(key) for key in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"))):
+            raise ValueError("Claude experiment home needs native credentials or configured API authentication")
     env.update(provider_env)
     model = model or env.get("ANTHROPIC_MODEL") or settings.get("model")
     resolved_effort = effort
@@ -60,6 +67,10 @@ def resolve(model, effort, env):
         "effort_source": source,
         "provider_effective_effort": None,
     }
+    if home is not None:
+        condition["auth_method"] = "api" if settings.get("apiKeyHelper") or any(
+            provider_env.get(key) for key in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")) else "subscription"
+        cli_settings["credential_files"] = [METADATA.credential_file] if condition["auth_method"] == "subscription" else []
     return ParticipantSelection(condition, env, cli_settings)
 
 
@@ -78,7 +89,7 @@ def prepare(context: LaunchContext) -> list[str]:
         "--setting-sources",
         "",
         "--settings",
-        json.dumps({key: value for key, value in settings.items() if key != "mcp_servers"}),
+        json.dumps({key: settings[key] for key in ("disableAllHooks", "apiKeyHelper") if key in settings}),
         "--strict-mcp-config",
         "--mcp-config",
         str(mcp),

@@ -1,8 +1,0 @@
-/.venv/
-/.archive/
-/build/
-/results/
-.env
-.env.*
-__pycache__/
-*.pyc

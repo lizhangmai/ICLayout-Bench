@@ -13,7 +13,7 @@ from benchmarking.version import package_version
 from . import adapters
 from .adapters.contracts import EFFORTS, HARNESSES
 
-FIELDS = {"name", "harness", "model", "effort", "tasks", "dataset", "concurrency", "repetitions", "recovery", "results_data", "scheme"}
+FIELDS = {"name", "harness", "harness_home", "model", "effort", "tasks", "dataset", "concurrency", "repetitions", "recovery", "results_data", "scheme"}
 
 
 def digest(value):
@@ -25,10 +25,11 @@ def clean_env():
             if not k.startswith(("ICLAYOUT_BENCH_", "LAYOUT_BENCH_")) and k != "PYTHONPATH"}
 
 
-def resolve(harness, model=None, effort=None):
+def resolve(harness, model=None, effort=None, *, harness_home=None):
     if harness not in HARNESSES:
         raise ValueError("Unknown harness")
-    return adapters.resolve(harness, model, effort, clean_env())
+    return adapters.resolve(harness, model, effort, clean_env(),
+                            **({"home": Path(harness_home)} if harness_home is not None else {}))
 
 
 def package_identity():
@@ -58,6 +59,12 @@ def validate(row):
         raise ValueError("Experiment name must be a short path-safe identifier")
     if row.get("harness") not in HARNESSES:
         raise ValueError("Each experiment needs a supported harness")
+    if "harness_home" in row:
+        if adapters.get(row["harness"]).METADATA.configuration_file is None:
+            raise ValueError("This harness does not have a native configuration home")
+        home = row["harness_home"]
+        if not isinstance(home, str) or not home.strip() or "\x00" in home:
+            raise ValueError("harness_home must be a nonempty directory path")
     tasks = row.get("tasks")
     if (not isinstance(tasks, list) or not tasks
             or any(not isinstance(task, str) or not task.strip() for task in tasks)
@@ -77,6 +84,8 @@ def validate(row):
     capabilities = adapters.capabilities(row["harness"])
     if not capabilities["resume_session"] and settings["resume_session"]:
         raise ValueError("This harness does not support resume_session")
+    if not capabilities["resume_session"] and settings["network_resumes"]:
+        raise ValueError("This harness does not support network_resumes")
     if not capabilities["capacity_resumes"] and settings["capacity_resumes"]:
         raise ValueError("This harness does not support capacity_resumes")
     return row
@@ -137,6 +146,8 @@ def read_matrix(path):
 
 def _scheme(row, base):
     from .scheme import resolve_scheme
+    if "harness_home" in row:
+        row["harness_home"] = str((base / row["harness_home"]).resolve())
     if "scheme" in row or row["harness"] == "command":
         row["scheme"] = resolve_scheme(row.get("scheme", {}), base, row["harness"])
     return row

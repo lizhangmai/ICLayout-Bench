@@ -29,7 +29,7 @@ Keep declarations, execution and presentation with their owning modules:
 | `files.py` and `engine/tools/docker.py` | Validated asset snapshots and installed-resource provenance; Docker execution and read-only bind arguments, respectively. Solver staging and evaluator tools use the same Docker transport without putting container arguments on the shared resource type. |
 | `engine/backends/calibre_config.py` and `calibre.py` | Typed rule, DRC, LVS and RC declarations and operation validation; shared rule binding, strict LVS/CCI controls and result acceptance. Docker and native adapters own execution. StarRC and Quantus select CCI extraction from construction and reuse the same controls/deck preparation. Backend identities include the grouped configuration and its implementation. |
 | `engine/backends/spectre.py`, `spectre_x.py`, `spectre_aps.py` and `spectre_native.py` | Shared simulation and measurement acceptance; explicit X/APS command options; Docker or native tool construction. Docker owns its memory allocation, while native construction accepts only host execution settings. |
-| `results/` | Export validation, analysis, plots, reports, previews, delivery outbox and optional SQL archives. Artifact validation in `importing.py` precedes transactional metadata import in `store.py`. |
+| `results/` | Export validation, structured analysis, shared statistics, EDA previews, delivery outbox and optional SQL archives. Artifact validation in `importing.py` precedes transactional metadata import in `store.py`. |
 
 Preview and outbox operations do not require the SQL results extra. Presentation
 code uses ResultStore operations rather than accessing its SQL engine. When changing
@@ -55,9 +55,10 @@ when their behavior changes. Report which checks ran and which are deferred to C
 Reuse the checkout's existing `.venv` for local development and checks. Inspect
 its interpreter and installed dependencies before changing it; repair this environment
 instead of creating a task-specific Python installation under `build/`, `.local/`
-or a temporary directory. The independent participant environment documented in
-`examples/README.md` uses an existing installed-package environment; experiments
-reuse it without per-run installation or upgrades.
+or a temporary directory. Persistent participant environments belong to independent
+experiment projects outside this checkout, with their own project and lockfile and
+a fixed non-editable wheel. Follow [the running guide](docs/running.md#experiment-environment);
+experiments reuse their selected environment without per-run installation or upgrades.
 Use the maintained CI wheel-isolation job when that release gate is required.
 Build directories hold disposable artifacts, never an alternative runtime or
 the only copy of experiment evidence.
@@ -111,6 +112,12 @@ representative success and failure for the public behavior. Related assertions
 should reuse one workflow, such as materializing a frozen task and refusing to
 overwrite it. Do not maintain unused Agent implementations just to test those
 implementations. Test counts include parameter expansion and are not a target.
+
+`test_participant_runner.py` owns shared recovery and settlement workflows;
+`test_harness_adapters.py` owns native event classification and persisted-history
+binding. Exercise shared stopping rules with one representative harness and keep
+each adapter's native success, binding and format-specific failure checks. Expand
+cross-products only when the dimensions interact in the behavior being checked.
 
 The offline suite prioritizes the following contracts:
 

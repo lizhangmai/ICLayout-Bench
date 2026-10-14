@@ -314,7 +314,7 @@ class SpectreDocker(SpectreBackend):
 
     adapter = 'spectre-docker'
 
-    def __init__(self, *, memory_mb=4096, **settings):
+    def __init__(self, *, memory_mb=None, **settings):
         self.memory_mb = memory_mb
         super().__init__(**settings)
 

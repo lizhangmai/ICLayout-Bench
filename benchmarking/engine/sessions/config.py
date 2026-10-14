@@ -20,9 +20,9 @@ class RunConfig:
     image: str
     command: tuple[str, ...]
     wall_seconds: float
-    memory_mb: int
-    cpus: float
-    pids: int
+    memory_mb: int | None
+    cpus: float | None
+    pids: int | None
     workspace_mb: int
     files: dict[str, Asset]
     environment: dict[str, str]
@@ -35,9 +35,8 @@ def load_run_config(path: Path) -> RunConfig:
     path = path.absolute()
     source = Asset(read_file(path.parent, path.name), "toml")
     data = tomllib.loads(source.content.decode())
-    keys(data, {"id", "image", "wall_seconds", "memory_mb",
-                "cpus", "pids", "workspace_mb"},
-         {"files", "environment", "command", "harness", "soft_budget"},
+    keys(data, {"id", "image", "wall_seconds", "workspace_mb"},
+         {"files", "environment", "command", "harness", "soft_budget", "memory_mb", "cpus", "pids"},
          "run configuration")
     for name in ("id", "image"):
         text(data[name], name)
@@ -50,10 +49,10 @@ def load_run_config(path: Path) -> RunConfig:
     for argument in data["command"]:
         text(argument, "command argument")
     for name in ("wall_seconds", "cpus"):
-        if number(data[name]) <= 0:
+        if name in data and number(data[name]) <= 0:
             raise ValueError(f"{name} must be positive")
     for name in ("memory_mb", "pids", "workspace_mb"):
-        if type(data[name]) is not int or data[name] <= 0:
+        if name in data and (type(data[name]) is not int or data[name] <= 0):
             raise ValueError(f"{name} must be a positive integer")
     for entry in data.get("files", []):
         keys(entry, {"path", "target", "sha256"}, set(), "CLI file")
@@ -76,5 +75,6 @@ def load_run_config(path: Path) -> RunConfig:
             )
         text(value, "public environment setting")
     return RunConfig(data["id"], data["image"], tuple(data["command"]), number(data["wall_seconds"]),
-                     data["memory_mb"], number(data["cpus"]), data["pids"], data["workspace_mb"],
+                     data.get("memory_mb"), number(data["cpus"]) if "cpus" in data else None,
+                     data.get("pids"), data["workspace_mb"],
                      files, environment, source, harness, data.get('soft_budget', False))

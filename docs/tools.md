@@ -46,8 +46,17 @@ there is no per-case `resources.json`, and no `materials/` preparation copy.
 Session input snapshots remain necessary to isolate a solve from source mutations;
 only those declared inputs reach `/task`. References and Dataset metadata do not.
 
-PDKs use the separate `ICLAYOUT_BENCH_CACHE_DIR` cache (default
-`$XDG_CACHE_HOME/iclayout-bench`, or `~/.cache/iclayout-bench`). Ciel owns pinned
+The shared cache root is resolved by
+`benchmarking.engine.resources.installation.cache_root()`. All ICLayout cache
+consumers use `ICLAYOUT_BENCH_CACHE_DIR`, then `$XDG_CACHE_HOME/iclayout-bench`,
+then `~/.cache/iclayout-bench`; an explicit override replaces the entire root.
+Consumers use separate namespaces beneath that root: `pdks/`, `derived/`,
+`diagnostics/`, and `platform/` for website object copies. Eviction is scoped to
+the owning namespace and never removes another consumer's resources.
+Cache directories hold rebuildable data; durable experiment results,
+recovery checkpoints and website databases or S3 objects use their declared
+storage paths. Per-run tool scratch is disposable tmpfs, rather than a reusable
+cache. Ciel owns pinned
 GF180MCU and IHP installations. Git PDK sources declare `repository` and full
 `commit` in Dataset `pdk.toml`; Bench installs them in the shared PDK cache without
 consulting a source checkout's `.gitmodules`. Selected PDK roots are mounted
@@ -75,8 +84,8 @@ may remain installed for GUI dependencies. The ngspice backend defaults to
 four concurrent jobs and one model thread per job. Its existing backend
 `settings` table accepts positive integer
 `max_parallel_jobs`, `threads`, and `cpu_budget` (defaults 4, 1, and 8).
-`max_parallel_jobs * threads` must not exceed `cpu_budget`; `threads` must also
-fit the per-container CPU allocation. For example, eight independent jobs with
+`max_parallel_jobs * threads` must not exceed `cpu_budget`. This scheduling budget
+does not impose a Docker CPU quota. For example, eight independent jobs with
 one thread each use `max_parallel_jobs = 8`, `threads = 1`, `cpu_budget = 8`.
 Two jobs with four threads each use `max_parallel_jobs = 2`, `threads = 4` with
 the same budget. Select these settings from measured case workloads.
@@ -87,8 +96,8 @@ discarding model initialization, and sets both `OMP_NUM_THREADS` and
 its OpenMP threads at the configured allocation. Resource settings and the
 effective startup are retained in evaluation evidence. The CPU budget bounds
 this backend's job/thread allocation, not all simultaneous sessions. Concurrent
-jobs have separate container memory limits, so operators must also account for
-aggregate CPU and memory use across sessions.
+jobs may have explicit container memory limits; by default they are uncapped.
+Operators must also account for aggregate CPU and memory use across sessions.
 [ngspice's OpenMP documentation](https://ngspice.sourceforge.io/docs/ngspice-45-manual.pdf)
 describes model evaluation as the parallelized portion of a simulation.
 
@@ -211,14 +220,24 @@ Dataset root or pinned HF snapshot; no task tree is installed with this package.
 
 `python -m benchmarking.engine.cli characterize` performs an independent measurement and `python -m benchmarking.engine.cli evaluate` re-evaluates a GDS. Tool bindings may be embedded in a case as `[toolchain]`, following the [task configuration guide](tasks.md#evaluation-plan). `evaluate` and `run` use these bindings when `--toolchain` is omitted; `characterize` still requires an explicit toolchain configuration. A plan returns 0 when it passes, 1 when a check or specification fails, and 2 for a configuration or execution error. Output includes `report.json` and artifacts saved by digest.
 
-The shared `DockerTool` executor caps each tool container at 8 CPU equivalents,
-4 GiB memory and 256 processes, including tool-version probes. These limits are
-recorded in the backend identity alongside the image, timeout and implementation
-digest. They are fixed measurement conditions, not automatically scaled to the
-host. Reserve capacity for concurrent containers and host services. Solver-session
-budgets are configured separately in the [run configuration](running.md#observation).
+The shared `DockerTool` executor does not impose CPU, memory or PID quotas by
+default, including tool-version probes. Its identity records `null` for unset
+limits. A backend may explicitly declare a memory limit; that value is applied
+and recorded. Solver sessions also omit CPU, memory and PID quotas by default;
+standalone run configurations may explicitly declare `cpus`, `memory_mb` and
+`pids`. Reserve host capacity through experiment concurrency and backend job/thread
+settings. File, workspace, log, input and network isolation remain enforced.
+Tool inputs and declared outputs stream through Docker exec without host staging
+directories or Docker cp. Each invocation uses a read-only image with tmpfs at
+`/workspace` and `/tmp`; installed resources remain read-only mounts. The tool
+processes are stopped before declared outputs are read, including on failure or
+timeout. Only retained evidence is written to durable host storage. Tool containers
+use the `none` log driver because console evidence is captured separately.
+Explicit quotas require suitable Docker host controllers; inspect arguments alone
+do not establish enforcement. See [Docker resource constraints](https://docs.docker.com/engine/containers/resource_constraints/).
 Changing execution budgets creates a new condition; it does not change scoring
-formulas or case requirements. Participant sessions use the
+formulas or case requirements. Finish active batches before changing an editable
+installation or its runtime settings. Participant sessions use the
 [soft solve budget](running.md#observation). Already-started EDA operations finish
 without per-job time limits in participant checks and independent final judging;
 the evaluation report records `tool_time_limits = false`. Legacy backend
@@ -719,8 +738,8 @@ Calibre accepts both SVRF and TVF decks, preserving non-UTF-8 comment bytes.
 DRC may select `deck_member`, the relative name of a regular file inside the
 declared tar archive. Only that member is read; no archive extraction or process
 rule selection occurs. TVF I/O additions use the explicit `tvf::VERBATIM` namespace.
-DRC-only `threads` selects Calibre `-turbo` workers (1–8, default 1), within the
-tool CPU allocation, and enters the backend settings identity.
+DRC-only `threads` selects Calibre `-turbo` workers (a positive integer, default 1)
+and enters the backend settings identity. Select it within host and license capacity.
 Optional `defines` replaces exactly one existing `#DEFINE` per name;
 `text_variables` binds exactly one existing `VARIABLE` per name to a nonempty
 list of quoted pin-name strings. It changes declared rule configuration without
@@ -848,12 +867,13 @@ The backend setting `max_parallel_jobs` defaults to 1; a positive integer opts
 into concurrent independent jobs with isolated tool workspaces. Select it within
 the installation's license and resource capacity. Candidate runs inside one
 calibration job remain sequential.
-Optional `memory_mb` declares the tool container memory allocation (default
-4096 MB, range 256–262144 MB), recorded in backend identity. This setting also
+Optional `memory_mb` explicitly caps tool container memory (range 256–262144 MB);
+omitting it leaves memory uncapped and records `null` in backend identity. This setting also
 applies to APS and Spectre X.
 
 `spectre-aps-docker` explicitly selects licensed APS (`+aps`) with `threads`
-between 1 and the tool's CPU allocation (default 4 threads). Optional `aps_preset`
+set to a positive integer (default 4 threads). Select the count within host and
+license capacity. Optional `aps_preset`
 (`conservative`, `moderate`, or `liberal`) selects the corresponding `++aps`
 mode. Optional `postlayout` (`upa`, `hpa`, or `default`) enables Spectre's
 post-layout optimizations; `upa` retains the extracted RC network, while `hpa`
@@ -864,8 +884,8 @@ with the selected engine and options. License failures remain errors.
 The classic `spectre-docker` backend and its identity are unchanged.
 
 `spectre-x-docker` explicitly selects licensed Spectre X with `+preset` (`cx`,
-`ax`, `mx`, `lx`, or `vx`) and `+mt` (`threads` between 1 and the tool CPU
-allocation). It uses the same inputs, measurements, calibration, and native
+`ax`, `mx`, `lx`, or `vx`) and `+mt` (`threads` is a positive integer, default 4).
+It uses the same inputs, measurements, calibration, and native
 failure checks as `spectre-docker`. Its identity records the selected preset
 and thread count. Optional `postlayout_preset` selects `+postlpreset` using the
 same preset names, and is also recorded in identity. Characterize source observations and qualify the reference
@@ -884,7 +904,7 @@ with no container CPU, memory, filesystem or network isolation. Do not set a
 container `memory_mb` allocation for this backend. Solver isolation is unchanged;
 this is an independently selected trusted evaluator, never an automatic fallback.
 Its `threads` setting is limited by the evaluator process's host CPU affinity,
-instead of the Docker CPU allocation. Select physical cores appropriate for the
+while the Docker transport does not impose a thread-count ceiling. Select physical cores appropriate for the
 host and recharacterize and qualify affected cases when changing that setting.
 
 For discrete calibration, a simulation job may declare `parameters.calibration`

@@ -16,7 +16,6 @@ Start with [README](README.md), run `git status --short --branch`, and preserve 
 | Result delivery, review or disclosure | [Handoff boundaries](docs/architecture.md#result-handoff-and-storage-ownership) and [verified reruns](docs/architecture.md#verified-reruns-and-disclosure) |
 | Images, dependencies, PDKs or backends | [Tools](docs/tools.md) and [image development](CONTRIBUTING.md#image-development) |
 | Tests or fixtures | [Test conventions](tests/AGENTS.md) |
-| Participant examples | [Installed-package examples](examples/README.md) |
 | Generated website artifacts or Pages workflow | [Static hosting](docs/architecture.md#static-website-hosting) |
 
 ## Implementation Boundaries
@@ -41,6 +40,11 @@ Start with [README](README.md), run `git status --short --branch`, and preserve 
   Update the owning guide when behavior changes; avoid duplicate protocol documents or `CONTEXT.md`.
 - Keep generated website content on the reviewed `gh-pages` branch. Package sources
   and CI on `main` remain independent of those artifacts.
+- Development and tests reuse the root editable `.venv`. Persistent experiments
+  belong to independent participant projects outside this checkout, using a fixed
+  wheel environment as described in [the running guide](docs/running.md#experiment-environment).
+  Keep concrete model combinations, provider settings and experiment evidence in
+  those projects; this repository documents the public configuration and execution interfaces.
 
 ## Completion
 

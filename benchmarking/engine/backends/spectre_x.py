@@ -4,7 +4,6 @@ from pathlib import Path
 
 from benchmarking.files import Asset
 
-from ..tools.docker import DockerTool
 from .spectre import SpectreBackend, SpectreDocker
 
 
@@ -37,7 +36,9 @@ class SpectreXBackend(SpectreBackend):
         raise NotImplementedError("A Spectre X transport must declare its CPU allocation")
 
     def __init__(self, *, threads=4, preset='ax', postlayout_preset=None, preset_override=(), **settings):
-        if type(threads) is not int or not 1 <= threads <= self.thread_limit:
+        if type(threads) is not int or threads < 1:
+            raise ValueError('Spectre X threads must be a positive integer')
+        if self.thread_limit is not None and threads > self.thread_limit:
             raise ValueError('Spectre X threads must fit the tool CPU allocation')
         if preset not in ('cx', 'ax', 'mx', 'lx', 'vx'):
             raise ValueError('Spectre X preset must be cx, ax, mx, lx or vx')
@@ -62,10 +63,10 @@ class SpectreXBackend(SpectreBackend):
 
 
 class SpectreXDocker(SpectreXBackend, SpectreDocker):
-    """Run licensed Spectre X in the bounded evaluator container."""
+    """Run licensed Spectre X in an isolated evaluator container."""
 
     adapter = 'spectre-x-docker'
 
     @property
     def thread_limit(self):
-        return DockerTool.CPUS
+        return None

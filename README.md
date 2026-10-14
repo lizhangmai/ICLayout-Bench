@@ -49,8 +49,9 @@ local Dataset. Docker and PDK resources are not needed on the participant host.
 See [running](docs/running.md) for experiment configuration and output contracts,
 and [tools](docs/tools.md) for reference checks and resource management.
 
-The [participant examples](examples/README.md) provide runnable harness
-configurations, installed-package usage instructions and persistent, Git-ignored result storage.
+Maintain configurations, provider settings and complete results in your own
+experiment project outside this checkout. The [running guide](docs/running.md#experiment-environment)
+explains how to prepare a fixed wheel environment, create configurations and retain results.
 
 ## Licensing and public data
 

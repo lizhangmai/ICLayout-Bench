@@ -17,6 +17,20 @@ from benchmarking.participants.adapters.dsh import prepare
 pytestmark = pytest.mark.unit
 
 
+def test_explicit_native_home_is_passed_to_dsh_configuration_composition(tmp_path, monkeypatch):
+    home = tmp_path / 'chosen'; home.mkdir()
+    (home / 'settings.yaml').write_text('agent-default-model:\n  provider: deepseek-official\n  model: chosen-model\n')
+
+    def cli(args, **kwargs):
+        assert kwargs['env']['DSH_HOME'] == str(home)
+        return '--json --session-id' if '--help' in args else '[]'
+
+    monkeypatch.setattr('benchmarking.participants.adapters.dsh.subprocess.check_output', cli)
+    selected = adapters.resolve('dsh', None, 'high', {'DSH_HOME': str(tmp_path / 'missing-host')}, home=home)
+    assert selected.condition['model'] == 'chosen-model'
+    assert selected.settings['native_home'] == str(home)
+
+
 def native_session(output, *, session='session-fixture', cwd=None, content='full native reasoning'):
     path = output / '.private/native-home/sessions/workspace' / session / 'session.v4.jsonl.zstd'
     path.parent.mkdir(parents=True, exist_ok=True)

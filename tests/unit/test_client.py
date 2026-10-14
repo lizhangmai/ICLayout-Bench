@@ -70,16 +70,18 @@ def test_error_retains_service_status(monkeypatch):
     assert not failure.value.retryable
 
 
-def test_opt_in_retry_replays_lost_execution_response_once(monkeypatch):
+def test_experiment_default_retry_replays_lost_execution_response_once(monkeypatch):
     """Transport loss after commit must not execute a side effect twice."""
     from helpers.service import Simulator
 
-    from benchmarking.participants.recovery import DISABLED
+    from benchmarking.participants.recovery import policy
     server = Simulator()
     try:
-        client = Client(server.endpoint, 'secret', retry_policy=DISABLED | {'http_attempts': 3})
+        client = Client(server.endpoint, 'secret', retry_policy=policy(harness='codex'))
         original = client._opener.open
         calls = []
+        delays = []
+        monkeypatch.setattr('benchmarking.client.time.sleep', delays.append)
         def lost_reply(request, **kwargs):
             response = original(request, **kwargs)
             calls.append(request)
@@ -91,6 +93,7 @@ def test_opt_in_retry_replays_lost_execution_response_once(monkeypatch):
         assert client.execute('s', 'generate', 10, key='same')['execution_id'] == 'e'
         assert server.executions == 1
         assert len(calls) == 2
+        assert delays == [1]
     finally:
         server.stop()
 
@@ -100,9 +103,8 @@ def test_opt_in_retry_replays_lost_execution_response_once(monkeypatch):
     ('budget_exhausted', 429, False, 1),
 ])
 def test_retry_is_bounded_and_does_not_treat_budget_as_rate_limit(monkeypatch, code, status, retryable, expected):
-    from benchmarking.participants.recovery import DISABLED
-    client = Client('http://localhost:1', 'secret', retry_policy=DISABLED | {
-        'http_attempts': 3, 'backoff_seconds': 1, 'max_backoff_seconds': 2})
+    from benchmarking.participants.recovery import policy
+    client = Client('http://localhost:1', 'secret', retry_policy=policy(harness='codex'))
     calls, sleeps = [], []
     def fail(*args, **kwargs):
         calls.append(kwargs['key'])

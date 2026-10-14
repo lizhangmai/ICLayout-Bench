@@ -66,6 +66,18 @@ def test_soft_budget_is_an_explicit_standalone_configuration(tmp_path):
         load_run_config(path)
 
 
+def test_cpu_memory_and_pid_limits_are_optional(tmp_path):
+    path = _config(tmp_path)
+    configured = load_run_config(path)
+    assert (configured.cpus, configured.memory_mb, configured.pids) == (1, 128, 16)
+    path.write_text('\n'.join(line for line in path.read_text().splitlines()
+                              if not line.startswith(('cpus =', 'memory_mb =', 'pids ='))))
+    unrestricted = load_run_config(path)
+    assert (unrestricted.cpus, unrestricted.memory_mb, unrestricted.pids) == (None, None, None)
+    assert unrestricted.wall_seconds == configured.wall_seconds
+    assert unrestricted.workspace_mb == configured.workspace_mb
+
+
 def test_external_configuration_parent_path_preserves_declared_file_checks(tmp_path, monkeypatch):
     # User-owned sibling projects are documented CLI inputs. Existing fixtures
     # only use canonical absolute roots; this protects normal ../ usage while

@@ -3,6 +3,7 @@
 import json
 import os
 import shutil
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -28,6 +29,9 @@ def provider():
             state['authenticated'] = any('fixture-provider-secret' in self.headers.get(name, '')
                                          for name in ('Authorization', 'x-api-key'))
             state['tools'] = [tool.get('name') for tool in request.get('tools', [])]
+            state['model'] = request.get('model')
+            state['request_path'] = self.path
+            state['effort'] = request.get('output_config', {}).get('effort')
             state['requests'] += 1
             self.send_response(state['status'])
             if state['status'] == 200:
@@ -68,7 +72,7 @@ def native_context(root, harness, url):
     work = root / '.private/workspace'; work.mkdir(parents=True)
     host = root / 'fixture-host'; host.mkdir()
     env = {key: value for key, value in os.environ.items()
-           if not key.startswith(('CODEX_', 'OPENAI_', 'ANTHROPIC_', 'CLAUDE_', 'DEEPSEEK_', 'DSH_', 'ICLAYOUT_BENCH_'))
+           if not key.startswith(('CODEX_', 'OPENAI_', 'ANTHROPIC_', 'CLAUDE_', 'DEEPSEEK_', 'DSH_', 'ZCODE_', 'ZAI_', 'ICLAYOUT_BENCH_'))
            and 'proxy' not in key.lower()}
     env.update(ICLAYOUT_BENCH_ENDPOINT=url, ICLAYOUT_BENCH_TOKEN='fixture-scoped-secret',
                ICLAYOUT_BENCH_SESSION='fixture-session', ICLAYOUT_BENCH_PARTICIPANT_TOOL_LOG=str(root / 'tools.jsonl'),
@@ -83,10 +87,16 @@ def native_context(root, harness, url):
     elif harness == 'dsh':
         env.update(DSH_HOME=str(host), DEEPSEEK_API_KEY='fixture-provider-secret', DEEPSEEK_BASE_URL=url)
         model, effort = 'deepseek-flash', 'high'
+    elif harness == 'zcode':
+        (host / 'config.json').write_text(json.dumps({'provider': {'fixture': {
+            'kind': 'anthropic', 'options': {'baseURL': url, 'apiKeyEnv': 'FIXTURE_PROVIDER_KEY'},
+            'models': {'glm-5.3': {'reasoning': {'levels': ['low', 'high', 'max']}}}}}}))
+        env['FIXTURE_PROVIDER_KEY'] = 'fixture-provider-secret'
+        model, effort = 'fixture/glm-5.3', 'high'
     else:
         env.update(CODEX_HOME=str(host), OPENAI_API_KEY='fixture-provider-secret')
         model, effort = 'gpt-6-astra', 'medium'
-    selection = adapters.resolve(harness, model, effort, env)
+    selection = adapters.resolve(harness, model, effort, env, **({'home': host} if harness == 'zcode' else {}))
     if harness == 'dsh':
         # Fault injection checks one native attempt, not provider backoff timing.
         provider = next(row for row in selection.settings['rows'] if row['id'] == 'llm-deepseek')
@@ -94,12 +104,53 @@ def native_context(root, harness, url):
         env['DEEPSEEK_BASE_URL'] = 'http://127.0.0.1:9'
     adapters.stage_credentials(harness, root / '.private', env)
     mcp = work / 'mcp.json'; mcp.write_text('{"mcpServers":{}}')
+    if harness == 'zcode':
+        mcp.write_text(json.dumps({'mcpServers': {'layout': {'command': sys.executable,
+            'args': ['-I', str(Path(bridge.__file__))],
+            'env': {k: v for k, v in selection.environment.items() if k.startswith('ICLAYOUT_BENCH_')}}}}))
     return LaunchContext(selection, mcp, work, root, Path(bridge.__file__), 'Reply only fixture.')
+
+
+def test_zcode_native_api_uses_selected_model_credentials_and_only_declared_tools(tmp_path, provider):
+    provider.update(status=200)
+    context = native_context(tmp_path, 'zcode', provider['url'])
+    assert launch(context) == (0, False)
+    assert provider['authenticated'] and provider['requests'] >= 1
+    assert provider['model'] == 'glm-5.3' and provider['effort'] == 'high'
+    assert provider['tools'] and all(name.startswith('mcp__layout__') for name in provider['tools'])
+    events = [json.loads(line) for line in (tmp_path / 'harness.jsonl').read_text().splitlines()]
+    assert events[-1]['type'] == 'result' and events[-1]['response'] == 'fixture complete'
+    assert adapters.native_traces('zcode', tmp_path)
+
+
+def test_zcode_native_authentication_failure_is_terminal(tmp_path, provider):
+    context = native_context(tmp_path, 'zcode', provider['url'])
+    context.selection.environment['ZCODE_MODEL_RETRY_MAX_RETRIES'] = '0'
+    exit_code, timed_out = launch(context)
+    assert not timed_out
+    assert provider['authenticated'] and provider['requests'] >= 1
+    assert adapters.harness_failure('zcode', tmp_path, exit_code)['category'] == 'authentication'
+
+
+def test_zcode_selected_proxy_routes_model_requests_and_keeps_local_mcp(tmp_path, provider):
+    provider.update(status=200)
+    context = native_context(tmp_path, 'zcode', provider['url'])
+    home = tmp_path / 'fixture-host'
+    config = json.loads((home / 'config.json').read_text())
+    config['provider']['fixture']['options']['baseURL'] = 'http://zcode-provider.invalid'
+    config['network'] = {'httpProxy': provider['url'], 'noProxy': '127.0.0.1,localhost'}
+    (home / 'config.json').write_text(json.dumps(config))
+    selected = adapters.resolve('zcode', 'fixture/glm-5.3', 'high', context.selection.environment, home=home)
+    context = LaunchContext(selected, context.mcp, context.directory, context.output, context.bridge, context.prompt)
+    assert launch(context) == (0, False)
+    assert provider['request_path'] == 'http://zcode-provider.invalid/v1/messages'
+    assert provider['authenticated'] and provider['model'] == 'glm-5.3' and provider['effort'] == 'high'
+    assert provider['tools'] and all(name.startswith('mcp__layout__') for name in provider['tools'])
 
 
 def launch(context):
     argv = adapters.prepare(context)
-    if context.selection.condition['harness'] == 'codex':
+    if context.selection.condition['harness'] == 'codex' and 'codex_connection' not in context.selection.settings:
         # Replace only the provider I/O boundary, leaving the public adapter real.
         config = {'model_provider': 'fixture', 'model_providers.fixture.name': 'fixture',
                   'model_providers.fixture.base_url': context.selection.environment['ICLAYOUT_BENCH_ENDPOINT'] + '/v1',
@@ -159,3 +210,32 @@ def test_native_resume_adopts_original_history_and_private_home(tmp_path, provid
     assert adapters.session_id(harness, tmp_path, state) == original_id
     problem = adapters.harness_failure(harness, tmp_path, exit_code=exit_code)
     assert problem['category'] == 'authentication' if harness == 'codex' else problem is None
+
+
+@pytest.mark.parametrize('file_auth', [False, True])
+def test_codex_explicit_home_routes_native_api_auth_to_declared_provider(tmp_path, provider, file_auth):
+    import tomli_w
+
+    context = native_context(tmp_path, 'codex', provider['url'])
+    home = tmp_path / 'experiment-home'; home.mkdir()
+    connection = {'name': 'fixture', 'base_url': provider['url'] + '/v1', 'wire_api': 'responses',
+                  'request_max_retries': 0, 'stream_max_retries': 0}
+    env = context.selection.environment.copy()
+    env.update(CODEX_API_KEY='unrelated-host-key', OPENAI_BASE_URL='http://127.0.0.1:9')
+    if file_auth:
+        connection['requires_openai_auth'] = True
+        (home / 'auth.json').write_text('{"OPENAI_API_KEY":"fixture-provider-secret"}')
+    else:
+        connection['env_key'] = 'EXPERIMENT_PROVIDER_KEY'
+        env['EXPERIMENT_PROVIDER_KEY'] = 'fixture-provider-secret'
+    config = {'cli_auth_credentials_store': 'file', 'model_provider': 'fixture',
+              'model_providers': {'fixture': connection}}
+    (home / 'config.toml').write_text(tomli_w.dumps(config))
+    selected = adapters.resolve('codex', 'gpt-6-astra', 'medium', env, home=home)
+    adapters.stage_credentials('codex', tmp_path / '.private', selected.environment, selected.settings)
+    context = LaunchContext(selected, context.mcp, context.directory, context.output, context.bridge, context.prompt)
+    assert launch(context) == (1, False)
+    assert provider['authenticated'] and provider['requests'] >= 1
+    assert adapters.harness_failure('codex', tmp_path, exit_code=1)['category'] == 'authentication'
+    assert adapters.session_id('codex', tmp_path, AttemptState())
+    assert 'fixture-provider-secret' not in json.dumps(selected.condition) + str(adapters.prepare(context))

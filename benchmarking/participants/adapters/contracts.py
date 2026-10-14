@@ -9,6 +9,7 @@ HARNESS_MODULES = {
     "claude-code": ".claude",
     "dsh": ".dsh",
     "kimi-code": ".kimi",
+    "zcode": ".zcode",
     "command": ".command",
 }
 HARNESSES = tuple(HARNESS_MODULES)
@@ -49,6 +50,7 @@ class HarnessMetadata:
     home_environment: str
     home_directory: str
     credential_file: str | None = None
+    configuration_file: str | None = None
 
     def home(self, env):
         return Path(env.get(self.home_environment, str(Path.home() / self.home_directory)))
@@ -59,7 +61,7 @@ class HarnessAdapter(Protocol):
     METADATA: ClassVar[HarnessMetadata]
 
     def resolve(
-        self, model: str | None, effort: str | None, env: dict[str, str]
+        self, model: str | None, effort: str | None, env: dict[str, str], *, home: Path | None = None
     ) -> ParticipantSelection: ...
 
     def prepare(self, context: LaunchContext) -> list[str]: ...

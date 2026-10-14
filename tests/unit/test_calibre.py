@@ -228,7 +228,7 @@ def test_archived_drc_reads_only_the_declared_regular_member(native_tmp_path, mo
                     'identity_paths': ['rules.tar.gz']}]})
     variables = {'INPUT_NAMES': ['IN', 'INB']}
     backend = CalibreNative(runtime=runtime, check='drc', deck='rules.tar.gz', deck_member='process/ip.drc',
-                           threads=2, text_variables=variables)
+                           threads=16, text_variables=variables)
     variables['INPUT_NAMES'].append('CHANGED_AFTER_BINDING')
 
     def execute(command, files, exports, **kwargs):
@@ -245,7 +245,7 @@ TOTAL DRC Results Generated: 0 (0)
     assert 'width_rule { INTERNAL M1 < 0.2 }' in captured['control.svrf'].content.decode()
     assert 'VARIABLE INPUT_NAMES "IN" "INB"' in captured['control.svrf'].content.decode()
     assert '"previous"' not in captured['control.svrf'].content.decode()
-    assert 'calibre -drc -hier -turbo 2' in captured['run.sh'].content.decode()
+    assert 'calibre -drc -hier -turbo 16' in captured['run.sh'].content.decode()
     for member in ['/absolute.drc', '../author.drc']:
         with pytest.raises(ValueError, match='archived DRC'):
             CalibreNative(runtime=runtime, check='drc', deck='rules.tar.gz', deck_member=member)

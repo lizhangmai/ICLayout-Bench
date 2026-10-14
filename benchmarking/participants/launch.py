@@ -30,7 +30,7 @@ class ParticipantLaunch:
         # Native histories belong to the attempt, alongside (but outside) shareable exports.
         # Seed only authentication; continuations preserve native token refreshes.
         # Never copy user hooks, rules or session history.
-        attempt.add_redactions(adapters.stage_credentials(self.harness, private, env))
+        attempt.add_redactions(adapters.stage_credentials(self.harness, private, env, self.settings))
         env["ICLAYOUT_BENCH_NATIVE_ID"] = attempt.state.native_id
         # The bridge owns service transport only; native continuation stays in this supervisor.
         env["ICLAYOUT_BENCH_RECOVERY"] = json.dumps({key: settings_policy[key] for key in DISABLED})

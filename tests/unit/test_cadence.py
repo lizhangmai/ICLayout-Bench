@@ -31,6 +31,9 @@ def test_spectre_memory_allocation_is_applied_and_recorded(monkeypatch):
         return 'fixture-version'
 
     monkeypatch.setattr('benchmarking.engine.tools.docker.subprocess.check_output', version)
+    default = DockerTool('unused', ['spectre', '-W'], 10)
+    assert not {'--memory', '--cpus', '--pids-limit'} & set(commands[-1])
+    assert default.identity['limits'] == {'cpus': None, 'memory_mb': None, 'pids': None}
     tool = DockerTool('unused', ['spectre', '-W'], 10, memory_mb=8192)
     command = commands[-1]
     assert command[command.index('--memory')+1] == '8192m'
@@ -62,8 +65,6 @@ def test_aps_is_explicit_preserves_inputs_and_propagates_native_failure(monkeypa
     # cannot establish numerical equivalence or license availability.
     from benchmarking.engine.backends.spectre_aps import SpectreAPSDocker
     from benchmarking.engine.external import ExternalRuntime
-    from benchmarking.engine.tools.docker import DockerTool
-
     seen = []
 
     class Tool:
@@ -77,7 +78,7 @@ def test_aps_is_explicit_preserves_inputs_and_propagates_native_failure(monkeypa
 
     monkeypatch.setattr('benchmarking.engine.backends.spectre.DockerTool', Tool)
     monkeypatch.setattr('benchmarking.engine.external.ExternalRuntime.pdk_file', lambda runtime, name: (None, '/pdk/'+name))
-    threads = 2
+    threads = 16
     runtime = ExternalRuntime('test', {'image': 'test-image', 'environment': {}, 'mounts': []})
     settings = {'runtime': runtime, 'model': 'model', 'section': 'tt',
                 'sections': ['tt', 'res_tt', 'mim_tt'], 'model_includes': ['passive.scs']}
@@ -101,8 +102,8 @@ include "/pdk/passive.scs"
 '''
     assert result.status == 'error' and result.reason == 'Native license unavailable'
     assert result.evidence['console'].content == b'license failed'
-    for invalid in (True, 0, DockerTool.CPUS + 1):
-        with pytest.raises(ValueError, match='CPU allocation'):
+    for invalid in (True, 0, -1):
+        with pytest.raises(ValueError, match='positive integer'):
             SpectreAPSDocker(threads=invalid, **settings)
 
     optimized = SpectreAPSDocker(threads=threads, aps_preset='moderate',
@@ -127,8 +128,6 @@ def test_spectre_x_preserves_inputs_and_rejects_native_failure(monkeypatch):
     from benchmarking.engine.backends.spectre_native import SpectreXNative
     from benchmarking.engine.backends.spectre_x import SpectreXDocker
     from benchmarking.engine.external import ExternalRuntime
-    from benchmarking.engine.tools.docker import DockerTool
-
     seen = []
 
     class Tool:
@@ -144,22 +143,22 @@ def test_spectre_x_preserves_inputs_and_rejects_native_failure(monkeypatch):
     monkeypatch.setattr('benchmarking.engine.external.ExternalRuntime.pdk_file', lambda *args: (None, '/pdk/model'))
     runtime = ExternalRuntime('test', {'image': 'test-image', 'environment': {}, 'mounts': []})
     settings = {'runtime': runtime, 'model': 'model', 'section': 'tt'}
-    backend = SpectreXDocker(threads=2, preset='ax', preset_override=['maxstep'], memory_mb=8192, **settings)
+    backend = SpectreXDocker(threads=16, preset='ax', preset_override=['maxstep'], memory_mb=8192, **settings)
     assert backend.identity['adapter'] == 'spectre-x-docker'
-    assert backend.identity['threads'] == 2 and backend.identity['preset'] == 'ax'
+    assert backend.identity['threads'] == 16 and backend.identity['preset'] == 'ax'
     inputs = {'deck': Asset(b'fixture', 'spice'), 'dut': Asset(b'circuit', 'spice')}
     job = Job('probe', 'simulate', 'circuit.simulate', (), (), (), None,
               json.dumps({'measurements': {'value': 'V'}, 'waveform': {}}))
     result = backend.run(job, inputs)
     command, files = seen.pop()
-    assert command[:3] == ['spectre', '+preset=ax', '+mt=2']
+    assert command[:3] == ['spectre', '+preset=ax', '+mt=16']
     assert '-preset_override=maxstep' in command
     assert backend.identity['preset_override'] == ['maxstep']
     assert files['deck.scs'] is inputs['deck'] and files['dut.spice'] is inputs['dut']
     assert result.status == 'error' and result.reason == 'Tool/container exited with 139'
     assert result.evidence['console'].content == b'native crash'
-    for invalid in (True, 0, DockerTool.CPUS + 1):
-        with pytest.raises(ValueError, match='CPU allocation'):
+    for invalid in (True, 0, -1):
+        with pytest.raises(ValueError, match='positive integer'):
             SpectreXDocker(threads=invalid, **settings)
     with pytest.raises(ValueError, match='Spectre X preset'):
         SpectreXDocker(preset='moderate', **settings)

@@ -93,6 +93,16 @@ def test_local_service_restart_restores_workspace_budget_and_accepted_candidate(
         done = client.execute(sid, 'cp saved.py link-source; ln link-source hardlink; ln -s /resources resource-link; printf generated > generated.txt',
                               None, key='completed')
         assert complete(client, sid, done['execution_id'])['exit_code'] == 0
+        checkpoint = store / sid / '.private/checkpoint.json'
+        frozen = json.loads(checkpoint.read_text())
+        archive = checkpoint.parent / frozen['archive']
+        archived_at = archive.stat().st_mtime_ns
+        readonly = client.execute(sid, 'cat saved.py > /dev/null', None, key='readonly')
+        assert complete(client, sid, readonly['execution_id'])['exit_code'] == 0
+        committed = json.loads(checkpoint.read_text())
+        assert committed['archive'] == frozen['archive']
+        assert archive.stat().st_mtime_ns == archived_at
+        assert committed['state']['executions'][readonly['execution_id']]['state'] == 'complete'
         output = runtime.task.output.path
         client.write(sid, output, b'accepted candidate', key='candidate')
         accepted = client.submit(sid, output, key='submission')

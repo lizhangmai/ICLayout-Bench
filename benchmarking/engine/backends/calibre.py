@@ -147,7 +147,7 @@ class CalibreBackend:
         if not isinstance(runtime, ExternalRuntime):
             raise TypeError('Calibre requires a resolved external runtime')
         self.configuration = CalibreConfiguration.parse(check, deck, settings,
-            connectivity=self.connectivity, thread_limit=DockerTool.CPUS)
+            connectivity=self.connectivity)
         self.runtime = runtime.select_pdk(pdk_root_env)
         self.tool = self._make_tool(timeout_seconds)
 

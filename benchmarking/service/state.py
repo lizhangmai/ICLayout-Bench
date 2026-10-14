@@ -36,16 +36,19 @@ class ServiceState:
         previous = json.loads(manifest.read_bytes()) if manifest.exists() else None
         archive = root / (uuid.uuid4().hex + '.tar.gz')
         try:
-            workspace.checkpoint(archive, data['limits']['workspace_mb'] * 1024 * 1024)
+            identity = previous.get('workspace_digest') if previous and (root / previous['archive']).is_file() else None
+            result = workspace.checkpoint(archive, data['limits']['workspace_mb'] * 1024 * 1024,
+                                          previous=identity)
         except Exception:
             archive.unlink(missing_ok=True)
             raise
-        with archive.open('rb') as stream:
-            digest = hashlib.file_digest(stream, 'sha256').hexdigest()
-        atomic_write(manifest, json_bytes({'archive': archive.name, 'sha256': digest, 'state': data}))
-        if previous is not None:
+        name = previous['archive'] if result['unchanged'] else archive.name
+        digest = previous['sha256'] if result['unchanged'] else result['sha256']
+        atomic_write(manifest, json_bytes({'archive': name, 'sha256': digest,
+                                         'workspace_digest': result['workspace_digest'], 'state': data}))
+        if previous is not None and previous['archive'] != name:
             (root / previous['archive']).unlink(missing_ok=True)
-        sync_directory(root)
+            sync_directory(root)
 
     def _checkpoint(self, sid):
         root = self.root / sid / '.private'
