@@ -6,9 +6,10 @@ from typing import ClassVar
 
 import pytest
 
-from benchmarking.engine.evaluate import JobResult, Measurement, run_evaluation
-from benchmarking.engine.feedback import feedback_details
 from benchmarking.evaluation import parse_evaluation
+from benchmarking.evaluation.contracts import JobResult, Measurement
+from benchmarking.evaluation.feedback import feedback_details
+from benchmarking.evaluation.runner import run_evaluation
 from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
@@ -85,7 +86,7 @@ observations = ["nominal:delay", "slow:delay"]
 unit = "s"
 direction = "minimize"
 aggregation = "max"
-upper = 4.0
+requirement = { upper = 4.0, rationale = "The synthetic event must occur within its stimulus cycle." }
 baseline = ["source_nominal:delay", "source_slow:delay"]
 normalization = "ratio"
 dimension = "response"
@@ -231,10 +232,14 @@ def test_independent_simulations_overlap_after_extraction(tmp_path, inputs, bind
         assert report['metrics']['delay']['value'] == 3.0
 
 
-@pytest.mark.parametrize('parallel_jobs', [1, 2])
-def test_soft_evaluation_removes_native_job_caps_without_changing_measurements(tmp_path, inputs, bindings, parallel_jobs):
-    from benchmarking.engine.external import ExternalRuntime
-    from benchmarking.engine.tools.native import NativeTool
+@pytest.mark.parametrize('entry,parallel_jobs', [('evaluation', 1), ('evaluation', 2), ('qualification', 2)])
+def test_evaluation_and_qualification_allow_native_jobs_to_finish_by_default(
+        tmp_path, inputs, bindings, entry, parallel_jobs):
+    from types import SimpleNamespace
+
+    from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.evaluation.qualification import run as qualify
+    from benchmarking.execution.tools.native import NativeTool
 
     runtime = ExternalRuntime('test', {'image': 'unused', 'environment': {}, 'mounts': []})
     tool = NativeTool(runtime, timeout_seconds=.02)
@@ -250,13 +255,76 @@ def test_soft_evaluation_removes_native_job_caps_without_changing_measurements(t
 
     simulator.run = simulate
     plan = parse_evaluation(PLAN)
-    report = run_evaluation(plan, inputs, bindings, tmp_path / 'soft', limit_tools=False)
+    task = SimpleNamespace(evaluation=plan, digest='fixture', witnessed=True,
+                           evaluation_inputs=lambda: inputs)
+    qualification_runtime = SimpleNamespace(task=task, witness=lambda: inputs['candidate'], backends=bindings)
+
+    def evaluate_at(name):
+        if entry == 'evaluation':
+            return run_evaluation(plan, inputs, bindings, tmp_path / name)
+        qualify(qualification_runtime, tmp_path / name, retain_evaluation=True)
+        return json.loads((tmp_path / name / 'evaluation/report.json').read_text())
+
+    report = evaluate_at('default')
     assert report['task_success'] is True
     assert report['metrics']['delay']['value'] == 3.0
-    # The caller's scope must not leak into subsequent independent evaluations.
-    limited = run_evaluation(plan, inputs, bindings, tmp_path / 'limited')
+    assert report['tool_time_limits'] is False
+    limited = run_evaluation(plan, inputs, bindings, tmp_path / 'limited', limit_tools=True)
     assert limited['jobs']['nominal']['status'] == 'error'
     assert limited['jobs']['slow']['status'] == 'error'
+    assert limited['tool_time_limits'] is True
+    # An explicitly bounded probe must not change later evaluation defaults.
+    assert evaluate_at('independent')['task_success'] is True
+
+
+def test_check_cancellation_reaches_parallel_native_jobs_and_does_not_leak(tmp_path, inputs, bindings):
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from pathlib import Path
+    from threading import Event
+
+    from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.execution.tools.budget import tool_cancellation
+    from benchmarking.execution.tools.native import NativeTool
+
+    tool = NativeTool(ExternalRuntime('test', {'image': 'unused', 'environment': {}, 'mounts': []}))
+    cancellation = Event()
+    simulator = bindings['response']
+    simulator.max_parallel_jobs = 2
+    original = simulator.run
+
+    def simulate(job, assets):
+        marker = tmp_path / job.id
+        result = tool.run([sys.executable, '-c', (
+            'import os,time; from pathlib import Path; '
+            f'Path({str(marker)!r}).write_text(str(os.getpid())); time.sleep(2)')], {}, {})
+        if result.reason:
+            return JobResult('error', result.reason, evidence=result.evidence)
+        return original(job, assets)
+
+    simulator.run = simulate
+    plan = parse_evaluation(PLAN)
+
+    def check():
+        with tool_cancellation(cancellation):
+            return run_evaluation(plan, inputs, bindings, tmp_path / 'cancelled')
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pending = pool.submit(check)
+        deadline = time.monotonic() + 5
+        markers = [tmp_path / name for name in ('slow', 'nominal')]
+        while not all(marker.exists() for marker in markers) and time.monotonic() < deadline:
+            time.sleep(.01)
+        assert all(marker.exists() for marker in markers), 'Both independent jobs must be running'
+        cancellation.set()
+        report = pending.result(timeout=1)
+    assert report['outcome'] == 'error'
+    for name, marker in zip(('slow', 'nominal'), markers):
+        assert 'cancel' in report['jobs'][name]['reason'].lower()
+        assert not Path('/proc/' + marker.read_text()).exists()
+    # A cancelled check must not contaminate a later check or final evaluation.
+    simulator.run = original
+    assert run_evaluation(plan, inputs, bindings, tmp_path / 'independent')['task_success'] is True
 
 
 @pytest.mark.parametrize("file_format", ["toml", "json"])
@@ -292,8 +360,8 @@ def test_dependencies_follow_extracted_candidate_and_archive_evidence(tmp_path, 
         assert path.stat().st_mode & 0o777 == mode
     assert report["score"]["value"] == pytest.approx(100 * (2 / 3)**0.5)
     assert report["score"]["components"] == {"G": 1.0, "E": 1.0, "Q": 2/3}
-    from benchmarking.engine.sessions.archive import EvaluationArchive
-    from benchmarking.results.export import evaluation_export
+    from benchmarking.evidence.archive import EvaluationArchive
+    from benchmarking.results.package import evaluation_export
 
     files = []
     destination = tmp_path / 'portable'
@@ -320,6 +388,69 @@ def test_drc_lvs_success_is_not_performance_success(tmp_path, inputs, bindings):
     assert metric["excess"] == pytest.approx(1.0)
     assert metric["unit"] == report["metrics"]["delay"]["unit"]
     assert "inputs" not in details and "backends" not in details
+
+
+def test_export_preserves_non_utf8_native_logs_without_changing_score(tmp_path, inputs, bindings):
+    from dataclasses import replace
+
+    from benchmarking.evidence.archive import EvaluationArchive
+    from benchmarking.results.package import evaluation_export
+
+    original = bindings['check'].run
+    raw = b'Calibre native log: temperature 25\xb0C\n'
+    bindings['check'].run = lambda job, assets: replace(
+        original(job, assets), evidence={'calibre.log': Asset(raw, 'text')})
+    report = evaluate(tmp_path, inputs, bindings)
+    archive = EvaluationArchive(tmp_path / 'report')
+    destination, files = tmp_path / 'portable', []
+    evaluation_export(archive, destination, files)
+    exported = json.loads((destination / 'evaluation/report.json').read_bytes())
+    ref = exported['jobs']['drc']['evidence']['calibre.log']
+    assert (destination / 'evaluation' / ref['path']).read_bytes() == raw
+    assert 'evaluation/' + ref['path'] in files
+    assert exported['score'] == report['score']
+    assert archive.report == report
+
+
+def test_attaching_invalid_evidence_leaves_terminal_result_and_files_unchanged(tmp_path, inputs, bindings, monkeypatch):
+    from types import SimpleNamespace
+
+    from benchmarking.evidence.archive import EvaluationArchive
+    from benchmarking.participants.attempt.attachments import attach_session_evidence
+
+    report = evaluate(tmp_path, inputs, bindings)
+    archive = EvaluationArchive(tmp_path / 'report')
+    ref = report['jobs']['drc']['evidence']['log']
+    artifact = tmp_path / 'report' / ref['path']
+    artifact.chmod(0o600)
+    artifact.write_bytes(b'corrupted evidence')
+    run = tmp_path / 'participant'
+    run.mkdir()
+    path = run / 'result.json'
+    raw = json.dumps({'format': 'participant-result', 'state': 'finished', 'identity': {},
+                      'evaluation': {'session_id': 'session', 'score': report['score']}, 'files': []}).encode()
+    path.write_bytes(raw)
+    retained = SimpleNamespace(completed_report=lambda: report,
+                               final_evidence=lambda _: SimpleNamespace(candidate=b'candidate', top_cell='TOP',
+                                                                        evaluation=archive))
+    monkeypatch.setattr('benchmarking.participants.attempt.attachments.RunArchive.for_session', lambda *a: retained)
+    with pytest.raises(ValueError, match='evidence identity mismatch'):
+        attach_session_evidence(path, tmp_path / 'store')
+    assert path.read_bytes() == raw
+    assert {p.name for p in run.iterdir() if not p.name.startswith('.')} == {'result.json'}
+
+
+@pytest.mark.parametrize('stage', ['check', 'extract'])
+def test_native_license_failure_is_infrastructure_error_not_candidate_rejection(tmp_path, inputs, bindings, stage):
+    operation = 'check' if stage == 'check' else 'extract'
+    bindings[operation].run = lambda job, assets: JobResult('error', 'Tool/container exited with 129', evidence={
+        'console': Asset(b'ERROR (LMF-02002): License call failed for feature CICNG_129.\n'
+                         b'ERROR (ELI-00111) Failed to check out license.\n', 'text')})
+    report = evaluate(tmp_path, inputs, bindings)
+    job = report['jobs']['artifact' if stage == 'check' else 'parasitics']
+    assert job['status'] == 'error'
+    assert job['failure']['category'] == 'license_unavailable'
+    assert report['outcome'] == 'error' and report['score']['value'] is None
 
 
 def test_post_layout_still_requires_candidate_performance_metrics_without_limits():
@@ -362,7 +493,7 @@ def test_bounded_feedback_marks_omissions_and_full_report_keeps_diagnostics(tmp_
 
 
 def test_summary_cannot_hide_a_failing_case(tmp_path, inputs, bindings):
-    raw = PLAN.replace(b"upper = 4.0", b"lower = 2.0\nupper = 4.0")
+    raw = PLAN.replace(b"upper = 4.0", b"lower = 2.0, upper = 4.0")
     report = evaluate(tmp_path, inputs, bindings, raw)
     assert report["metrics"]["delay"]["value"] == 3.0
     assert report["metrics"]["delay"]["status"] == "failed"
@@ -406,6 +537,56 @@ def test_tool_error_is_not_a_circuit_failure(tmp_path, inputs, bindings):
     assert report["jobs"]["lvs"]["status"] == "passed"
 
 
+@pytest.mark.parametrize("status", ["failed", "error"])
+def test_unusable_candidate_extraction_rejects_layout_with_zero_score(
+        tmp_path, inputs, bindings, status):
+    reason = "Extracted netlist introduced a resistive connection between distinct ports"
+
+    class RejectedExtractor(Extractor):
+        def run(self, job, assets):
+            return JobResult(status, reason, evidence={"console": Asset(reason.encode(), "text")})
+
+    bindings["extract"] = RejectedExtractor()
+    report = evaluate(tmp_path, inputs, bindings)
+    assert report["physical_valid"] is True
+    assert report["jobs"]["parasitics"]["status"] == "failed"
+    assert report["jobs"]["parasitics"]["reason"] == reason
+    assert report["jobs"]["parasitics"]["evidence"]["console"]["sha256"] == hashlib.sha256(reason.encode()).hexdigest()
+    assert report["jobs"]["nominal"]["status"] == "blocked"
+    assert report["jobs"]["slow"]["status"] == "blocked"
+    assert report["outcome"] == "failed"
+    assert report["task_success"] is False
+    assert report["score"]["value"] == 0
+
+
+@pytest.mark.parametrize("evidence_name", ["execution_error", "cleanup_error", "magic:execution_error"])
+def test_extraction_infrastructure_failure_remains_unknown(
+        tmp_path, inputs, bindings, evidence_name):
+    class UnavailableExtractor(Extractor):
+        def run(self, job, assets):
+            return JobResult("error", "Container execution unavailable",
+                             evidence={evidence_name: Asset(b"infrastructure evidence", "text")})
+
+    bindings["extract"] = UnavailableExtractor()
+    report = evaluate(tmp_path, inputs, bindings)
+    assert report["jobs"]["parasitics"]["status"] == "error"
+    assert report["outcome"] == "error"
+    assert report["task_success"] is None
+    assert report["score"]["value"] is None
+
+
+def test_unexpected_extraction_adapter_exception_remains_unknown(tmp_path, inputs, bindings):
+    class BrokenExtractor(Extractor):
+        def run(self, job, assets):
+            raise RuntimeError("Unexpected adapter defect")
+
+    bindings["extract"] = BrokenExtractor()
+    report = evaluate(tmp_path, inputs, bindings)
+    assert report["jobs"]["parasitics"]["status"] == "error"
+    assert report["outcome"] == "error"
+    assert report["score"]["value"] is None
+
+
 def test_known_gate_failure_is_not_hidden_by_unrelated_tool_error(tmp_path, inputs, bindings):
     bindings["check"] = Checks(reject="drc", crash="lvs")
     report = evaluate(tmp_path, inputs, bindings)
@@ -432,7 +613,7 @@ observations = ["slow:delay"]
 unit = "s"
 direction = "minimize"
 aggregation = "max"
-upper = 2.0
+requirement = { upper = 2.0, rationale = "The synthetic slow event must occur within its stimulus cycle." }
 '''
     bindings["response"] = MixedSimulator()
     report = evaluate(tmp_path, inputs, bindings, raw)
@@ -505,7 +686,8 @@ def test_measurement_bounds_are_inclusive_for_signed_and_zero_values(
     metric = {'id': 'voltage', 'category': 'performance', 'unit': 'V',
               'direction': 'minimize', 'aggregation': 'max',
               'observations': ['sample:voltage']}
-    metric.update({k: v for k, v in [('lower', lower), ('upper', upper)] if v is not None})
+    metric['requirement'] = {**{k: v for k, v in [('lower', lower), ('upper', upper)] if v is not None},
+                             'rationale': 'The synthetic voltage must lie in the declared operating interval.'}
     raw = {'mode': 'characterization',
            'jobs': [{'id': 'sample', 'stage': 'simulate', 'operation': 'measure',
                      'inputs': {'circuit': 'input:source'}}], 'metrics': [metric]}

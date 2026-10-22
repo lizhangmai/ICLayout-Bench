@@ -1,18 +1,19 @@
 # Task Contract and Scoring
 
 This reference defines the files and fields accepted by the engine, how submitted
-layouts are evaluated, and how scores and result states are interpreted. Dataset
-authors choose circuits, membership, measurements and parameter values. Their
-development and publication policies are not engine configuration defaults.
+layouts are evaluated, and how scores and result states are interpreted. Use the
+scoring and result sections to read an experiment; use the configuration and
+qualification sections when supplying your own Dataset.
 
 - [Task files](#task-design)
 - [Scoring](#task-scoring)
 - [Evaluation results](#evaluation)
 - [Configuration reference](#task-configuration)
 - [Input isolation](#input-isolation)
+- [Qualification](#qualification)
 
 See [running](running.md) for commands, [tools](tools.md) for PDK/backend setup,
-and [qualification](../CONTRIBUTING.md#task-qualification) for the verification API.
+and [qualification](#qualification) for the verification API.
 
 <a id="task-design"></a>
 
@@ -28,7 +29,11 @@ PDK and collection, with shared process declarations at `tasks/<pdk>/pdk.toml`.
 | `case.toml` | Identity, task settings, input digests and tool bindings | Normalized task fields through the runtime protocol |
 | `problem.md` | Complete written requirements | When declared as `inputs.description` |
 | `materials/` | Netlists, testbenches and other assets | Only declared `task.inputs` |
-| `reference/` | Witness material when supplied for explicit verification | Excluded from standard solver inputs |
+| `reference/` (author verification snapshots only) | Witness material for explicit author verification | Absent from public and private task deliveries |
+
+Reference layouts and qualification evidence remain with the authors. Delivered
+case contracts omit reference assets and `qualification.reference`; evaluating a
+participant candidate requires only the declared task inputs and tool resources.
 
 The native `data.parquet` table indexes every case. Its boolean `in_core` comes from
 `case.toml`; the engine uses it for explicit core selection and supplies no built-in
@@ -36,7 +41,7 @@ membership or selection policy. Table loading is documented in
 [running](running.md#static-dataset-inputs); Dataset maintainers own index generation.
 Optional `core_order` is a positive integer on a core case. When used, every core
 case must declare a unique value. The core reader dispatches in ascending order;
-older releases without this field retain their table order. The complete table
+datasets without this field use their table order. The complete table
 remains sorted by stable ID. Membership and order are recipient-owned metadata
 and do not change task requirements or scoring.
 
@@ -46,31 +51,39 @@ requirements or scoring. Case-specific explanations belong in `problem.md`.
 
 ### Problem statement structure
 
-Authored layout cases use six nonempty level-two sections in the order below.
-These headings are a shared document contract, independent of website layout.
-Use level-three headings for additional detail within a section.
+Declare the complete solver instructions through `inputs.description`, normally
+as `problem.md`. Its original text becomes the Agent's initial task prompt.
+Include the circuit interface, operating conditions, physical and electrical
+requirements, quality objectives, budget, available tools and submission path.
+Requirements must be understandable from the declared solver inputs without
+access to the private evaluation plan.
+
+For structured rendering, `benchmarking.tasks.documents.parse_task_description`
+accepts six nonempty level-two sections in this order. Use level-three headings
+for additional detail within a section.
 
 | Heading | Content |
 | --- | --- |
-| Objective | Circuit function and layout objective |
+| Objective | Circuit function, quality maximization and the role of a feasible baseline |
 | Inputs and Interface | Declared files, devices and ordered ports |
 | Operating Conditions | Stimuli, loads, corners and measurements |
 | Physical Requirements | Artifact, geometry, DRC and LVS requirements |
 | Electrical Requirements and Scoring | Functional bounds, quality metrics, weights and rationale |
-| Tools and Submission | Prepared resources, solve budget and final submission |
+| Tools and Submission | Prepared resources, solve budget, optimization workflow, stopping criteria and final submission |
 
-Both public and private descriptions are authored in English as the single source
-`problem.md` and exported directly with identical bytes. Author maintenance
-documents keep their repository's language. All current catalog consumers and
-authoring checks use the English heading set.
-`benchmarking.task_documents.parse_task_description` validates these headings
-and returns the original section Markdown under the English section keys.
-Missing, duplicate, reordered or empty sections fail
-explicitly. Example headings inside fenced code blocks do not delimit sections.
-Consumers render the returned sections and read executable scoring fields from
-`case.toml`; they do not maintain their own title aliases or infer requirements
-from headings. The generic task loader continues to accept declared description
-files without applying presentation policy to historical or standalone tasks.
+The parser returns the original section Markdown under the English section keys.
+Missing, duplicate, reordered or empty sections fail explicitly. Example headings
+inside fenced code blocks do not delimit sections. This is a presentation
+interface: the task loader accepts declared description files independently of
+this structure. Executable requirements and scoring come from `case.toml`.
+
+When describing the solver objective, distinguish feasibility from quality:
+passing DRC, LVS and required functional checks establishes a valid candidate;
+the score measures its quality. Explain how to inspect resources, use available
+process checks, compare improvements and submit the best candidate within budget.
+Publish the budget, metric weights and quality targets consistently with the
+task contract. The runner uses the supplied problem text rather than adding a
+general optimization workflow of its own.
 
 `status = "candidate"` or `"qualified"` is declared metadata, not proof produced
 by loading a file. The qualification commands verify actual witness evidence.
@@ -82,17 +95,17 @@ never receive a reference layout.
 `coefficient` is an integer from 1 to 10 used in cross-task aggregation. It is
 separate from the individual task's metric weights. Dataset authors own the
 capability rubric and each assigned value; result consumers preserve the
-recorded coefficient. See [aggregation](running.md#result-storage-and-presentation).
+recorded coefficient. See [aggregation](running.md#comparisons).
+The default is 1 when `task.coefficient` is omitted.
 
 <a id="asset-rights"></a>
 
 ### Asset rights
 
 Case visibility is declared by `distribution = "public"` or `distribution = "private"`.
-Private cases can be loaded and evaluated locally, but public Dataset publication checks reject the complete
-release if it contains any private case, including a non-core case. Existing
-cases default to `public`. This delivery classification does not assert that a
-design is unpublished or qualified, and it does not grant rights to any asset.
+Both classifications can be loaded and evaluated locally. The default is
+`public` when the field is omitted. This delivery classification does not assert
+that a design is unpublished or qualified, and it does not grant rights to any asset.
 Source owners must classify cases before delivery; the loader cannot infer
 licenses from filenames or tool names. Operator-managed local resources need not
 be redistributed with a case.
@@ -113,8 +126,9 @@ reproducible solution under its declared conditions. The reference layout is a
 feasibility witness; it need not achieve a high score or the source circuit's
 performance. Scores distinguish the quality of valid solutions.
 
-Use hard gates for artifact integrity, DRC, named-interface LVS, required circuit
-function and explicit implementation constraints. For each electrical or geometry
+Use hard gates for artifact integrity, DRC, named-interface LVS, prescribed
+parasitic extraction, required circuit function and explicit implementation
+constraints. For each electrical or geometry
 bound, explain what makes a solution outside it invalid or unable to perform the
 required function. Frequency response, delay, power, area and precision are scored
 objectives by default. A preferred operating point, source-matching tolerance or
@@ -174,11 +188,21 @@ c_i = min(1, q_i)
 S = 100 * G * product(c_i ** w_i)  # positive weights, including area
 ```
 
-Artifact, DRC, named-interface LVS, hard geometry and electrical requirements
-must pass. A completed rejection scores zero. Missing, nonfinite, wrong-unit or
+Artifact, DRC, named-interface LVS, prescribed parasitic extraction, hard geometry
+and electrical requirements must pass. A completed rejection, including an
+unusable candidate extraction, scores zero. Missing, nonfinite, wrong-unit or
 unusable source measurements produce an unknown (`null`) score. An independently
 established physical rejection remains zero if an unrelated tool errors.
 Physical-only and characterization runs do not produce benchmark scores.
+
+Every problem statement must describe extraction as a mandatory acceptance gate
+alongside DRC and LVS. The candidate must produce a complete, electrically
+consistent extracted netlist usable by the declared post-layout simulations.
+Use check/report feedback to repair and resubmit within the solve budget.
+Qualification establishes feasibility of the prescribed flow; a participant's
+claim that a rejection is caused by the tool does not waive the gate or change
+the score. Only an independently confirmed evaluation-system defect may be
+reviewed separately by the operator. Preserve the original diagnostics.
 
 ### Electrical quality
 
@@ -200,7 +224,7 @@ challenging goal that the permitted circuit and layout changes can influence.
 Do not apply an arbitrary common multiplier to all cases. A target must satisfy
 any functional bounds; ratio targets must be nonnegative, and an unscaled
 `ratio` target must be positive. When omitted, each condition uses its own source
-value as before.
+value.
 
 ```toml
 # Example within a settling-time metric measured in seconds.
@@ -215,8 +239,9 @@ an extraction-stage SPICE output in a candidate pair. Fixed testbenches, stimuli
 and models use their own declared roles and must match exactly.
 Changing source inputs invalidates calibration: task loading and evaluation
 reject stale input digests before invoking tools. Model/toolchain changes require
-review and affected calibration in the design authoring workspace. Source-only simulations belong in a
-standalone `characterization` plan; they are rejected in a `post_layout` plan.
+review and recalibration of the affected source jobs. Source-only simulations
+belong in a standalone `characterization` plan; they are rejected in a
+`post_layout` plan.
 
 Frozen source jobs may consume `job:<source-id>:<output>` artifacts produced by
 other frozen source jobs. This source-only DAG must be acyclic and rooted in the
@@ -236,6 +261,7 @@ its own calibration algorithm and never receives the frozen source selection.
 | `saturating_ratio`, minimize | `2*(b+s)/(b+x+2*s)` | Nonnegative errors with diminishing returns; equal observations score 1, improvements approach 2 |
 | `db20` | `10^((x-b)/20)` for maximize; inverse for minimize | Amplitude gain or rejection in dB; never divide dB values |
 | `target` | `1/(1+abs(x-b)/s)` | Preserve a bias, signed transfer or intended operating point |
+| `degradation` | `s/(s+max(0, x-b))` for minimize; `s/(s+max(0, b-x))` for maximize | Penalize directional loss against a physical quality budget |
 
 For ratios, `scale=s` is an optional positive numerical floor; its default is
 zero. Both values must be nonnegative and the denominator positive. Error
@@ -243,6 +269,15 @@ metrics that can reach zero require a floor. For `target`, a positive `scale`
 is required and defines the physical size of a deviation from the quality anchor.
 `db20` does not accept a scale. These scales normalize quality; they are not
 acceptance tolerances.
+
+`degradation` requires minimize/maximize direction and a positive `scale` in the
+observation's unit. Matching or improving the quality anchor scores 1; a loss
+equal to the scale scores 0.5. Authors declare and explain the physical budget
+per metric, for example 2 ps of additional interconnect delay or 1 dB of lost
+rejection. Signed, zero and dB observations are supported without dividing their
+values. Each condition retains its paired source anchor (or the explicit
+`quality_target`), and the metric uses the worst normalized quality. This is a
+continuous objective; the budget introduces no functional rejection.
 
 `saturating_ratio` requires minimizing nonnegative observations and a positive
 `scale` in the metric's units. Authors should justify that scale against the
@@ -364,7 +399,7 @@ task_success = physical_valid ∧ all declared requirements pass ∧ required po
 | Step status | Meaning |
 | --- | --- |
 | `passed` | The step completed and met its requirements |
-| `failed` | A completed check or measurement violated a requirement |
+| `failed` | A check, prescribed candidate extraction or measurement did not meet an acceptance requirement |
 | `error` | A crash, timeout or invalid/missing measurement prevented a result |
 | `blocked` | A prerequisite did not pass |
 
@@ -374,8 +409,15 @@ physical-only and characterization runs. DRC/LVS success establishes physical
 validity within the selected rules; task success additionally requires the
 specified geometry and electrical behavior. Neither is full manufacturing signoff.
 
+A trusted backend's unusable result from a prescribed extraction directly
+consuming the candidate is a `failed` acceptance step and scores zero, even when
+its native diagnostic describes an extraction error. The diagnostic evidence is
+retained without rewriting its contents. Infrastructure execution/cleanup failures
+and unexpected adapter exceptions remain `error`; blocked downstream simulation
+does not turn a known extraction rejection into an unknown score.
+
 For the command and output paths, see [standalone evaluation](running.md#standalone-evaluation).
-For witness verification, see [task qualification](../CONTRIBUTING.md#task-qualification).
+For witness verification, see [qualification](#qualification).
 
 <a id="interpretation-limits"></a>
 
@@ -395,7 +437,7 @@ checks should report unusable evidence as evaluator errors.
 
 ## Configuration reference
 
-A public case uses `kind = "layout_case"`, with the executable
+A case uses `kind = "layout_case"`, with the executable
 task under `[task]` with `kind = "netlist_to_gds"`. The loader takes `id`, `title`
 and `status` from the outer case into the executable task.
 Standalone task files declare those fields directly. The table below
@@ -407,13 +449,15 @@ outer level and the remaining task settings under `[task]`.
 | `kind` | Executable task: `netlist_to_gds`; outer case: `layout_case` |
 | `id`, `title`, `family`, `status` | Task identity, display name, statistics family, and `candidate` / `qualified` status |
 | `hours` | Positive finite solve time in hours, published in the problem and converted to protocol seconds. Required for serving a task; participants and service CLI cannot override it |
-| `coefficient` | Integer from 1 to 10 for cross-task aggregation. Public scored cases declare it; the default for other tasks is 1 |
+| `coefficient` | Integer from 1 to 10 for cross-task aggregation; defaults to 1 |
 | `environment` | Required process and tool configuration identity; the actual run also records image and PDK-view digests |
 | `inputs.netlist` | `path`, `sha256`, and target `subcircuit` |
 | `constraints` or `inputs.constraints` | Exactly one: inline structured constraints, or `path` and `sha256` for a separate constraints file |
-| `inputs.description`, `inputs.license` | Optional task description and license files, each declaring `path` and `sha256` |
+| `inputs.description` | Original UTF-8 problem document, normally `problem.md`, declaring `path` and `sha256`. Required and nonempty before serving a solve; its text is the initial task prompt |
+| `inputs.license` | Optional license file declaring `path` and `sha256` |
 | `evaluation` or `inputs.evaluation` | Optional evaluation plan: an inline table, or a TOML file declaring `path` and `sha256`; declaring both is rejected. Loading validates the [evaluation plan schema](#evaluation-plan) |
 | `inputs.<role>` | Other named inputs such as testbenches, models, and stimulus files; declare `path` and `sha256`, with optional `format` (default `text`; simulation files may use `spice`) |
+| `evaluator_inputs.<role>` | Trusted evaluator files using `path`, optional `format`/`source`, and either a fixed `sha256` or a nonempty `derived_from` list of authoritative solver-input roles. Roles and paths must be distinct from solver inputs. Jobs reference them as `input:<role>`; they are never materialized in the solver directory |
 | `output` | Workspace-relative `path`, `format = "gds"`, `top_cell`, and positive-integer `max_bytes` |
 | `provenance` | Optional preparation-source record with `path` and `sha256`; readable by maintainers but not materialized for the Agent |
 
@@ -439,10 +483,25 @@ overlapping inputs, unknown fields and digest mismatches
 are rejected.
 
 The loader verifies and snapshots input bytes. `Task.materialize()` copies only
-those snapshots; it does not create a complete redistribution package. Inputs
+the files declared under `inputs`; it does not create a complete redistribution package. Inputs
 appear at `/task/<path>` and output at `/workspace/<output.path>`. Case files are read directly from the selected Dataset snapshot, retaining their
 original digest. HF snapshot links into the Hub blob cache are supported; other
 asset symlinks remain rejected. An input change requires a matching digest in the affected case. Runtime isolation additionally requires read-only mounts and access controls.
+
+`evaluator_inputs` remain outside the solver mount. For example, an author may
+derive an LVS source with a native netlister and declare
+`evaluator_inputs.lvs_source` with `derived_from = ["netlist"]`; the solver still
+receives one complete circuit netlist. Derived files have no declared content
+digest: task identity and qualification bind their authoritative origins,
+while execution evidence snapshots and hashes the actual generated bytes.
+An export timestamp therefore changes run evidence without changing the task
+definition or invalidating qualification. Authors must validate that generated
+representations preserve the declared circuit; a digest does not prove that
+equivalence. Fixed evaluator inputs retain checksum verification.
+The protocol publishes origin/format declarations for derived inputs and
+identities for fixed inputs, without evaluator file paths or contents.
+Result archives containing evaluator materials require the operator's normal
+disclosure review.
 
 Source attribution is stored in the outer case table:
 
@@ -480,9 +539,15 @@ exclusions. See the [geometry backend](tools.md#geometry) for supported checks.
 
 Declare `[task.evaluation]` or a digest-bound TOML file at `inputs.evaluation`,
 but not both. Inline and file plans use the same schema. The runtime protocol
-exposes the complete plan, and the evaluation report retains its snapshot,
+keeps the complete plan in the trusted framework, and the evaluation report retains its snapshot,
 format and digest. Inline plans are serialized as JSON; file plans retain their
 original TOML bytes.
+
+Neither representation is a solver input: even a file declared at
+`inputs.evaluation` is excluded from the solver mount and manifest. The problem
+document must state all solve requirements and explicitly reference any required
+netlists, stimuli, constraints or resource information. It must not depend on
+access to internal jobs, calibration observations or backend identities.
 
 An evaluation plan contains `mode`, `jobs`, `metrics`, optional `scoring` and
 frozen `pre_layout` calibration when metrics use source baselines.
@@ -497,7 +562,7 @@ Qualified public cases declare scoring.
 | `outputs`, `requires` | Output-name to format mappings; artifact references create dependencies automatically, while `requires` adds prerequisites that produce check evidence only |
 | `gate` | A check step may be marked `artifact`, `drc`, `lvs`, or `constraint`. A layout plan has one of each of the first three, and each must check the candidate GDS directly |
 | `parameters` | A parameter table interpreted by the backend, such as measurement names and units, load, temperature, seed, or output filename. The core only checks that it can freeze the table as JSON; it does not interpret EDA syntax |
-| `metrics[]` | Unique `id`, `category` (`physical` / `performance`), `observations` (`<job>:<measurement>`), `unit`, `direction` (`minimize` / `maximize` / `target`), and `aggregation` (`min` / `max`); optional `requirement = { lower/upper, rationale }` for justified functional bounds; top-level bounds are legacy-only |
+| `metrics[]` | Unique `id`, `category` (`physical` / `performance`), `observations` (`<job>:<measurement>`), `unit`, `direction` (`minimize` / `maximize` / `target`), and `aggregation` (`min` / `max`); optional `requirement = { lower/upper, rationale }` for justified functional bounds |
 | `metrics[].dimension` | For every source-paired metric: `response`, `bias` or `supply` |
 | `metrics[].baseline`, `normalization`, `scale` | Same-condition source observations paired with `observations`, normalization rule and optional scale as defined under [scoring](#task-scoring) |
 | `metrics[].quality_target` | Optional finite `value` and engineering `rationale` for quality 1; retains source pairing and does not impose an acceptance bound |
@@ -528,7 +593,7 @@ A case may include `[toolchain]` with backend
 `type`/`settings` under `[toolchain.backends.<id>]` and operation bindings under
 `[toolchain.bindings]`. These are host settings, separate from participant inputs.
 Task loading validates inputs without starting tools. `load_toolchain_spec` in
-`benchmarking.engine.toolchain_config` reads tool declarations and validates
+`benchmarking.eda.toolchain` reads tool declarations and validates
 bindings without importing EDA implementations. `load_toolchain` imports and
 constructs only the selected adapters after validation. Python callers may supply
 their own trusted factory registry. See [EDA backends](tools.md#eda-backend-contract).
@@ -552,3 +617,65 @@ to the source owner's internal admission records; they are not package defaults.
 Commercial sessions may receive explicitly reviewed tool license access under the
 [external runtime contract](tools.md#external-commercial-runtimes); this does not
 authorize other credentials or redistribution of license contents.
+
+## Qualification
+
+The qualification command evaluates an explicitly supplied reference GDS once
+with the complete physical and electrical plan. It does not call a model or use a
+participant session. Apply the [validity and quality principle](#validity-and-quality)
+when defining that plan: qualification proves feasibility, while the score records
+solution quality. A low finite reference score is not a qualification failure.
+Qualification follows the default [EDA time-limit policy](tools.md#eda-backend-contract):
+started jobs may finish without a per-job deadline.
+Run it to establish feasibility for a selected reference and evaluation plan:
+
+```bash
+python -m benchmarking.evaluation qualify audit \
+  --dataset /path/to/dataset --case CASE_ID
+python -m benchmarking.evaluation qualify run \
+  --dataset /path/to/dataset --case CASE_ID \
+  --output /path/to/new-qualification
+python -m benchmarking.evaluation qualify verify \
+  --dataset /path/to/dataset --case CASE_ID \
+  --output /path/to/new-qualification
+```
+
+A passing run leaves one compact, portable `qualification.json`. Waveforms, logs and other
+run files are scratch by default. Add `--retain-evaluation` to `run` to keep them
+in `output/evaluation`, including failed runs. Failed runs do not write a passing
+`qualification.json`; retry with a fresh output directory. `verify` checks the recorded
+passing outcome, reference bytes, and the authoritative and fixed evaluator inputs
+referenced by the plan.
+For derived evaluator files it checks the declared origins; generated bytes remain
+hashed in the original run evidence and do not impose timestamp freshness.
+It does not compare the current task contract,
+evaluation plan, PDK declaration, backend identities or evaluator code with the
+recorded run. A passing verification therefore confirms historical reference
+evidence for matching bytes; evidence that a changed plan or environment passes
+requires a new run. Qualification does not certify participant harness behavior.
+Use a separate author verification snapshot containing the reference; ordinary
+participant Datasets need no reference or qualification report.
+
+Dataset loading and ordinary evaluation do not consume retained qualification
+reports. A `qualified` status alone does not establish acceptance. A full
+qualification requires a passing complete plan on the same reference GDS; it
+establishes feasibility under declared conditions, not manufacturing signoff or
+participant performance. Separate repeated runs may be used when numerical
+stability itself needs study.
+
+`audit` performs contract classification without an EDA run. `run` repeats this
+preflight automatically and rejects legacy implicit metric bounds. Explicit
+requirements need a functional rationale; performance targets belong in quality
+normalization and weights. The retained report includes this classification.
+The audit cannot establish that a written rationale is physically justified;
+authors must review it and the invalid/valid-degraded controls. On failure,
+diagnose the contract, measurement and environment before changing the reference.
+
+### Changed inputs and interpretation
+
+A passing report binds historical reference evidence to its recorded conditions.
+Changing executable requirements, authoritative inputs, the evaluation plan or
+affected tools requires validation of that changed scope. `verify` alone does not
+establish that the changed plan or environment passes. Prose requirements are
+semantic inputs; editorial changes preserving requirements do not require a new
+electrical run. Loading a Dataset does not consume author qualification reports.

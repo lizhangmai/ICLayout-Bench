@@ -46,7 +46,9 @@ observations = ["step_nominal:t50", "step_large_r:t50"]
 unit = "s"
 direction = "minimize"
 aggregation = "max"
+[metrics.requirement]
 upper = 2e-6
+rationale = "Analytical simulator control: both declared RC steps must cross half supply within the 2 us observation requirement."
 
 [[metrics]]
 id = "bandwidth"
@@ -55,4 +57,6 @@ observations = ["ac_nominal:bandwidth", "ac_large_r:bandwidth"]
 unit = "Hz"
 direction = "maximize"
 aggregation = "min"
+[metrics.requirement]
 lower = 70000.0
+rationale = "Analytical simulator control: both declared RC networks must retain the required 70 kHz bandwidth."

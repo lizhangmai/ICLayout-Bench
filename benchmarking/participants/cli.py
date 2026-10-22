@@ -1,12 +1,20 @@
 """Command line interface for participant experiment runs."""
+
 import argparse
 import json
 import os
 import subprocess
 from pathlib import Path
 
-from . import batch, case, scheduler
-from .planning import ExperimentRequest, plan_conditions, prepare_batch
+from benchmarking.eda.images import tool_image
+from benchmarking.participants.attempt import worker as case
+from benchmarking.participants.batch import coordinator as scheduler
+from benchmarking.participants.batch import runner as batch
+from benchmarking.participants.batch.plan import (
+    ExperimentRequest,
+    plan_conditions,
+    prepare_batch,
+)
 
 
 def main(argv=None):
@@ -20,11 +28,12 @@ def main(argv=None):
     parser.add_argument("--dataset", help="HF Dataset repo ID or local Dataset directory")
     parser.add_argument("--revision", help="HF dataset revision (resolved to a fixed commit)")
     parser.add_argument("--offline", action="store_true", help="Use only the Hugging Face cache")
-    parser.add_argument("--image", default=os.environ.get("ICLAYOUT_BENCH_IMAGE") or "iclayout-eda-open:local")
+    parser.add_argument("--image", default=tool_image(),
+                        help="Tool image; ICLAYOUT_BENCH_IMAGE overrides the published default")
     parser.add_argument("--endpoint", default=os.environ.get("ICLAYOUT_BENCH_ENDPOINT"))
     parser.add_argument("--token-env", default="ICLAYOUT_BENCH_TOKEN")
     parser.add_argument("--output", type=Path, default=os.environ.get("ICLAYOUT_BENCH_OUTPUT") or None,
-                        help="Condition directory (requires one condition); default: results/<config-stem>/<timestamp>")
+                        help="Reuse a condition directory (requires one condition); default: fresh task runs under results/<config-stem>/<task-id>/<timestamp>")
     parser.add_argument("--results-data", type=Path, default=os.environ.get("ICLAYOUT_BENCH_RESULTS_DATA"),
                         help="Copy terminal results to this database/archive; indexing failures stay queued")
     parser.add_argument("--resume", action="store_true", help="Recover the batch at --output without replacing attempts")
@@ -35,8 +44,17 @@ def main(argv=None):
     parser.add_argument("--dry-run", action="store_true", help="Resolve combinations without service/model calls")
     parser.add_argument("--detach", action="store_true", help="Run one condition in an independent coordinator; print its PID and log")
     parser.add_argument("--status", action="store_true", help="Read scheduling state at --output without model or service calls")
+    parser.add_argument("--stop", action="store_true", help="Stop recorded coordinators, workers and local services; retain evidence")
     args = parser.parse_args(argv)
     try:
+        if args.stop:
+            if (not args.output or args.config or args.matrix or args.case or args.dataset or args.revision
+                    or args.offline or args.repetitions is not None or args.concurrency is not None
+                    or args.resume or args.replace_unfinished
+                    or args.dry_run or args.detach or args.collect_only or args.status):
+                raise ValueError('--stop requires --output and no execution options')
+            print(json.dumps(scheduler.stop_batch(args.output), indent=2))
+            return 0
         if args.status:
             if not args.output or args.config or args.matrix or args.resume or args.replace_unfinished or args.dry_run or args.detach or args.collect_only:
                 raise ValueError('--status requires --output and no execution options')

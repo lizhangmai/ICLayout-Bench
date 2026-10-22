@@ -13,12 +13,12 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
-from .protocol import (
+from benchmarking.execution.retry import policy
+from benchmarking.protocol import (
     PROTOCOL,
     SESSION_STARTUP_RESPONSE_GRACE_SECONDS,
     SESSION_STARTUP_TIMEOUT_SECONDS,
 )
-from .retry import policy
 
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 _KEY = re.compile(r"[A-Za-z0-9_.-]{1,128}\Z")
@@ -171,6 +171,10 @@ class Client:
             raise ValueError("Offset must be a nonnegative integer")
         return self.session(session_id, f"executions/{_identifier(execution_id)}?offset={offset}")
 
+    def cancel(self, session_id, execution_id, *, key):
+        """Cancel one existing execution without closing the solver workspace."""
+        return self.session(session_id, f"executions/{_identifier(execution_id)}/cancel", {}, key=key)
+
     def report(self, session_id, report_id, *, offset=0):
         """Read a page of participant diagnostic JSON; offsets count characters."""
         if type(offset) is not int or offset < 0:
@@ -203,10 +207,11 @@ class Client:
 def command_main(argv):
     """Small shell-friendly view of the same client, useful to any local harness."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("status", "exec", "check", "submit", "close", "result", "read", "write"))
+    parser.add_argument("action", choices=("status", "exec", "check", "poll", "cancel", "submit", "close", "result", "read", "write"))
     parser.add_argument("value", nargs="?")
     parser.add_argument("--key")
     parser.add_argument("--seconds", type=float, default=120)
+    parser.add_argument('--offset', type=int, default=0, help='Execution log byte offset for poll')
     parser.add_argument("--export", help="Export a terminal result to a new directory")
     args = parser.parse_args(argv)
     client = Client(os.environ.get("ICLAYOUT_BENCH_ENDPOINT", ""), os.environ.get("ICLAYOUT_BENCH_TOKEN", ""))
@@ -227,6 +232,10 @@ def command_main(argv):
             time.sleep(.2)
     elif args.action == "submit":
         result = client.submit(sid, args.value, key=args.key)
+    elif args.action == 'poll':
+        result = client.poll(sid, args.value, offset=args.offset)
+    elif args.action == 'cancel':
+        result = client.cancel(sid, args.value, key=args.key)
     elif args.action == "close":
         result = client.close(sid, key=args.key)
     elif args.action == "read":
@@ -237,7 +246,7 @@ def command_main(argv):
     elif args.action == "result":
         result = client.result(sid)
         if args.export:
-            from .results.analysis import export_session_result
+            from benchmarking.results.analysis import export_session_result
             export_session_result(result, args.export)
     else:
         result = client.session(sid)
@@ -247,7 +256,7 @@ def command_main(argv):
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    if argv and argv[0] in {"status", "exec", "check", "submit", "close", "result", "read", "write"}:
+    if argv and argv[0] in {"status", "exec", "check", "poll", "cancel", "submit", "close", "result", "read", "write"}:
         try:
             return command_main(argv)
         except (ClientError, ValueError, OSError) as error:

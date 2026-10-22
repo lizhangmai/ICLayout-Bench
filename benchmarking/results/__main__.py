@@ -5,7 +5,7 @@ import json
 import os
 from pathlib import Path
 
-from .store import ResultStore
+from benchmarking.results.store import ResultStore
 
 
 def main(argv=None):
@@ -35,7 +35,7 @@ def main(argv=None):
     commands.add_parser("list", help="List runs")
     args = parser.parse_args(argv)
     if args.command == "retry":
-        from .outbox import retry
+        from benchmarking.results.outbox import retry
 
         result = retry(args.data)
         print(json.dumps(result, indent=2))
@@ -50,11 +50,11 @@ def main(argv=None):
                 reevaluation=args.reevaluation,
             )
         elif args.command == "catalog":
-            from .presentation import attach_catalog
+            from benchmarking.results.presentation import attach_catalog
 
             result = attach_catalog(store, args.dataset)
         elif args.command == "geometry":
-            from .geometry import attach_geometry
+            from benchmarking.results.geometry import attach_geometry
 
             result = attach_geometry(store, run_id=args.run)
         elif args.command == "verify":

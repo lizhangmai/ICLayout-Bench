@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from benchmarking.engine.inference import (
+from benchmarking.execution.inference import (
     InferenceConfig,
     InferenceGateway,
     load_inference_config,
@@ -203,7 +203,7 @@ def test_non_success_sse_cannot_be_scored_as_a_model_failure(body):
 
 
 def test_multiline_sse_and_standalone_compaction():
-    from benchmarking.engine.inference import response_semantics
+    from benchmarking.execution.inference import response_semantics
 
     body = b': keepalive\r\nevent: response.completed\r\ndata: {"type":"response.completed",\r\ndata: "response":{"status":"completed"}}\r\n\r\n'
     assert response_semantics("/responses", "text/event-stream", body, "responses")["outcome"] == "completed"
@@ -232,7 +232,7 @@ def test_malformed_http_200_response_keeps_upstream_status_and_hides_body():
 
 
 def test_request_and_response_persist_before_forwarding(tmp_path, monkeypatch):
-    from benchmarking.engine.sessions.recorder import RecordingError, RunRecorder
+    from benchmarking.evidence.journal import RecordingError, RunRecorder
 
     recorder = RunRecorder(tmp_path / "run")
     def transport(path, body, timeout):
@@ -261,7 +261,7 @@ def test_request_and_response_persist_before_forwarding(tmp_path, monkeypatch):
 # is the only fake. Protect terminal validation, usage accounting and isolation.
 @pytest.mark.parametrize('streaming', [False, True])
 def test_messages_terminal_usage_and_client_tool_isolation(streaming):
-    from benchmarking.engine.inference.messages import MessagesWireAdapter
+    from benchmarking.execution.inference.messages import MessagesWireAdapter
 
     adapter = MessagesWireAdapter()
     request = {'model': 'test-model', 'max_tokens': 32,
@@ -306,14 +306,14 @@ def test_messages_terminal_usage_and_client_tool_isolation(streaming):
     ('tool_use', 'completed'),
 ])
 def test_messages_stop_reason_is_independent_of_http_success(reason, outcome):
-    from benchmarking.engine.inference.messages import MessagesWireAdapter
+    from benchmarking.execution.inference.messages import MessagesWireAdapter
 
     body = json.dumps({'type': 'message', 'stop_reason': reason}).encode()
     assert MessagesWireAdapter().response_semantics('/v1/messages', 'application/json', body)['outcome'] == outcome
 
 
 def test_wire_adapter_registry_and_public_package_facade():
-    from benchmarking.engine.inference import (
+    from benchmarking.execution.inference import (
         available_wire_adapters,
         register_wire_adapter,
         unregister_wire_adapter,
@@ -335,7 +335,7 @@ def test_wire_adapter_registry_and_public_package_facade():
     register_wire_adapter(adapter)
     try:
         assert {'responses', 'messages', 'unit-fixture'} <= set(available_wire_adapters())
-        from benchmarking.engine.inference import InferenceConfig, InferenceGateway
+        from benchmarking.execution.inference import InferenceConfig, InferenceGateway
 
         config = InferenceConfig('https://example.invalid/v1', 'test-model', 'UNUSED', 1, 5,
                                  Asset(b'profile', 'text'), 'unit-fixture')
@@ -345,8 +345,8 @@ def test_wire_adapter_registry_and_public_package_facade():
 
 
 def test_inference_source_identity_changes_when_declared_source_changes(tmp_path):
-    from benchmarking.engine.inference import INFERENCE_SOURCE_FILES
-    from benchmarking.engine.inference.gateway import _inference_source_sha256
+    from benchmarking.execution.inference import INFERENCE_SOURCE_FILES
+    from benchmarking.execution.inference.gateway import _inference_source_sha256
 
     for name in INFERENCE_SOURCE_FILES:
         (tmp_path / name).write_bytes(f'fixture source: {name}'.encode())

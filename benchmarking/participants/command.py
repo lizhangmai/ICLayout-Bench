@@ -1,18 +1,17 @@
 """Supervise an operator-selected participant process without choosing its actions."""
 
 from benchmarking.client import Client
+from benchmarking.execution.process import execute
 from benchmarking.files import atomic_write
 from benchmarking.observe import export_observation
-from benchmarking.participants.lifecycle import (
+from benchmarking.participants.attempt.settlement import (
     participant_timeout,
     settle_session,
     wait_result,
 )
-from benchmarking.participants.process import execute
+from benchmarking.participants.batch.config import clean_env
 from benchmarking.protocol import json_bytes
 from benchmarking.results.analysis import export_session_result
-
-from .config import clean_env
 
 
 def run_command(access, task_id, frozen, output, *, creation_key):
@@ -39,7 +38,7 @@ def run_command(access, task_id, frozen, output, *, creation_key):
         error = 'participant_start_failed'
     finally:
         try:
-            settle_session(client, sid, None, output, snapshot=False)
+            settle_session(client, sid, output)
         finally:
             atomic_write(output / 'harness.json', json_bytes({'condition': frozen['condition'],
                                                             'error': error, 'exit_code': exit_code}))

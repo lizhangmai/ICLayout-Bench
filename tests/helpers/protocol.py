@@ -7,6 +7,8 @@ def write_protocol_task(root):
     root.mkdir(parents=True, exist_ok=True)
     netlist = b"* Protocol-only input; never simulated or compared by LVS.\n.subckt TEST A B\n.ends\n"
     (root / "input.spice").write_bytes(netlist)
+    problem = b"# Protocol layout task\n\nImplement the declared input.spice circuit.\n"
+    (root / "problem.md").write_bytes(problem)
     config = '''
 id = "protocol-test"
 title = "Synthetic protocol input"
@@ -14,6 +16,9 @@ kind = "netlist_to_gds"
 family = "protocol"
 status = "candidate"
 environment = "no-eda"
+[inputs.description]
+path = "problem.md"
+sha256 = "PROBLEM_HASH"
 [inputs.netlist]
 path = "input.spice"
 format = "spice"
@@ -34,7 +39,7 @@ area_metric = "functional_area"
 area_target = 1
 rationale = "Protocol fixture weights."
 weights = {response = 0.8, functional_area = 0.2}
-'''.replace("NETLIST_HASH", Asset(netlist, "spice").sha256)
+'''.replace("NETLIST_HASH", Asset(netlist, "spice").sha256).replace("PROBLEM_HASH", Asset(problem, "text").sha256)
     for gate in ("artifact", "drc", "lvs", "constraint"):
         config += f'''[[evaluation.jobs]]
 id = "{gate}"
@@ -69,7 +74,7 @@ observations = ["simulate:response"]
 unit = "s"
 direction = "minimize"
 aggregation = "max"
-upper = 1
+requirement = { upper = 1, rationale = "The synthetic response must fit the stimulus cycle." }
 dimension = "response"
 baseline = ["source:response"]
 normalization = "ratio"

@@ -3,7 +3,7 @@ import subprocess
 import pytest
 import tomli_w
 
-from benchmarking.engine.resources.agent import prepare_agent_resources
+from benchmarking.eda.resources.agent import prepare_agent_resources
 
 pytestmark = pytest.mark.unit
 
@@ -39,7 +39,7 @@ def declared_pdk(tmp_path, monkeypatch):
         "environment": {"PDK": "future-process", "PDK_PATH": "/resources/pdks/synthetic"},
         "checks": [["python", "-c", "print('synthetic')"]],
     }}))
-    monkeypatch.setattr("benchmarking.engine.resources.installation.prepare_installation", lambda _: source)
+    monkeypatch.setattr("benchmarking.eda.resources.installation.prepare_installation", lambda _: source)
     return root, source, manifest, git
 
 
@@ -53,7 +53,7 @@ def test_new_process_binds_original_root_without_flattening_links(declared_pdk):
     assert (mount.path / "alias.lib").is_symlink()
     assert (mount.path / "additional-model.lib").is_file()
     assert sorted(p.name for p in (root / "resources").iterdir()) == ["resource.json"]
-    from benchmarking.engine.sessions.environment import (
+    from benchmarking.execution.workspace.environment import (
         resource_environment,
         resource_preflight,
     )
@@ -65,7 +65,7 @@ def test_new_process_binds_original_root_without_flattening_links(declared_pdk):
 def test_selected_resources_replace_whole_root_binding(declared_pdk, selected):
     import tomllib
 
-    from benchmarking.engine.sessions.environment import resource_environment
+    from benchmarking.execution.workspace.environment import resource_environment
 
     root, source, manifest, _git = declared_pdk
     (source / 'tech').mkdir()

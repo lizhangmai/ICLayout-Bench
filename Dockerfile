@@ -184,4 +184,11 @@ COPY pyproject.toml uv.lock /opt/iclayout-bench-build/
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd /opt/iclayout-bench-build \
     && uv sync --locked --only-group eda --no-install-project --python /usr/bin/python3
+ENV MPLBACKEND=Agg MPLCONFIGDIR=/tmp/matplotlib
+# Keep Agent shell utilities after the EDA layers to reuse their build cache.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        bc bzip2 coreutils debianutils diffutils file findutils gawk grep gzip \
+        less patch procps sed tar time tree unzip util-linux wget xz-utils zip \
+    && rm -rf /var/lib/apt/lists/*
 USER ubuntu

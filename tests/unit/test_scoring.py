@@ -7,8 +7,8 @@ from typing import ClassVar
 import pytest
 from test_evaluate import PLAN, evaluate
 
-from benchmarking.engine.evaluate import run_evaluation
 from benchmarking.evaluation import parse_evaluation
+from benchmarking.evaluation.runner import run_evaluation
 from benchmarking.evaluation.scoring import recompute_score
 
 pytestmark = pytest.mark.unit
@@ -52,19 +52,79 @@ def test_area_metric_must_use_the_candidate_constraint_check():
 def reference_plan(**metric_changes):
     data = tomllib.loads(PLAN.decode())
     metric = data["metrics"][0]
-    metric.pop("upper")
-    metric.update(lower=0, baseline=["source_" + ref for ref in metric["observations"]],
+    metric.pop("requirement")
+    metric.update(requirement={"lower": 0, "rationale": "The synthetic delay must be nonnegative."}, baseline=["source_" + ref for ref in metric["observations"]],
                   normalization="ratio", **metric_changes)
     for job in data["pre_layout"]["jobs"].values():
         job["measurements"]["delay"]["value"] = 2 * job["parameters"]["load"]
     return data
 
 
+@pytest.mark.parametrize("direction,baseline,candidate,budget,quality", [
+    ("minimize", 20, 22, 2, 0.5),
+    ("minimize", 20, 26, 2, 0.25),
+    ("minimize", 20, 19, 2, 1),
+    ("maximize", 20, 18, 2, 0.5),
+    ("maximize", 20, 21, 2, 1),
+    ("minimize", -50, -49, 1, 0.5),
+    ("maximize", -50, -51, 1, 0.5),
+    ("minimize", 0, 1e-9, 1e-9, 0.5),
+    ("minimize", 0, 1e308, 1e308, 0.5),
+    ("minimize", -1e308, 1e308, 1e308, 1 / 3),
+])
+def test_degradation_uses_a_directional_physical_budget(
+        direction, baseline, candidate, budget, quality):
+    from dataclasses import replace
+
+    from benchmarking.evaluation.scoring import _relative_quality
+
+    data = reference_plan()
+    metric = data["metrics"][0]
+    metric.pop("requirement")
+    metric.update(direction=direction, normalization="degradation", scale=budget)
+    plan = parse_evaluation(json.dumps(data).encode(), file_format="json")
+    parsed = plan.metrics[0]
+    assert _relative_quality(parsed, candidate, baseline) == pytest.approx(quality)
+    # An explicit engineering anchor replaces the source value in the same rule.
+    assert _relative_quality(replace(parsed, quality_target=baseline), candidate, 123) == pytest.approx(quality)
+
+
+@pytest.mark.parametrize("change", [
+    {}, {"scale": 0}, {"scale": -1}, {"scale": float("inf")},
+    {"scale": 1, "direction": "target"},
+])
+def test_degradation_rejects_missing_or_invalid_budget(change):
+    data = reference_plan()
+    data["metrics"][0].update(normalization="degradation", **change)
+    with pytest.raises(ValueError):
+        parse_evaluation(json.dumps(data).encode(), file_format="json")
+
+
+def test_degradation_applies_the_complete_weight_to_one_bad_condition(
+        tmp_path, inputs, bindings):
+    plan, report = reference_report(tmp_path, inputs, bindings)
+    data = plan.description()
+    data["metrics"][0].update(normalization="degradation", scale=1)
+    changed = parse_evaluation(json.dumps(data).encode(), file_format="json")
+    ideal = copy.deepcopy(report)
+    for observation, source in zip(changed.metrics[0].observations, changed.metrics[0].baseline, strict=True):
+        job, name = observation.split(":")
+        source_job, source_name = source.split(":")
+        ideal["jobs"][job]["measurements"][name]["value"] = changed.pre_layout[source_job]["measurements"][source_name]["value"]
+    score = recompute_score(changed, ideal)
+    degraded = copy.deepcopy(ideal)
+    job, name = changed.metrics[0].observations[-1].split(":")
+    degraded["jobs"][job]["measurements"][name]["value"] += 1
+    result = recompute_score(changed, degraded)
+    assert result["components"]["G"] == 1
+    assert result["value"] == pytest.approx(score["value"] * math.sqrt(0.5))
+
+
 class ReferenceSimulator:
     identity: ClassVar[dict] = {"adapter": "synthetic-reference", "version": "1"}
 
     def run(self, job, inputs):
-        from benchmarking.engine.evaluate import JobResult, Measurement
+        from benchmarking.evaluation.runner import JobResult, Measurement
         # Source and extracted circuits traverse the real engine's input resolver.
         source = inputs["dut"].content == b"schematic"
         assert source or inputs["dut"].content == b"derived-from-layout"
@@ -81,7 +141,7 @@ def reference_report(tmp_path, inputs, bindings):
 
 def test_unbounded_scored_reference_can_qualify_at_low_score_but_limits_still_gate(
         tmp_path, inputs, bindings):
-    from benchmarking.engine.evaluate import JobResult, Measurement
+    from benchmarking.evaluation.runner import JobResult, Measurement
     from benchmarking.files import Asset
 
     class DegradedCandidateSimulator(ReferenceSimulator):
@@ -92,9 +152,9 @@ def test_unbounded_scored_reference_can_qualify_at_low_score_but_limits_still_ga
             }, evidence={"waveform": Asset(b"finite degraded candidate waveform", "text")})
 
     unbounded = reference_plan()
-    unbounded["metrics"][0].pop("lower")
+    unbounded["metrics"][0].pop("requirement")
     plan = parse_evaluation(json.dumps(unbounded).encode(), file_format="json")
-    from benchmarking.engine.qualification import audit
+    from benchmarking.evaluation.qualification import audit
     assert audit(plan)['minimum_score'] is None
     report = run_evaluation(plan, inputs, {**bindings, "response": DegradedCandidateSimulator()},
                             tmp_path / "unbounded")
@@ -249,12 +309,13 @@ def test_reference_normalization_handles_db_signed_targets_and_zero(
     metric = data["metrics"][0]
     metric.update(normalization=normalization, direction=direction, unit=unit)
     if normalization not in {"ratio", "saturating_ratio"}:
-        metric.pop("lower")
+        metric.pop("requirement")
         # A separate functional measurement keeps the required functional gate.
         function = copy.deepcopy(metric)
         for key in ("dimension", "baseline", "normalization"):
             function.pop(key)
-        function.update(id="functional", direction="minimize", upper=100)
+        function.update(id="functional", direction="minimize",
+                        requirement={"upper": 100, "rationale": "The synthetic response must fit the stimulus cycle."})
         data["metrics"].append(function)
     if scale is not None:
         metric["scale"] = scale
@@ -451,7 +512,7 @@ def test_frozen_calibration_provenance_and_pairing_are_enforced(defect):
 
 
 def test_candidate_recomputes_calibration_without_source_artifact(tmp_path, inputs, bindings):
-    from benchmarking.engine.evaluate import JobResult
+    from benchmarking.evaluation.runner import JobResult
     from benchmarking.files import Asset
 
     class CalibratedSimulator(ReferenceSimulator):

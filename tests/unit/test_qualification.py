@@ -7,8 +7,8 @@ from types import SimpleNamespace
 import pytest
 from test_evaluate import PLAN
 
-from benchmarking.engine.qualification import audit, run, verify
 from benchmarking.evaluation import parse_evaluation
+from benchmarking.evaluation.qualification import audit, run, verify
 from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
@@ -31,7 +31,7 @@ def test_qualification_verifies_reference_and_declared_inputs_without_tool_or_co
                    "input:netlist": {"sha256": netlist.sha256}},
         "jobs": {"original-plan": {"status": "passed", "measurements": {}}}, "metrics": {},
     }
-    monkeypatch.setattr("benchmarking.engine.qualification.run_evaluation", lambda *args, **kwargs: raw_report)
+    monkeypatch.setattr("benchmarking.evaluation.qualification.run_evaluation", lambda *args, **kwargs: raw_report)
     output = tmp_path / "qualification"
     record = run(runtime, output)
     report = record["report"]
@@ -40,36 +40,14 @@ def test_qualification_verifies_reference_and_declared_inputs_without_tool_or_co
     path = output / "qualification.json"
     assert verify(runtime, output) == record
 
-    # Older retained reports may carry bindings that are no longer freshness checks.
-    legacy = {**record, "contract": {"old": "plan"}, "pdk_sha256": "old"}
-    legacy["report"] = {**report, "engine_sha256": {"evaluate.py": "old"},
-                        "backend_sha256": {"check": "old"}}
-    path.write_text(json.dumps(legacy))
-    assert verify(runtime, output) == legacy
-
-    legacy["report"]["inputs"]["candidate"] = "changed"
-    path.write_text(json.dumps(legacy))
+    record["report"]["inputs"]["candidate"] = "changed"
+    path.write_text(json.dumps(record))
     with pytest.raises(ValueError, match="Qualification input changed: candidate"):
         verify(runtime, output)
 
 
-# The synthetic plan already owns the observations. These cases protect the
-# authoring boundary: ambiguous limits must fail before any reference/tool access,
-# while explicit functional requirements and quality are independently visible.
-def test_qualification_rejects_implicit_limits_before_accessing_reference(tmp_path):
-    plan = parse_evaluation(PLAN)
-    runtime = SimpleNamespace(task=SimpleNamespace(evaluation=plan))
-    with pytest.raises(ValueError, match="Review the contract before changing the reference"):
-        run(runtime, tmp_path / "rejected")
-    assert not (tmp_path / "rejected").exists()
-
-
 def test_explicit_requirements_are_audited_separately_from_weights():
     data = tomllib.loads(PLAN.decode())
-    for metric in data['metrics']:
-        bounds = {key: metric.pop(key) for key in ('lower', 'upper') if key in metric}
-        if bounds:
-            metric['requirement'] = {**bounds, 'rationale': 'The output event must lie in its input cycle.'}
     plan = parse_evaluation(json.dumps(data).encode(), file_format='json')
     review = audit(plan)
     assert review['minimum_score'] is None
@@ -82,7 +60,7 @@ def test_explicit_requirements_are_audited_separately_from_weights():
             parse_evaluation(json.dumps(data).encode(), file_format='json')
     metric['requirement'] = {'lower': 0, 'rationale': 'function'}
     metric['upper'] = 1
-    with pytest.raises(ValueError, match='Mixed legacy'):
+    with pytest.raises(ValueError, match="metric: .*unknown.*upper"):
         parse_evaluation(json.dumps(data).encode(), file_format='json')
 
 
@@ -91,10 +69,6 @@ def test_retained_evaluation_survives_success_gate_failure_and_tool_error(tmp_pa
     from test_evaluate import Checks, Extractor, Simulator
 
     data = tomllib.loads(PLAN.decode())
-    for metric in data['metrics']:
-        bounds = {key: metric.pop(key) for key in ('lower', 'upper') if key in metric}
-        if bounds:
-            metric['requirement'] = {**bounds, 'rationale': 'Synthetic functional limit.'}
     plan = parse_evaluation(json.dumps(data).encode(), file_format='json')
     task = SimpleNamespace(evaluation=plan, digest='fixture', witnessed=True,
                            evaluation_inputs=lambda: {'input:netlist': Asset(b'schematic', 'spice')})
@@ -115,3 +89,36 @@ def test_retained_evaluation_survives_success_gate_failure_and_tool_error(tmp_pa
     assert (output / 'qualification.json').exists() is (failure is None)
     with pytest.raises(FileExistsError):
         run(runtime, output, retain_evaluation=True)
+
+
+def test_qualification_binds_generated_inputs_to_origins_without_clock_freshness(tmp_path, monkeypatch):
+    reference = Asset(b"layout", "gds")
+    inputs = {"input:netlist": Asset(b"authoritative source", "spice"),
+              "input:lvs_source": Asset(b"* Netlisted on: 11:00:00\nsource", "spice")}
+    task = SimpleNamespace(
+        evaluation=SimpleNamespace(external_inputs=lambda: {"candidate", "input:lvs_source"},
+                                   metrics=(), scoring=None),
+        evaluation_inputs=lambda: dict(inputs), digest="task", witnessed=True,
+        evaluator_inputs=(SimpleNamespace(role="lvs_source", derived_from=("netlist",)),))
+    runtime = SimpleNamespace(task=task, witness=lambda: reference, backends={})
+    raw = {"outcome": "passed", "physical_valid": True, "specs_pass": True,
+           "task_success": True, "score": 1.0,
+           "inputs": {"candidate": reference.identity(), "input:lvs_source": inputs["input:lvs_source"].identity()},
+           "jobs": {"lvs": {"status": "passed", "measurements": {}}}, "metrics": {}}
+    monkeypatch.setattr("benchmarking.evaluation.qualification.run_evaluation", lambda *a, **k: raw)
+    output = tmp_path / "qualification"
+    record = run(runtime, output)
+    assert record["report"]["inputs"] == {"candidate": reference.sha256,
+                                          "input:netlist": inputs["input:netlist"].sha256}
+    original_evidence = raw["inputs"]["input:lvs_source"]
+    inputs["input:lvs_source"] = Asset(b"* Netlisted on: 12:34:56\nsource", "spice")
+    assert inputs["input:lvs_source"].identity() != original_evidence
+    assert verify(runtime, output) == record
+    # Existing records remain evidence of their run, without making a generated
+    # file's old bytes a current-source freshness condition.
+    record["report"]["inputs"]["input:lvs_source"] = original_evidence["sha256"]
+    (output / "qualification.json").write_text(json.dumps(record))
+    assert verify(runtime, output) == record
+    inputs["input:netlist"] = Asset(b"different authoritative circuit", "spice")
+    with pytest.raises(ValueError, match="Qualification input changed: input:netlist"):
+        verify(runtime, output)

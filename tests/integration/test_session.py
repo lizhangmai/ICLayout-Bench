@@ -13,21 +13,22 @@ from pathlib import Path
 import pytest
 from helpers.protocol import write_protocol_task
 
-from benchmarking.engine.inference import InferenceConfig, InferenceGateway
-from benchmarking.engine.sessions.config import RunConfig
-from benchmarking.engine.sessions.docker import CONSOLE_PREVIEW_BYTES, DockerSession
-from benchmarking.engine.sessions.environment import task_message
-from benchmarking.engine.sessions.recorder import (
+from benchmarking.eda.images import DEFAULT_IMAGE
+from benchmarking.evidence.journal import (
     RecordingError,
     RunRecorder,
     recover_submissions,
 )
-from benchmarking.engine.tools.docker import DockerTool
+from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
+from benchmarking.execution.inference import InferenceConfig, InferenceGateway
+from benchmarking.execution.tools.docker import DockerTool
+from benchmarking.execution.workspace.config import RunConfig
+from benchmarking.execution.workspace.docker import CONSOLE_PREVIEW_BYTES, DockerSession
+from benchmarking.execution.workspace.environment import task_message
 from benchmarking.files import Asset, ReadOnlyMount
-from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
-from benchmarking.tasks import load_task
+from benchmarking.tasks.contract import load_task
 
-IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-eda-open:local")
+IMAGE = os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", DEFAULT_IMAGE)
 
 pytestmark = pytest.mark.integration
 ROOT = Path(__file__).resolve().parents[2]
@@ -62,12 +63,168 @@ def execute(code, seconds=10, task=None):
     return DockerSession(config.image).run(task, config, {}, task_message(task, config))
 
 
+@pytest.mark.acceptance_container
+@pytest.mark.parametrize('cleanup_overlap', [False, True])
+def test_mcp_long_execution_can_be_cancelled_and_session_cleanup_finishes(tmp_path, monkeypatch, cleanup_overlap):
+    import threading
+    from types import SimpleNamespace
+
+    from benchmarking.client import Client
+    from benchmarking.participants.mcp import Bridge, dispatch
+    from benchmarking.service.application import LocalService
+    from benchmarking.service.server import serve
+
+    if cleanup_overlap:
+        # A cancellation helper can be descheduled after publishing its marker.
+        # Let real command cleanup overlap that helper before its receipt exits.
+        original_run = subprocess.run
+        delayed_receipt = '''import pathlib, runpy, sys, time
+original_touch = pathlib.Path.touch
+def touch(self, *args, **kwargs):
+    result = original_touch(self, *args, **kwargs)
+    time.sleep(.3)
+    return result
+pathlib.Path.touch = touch
+sys.argv = ['/protocol/workspace.py', 'cancel', sys.argv[1]]
+runpy.run_path('/protocol/workspace.py', run_name='__main__')
+'''
+
+        def run(command, **kwargs):
+            if command[-3:-1] == ['/protocol/workspace.py', 'cancel']:
+                command = [*command[:-3], '-c', delayed_receipt, command[-1]]
+            return original_run(command, **kwargs)
+
+        monkeypatch.setattr(subprocess, 'run', run)
+
+    task = session_task()
+    def unexpected(*args):
+        raise AssertionError('No evaluation without an accepted candidate')
+    backends = {job.operation: SimpleNamespace(identity={'fixture': 'unused'}, run=unexpected)
+                for job in task.evaluation.jobs}
+    service = LocalService(tmp_path / 'store', task, {}, backends, IMAGE, 'operator', seconds=60, recoverable=False)
+    server = serve(service)
+    thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': .01}, daemon=True)
+    thread.start()
+    try:
+        endpoint = f'http://127.0.0.1:{server.server_port}'
+        created = Client(endpoint, 'operator').create(task.id, {
+            'harness_kind': 'agent', 'harness_id': 'fixture', 'harness_version': '1', 'model': 'none',
+            'prompt_sha256': None, 'configuration_sha256': None}, key='create')
+        sid = created['session_id']
+        client = Client(endpoint, created['session_token'])
+        bridge = Bridge(client, sid, tmp_path / 'tools.jsonl')
+        running = bridge.call('execute', {'command': 'python -c "import time; time.sleep(60)"', 'wait_seconds': 0})
+        assert running['state'] == 'running'
+        rejected = dispatch(bridge, {'id': 1, 'method': 'tools/call', 'params': {
+            'name': 'execute', 'arguments': {'command': 'tail diagnostic.log', 'wait_seconds': 0}}})
+        assert rejected['result']['isError'] is True
+        assert rejected['result']['content'][0]['text'].startswith('conflict:')
+        bridge.call('cancel', {'execution_id': running['execution_id']})
+        polled = bridge.call('poll', {'execution_id': running['execution_id'], 'wait_seconds': 10})
+        assert polled['state'] == 'cancelled'
+        recovered = bridge.call('execute', {'command': 'printf recovered', 'wait_seconds': 10})
+        assert recovered['state'] == 'complete' and recovered['exit_code'] == 0
+        assert recovered['output'] == 'recovered'
+        client.close(sid, key='close')
+        deadline = time.monotonic() + 45
+        while time.monotonic() < deadline:
+            result = client.result(sid)
+            if result['state'] in {'complete', 'error'}:
+                break
+            time.sleep(.1)
+        assert result['state'] == 'complete', result
+        assert result['outcome'] == 'no_submission'
+    finally:
+        server.shutdown()
+        server.server_close()
+        service.shutdown()
+        thread.join(timeout=5)
+
+
+@pytest.mark.acceptance
+@pytest.mark.acceptance_container
+def test_cancelled_check_stops_host_eda_and_keeps_session_usable(tmp_path):
+    import threading
+    from types import SimpleNamespace
+
+    from benchmarking.client import Client
+    from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.evaluation.contracts import JobResult
+    from benchmarking.execution.tools.native import NativeTool
+    from benchmarking.participants.mcp import Bridge
+    from benchmarking.service.application import LocalService
+    from benchmarking.service.server import serve
+
+    started = tmp_path / 'native-started'
+    finished = threading.Event()
+    observed = []
+    tool = NativeTool(ExternalRuntime('fixture', {'image': 'unused', 'environment': {}, 'mounts': []}))
+
+    def evaluate(job, assets):
+        if job.id == 'artifact' and not observed:
+            result = tool.run([sys.executable, '-c',
+                ('import os,time; from pathlib import Path; '
+                f'Path({str(started)!r}).write_text(str(os.getpid())); '
+                'print("Quantus terminated normally", flush=True); time.sleep(4)')], {}, {})
+            observed.append(result)
+            finished.set()
+            return JobResult('error', result.reason or 'Synthetic tool finished', evidence=result.evidence)
+        return JobResult('failed', 'Synthetic candidate rejection', evidence={'log': Asset(b'fixture', 'text')})
+
+    task = session_task()
+    backend = SimpleNamespace(identity={'fixture': 'native-cancellation'}, run=evaluate)
+    service = LocalService(tmp_path / 'store', task, {},
+        {job.operation: backend for job in task.evaluation.jobs}, IMAGE, 'operator', seconds=60,
+        recoverable=False)
+    server = serve(service)
+    thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': .01}, daemon=True)
+    thread.start()
+    try:
+        endpoint = f'http://127.0.0.1:{server.server_port}'
+        created = Client(endpoint, 'operator').create(task.id, {
+            'harness_kind': 'agent', 'harness_id': 'fixture', 'harness_version': '1', 'model': 'none',
+            'prompt_sha256': None, 'configuration_sha256': None}, key='create')
+        sid = created['session_id']
+        client = Client(endpoint, created['session_token'])
+        client.write(sid, task.output.path, b'frozen-candidate', key='candidate')
+        bridge = Bridge(client, sid, tmp_path / 'tools.jsonl')
+        execution = bridge.call('execute', {'command': 'python -I /protocol/process_check.py', 'wait_seconds': 0})
+        deadline = time.monotonic() + 10
+        while not started.exists() and time.monotonic() < deadline:
+            time.sleep(.02)
+        assert started.exists(), 'Host EDA did not start'
+        bridge.call('cancel', {'execution_id': execution['execution_id']})
+        assert bridge.call('poll', {'execution_id': execution['execution_id'], 'wait_seconds': 10})['state'] == 'cancelled'
+        assert finished.wait(1), 'Cancelled process_check left its host EDA running'
+        assert 'cancel' in observed[0].reason.lower()
+        assert b'Quantus terminated normally' in observed[0].evidence['console'].content
+        assert not Path(f'/proc/{started.read_text()}').exists()
+        recovered = bridge.call('execute', {'command': 'python -I /protocol/process_check.py', 'wait_seconds': 10})
+        assert recovered['exit_code'] == 0
+        assert json.loads(recovered['output'])['accepted']
+        client.close(sid, key='close')
+    finally:
+        server.shutdown()
+        server.server_close()
+        service.shutdown()
+        thread.join(timeout=5)
+
+
 @pytest.mark.acceptance
 @pytest.mark.acceptance_container
 @pytest.mark.parametrize('entry', ['solver', 'tool'])
 def test_unrestricted_execution_preserves_container_isolation(monkeypatch, entry):
     observed = []
     original_output = subprocess.check_output
+    scratch = '''from pathlib import Path
+import tempfile
+for name in ('/tmp', '/var/tmp'):
+    assert Path(name).stat().st_mode & 0o1777 == 0o1777
+    with tempfile.TemporaryDirectory(dir=name) as directory:
+        path = Path(directory) / 'scratch.txt'
+        path.write_text('temporary data')
+        assert path.read_text() == 'temporary data'
+'''
 
     def output(command, **kwargs):
         result = original_output(command, **kwargs)
@@ -81,7 +238,7 @@ def test_unrestricted_execution_preserves_container_isolation(monkeypatch, entry
 
     monkeypatch.setattr(subprocess, 'check_output', output)
     if entry == 'solver':
-        config = replace(configuration('''
+        config = replace(configuration(scratch + '''
 output.write_bytes(b'unlimited-default')
 assert submit()['accepted']
 '''), memory_mb=None, cpus=None, pids=None)
@@ -92,7 +249,7 @@ assert submit()['accepted']
         assert observed[0]['ReadonlyRootfs'] is True
     else:
         tool = DockerTool(IMAGE, ['python', '--version'], 10)
-        result = tool.run(['python', '-c', "from pathlib import Path; Path('out.txt').write_text('unlimited-default')"],
+        result = tool.run(['python', '-c', scratch + "Path('out.txt').write_text('unlimited-default')"],
                           {}, {'out.txt': 'text'})
         assert result.returncode == 0, result.reason
         assert result.files['out.txt'].content == b'unlimited-default'
@@ -107,8 +264,8 @@ assert submit()['accepted']
 
 @pytest.mark.acceptance
 @pytest.mark.acceptance_container
-@pytest.mark.parametrize('ending', ['complete', 'error', 'timeout'])
-def test_tool_memory_workspace_retains_private_outputs_after_failure(tmp_path, ending):
+@pytest.mark.parametrize('ending', ['complete', 'error', 'timeout', 'cancel'])
+def test_tool_memory_workspace_retains_private_outputs_after_failure(tmp_path, monkeypatch, ending):
     model = tmp_path / 'model.txt'
     model.write_bytes(b'mounted model')
     model.chmod(0o444)
@@ -130,15 +287,61 @@ Path('models/derived.txt').write_bytes(source.read_bytes() + b' / ' + model.read
 Path('models/derived.txt').chmod(0o600)
 os.link('models/derived.txt', 'linked-output.txt')
 print('tool evidence', flush=True)
-if sys.argv[1] == 'timeout':
+if sys.argv[1] in ('timeout', 'cancel'):
     time.sleep(5)
 elif sys.argv[1] == 'error':
     sys.exit(9)
 '''
-    result = tool.run(['python', '-c', script, ending],
-                      {'inputs/source.txt': Asset(b'frozen input', 'text'),
-                       'models/model.txt': ReadOnlyMount(model, Asset(b'model recipe', 'text'))},
-                      {'models/derived.txt': 'text', 'linked-output.txt': 'text'})
+    def execute_tool():
+        return tool.run(['python', '-c', script, ending],
+                        {'inputs/source.txt': Asset(b'frozen input', 'text'),
+                         'models/model.txt': ReadOnlyMount(model, Asset(b'model recipe', 'text'))},
+                        {'models/derived.txt': 'text', 'linked-output.txt': 'text'})
+
+    if ending == 'cancel':
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Event
+
+        from benchmarking.execution.tools.budget import (
+            tool_cancellation,
+            tool_time_limits,
+        )
+
+        cancellation = Event()
+        containers = []
+        original = subprocess.Popen
+
+        def observe(command, **kwargs):
+            process = original(command, **kwargs)
+            if command[:3] == ['docker', 'exec', '-i'] and not command[3].startswith('-'):
+                containers.append(command[3])
+            return process
+
+        monkeypatch.setattr(subprocess, 'Popen', observe)
+
+        def check():
+            with tool_cancellation(cancellation), tool_time_limits(False):
+                return execute_tool()
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(check)
+            try:
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    if containers:
+                        ready = subprocess.run(['docker', 'exec', containers[0], 'test', '-f',
+                                                '/workspace/linked-output.txt'], capture_output=True, check=False)
+                        if ready.returncode == 0:
+                            break
+                    time.sleep(.02)
+                else:
+                    pytest.fail('Tool did not write its output before cancellation')
+            finally:
+                cancellation.set()
+            result = pending.result(timeout=3)
+        assert subprocess.run(['docker', 'inspect', containers[0]], capture_output=True, check=False).returncode != 0
+    else:
+        result = execute_tool()
     assert 'models/derived.txt' in result.files, (result.reason, result.evidence)
     assert result.files['models/derived.txt'].content == b'frozen input / mounted model'
     assert result.files['linked-output.txt'].content == b'frozen input / mounted model'
@@ -148,6 +351,9 @@ elif sys.argv[1] == 'error':
         assert result.returncode == 0 and not result.reason
     elif ending == 'error':
         assert result.returncode == 9 and result.reason
+    elif ending == 'cancel':
+        assert result.returncode is None and 'cancel' in result.reason
+        assert 'execution_error' in result.evidence
     else:
         assert result.returncode is None and 'time limit' in result.reason
 
@@ -196,17 +402,17 @@ assert submit()['accepted']
                          ids=lambda path: path.parent.name)
 def test_declared_pdks_are_usable_in_agent_container(tmp_path, manifest):
 
-    from benchmarking.dataset import Dataset, process_manifest
+    from benchmarking.tasks.dataset import Dataset, process_manifest
 
     cases = [case for case in Dataset(PUBLIC_ROOT, {}).cases().values()
              if process_manifest(case) == manifest]
-    assert cases, "A published process must have an executable witness"
-    from benchmarking.engine.runtime import load_case
+    assert cases, "A published process must declare at least one case"
+    from benchmarking.eda.runtime import load_case
 
     runtime = load_case(cases[0], image=IMAGE)
     bundle = runtime.agent
     # Case metadata, rather than a process-wide wish list, owns runtime profiles.
-    from benchmarking.engine.toolchain_config import support_bindings
+    from benchmarking.eda.toolchain import support_bindings
 
     declaration = tomllib.loads(manifest.read_text())
     backends = tomllib.loads(cases[0].read_text())["toolchain"]["backends"]
@@ -229,7 +435,8 @@ def test_declared_pdks_are_usable_in_agent_container(tmp_path, manifest):
     assert all(not item.path.startswith("reference/") for item in runtime.task.inputs)
     resources = {**dict(bundle.files), "manifest.json": bundle.manifest}
     code = f"pdk_mounts = {sorted(expected_roots)!r}\n" + '''
-info = json.loads(Path('/protocol/resources.json').read_text())
+info = task['resources']
+assert not Path('/protocol/resources.json').exists()
 assert os.environ['ICLAYOUT_BENCH_PDK'] == info['pdk']
 assert Path(os.environ['PDK_PATH']).is_dir()
 assert not Path('/resources/tasks').exists()
@@ -547,9 +754,9 @@ def test_killed_host_retains_acknowledged_candidate(tmp_path):
     code = """
 import sys
 from pathlib import Path
-from benchmarking.engine.sessions.execution import run_session
-from benchmarking.engine.sessions.docker import DockerSession
-from benchmarking.tasks import load_task
+from benchmarking.service.session import run_session
+from benchmarking.execution.workspace.docker import DockerSession
+from benchmarking.tasks.contract import load_task
 sys.path.insert(0, str(Path.cwd() / "tests"))
 from integration.test_session import session_task, configuration
 config = configuration("output.write_bytes(b'durable'); assert submit()['accepted']; print('ACK_OBSERVED', flush=True); time.sleep(60)", seconds=60)
@@ -583,7 +790,7 @@ run_session(task, config, {}, {job.operation: object() for job in task.evaluatio
         recovered = recover_submissions(run)
         assert (run / recovered["candidate"]["path"]).read_bytes() == b"durable"
         assert json.loads((run / "run.json").read_text())["phase"] == "running"
-        command = subprocess.run([sys.executable, "-m", "benchmarking.engine.cli", "recover", str(run)], capture_output=True, check=True)
+        command = subprocess.run([sys.executable, "-m", "benchmarking.execution", "recover", str(run)], capture_output=True, check=True)
         assert json.loads(command.stdout)["candidate"] == recovered["candidate"]
         # The bind source's parent is private on the host; only individual inputs are mounted.
         temporary = list(Path(staging.name).glob("lb-session-*"))
@@ -600,7 +807,7 @@ run_session(task, config, {}, {job.operation: object() for job in task.evaluatio
 @pytest.mark.acceptance
 @pytest.mark.acceptance_container
 def test_console_storage_ceiling_stops_with_incomplete_evidence(tmp_path, monkeypatch):
-    monkeypatch.setattr("benchmarking.engine.sessions.docker.MAX_CONSOLE_BYTES", 8192)
+    monkeypatch.setattr("benchmarking.execution.workspace.docker.MAX_CONSOLE_BYTES", 8192)
     task = session_task()
     config = configuration("print('x'*100000, flush=True); time.sleep(30)")
     recorder = RunRecorder(tmp_path / "run")

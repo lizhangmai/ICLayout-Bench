@@ -2,7 +2,7 @@
 
 import pytest
 
-from benchmarking.task_documents import parse_task_description
+from benchmarking.tasks.documents import parse_task_description
 
 pytestmark = pytest.mark.unit
 

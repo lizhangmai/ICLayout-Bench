@@ -1,1 +1,1 @@
-"""Pinned installations and prepared evaluator or participant resources."""
+"""Compatibility resource interfaces."""

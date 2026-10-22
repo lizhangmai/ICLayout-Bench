@@ -2,35 +2,94 @@
 
 import hashlib
 import importlib.util
+import json
 import re
+import sys
+import tomllib
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import tomli_w
 from helpers.catalog import CASES, read_case
 from helpers.protocol import write_protocol_task
 
-from benchmarking.engine.runtime import load_case, load_case_inputs
-from benchmarking.tasks import load_task
+from benchmarking.eda.runtime import load_case, load_case_inputs
+from benchmarking.tasks.contract import load_task
 
 pytestmark = [pytest.mark.unit, pytest.mark.acceptance, pytest.mark.acceptance_fast]
 ROOT = Path(__file__).resolve().parents[2]
 from helpers.catalog import ROOT as PUBLIC_ROOT
 
 
+@pytest.mark.parametrize('override', [None, 'explicit-image'])
+def test_external_runtime_selects_its_own_image_without_an_open_image_dependency(preview_case, monkeypatch, override):
+    from benchmarking.eda import runtime
+
+    monkeypatch.delenv('ICLAYOUT_BENCH_IMAGE', raising=False)
+    root, case = preview_case
+    process = root / 'installed-process'
+    process.mkdir()
+    (process / 'identity').write_text('reviewed process')
+    manifest = root / 'tasks/synthetic-pdk/pdk.toml'
+    manifest.write_text(tomli_w.dumps({
+        'source': {'kind': 'external', 'runtime': 'commercial-fixture', 'release': '1'},
+        'runtime': {'image': 'declared-commercial-image', 'environment': {'PDK_ROOT': '/process'},
+                    'mounts': [{'source': str(process), 'target': '/process', 'release': '1',
+                                'identity_paths': ['identity']}]}}))
+    path = case / 'case.toml'
+    config = tomllib.loads(path.read_text())
+    config['toolchain'] = {'backends': {'external': {'type': 'fixture', 'settings': {'runtime': 'commercial-fixture'}}},
+                          'bindings': {'check': 'external', 'simulate': 'external'}}
+    path.write_text(tomli_w.dumps(config))
+    inspected = []
+
+    def inspect(command, **kwargs):
+        inspected.append(command[-1])
+        return 'sha256:selected'
+
+    monkeypatch.setattr(runtime.subprocess, 'check_output', inspect)
+    selected = load_case(path, image=override, include_agent=False, factories={'fixture': lambda **settings: object()})
+    assert inspected == [override or 'declared-commercial-image']
+    assert selected.external.name == 'commercial-fixture'
+
+
 @pytest.fixture
 def preview():
-    spec = importlib.util.spec_from_file_location("public_preview", ROOT / "benchmarking/engine/preview.py")
+    spec = importlib.util.spec_from_file_location("public_preview", ROOT / "benchmarking/eda/cli.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     module.ROOT = PUBLIC_ROOT
     return module
 
 
-def test_preview_covers_every_public_executable_witness(preview):
+@pytest.mark.parametrize('override,environment,expected', [
+    (None, None, 'docker.io/lizhangmai/iclayout-bench-tools:latest'),
+    (None, 'registry.example/eda:reviewed', 'registry.example/eda:reviewed'),
+    ('selected-image', 'registry.example/eda:reviewed', 'selected-image'),
+])
+def test_runtime_resolves_published_and_user_selected_images(
+        preview_case, monkeypatch, override, environment, expected):
+    from benchmarking.eda import runtime
+
+    root, source = preview_case
+    monkeypatch.delenv('ICLAYOUT_BENCH_IMAGE', raising=False)
+    if environment:
+        monkeypatch.setenv('ICLAYOUT_BENCH_IMAGE', environment)
+    inspected = []
+    monkeypatch.setattr(runtime.subprocess, 'check_output',
+                        lambda command, **kwargs: inspected.append(command[-1]) or 'sha256:selected')
+    monkeypatch.setattr(runtime, 'prepare_installation', lambda spec: root / 'third_party/synthetic-pdk')
+    load_case(source / 'case.toml', image=override, include_agent=False,
+              factories={'klayout-docker': lambda **settings: object(),
+                         'ngspice-docker': lambda **settings: object()})
+    assert inspected == [expected]
+
+
+def test_resource_commands_list_every_declared_task(preview):
     expected = {path for path in CASES for data in [read_case(path)]
                 if data.get("status") in {"candidate", "qualified"}
-                and data.get("task") and data.get("qualification", {}).get("reference")}
+                and isinstance(data.get("task"), dict)}
     discovered = {record["config"] for record in preview.discover_cases().values()}
     assert discovered == expected
     for key, record in preview.discover_cases().items():
@@ -78,11 +137,118 @@ simulate = "simulation"
     return root, source
 
 
+@pytest.mark.parametrize('operation', ['list', 'fetch'])
+def test_delivered_cases_can_be_listed_and_prefetched_without_references(
+        preview, preview_case, monkeypatch, capsys, operation):
+    from benchmarking.eda.resources import installation
+
+    root, source = preview_case
+    path = source / 'case.toml'
+    config = tomllib.loads(path.read_text())
+    config.pop('qualification')
+    path.write_text(tomli_w.dumps(config))
+    (source / 'reference.gds').unlink()
+    installed = []
+    monkeypatch.setattr(installation, 'prepare_installation',
+                        lambda spec: installed.append(spec['repository']) or root)
+    arguments = ['benchmarking.eda', '--dataset', str(root), operation]
+    if operation == 'fetch':
+        arguments += ['--case', config['id']]
+    monkeypatch.setattr(sys, 'argv', arguments)
+
+    preview.main()
+
+    if operation == 'list':
+        assert config['id'] in capsys.readouterr().out
+        assert installed == []
+    else:
+        assert installed and set(installed) == {'https://example.test/pdk'}
+
+
+def test_reference_evaluation_still_requires_an_explicit_witness(preview, preview_case):
+    root, source = preview_case
+    path = source / 'case.toml'
+    config = tomllib.loads(path.read_text())
+    config.pop('qualification')
+    path.write_text(tomli_w.dumps(config))
+    (source / 'reference.gds').unlink()
+    with pytest.raises(ValueError, match='witness'):
+        preview.run(config['id'], root / 'reference-run')
+
+
+def test_candidate_evaluation_prepares_declared_resources_without_references(
+        preview_case, tmp_path, monkeypatch, capsys):
+    from benchmarking.eda import runtime, toolchain
+    from benchmarking.evaluation import cli
+
+    root, source = preview_case
+    path = source / 'case.toml'
+    config = tomllib.loads(path.read_text())
+    config.pop('qualification')
+    path.write_text(tomli_w.dumps(config))
+    (source / 'reference.gds').unlink()
+    candidate = tmp_path / 'candidate.gds'
+    candidate.write_bytes(b'Submitted GDS; no author witness')
+    inspected = []
+    monkeypatch.setattr(runtime.subprocess, 'check_output',
+                        lambda command, **kwargs: inspected.append(command[-1]) or 'sha256:fixture')
+    monkeypatch.setattr(runtime, 'prepare_installation', lambda spec: root)
+    prepared = []
+
+    def backend(**settings):
+        support = Path(settings['support'])
+        assert support.is_dir(), 'Declared support must be prepared before evaluation'
+        assert settings['image'] == 'sha256:fixture'
+        prepared.append(support)
+        return object()
+
+    original = toolchain.load_toolchain
+    monkeypatch.setattr(runtime, 'load_toolchain',
+                        lambda config, **settings: original(config, **(settings | {
+                            'factories': {'klayout-docker': backend, 'ngspice-docker': backend}})))
+
+    def evaluate(plan, inputs, backends, output, **settings):
+        assert inputs['candidate'].content == candidate.read_bytes()
+        assert len(prepared) == len(backends) == 2
+        assert settings['task_witnessed'] is False
+        return {'mode': plan.mode, 'outcome': 'passed', 'physical_valid': True, 'specs_pass': None,
+                'task_success': None, 'metrics': {}, 'task_witnessed': False}
+
+    monkeypatch.setattr(cli, 'run_evaluation', evaluate)
+    cli.main(['evaluate', str(path), str(candidate), '--image', 'selected-image',
+              '--output', str(tmp_path / 'evaluation')])
+    assert inspected == ['selected-image']
+    assert json.loads(capsys.readouterr().out)['task_witnessed'] is False
+
+
+@pytest.mark.parametrize('explicit_source', [False, True])
+def test_image_build_uses_the_selected_checkout_instead_of_the_package_directory(
+        preview, tmp_path, monkeypatch, explicit_source):
+    source = tmp_path / 'user source'
+    source.mkdir()
+    (source / 'Dockerfile').write_text('FROM scratch\n')
+    monkeypatch.chdir(tmp_path if explicit_source else source)
+    monkeypatch.setattr(preview, 'doctor', lambda: None)
+    commands = []
+    monkeypatch.setattr(preview.subprocess, 'run',
+                        lambda command, **options: commands.append((command, options))
+                        or SimpleNamespace(returncode=0))
+    arguments = ['benchmarking.eda', 'build', '--image', 'user-image', '--network', 'host']
+    if explicit_source:
+        arguments += ['--source', str(source)]
+    monkeypatch.setattr(sys, 'argv', arguments)
+    preview.main()
+    command, options = commands[-1]
+    assert Path(options['cwd']) == source
+    assert command[:2] == ['docker', 'build']
+    assert command[command.index('-t') + 1] == 'user-image'
+
+
 # Dataset inputs and cache bindings must work without any prepared snapshot.
 # Reuse the existing case fixture, replacing only Docker/PDK installation I/O.
 # Assertions protect source immutability and solver isolation, not physical validity.
 def test_runtime_uses_source_case_and_only_materializes_declared_inputs(preview_case, monkeypatch):
-    from benchmarking.engine import runtime
+    from benchmarking.eda import runtime
 
     root, source = preview_case
     monkeypatch.setattr(runtime.subprocess, "check_output", lambda *a, **kw: "sha256:tools")
@@ -104,7 +270,7 @@ def test_runtime_uses_source_case_and_only_materializes_declared_inputs(preview_
 
 
 def test_reference_inputs_load_without_pdk_or_tool_image(preview_case, monkeypatch):
-    from benchmarking.engine import runtime
+    from benchmarking.eda import runtime
 
     root, source = preview_case
     (root / "tasks/synthetic-pdk/pdk.toml").unlink()
@@ -118,8 +284,8 @@ def test_reference_inputs_load_without_pdk_or_tool_image(preview_case, monkeypat
 def test_dataset_cache_links_are_read_without_copying(preview_case, tmp_path, monkeypatch, shared_blobs):
     import huggingface_hub.constants
 
-    from benchmarking.dataset import load_dataset
     from benchmarking.files import read_file
+    from benchmarking.tasks.dataset import load_dataset
 
     root, source = preview_case
     revision = "b" * 40
@@ -151,7 +317,7 @@ def test_dataset_cache_links_are_read_without_copying(preview_case, tmp_path, mo
     assert config.is_symlink()
     assert load_task(config).input_assets() == load_task(source / "case.toml").input_assets()
     # Exercise actual profile binding from snapshot symlinks as well as task inputs.
-    from benchmarking.engine import runtime
+    from benchmarking.eda import runtime
     monkeypatch.setattr(runtime.subprocess, "check_output", lambda *a, **kw: "sha256:tools")
     monkeypatch.setattr(runtime, "prepare_installation", lambda spec: root / "third_party/synthetic-pdk")
     resolved = load_case(config, include_agent=False,

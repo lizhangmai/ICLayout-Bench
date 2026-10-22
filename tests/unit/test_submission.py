@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-from benchmarking.engine.container_scripts.snapshot import snapshot
-from benchmarking.engine.sessions.config import load_run_config
+from benchmarking.execution._scripts.snapshot import snapshot
+from benchmarking.execution.workspace.config import load_run_config
 
 pytestmark = pytest.mark.unit
 

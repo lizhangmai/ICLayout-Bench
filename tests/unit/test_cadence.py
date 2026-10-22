@@ -12,17 +12,17 @@ from types import SimpleNamespace
 
 import pytest
 
-from benchmarking.engine.backends.pvs import PvsDocker
-from benchmarking.engine.backends.spectre import SpectreDocker
-from benchmarking.engine.tools.types import ToolResult
+from benchmarking.eda.backends.pvs import PvsDocker
+from benchmarking.eda.backends.spectre import SpectreDocker
 from benchmarking.evaluation import Job, parse_evaluation
+from benchmarking.execution.tools import ToolResult
 from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
 
 
 def test_spectre_memory_allocation_is_applied_and_recorded(monkeypatch):
-    from benchmarking.engine.tools.docker import DockerTool
+    from benchmarking.execution.tools.docker import DockerTool
 
     commands = []
 
@@ -30,7 +30,7 @@ def test_spectre_memory_allocation_is_applied_and_recorded(monkeypatch):
         commands.append(command)
         return 'fixture-version'
 
-    monkeypatch.setattr('benchmarking.engine.tools.docker.subprocess.check_output', version)
+    monkeypatch.setattr('benchmarking.execution.tools.docker.subprocess.check_output', version)
     default = DockerTool('unused', ['spectre', '-W'], 10)
     assert not {'--memory', '--cpus', '--pids-limit'} & set(commands[-1])
     assert default.identity['limits'] == {'cpus': None, 'memory_mb': None, 'pids': None}
@@ -38,14 +38,19 @@ def test_spectre_memory_allocation_is_applied_and_recorded(monkeypatch):
     command = commands[-1]
     assert command[command.index('--memory')+1] == '8192m'
     assert tool.identity['limits']['memory_mb'] == 8192
+    compiled = DockerTool('unused', ['spectre', '-W'], 10, executable_workspace=True)
+    workspace = next(arg for arg in commands[-1] if arg.startswith('/workspace:'))
+    assert 'exec' in workspace.split(':')[1].split(',')
+    assert compiled.identity['executable_workspace'] is True
+    assert default.identity['executable_workspace'] is False
     for value in [True, 0, -1, 262145]:
         with pytest.raises(ValueError, match='Tool memory'):
             DockerTool('unused', ['spectre', '-W'], 10, memory_mb=value)
 
 
 def test_native_spectre_keeps_frozen_deck_and_rejects_crash_exit():
-    from benchmarking.engine.backends.spectre_native import _NativeSpectreTool
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.backends.spectre import _NativeSpectreTool
+    from benchmarking.eda.environment import ExternalRuntime
 
     runtime = ExternalRuntime('native-test', {'image': 'unused', 'environment': {}, 'mounts': []})
     version = [sys.executable, '-c', 'print("licensed-fixture")']
@@ -63,8 +68,8 @@ def test_aps_is_explicit_preserves_inputs_and_propagates_native_failure(monkeypa
     # Contract: selecting APS must reach the native command and identity, while
     # retaining Spectre's frozen inputs and error semantics. The I/O double
     # cannot establish numerical equivalence or license availability.
-    from benchmarking.engine.backends.spectre_aps import SpectreAPSDocker
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.backends.spectre import SpectreAPSDocker
+    from benchmarking.eda.environment import ExternalRuntime
     seen = []
 
     class Tool:
@@ -76,8 +81,8 @@ def test_aps_is_explicit_preserves_inputs_and_propagates_native_failure(monkeypa
             return ToolResult(1, 'Native license unavailable', {},
                               {'console': Asset(b'license failed', 'text')})
 
-    monkeypatch.setattr('benchmarking.engine.backends.spectre.DockerTool', Tool)
-    monkeypatch.setattr('benchmarking.engine.external.ExternalRuntime.pdk_file', lambda runtime, name: (None, '/pdk/'+name))
+    monkeypatch.setattr('benchmarking.eda.backends.spectre.DockerTool', Tool)
+    monkeypatch.setattr('benchmarking.eda.environment.ExternalRuntime.pdk_file', lambda runtime, name: (None, '/pdk/'+name))
     threads = 16
     runtime = ExternalRuntime('test', {'image': 'test-image', 'environment': {}, 'mounts': []})
     settings = {'runtime': runtime, 'model': 'model', 'section': 'tt',
@@ -125,9 +130,8 @@ include "/pdk/passive.scs"
 
 
 def test_spectre_x_preserves_inputs_and_rejects_native_failure(monkeypatch):
-    from benchmarking.engine.backends.spectre_native import SpectreXNative
-    from benchmarking.engine.backends.spectre_x import SpectreXDocker
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.backends.spectre import SpectreXDocker, SpectreXNative
+    from benchmarking.eda.environment import ExternalRuntime
     seen = []
 
     class Tool:
@@ -139,8 +143,8 @@ def test_spectre_x_preserves_inputs_and_rejects_native_failure(monkeypatch):
             return ToolResult(139, 'Tool/container exited with 139', {},
                               {'console': Asset(b'native crash', 'text')})
 
-    monkeypatch.setattr('benchmarking.engine.backends.spectre.DockerTool', Tool)
-    monkeypatch.setattr('benchmarking.engine.external.ExternalRuntime.pdk_file', lambda *args: (None, '/pdk/model'))
+    monkeypatch.setattr('benchmarking.eda.backends.spectre.DockerTool', Tool)
+    monkeypatch.setattr('benchmarking.eda.environment.ExternalRuntime.pdk_file', lambda *args: (None, '/pdk/model'))
     runtime = ExternalRuntime('test', {'image': 'test-image', 'environment': {}, 'mounts': []})
     settings = {'runtime': runtime, 'model': 'model', 'section': 'tt'}
     backend = SpectreXDocker(threads=16, preset='ax', preset_override=['maxstep'], memory_mb=8192, **settings)
@@ -166,7 +170,7 @@ def test_spectre_x_preserves_inputs_and_rejects_native_failure(monkeypatch):
         SpectreXDocker(preset_override=['unknown'], **settings)
     # Host execution uses the evaluator's affinity, independently of the
     # container allocation. The command and identity must agree on that count.
-    monkeypatch.setattr('benchmarking.engine.backends.spectre_native.os.sched_getaffinity',
+    monkeypatch.setattr('benchmarking.eda.backends.spectre.os.sched_getaffinity',
                         lambda pid: set(range(16)))
     monkeypatch.setattr(SpectreXNative, 'tool_type', Tool)
     native = SpectreXNative(threads=16, preset='mx', **settings)
@@ -188,7 +192,7 @@ def test_spectre_calibration_selects_eligible_setting_and_reuses_frozen_paramete
     backend = object.__new__(SpectreDocker)
     backend.runtime = SimpleNamespace(pdk_file=lambda name: (None, '/pdk/model'))
     backend.model, backend.section = 'models', 'tt'
-    monkeypatch.setattr('benchmarking.engine.external.ExternalRuntime.pdk_file', lambda *args: (None, '/pdk/model'))
+    monkeypatch.setattr('benchmarking.eda.environment.ExternalRuntime.pdk_file', lambda *args: (None, '/pdk/model'))
     seen, fail = [], False
 
     class Tool:
@@ -262,7 +266,7 @@ def test_relative_edge_thresholds_measure_slew_independently_of_swing():
     # An affine ramp across the interpolated [0.5, 1.5] window takes 0.6 s
     # between 20% and 80%, at any positive swing or DC offset. The outside
     # samples must not set its range. This is a measurement oracle, not a DUT.
-    from benchmarking.engine.measurements.waveform import measure_waveform
+    from benchmarking.evaluation.measurements.waveform import measure_waveform
 
     event = {'trace': 'out', 'threshold_fraction': .2, 'direction': 'rise'}
     slew = {'operation': 'delay', 'start_s': .5, 'stop_s': 1.5, 'unit': 's',
@@ -337,7 +341,7 @@ def test_spectre_differential_transfer_uses_complex_input_and_log_crossings(monk
     backend = object.__new__(SpectreDocker)
     backend.runtime = SimpleNamespace(pdk_file=lambda name: (None, '/pdk/model'))
     backend.model, backend.section = 'models', 'tt'
-    monkeypatch.setattr('benchmarking.engine.external.ExternalRuntime.pdk_file', lambda *args: (None, '/pdk/model'))
+    monkeypatch.setattr('benchmarking.eda.environment.ExternalRuntime.pdk_file', lambda *args: (None, '/pdk/model'))
     class Tool:
         def run(self, *args):
             return ToolResult(0, '', {k: Asset(v.encode(), 'text') for k, v in {
@@ -383,7 +387,7 @@ def test_phase_margin_unwraps_lag_across_negative_real_axis():
     # incorrectly report a large positive margin for the later unity crossing.
     import cmath
 
-    from benchmarking.engine.backends.spectre import ac_measurements
+    from benchmarking.eda.backends.spectre import ac_measurements
 
     ac = {'freq': [1, 10, 100], 'p': [1, 1, 1], 'n': [0, 0, 0],
           'out': [10*cmath.exp(-1j*math.radians(150)),
@@ -399,7 +403,7 @@ def test_waveform_integrates_interpolated_windows_and_preserves_early_edges():
     # Exact y=t integral on [0.5, 1.5] is 1; RMS is sqrt(13/12).
     # An output crossing before its matching input must retain negative delay.
     # These synthetic traces verify measurement math, not circuit feasibility.
-    from benchmarking.engine.measurements.waveform import measure_waveform
+    from benchmarking.evaluation.measurements.waveform import measure_waveform
 
     samples = {'time': [0, 1, 2], 'ramp': [0, 1, 2], 'early': [1, 2, 3]}
     common = {'start_s': .5, 'stop_s': 1.5, 'trace': 'ramp', 'unit': 'V'}
@@ -446,7 +450,7 @@ def test_sampled_adc_transfer_requires_complete_ordered_stable_codes():
     # A seven-code staircase has six transition midpoints. The expected DNL
     # and INL follow from declared full-scale endpoints, independently of the
     # measurement implementation or a simulator waveform.
-    from benchmarking.engine.measurements.waveform import measure_waveform
+    from benchmarking.evaluation.measurements.waveform import measure_waveform
 
     levels = [-.3, -.2, -.1, .02, .1, .2, .3]
     codes = list(range(1, 8))
@@ -514,7 +518,7 @@ def test_sampled_adc_transfer_requires_complete_ordered_stable_codes():
             'flash': signed_transfer | {'encoding': []}}})
 
 
-@pytest.mark.parametrize('worker_exit', [0, 7])
+@pytest.mark.parametrize('worker_exit', [0, 7, 124])
 def test_batch_launcher_waits_for_orphaned_worker_and_propagates_failure(tmp_path, worker_exit):
     # Reproduce a batch tool that exits before its extraction worker. Completion
     # is independently observed through the worker's file and exit status.
@@ -522,22 +526,84 @@ def test_batch_launcher_waits_for_orphaned_worker_and_propagates_failure(tmp_pat
     import sys
     from pathlib import Path
 
-    import benchmarking.engine.container_scripts.wait_process_tree as waiter
+    import benchmarking.execution._scripts.wait_process_tree as waiter
 
     marker = tmp_path / 'worker-finished'
+    exit_report = tmp_path / 'exit.json'
     worker = (f'import time,pathlib,sys; time.sleep(0.05); '
               f'pathlib.Path({str(marker)!r}).write_text("finished"); sys.exit({worker_exit})')
     launcher = f'import subprocess,sys; subprocess.Popen([sys.executable, "-c", {worker!r}])'
-    result = subprocess.run([sys.executable, str(Path(waiter.__file__)), sys.executable,
+    result = subprocess.run([sys.executable, str(Path(waiter.__file__)), '--exit-report', str(exit_report), sys.executable,
                              '-c', launcher], timeout=10, check=False)
     assert marker.read_text() == 'finished'
     assert result.returncode == worker_exit
+    report = json.loads(exit_report.read_text())
+    assert report['command_returncode'] == 0
+    assert report['returncode'] == worker_exit
+    assert report['exit_grace_exceeded'] is False
+
+
+@pytest.mark.parametrize('ending', ['normal', 'stuck-main', 'stuck-worker'])
+def test_completion_marker_bounds_exit_without_limiting_active_extraction(tmp_path, ending):
+    import json
+    import sys
+    from pathlib import Path
+
+    import benchmarking.execution._scripts.wait_process_tree as waiter
+    from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.execution.tools.budget import tool_time_limits
+    from benchmarking.execution.tools.native import NativeTool
+    from benchmarking.files import Asset
+
+    # Active extraction outlasts the exit grace. Only a completion marker may
+    # start that grace; a stuck main process and an adopted orphan both fail.
+    worker = '''import os, signal, time
+from pathlib import Path
+time.sleep(.2)
+Path('worker.pid').write_text(str(os.getpid()))
+Path('extracted.dspf').write_text('retained DSPF')
+Path('qrc.log').write_text('***** Quantus terminated normally *****')
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+time.sleep(DELAY)
+'''.replace('DELAY', '.02' if ending == 'normal' else '1')
+    launcher = ('import subprocess,sys; subprocess.Popen([sys.executable, "worker.py"])'
+                if ending == 'stuck-worker' else worker)
+    files = {'worker.py': Asset(worker.encode(), 'python'),
+             'tool.py': Asset(launcher.encode(), 'python'),
+             'wait.py': Asset(Path(waiter.__file__).read_bytes(), 'python')}
+    tool = NativeTool(ExternalRuntime('test', {'image': 'unused', 'environment': {}, 'mounts': []}),
+                      timeout_seconds=.01)
+    with tool_time_limits(False):
+        result = tool.run([sys.executable, 'wait.py', '--completion-log', 'qrc.log',
+                           '--completion-marker', 'Quantus terminated normally',
+                           '--exit-report', 'exit.json',
+                           '--exit-grace-seconds', '.1', sys.executable, 'tool.py'], files,
+                          {'qrc.log': 'text', 'extracted.dspf': 'spice', 'worker.pid': 'text', 'exit.json': 'json'})
+    assert result.files['extracted.dspf'].content == b'retained DSPF'
+    assert not Path('/proc/' + result.files['worker.pid'].content.decode()).exists()
+    report = json.loads(result.files['exit.json'].content)
+    assert report['schema'] == 'iclayout-tool-exit-v1'
+    assert report['returncode'] == result.returncode
+    assert report['exit_grace_exceeded'] is (ending != 'normal')
+    if ending == 'normal':
+        assert result.returncode == 0 and not result.reason
+        assert report['command_returncode'] == 0
+    else:
+        assert result.returncode == 124
+        assert report['completion_seen'] is True
+        assert report['processes']
+        prefix = 'EDA process did not exit after its completion marker: '
+        diagnostics = json.loads(result.evidence['console'].content.decode().split(prefix)[1])
+        pid = int(result.files['worker.pid'].content)
+        process = next(item for item in diagnostics['processes'] if item['pid'] == pid)
+        assert process['threads'][0]['state'] == 'S'
+        assert process['threads'][0]['wait_channel']
 
 
 def test_quantus_identity_survives_timestamped_startup_diagnostics(monkeypatch):
     from types import SimpleNamespace
 
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.environment import ExternalRuntime
 
     runtime = ExternalRuntime('operator', {'image': 'operator', 'environment': {}, 'mounts': []})
     serial = iter(range(4))
@@ -547,53 +613,45 @@ def test_quantus_identity_survives_timestamped_startup_diagnostics(monkeypatch):
                    'Build Ref. No. : build\nBuild Date : fixed-build-date\n')
         return SimpleNamespace(version=version, identity={'tool_version': 'PVS release'})
 
-    monkeypatch.setattr('benchmarking.engine.backends.pvs.DockerTool', tool)
+    monkeypatch.setattr('benchmarking.eda.backends.pvs.DockerTool', tool)
     first = PvsDocker(runtime=runtime, check='rc').identity
     second = PvsDocker(runtime=runtime, check='rc').identity
     assert first == second
 
 
-def test_dspf_interface_continuations_and_junctions_preserve_rc():
-    # Synthetic DSPF tests ordered pin binding and model-call adaptation only.
-    # A continued port was previously dropped; missing junctions must not default.
-    from benchmarking.engine.netlists.dspf import adapt_dspf
+def test_dspf_interface_binding_preserves_native_devices_and_annotations():
+    from benchmarking.eda.netlists.dspf import bind_extracted_netlist
 
-    raw = '.SUBCKT demo b\n+ a\nM1 d g s b mos L=1e-6 W=2e-6\n+ AS=1e-12 AD=2e-12 PS=3e-6 PD=4e-6 fw=2e-6\nR1 a d 12\nC1 b g 1e-15\n.ENDS\n'
-    adapted = adapt_dspf(raw, 'demo', ['a', 'b'], {'mos': 'wrapped'}, True)
-    assert adapted.startswith('.SUBCKT demo a b\n')
-    assert 'XM1 d g s b wrapped L=1e-6 W=2e-6 AS=1e-12 AD=2e-12 PS=3e-6 PD=4e-6' in adapted
-    assert 'R1 a d 12\nC1 b g 1e-15' in adapted
+    raw = ('.SUBCKT demo b\n+ a\nM1 d g s b mos L=1e-6 W=2e-6\n'
+           '+ AS=1e-12 AD=2e-12 PS=3e-6 PD=4e-6 fw=2e-6\n'
+           'R1 a d 12\nC1 b g 1e-15\n.ENDS\n')
+    bound = bind_extracted_netlist(raw, 'demo', ['a', 'b'], require_junctions=True)
+    assert bound == raw.replace('.SUBCKT demo b\n+ a\n', '.SUBCKT demo a b\n')
     with pytest.raises(ValueError, match='geometry'):
-        adapt_dspf(raw.replace('AS=1e-12 ', ''), 'demo', ['a', 'b'], {'mos': 'wrapped'}, True)
+        bind_extracted_netlist(raw.replace('AS=1e-12 ', ''), 'demo', ['a', 'b'], require_junctions=True)
     with pytest.raises(ValueError, match='interface'):
-        adapt_dspf(raw, 'demo', ['a', 'wrong'], {'mos': 'wrapped'}, True)
-    cap = '\nMcap b g b b moscap L=1e-6 W=2e-6\n'
-    mapped = {'mos': 'wrapped', 'moscap': 'cap_wrapper'}
+        bind_extracted_netlist(raw, 'demo', ['a', 'wrong'])
+    cap = 'Mcap b g b b moscap L=1e-6 W=2e-6\n'
+    with_cap = raw.replace('.ENDS\n', cap + '.ENDS\n')
     with pytest.raises(ValueError, match='geometry'):
-        adapt_dspf(raw + cap, 'demo', ['a', 'b'], mapped, True)
-    assert 'XMcap b g b b cap_wrapper' in adapt_dspf(
-        raw + cap, 'demo', ['a', 'b'], mapped, True, junctionless_models=['moscap'])
-    with pytest.raises(ValueError, match='geometry'):
-        adapt_dspf(raw.replace('AS=1e-12 ', '') + cap, 'demo', ['a', 'b'], mapped,
-                   True, junctionless_models=['moscap'])
+        bind_extracted_netlist(with_cap, 'demo', ['a', 'b'], require_junctions=True)
+    assert cap in bind_extracted_netlist(with_cap, 'demo', ['a', 'b'], require_junctions=True,
+                                         junctionless_models=['moscap'])
 
 
 def test_dspf_engineering_units_preserve_native_physical_parameters():
-    from benchmarking.engine.netlists.dspf import adapt_dspf
+    from benchmarking.eda.netlists.dspf import bind_extracted_netlist
 
     raw = ('.SUBCKT demo a b\n'
            'X1 d g s b mos L=30n W=0.8u AS=0.1125p AD=0 PS=1.05u PD=0\n'
            'R1 a d 1.2k\nC1 b g 0.5f\n.ENDS demo\n')
-    assert adapt_dspf(raw, 'demo', ['a', 'b'], {}, True,
-                      subcircuit_mos_models=['mos']) == raw
+    assert bind_extracted_netlist(raw, 'demo', ['a', 'b'], require_junctions=True, subcircuit_mos_models=['mos']) == raw
     for invalid in ('-0.1p', '1e999p', '0.1bogus', '{area}'):
         with pytest.raises(ValueError):
-            adapt_dspf(raw.replace('0.1125p', invalid), 'demo', ['a', 'b'], {}, True,
-                       subcircuit_mos_models=['mos'])
+            bind_extracted_netlist(raw.replace('0.1125p', invalid), 'demo', ['a', 'b'], require_junctions=True, subcircuit_mos_models=['mos'])
     for invalid in ('0u', '-30n', '1e999n'):
         with pytest.raises(ValueError, match='geometry'):
-            adapt_dspf(raw.replace('30n', invalid), 'demo', ['a', 'b'], {}, True,
-                       subcircuit_mos_models=['mos'])
+            bind_extracted_netlist(raw.replace('30n', invalid), 'demo', ['a', 'b'], require_junctions=True, subcircuit_mos_models=['mos'])
 
 
 def test_rejected_dspf_retains_native_diagnostic_evidence(monkeypatch):
@@ -617,8 +675,8 @@ def test_rejected_dspf_retains_native_diagnostic_evidence(monkeypatch):
     backend.runtime = SimpleNamespace(module_setup=lambda _: '', pdk_file=lambda name: (deck, '/pdk/deck'))
     backend.check = 'rc'
     backend.settings = {'lvs_deck': 'lvs', 'lvs_includes': {}, 'qrc_technology': 'rcx',
-                        'mos_models': {'mos': 'wrapped'}, 'require_junctions': True,
-                        'resistor_models': {}, 'bipolar_models': {}}
+                        'require_junctions': True,
+                        }
     backend.tool = SimpleNamespace(run=lambda *args: ToolResult(0, '', evidence, {}))
     job = parse_evaluation(b'''mode="characterization"
 metrics=[]
@@ -644,7 +702,7 @@ def test_transient_settling_uses_last_band_entry_and_frozen_reference_window():
     # Piecewise-linear analytical trace: first entry at 1.9 s, later excursion,
     # final band entry at 3.5 s. Trigger crosses 0.5 V at 0.5 s, so delay is 3 s.
     # This catches a first-crossing measurement falsely accepting ringing.
-    from benchmarking.engine.backends.spectre import transient_measurements
+    from benchmarking.eda.backends.spectre import transient_measurements
 
     settings = {'positive': 'p', 'negative': 'n', 'trigger': 'clk',
                 'trigger_threshold': .5, 'edge_index': 1,
@@ -718,46 +776,24 @@ parameters.measurements={rise_settling_s="s",fall_settling_s="s",fall_final_v="V
 
 
 @pytest.mark.parametrize('with_mos', [True, False])
-def test_modeled_resistor_retains_geometry_and_substrate(with_mos):
-    # A physical process resistor must not become a temperature-independent
-    # number. Interconnect resistance remains a numeric extracted element.
-    from benchmarking.engine.netlists.dspf import adapt_dspf
+def test_native_process_resistor_preserves_all_parameters(with_mos):
+    from benchmarking.eda.netlists.dspf import bind_extracted_netlist
 
-    raw = ('.SUBCKT demo a b\nM1 a a b b mos L=1e-6 W=2e-6\n'
-           'Rdev a b poly 1997 L=9.985e-6 W=2e-6 $SUB=b\n'
-           'Rwire a x 12\nC1 x b 1e-15\n.ENDS\n')
-    # A passive DUT has no MOS. Model-bound geometry still identifies its
-    # physical devices; a parasitic-only RC fragment must not qualify instead.
-    if not with_mos:
-        raw = raw.replace('M1 a a b b mos L=1e-6 W=2e-6\n', '')
-    args = ('demo', ['a', 'b'], {'mos': 'wrapped'}, False, {'poly': 'poly_wrapper'})
-    result = adapt_dspf(raw, *args)
-    assert 'XRdev a b b poly_wrapper l=9.985e-6 w=2e-6' in result
-    assert 'Rwire a x 12' in result
-    assert '1997' not in result
-    with pytest.raises(ValueError, match='substrate'):
-        adapt_dspf(raw.replace(' $SUB=b', ''), *args)
-    with pytest.raises(ValueError, match='Unmapped'):
-        adapt_dspf(raw.replace('poly 1997', 'other 1997'), *args)
+    device = 'Rdev a b poly 1997 L=9.985e-6 W=2e-6 $SUB=b m=3 TC1=0.001\n'
+    raw = '.SUBCKT demo a b\n' + device + 'Rwire a x 12\nC1 x b 1e-15\n.ENDS\n'
+    if with_mos:
+        raw = raw.replace('.ENDS\n', 'M1 a a b b mos L=1e-6 W=2e-6\n.ENDS\n')
+    assert bind_extracted_netlist(raw, 'demo', ['a', 'b']) == raw
     with pytest.raises(ValueError, match='geometry'):
-        adapt_dspf(raw.replace('W=2e-6 $SUB', 'W=0 $SUB'), *args)
-    # A missing operator map must fail even when another physical MOS exists.
-    # Numeric device-segment annotations indicate model-flattening; accepting
-    # them lets the simulator ignore geometry and silently lose process PVT.
-    with pytest.raises(ValueError, match='Unmapped'):
-        adapt_dspf(raw, *args[:-1])
+        bind_extracted_netlist(raw.replace('W=2e-6 $SUB', 'W=0 $SUB'), 'demo', ['a', 'b'])
     flattened = raw.replace('poly 1997 L=9.985e-6 W=2e-6',
                             '1997 segr=1997 segl=9.985e-6 segw=2e-6 effw=2e-6')
-    for mapping in ({}, args[-1]):
-        with pytest.raises(ValueError, match='lost its model'):
-            adapt_dspf(flattened, *args[:-1], mapping)
-    if not with_mos:
-        with pytest.raises(ValueError, match='physical devices'):
-            adapt_dspf(raw.replace('Rdev a b poly 1997 L=9.985e-6 W=2e-6 $SUB=b\n', ''), *args)
+    with pytest.raises(ValueError, match='lost its model'):
+        bind_extracted_netlist(flattened, 'demo', ['a', 'b'])
 
 
 def test_waveform_endpoint_roundoff_does_not_hide_truncation():
-    from benchmarking.engine.measurements.waveform import measure_waveform
+    from benchmarking.evaluation.measurements.waveform import measure_waveform
 
     settings = {'max_step_s': .5, 'traces': {'x': {'terms': {'x': 1}}},
                 'measures': {'peak': {'operation': 'max', 'trace': 'x',
@@ -785,7 +821,7 @@ def test_duty_cycle_uses_complete_periods_and_bounds_each_cycle():
     # Piecewise-linear crossings: rises at 1,5,9 s; falls at 2,8 s.
     # Independent high-time/period ratios are 1/4 and 3/4. A mean of 1/2
     # must not hide either extreme, and a threshold-touching glitch must fail.
-    from benchmarking.engine.measurements.waveform import measure_waveform
+    from benchmarking.evaluation.measurements.waveform import measure_waveform
 
     signal = [-1, -1, 0, 1, 0, -1, -1, -1, -1, -1, 0, 1, 1, 1, 1, 1, 0, -1, 0, 1, 1]
     samples = {'time': [i/2 for i in range(len(signal))], 'x': signal}
@@ -811,7 +847,7 @@ def test_duty_cycle_uses_complete_periods_and_bounds_each_cycle():
 def test_periodic_measurements_bound_cycles_and_compare_windows():
     # Analytical rising crossings at 1,3,7,11 s give 1/2,1/4,1/4 Hz.
     # Unequal peaks/troughs expose averaging that conceals a weak cycle.
-    from benchmarking.engine.measurements.waveform import measure_waveform
+    from benchmarking.evaluation.measurements.waveform import measure_waveform
 
     samples = {'time': [0, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                'x': [-1, 0, 2, 0, -1, 0, 1, 0, -1, 0, 3, 0, -2, 0]}
@@ -838,30 +874,24 @@ def test_periodic_measurements_bound_cycles_and_compare_windows():
         measure_waveform(samples, settings)
 
 
-def test_bipolar_wrapper_converts_area_units_without_changing_terminals_or_rc():
-    # A six-square-micrometre emitter is represented in native square metres.
-    # The explicit wrapper mapping converts units; device count/multiplicity,
-    # ordered C/B/E terminals and all numeric parasitics must remain unchanged.
-    from benchmarking.engine.netlists.dspf import adapt_dspf
+def test_native_bipolar_area_is_never_scaled_or_wrapped():
+    from benchmarking.eda.netlists.dspf import bind_extracted_netlist
 
-    emitter_um2 = 6
-    raw = (f'.SUBCKT demo c b e\nQ1 c b e pnp AREA={emitter_um2*1e-12} M=3\n'
-           'R1 c x 12\nC1 x b 1e-15\n.ENDS\n')
-    mapping = {'pnp': {'model': 'bjt_wrapper', 'area_scale': 1e12}}
-    args = ('demo', ['c', 'b', 'e'], {}, False, None)
-    result = adapt_dspf(raw, *args, mapping)
-    assert f'XQ1 c b e bjt_wrapper area={emitter_um2} M=3' in result
-    assert 'R1 c x 12\nC1 x b 1e-15' in result
-    with pytest.raises(ValueError, match='Unmapped'):
-        adapt_dspf(raw, *args)
-    for area in ['0', '-1', 'nan', 'inf']:
-        invalid = raw.replace(f'AREA={emitter_um2*1e-12}', f'AREA={area}')
-        with pytest.raises(ValueError, match='bipolar area'):
-            adapt_dspf(invalid, *args, mapping)
-    with pytest.raises(ValueError, match='one explicit area'):
-        adapt_dspf(raw.replace(' M=3', ' AREA=1 M=3'), *args, mapping)
-    with pytest.raises(ValueError, match='Invalid bipolar model mapping'):
-        adapt_dspf(raw, *args, {'pnp': mapping['pnp'] | {'area_scale': 0}})
+    raw = '.SUBCKT demo c b e\nQ1 c b e pnp AREA=6e-12 M=3\nR1 c x 12\nC1 x b 1e-15\n.ENDS\n'
+    assert bind_extracted_netlist(raw, 'demo', ['c', 'b', 'e']) == raw
+    for area in ('0', '-1', 'nan', 'inf'):
+        with pytest.raises(ValueError):
+            bind_extracted_netlist(raw.replace('AREA=6e-12', 'AREA='+area), 'demo', ['c', 'b', 'e'])
+
+
+def test_fixed_area_bipolar_preserves_native_model_and_multiplicity():
+    from benchmarking.eda.netlists.dspf import bind_extracted_netlist
+
+    raw = '.SUBCKT demo c b e\nQ1 c b e fixed_pnp m=8\nR1 c x 12\nC1 x b 1e-15\n.ENDS\n'
+    assert bind_extracted_netlist(raw, 'demo', ['c', 'b', 'e']) == raw
+    for value in ('0', '-1', 'nan', 'inf'):
+        with pytest.raises(ValueError):
+            bind_extracted_netlist(raw.replace('m=8', 'm='+value), 'demo', ['c', 'b', 'e'])
 
 
 def test_ac_transfer_measures_attenuation_and_rejects_incomplete_sweeps():
@@ -869,7 +899,7 @@ def test_ac_transfer_measures_attenuation_and_rejects_incomplete_sweeps():
     # phases plus a common component require subtraction before magnitude.
     # This analytical oracle protects the new differential AC profile, which
     # the existing single-output/unity-crossing test cannot exercise.
-    from benchmarking.engine.measurements.frequency import measure_transfer
+    from benchmarking.evaluation.measurements.frequency import measure_transfer
 
     freq = [1, 10, 100]
     gain = [.5, .25, .125]
@@ -916,7 +946,7 @@ def test_ac_transfer_measures_attenuation_and_rejects_incomplete_sweeps():
 
 
 def test_assura_native_drc_requires_complete_nonempty_run():
-    from benchmarking.engine.backends.assura import drc_runset, drc_summary
+    from benchmarking.eda.backends.assura import drc_runset, drc_summary
 
     # Native Assura summary/avrpt fields; no licensed data or process deck.
     log = ('Translating structure "dut"\nTop Cell is \'dut\'\n'
@@ -938,7 +968,7 @@ def test_assura_native_drc_requires_complete_nonempty_run():
 
 
 def test_assura_lvs_reports_require_agreement_and_complete_run():
-    from benchmarking.engine.backends.assura import lvs_runset, lvs_summary
+    from benchmarking.eda.backends.assura import lvs_runset, lvs_summary
 
     log = ('Translating structure "dut"\nTop Cell is \'dut\'\n'
            'Assura LVS terminated normally.\nAssura terminated normally\n')
@@ -971,13 +1001,12 @@ def test_assura_rc_keeps_frozen_inputs_and_requires_native_match(monkeypatch):
     # synthetic reports and DSPF establish fail-closed adaptation, not physics.
     from types import SimpleNamespace
 
-    from benchmarking.engine.backends.assura import AssuraRCDocker
+    from benchmarking.eda.backends.assura import AssuraRCDocker
 
     backend = object.__new__(AssuraRCDocker)
     backend.runtime = SimpleNamespace(module_setup=lambda _: '', pdk_file=lambda name: (None, '/pdk/'+name))
     backend.decks = {'extract_deck': 'extract', 'compare_deck': 'compare', 'binding_deck': 'bind'}
-    backend.settings = {'qrc_technology': 'rcx', 'mos_models': {'mos': 'wrapper'},
-                        'resistor_models': {}, 'bipolar_models': {}, 'require_junctions': True,
+    backend.settings = {'qrc_technology': 'rcx', 'require_junctions': True,
                         'junctionless_models': []}
     native = {
         'assura.log': 'Translating structure "dut"\nTop Cell is \'dut\'\n'

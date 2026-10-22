@@ -1,6 +1,6 @@
 """Pure HTTP projections of durable runs, workspace state and judge reports."""
 
-from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY
+from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY
 from benchmarking.protocol import USAGE_FIELDS
 
 
@@ -39,7 +39,6 @@ def status(data, workspace, events, now):
                 **({'recovery': data['recovery']} if 'recovery' in data else {})}
 
 
-
 def result(data, status, judged=None):
     report = data.get('report', {})
     verdict = {'passed':'pass', 'failed':'fail', 'no_submission':'no_submission', 'error':'error'}.get(report.get('outcome'))
@@ -47,8 +46,10 @@ def result(data, status, judged=None):
         verdict = 'error'
     metrics = {}
     failure_reason = report.get('evaluation_error')
+    tool_failures = {}
     if judged is not None:
         metrics = judged.get('metrics', {})
+        tool_failures = {name: job['failure'] for name, job in judged.get('jobs', {}).items() if job.get('failure')}
         rejected = [name + ': ' + job['status']
                     for name, job in judged.get('jobs', {}).items() if job['status'] != 'passed']
         if verdict in ('fail', 'error'):
@@ -63,6 +64,10 @@ def result(data, status, judged=None):
                 'usage': dict.fromkeys(USAGE_FIELDS), 'diagnostics': status['diagnostics'], 'submission': status['last_submission'], 'outcome': verdict,
                 'task_success': report.get('task_success'), 'score': report.get('score'), 'metrics': metrics,
                 'failure_category': ('service_failure' if data.get('interrupted') or report.get('termination') == 'infrastructure_error'
-                                     else 'evaluation_tool_error' if verdict == 'error' and report.get('evaluation_error')
+                                     else 'license_unavailable' if verdict == 'error' and any(
+                                         item['category'] == 'license_unavailable' for item in tool_failures.values())
+                                     else 'evaluation_tool_error' if verdict == 'error' and (report.get('evaluation_error') or
+                                         judged is not None and any(j['status'] == 'error' for j in judged.get('jobs', {}).values()))
                                      else 'unknown' if verdict == 'error' else None),
-                'failure_reason': data.get('startup_failure', 'service_interrupted') if data.get('interrupted') else failure_reason, 'evidence': []}
+                'failure_reason': data.get('startup_failure', 'service_interrupted') if data.get('interrupted') else failure_reason,
+                'tool_failures': tool_failures, 'evidence': []}

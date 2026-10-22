@@ -1,13 +1,13 @@
 """One catalog traversal checks ownership, qualification and isolated inputs.
 
 The loader owns plan schema and dependency validation; these checks add the
-published case contract and SPICE interface evidence that it cannot infer.
+catalog case contract and simulator interface evidence that it cannot infer.
 """
 
 import hashlib
-import json
 import math
 import re
+import shlex
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -16,20 +16,25 @@ import tomli_w
 from helpers.case_config import standalone_config
 from helpers.catalog import CASES, ROOT, read_case
 
-from benchmarking.dataset import Dataset, case_location, process_manifest, select_core
-from benchmarking.engine.resources.support import load_profile
+from benchmarking.eda.resources.support import load_profile
 from benchmarking.evaluation import SCORING_METHOD
-from benchmarking.tasks import load_task, task_contract
+from benchmarking.tasks.contract import load_task, task_contract
+from benchmarking.tasks.dataset import (
+    Dataset,
+    case_location,
+    process_manifest,
+    select_core,
+)
 
 pytestmark = pytest.mark.unit
 
 
-@pytest.mark.parametrize("card_split,table_format,ordered", [
-    (None, "parquet", False), (None, "jsonl", True),
-    ("test", "parquet", True), ("test", "jsonl", False),
-    ("validation", "parquet", False), ("validation", "jsonl", True),
-])
-def test_native_static_index_with_and_without_dataset_card(tmp_path, card_split, table_format, ordered):
+@pytest.mark.parametrize("card_split", [None, "test", "validation"])
+@pytest.mark.parametrize("ordered", [False, True])
+def test_native_static_index_with_and_without_dataset_card(tmp_path, card_split, ordered):
+    evaluation = tmp_path / "evaluation"
+    evaluation.mkdir()
+    (evaluation / "source.cdl").write_text(".subckt fixture a b\n.ends\n")
     process = tmp_path / "tasks/fixture"
     process.mkdir(parents=True)
     pdk = process / "pdk.toml"
@@ -50,18 +55,12 @@ def test_native_static_index_with_and_without_dataset_card(tmp_path, card_split,
         row["case_sha256"] = hashlib.sha256(case.read_bytes()).hexdigest()
         source_rows.append(row)
         source_cases[case_id] = case
-    name = f"data.{table_format}"
+    name = "data.parquet"
 
     def write_index():
-        if table_format == "parquet":
-            pq.write_table(pa.Table.from_pylist(source_rows), tmp_path / name)
-        else:
-            (tmp_path / name).write_text("".join(json.dumps(row) + "\n" for row in source_rows))
+        pq.write_table(pa.Table.from_pylist(source_rows), tmp_path / name)
 
     write_index()
-    if table_format == "parquet":
-        # A leftover legacy view must not override the native index without a card.
-        (tmp_path / "data.jsonl").write_text(json.dumps({**source_rows[0], "id": "obsolete"}) + "\n")
     if card_split:
         (tmp_path / "README.md").write_text(
             "---\nconfigs:\n- config_name: default\n  data_files:\n"
@@ -101,10 +100,11 @@ def test_core_order_rejects_ambiguous_or_invalid_positions(orders):
 
 
 def _logical_lines(raw):
-    """Join SPICE continuation lines for the small top-level checks below."""
+    """Join SPICE '+' and Spectre backslash continuations for interface checks."""
     logical = []
-    for raw_line in raw.splitlines():
-        line = raw_line.decode("utf-8", "replace").strip()
+    content = re.sub(r"\\[ \t]*\r?\n[ \t]*", " ", raw.decode("utf-8", "replace"))
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
         if not line or line.startswith("*"):
             continue
         if line.startswith("+") and logical:
@@ -123,9 +123,16 @@ def _subckt_ports(raw, name):
 
 
 def _dut_argument_lists(raw, name):
-    """Find top-level X instances of the authoritative DUT subcircuit."""
+    """Find authoritative DUT subcircuit calls in a SPICE or Spectre deck."""
     calls = []
     for line in _logical_lines(raw):
+        if line.startswith(("*", ";", "//")):
+            continue
+        native = re.fullmatch(r"\S+?\s*\(([^()]*)\)\s+" + re.escape(name) + r"(?:\s+.*)?",
+                              line, flags=re.IGNORECASE)
+        if native:
+            calls.append(native[1].split())
+            continue
         fields = line.split()
         if not fields or not re.fullmatch(r"x[^\s]*", fields[0], flags=re.IGNORECASE):
             continue
@@ -134,6 +141,18 @@ def _dut_argument_lists(raw, name):
         if matches:
             calls.append(fields[1:matches[0]])
     return calls
+
+
+@pytest.mark.parametrize("instance", [
+    "XDUT a\n+ b example",
+    "DUT (a \\\n b) example",
+    "I7 (a b) example scale=1",
+])
+def test_catalog_dut_ports_cover_simulator_dialects(instance):
+    raw = ("// I0 (wrong) example\n* XDUT wrong example\n"
+           "XOTHER wrong other\n" + instance + "\n").encode()
+    assert _dut_argument_lists(raw, "example") == [["a", "b"]]
+    assert _dut_argument_lists(raw, "missing") == []
 
 
 def _check_published_budget(description, hours, context=None):
@@ -259,7 +278,7 @@ def _check_published_area(description, expected_target, context=None):
         assert abs(target - ratio * anchor) <= 0.010001, context
 
 
-def _check_public_plan(config, data, task):
+def _check_case_plan(config, data, task):
     assert task.hours == data["task"]["hours"] and task.wall_seconds > 0, config
     description = next(item.content.decode() for item in task.inputs if item.role == "description")
     _check_published_budget(description, task.hours, config)
@@ -291,7 +310,7 @@ def _check_public_plan(config, data, task):
     netlist = next(item for item in task.inputs if item.role == "netlist")
     ports = _subckt_ports(netlist.content, task.netlist_subcircuit)
     assert ports, config
-    inputs = {f"input:{item.role}": item for item in task.inputs}
+    inputs = {f"input:{item.role}": item for item in (*task.inputs, *task.evaluator_inputs)}
     for job in plan.jobs:
         if job.stage == "extract":
             assert [port.lower() for port in job.parameters["ports"]] == [port.lower() for port in ports], config
@@ -302,8 +321,8 @@ def _check_public_plan(config, data, task):
         assert calls and all(len(call) == len(ports) for call in calls), (config, job.id)
         circuit_roles = [role for role, ref in job.inputs if ref.startswith("job:")]
         if circuit_roles:
-            included = {line.split()[1].strip("\"'") for line in _logical_lines(deck.content)
-                        if line.lower().startswith(".include ")}
+            included = {shlex.split(line)[1] for line in _logical_lines(deck.content)
+                        if re.match(r"\.?include\s+", line, flags=re.IGNORECASE)}
             assert any(f"{role}.spice" in included for role in circuit_roles), (config, job.id)
     for item in task.inputs:
         declared = _subckt_ports(item.content, task.netlist_subcircuit)
@@ -372,15 +391,15 @@ Estimate = ceil(envelope_sum + margin). Here margin is the total allowance.
     with pytest.raises(AssertionError):
         _check_published_area(description.replace("envelopes 98 um2", "envelopes 99 um2"), 80.0)
 
-    legacy_reference = description.replace(
+    reference_text = description.replace(
         "Current area target: **80 um2**, 80% of the prior **100 um2** engineering anchor.",
         "Area reference: **100 um2**.",
     )
-    _check_published_area(legacy_reference, 100.0)
+    _check_published_area(reference_text, 100.0)
     with pytest.raises(AssertionError):
-        _check_published_area(legacy_reference.replace("reference: **100 um2**", "reference: **101 um2**"), 101.0)
+        _check_published_area(reference_text.replace("reference: **100 um2**", "reference: **101 um2**"), 101.0)
 
-    integration_budget = legacy_reference + "The area quality target is **80 um2**. It is an integration budget.\n"
+    integration_budget = reference_text + "The area quality target is **80 um2**. It is an integration budget.\n"
     _check_published_area(integration_budget, 80.0)
     with pytest.raises(AssertionError):
         _check_published_area(integration_budget.replace("target is **80 um2**", "target is **81 um2**"), 80.0)
@@ -388,17 +407,17 @@ Estimate = ceil(envelope_sum + margin). Here margin is the total allowance.
         _check_published_area(integration_budget.replace("envelopes 98 um2", "envelopes 99 um2"), 80.0)
 
 
-@pytest.mark.parametrize("config", CASES, ids=lambda path: path.parent.name)
+@pytest.mark.parametrize("config", CASES, ids=lambda path: read_case(path)["id"])
 @pytest.mark.skipif(not CASES, reason="Set ICLAYOUT_BENCH_DATASET to run dataset checks")
-def test_published_case_owns_only_declared_solver_inputs(config, tmp_path):
+def test_catalog_case_owns_only_declared_solver_inputs(config, tmp_path):
     data = read_case(config)
     location = case_location(config)
     process, collection = location["process"], location["collection"]
     assert config.parents[3].name == process and config.parents[2].name == collection
     assert (ROOT / "tasks" / process / collection / "LICENSE").read_bytes()
-    assert data["status"] == "qualified"
     task = load_task(config)  # Owns schema, digests, physical gates and extracted-DUT dependencies.
-    _check_public_plan(config, data, task)
+    assert task.status == data["status"], config
+    _check_case_plan(config, data, task)
     inputs = data["task"]["inputs"]
     assert not {"license", "notice", "pex_scope"} & inputs.keys(), config
     assert not any(entry["path"].rsplit("/", 1)[-1] in {"LICENSE", "NOTICE"}
@@ -406,6 +425,7 @@ def test_published_case_owns_only_declared_solver_inputs(config, tmp_path):
     assert set(data["origin"]) == {"url"}
     declared = {"case.toml"}
     declared.update(entry.get("source", entry["path"]) for entry in inputs.values())
+    declared.update(item.path for item in task.evaluator_inputs)
     assets = {entry["path"]: entry for entry in data.get("assets", [])}
     reference = data.get("qualification", {}).get("reference")
     if reference:
@@ -419,11 +439,18 @@ def test_published_case_owns_only_declared_solver_inputs(config, tmp_path):
     destination = tmp_path / "solver"
     task.materialize(destination)
     assert {p.relative_to(destination).as_posix() for p in destination.rglob("*") if p.is_file()} == {
-        entry.path for entry in task.inputs
+        entry.path for entry in task.solver_inputs
     }
+    assert all(not (destination / item.path).exists() for item in task.evaluator_inputs), config
     if reference:
         assert not (destination / reference).exists(), config
-    copied = destination / "case.toml"
+    standalone_directory = tmp_path / "standalone"
+    standalone_directory.mkdir()
+    for item in (*task.inputs, *task.evaluator_inputs):
+        path = standalone_directory / item.path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(item.content)
+    copied = standalone_directory / "case.toml"
     copied.write_text(standalone_config(tomli_w.dumps(data)))
     standalone = load_task(copied)
     assert standalone.input_assets() == task.input_assets()
@@ -436,9 +463,15 @@ def test_published_case_owns_only_declared_solver_inputs(config, tmp_path):
 @pytest.mark.skipif(not CASES, reason="Set ICLAYOUT_BENCH_DATASET to run dataset checks")
 def test_native_huggingface_views_match_authoritative_cases(tmp_path):
     datasets = pytest.importorskip("datasets")
-    default = datasets.load_dataset(str(ROOT), cache_dir=str(tmp_path / "cache"))
+    files = {"test": str(ROOT / "data.parquet")}
+    default = datasets.load_dataset(str(ROOT), data_files=files, cache_dir=str(tmp_path / "cache"))
     assert set(default) == {"test"}
     corpus = default["test"]
+    if (ROOT / "README.md").is_file():
+        # A supplied publication card also supports default HF discovery.
+        inferred = datasets.load_dataset(str(ROOT), cache_dir=str(tmp_path / "cache"))
+        assert set(inferred) == {"test"}
+        assert inferred["test"].to_list() == corpus.to_list()
     core = corpus.filter(lambda row: row["in_core"])
     selected = {read_case(config)["id"] for config in CASES if read_case(config)["in_core"]}
     assert set(core["id"]) == selected
@@ -451,8 +484,9 @@ def test_native_huggingface_views_match_authoritative_cases(tmp_path):
         assert type(row["in_core"]) is bool
         assert row["in_core"] == (row["id"] in selected)
         assert row["title"] == data["title"]
-        assert row["category"] == data["presentation"]["category"]
-        assert row["summary"] == data["presentation"]["summary"]
+        presentation = data.get("presentation", {})
+        assert row["category"] == presentation.get("category")
+        assert row["summary"] == presentation.get("summary")
         assert row["source_url"] == data["origin"]["url"]
         assert ROOT / row["case_path"] == config
         assert row["case_sha256"] == hashlib.sha256(config.read_bytes()).hexdigest()
@@ -461,7 +495,7 @@ def test_native_huggingface_views_match_authoritative_cases(tmp_path):
         assert (ROOT / row["description_path"]).is_file()
         assert (ROOT / row["license_path"]).is_file()
     # Participant selection must traverse the real native reader, including filters.
-    from benchmarking.participants.config import read_configs
+    from benchmarking.participants.batch.config import read_configs
     config = tmp_path / "participant.toml"
     base = 'harness="codex"\nmodel="fixture"\nefforts=["medium"]\nconcurrency=1\nrepetitions=1\n'
     source = f'\n[dataset]\nsource="{ROOT}"\nname="core"\nsplit="test"\n'
@@ -476,6 +510,6 @@ def test_native_huggingface_views_match_authoritative_cases(tmp_path):
         read_configs([config])
     config.write_text(base + source.replace('name="core"', 'name="all"'))
     assert read_configs([config])[0]["tasks"] == corpus["id"]
-    streamed = datasets.load_dataset(str(ROOT), split="test", streaming=True,
+    streamed = datasets.load_dataset(str(ROOT), data_files=files, split="test", streaming=True,
                                     cache_dir=str(tmp_path / "cache"))
     assert [row["id"] for row in streamed if row["in_core"]] == core["id"]

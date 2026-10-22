@@ -1,8 +1,8 @@
 import pytest
 import tomli_w
 
-from benchmarking.bundles import load_bundle, publish_bundle
-from benchmarking.engine.resources.support import prepare_support
+from benchmarking.eda.resources.support import prepare_support
+from benchmarking.evidence.bundles import load_bundle, publish_bundle
 from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
@@ -61,8 +61,8 @@ def test_support_preparation_binds_pinned_sources_and_reuses_profiles(tmp_path, 
 # Synthetic compiler outputs distinguish raw, adapted and compiled bytes. Only
 # the external compiler is replaced; this verifies storage/reuse, not model physics.
 def test_cases_share_derived_files_and_recompile_only_changed_inputs(tmp_path, monkeypatch):
-    from benchmarking.engine.resources import support as module
-    from benchmarking.engine.tools.types import ToolResult
+    from benchmarking.eda.resources import support as module
+    from benchmarking.execution.tools import ToolResult
 
     monkeypatch.setenv("ICLAYOUT_BENCH_CACHE_DIR", str(tmp_path / "cache"))
     source = tmp_path / "source"
@@ -118,11 +118,8 @@ def test_ciel_reuses_installation_and_agent_mounts_only_selected_paths(tmp_path,
     import ciel.source
     from ciel.common import Version
 
-    from benchmarking.engine.resources.agent import prepare_agent_resources
-    from benchmarking.engine.resources.installation import (
-        cache_root,
-        prepare_installation,
-    )
+    from benchmarking.eda.resources.agent import prepare_agent_resources
+    from benchmarking.eda.resources.installation import cache_root, prepare_installation
 
     monkeypatch.delenv('ICLAYOUT_BENCH_CACHE_DIR', raising=False)
     monkeypatch.delenv('XDG_CACHE_HOME', raising=False)
@@ -182,7 +179,7 @@ def test_ciel_reuses_installation_and_agent_mounts_only_selected_paths(tmp_path,
 @pytest.mark.parametrize("paths", [[], "libs.tech", ["../examples"], ["/tmp"],
                                   ["tech", "tech/model"], ["tech", "tech"]])
 def test_agent_rejects_invalid_selected_paths(tmp_path, paths):
-    from benchmarking.engine.resources.agent import agent_spec
+    from benchmarking.eda.resources.agent import agent_spec
 
     manifest = tmp_path / 'pdk.toml'
     manifest.write_text(tomli_w.dumps({'agent': {

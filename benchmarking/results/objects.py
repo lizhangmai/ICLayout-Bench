@@ -4,8 +4,7 @@ import re
 from pathlib import Path
 
 from benchmarking.files import atomic_write
-
-from .normalization import digest
+from benchmarking.results.normalization import digest
 
 
 class FileObjects:

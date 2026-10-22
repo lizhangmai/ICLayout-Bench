@@ -5,12 +5,12 @@ import struct
 import subprocess
 from pathlib import Path
 
-from benchmarking.engine.source import package_source
-from benchmarking.engine.tools.docker import DockerTool
+from benchmarking.evidence.identity import package_source
+from benchmarking.execution.tools.docker import DockerTool
 from benchmarking.files import Asset, atomic_write, read_file
 
 
-def export_layout(case_dir, *, image=None):
+def export_layout(case_dir, *, image=None, runtime=None):
     """Caller holds the case lease. Never alter the result or candidate evidence."""
     case_dir = Path(case_dir)
     compact_path = case_dir / "result.json"
@@ -28,23 +28,33 @@ def export_layout(case_dir, *, image=None):
     top_cell = compact["top_cell"]
     previous = compact.get("image") or {}
     image_path = case_dir / "layout.png"
-    if previous.get("status") == "complete" and image_path.exists():
+    if image is not None and runtime is not None:
+        raise ValueError('Select one renderer image or an explicit native runtime')
+    if (previous.get("status") == "complete" and image_path.exists()
+            and (runtime is None or previous.get('renderer', {}).get('execution') == 'operator-native')):
         return previous
-    image_id = image or result["tool_identity"]["image_id"]
-    tool = DockerTool(image_id, ["python", "-c", "import klayout.db as k; print(k.__version__)"], 120)
-    script = package_source("engine/container_scripts/layout_image.py")
-    rendered = tool.run(["python", "-I", "render.py"], {
-        "candidate.gds": candidate, "render.py": Asset(script.read_bytes(), "python"),
-        "settings.json": Asset(json.dumps({"top_cell": top_cell}).encode(), "json"),
-    }, {"layout.png": "png", "image.json": "json"})
-    if rendered.returncode != 0 or rendered.reason:
-        raise RuntimeError("Layout renderer failed or timed out")
-    png = rendered.files["layout.png"]
-    info = json.loads(rendered.files["image.json"].content)
+    if runtime is not None:
+        from benchmarking.results.native_preview import render
+
+        png, info = render(candidate, top_cell, runtime)
+        renderer_identity = {}
+    else:
+        image_id = image or result["tool_identity"]["image_id"]
+        tool = DockerTool(image_id, ["python", "-c", "import klayout.db as k; print(k.__version__)"], 120)
+        script = package_source("results/_scripts/layout_image.py")
+        rendered = tool.run(["python", "-I", "render.py"], {
+            "candidate.gds": candidate, "render.py": Asset(script.read_bytes(), "python"),
+            "settings.json": Asset(json.dumps({"top_cell": top_cell}).encode(), "json"),
+        }, {"layout.png": "png", "image.json": "json"})
+        if rendered.returncode != 0 or rendered.reason:
+            raise RuntimeError("Layout renderer failed or timed out")
+        png = rendered.files["layout.png"]
+        info = json.loads(rendered.files["image.json"].content)
+        renderer_identity = {"renderer_image_id": tool.image_id}
     if (png.content[:8] != b"\x89PNG\r\n\x1a\n" or len(png.content) < 24
             or struct.unpack(">II", png.content[16:24]) != (info["width"], info["height"])):
         raise ValueError("Renderer produced an invalid PNG")
-    metadata = {"status": "complete", **info, "renderer_image_id": tool.image_id}
+    metadata = {"status": "complete", **info, **renderer_identity}
     atomic_write(image_path, png.content)
     if "layout.png" not in compact["files"]:
         compact["files"].append("layout.png")
@@ -53,10 +63,10 @@ def export_layout(case_dir, *, image=None):
     return metadata
 
 
-def ensure_layout_preview(case_dir, *, image=None):
+def ensure_layout_preview(case_dir, *, image=None, runtime=None):
     """Preview failures are visible but cannot turn a completed experiment into a failure."""
     try:
-        status = export_layout(case_dir, image=image)
+        status = export_layout(case_dir, image=image, runtime=runtime)
     except (OSError, ValueError, KeyError, TypeError, RuntimeError, subprocess.SubprocessError) as error:
         status = {"status": "error", "error_type": type(error).__name__}
         # Do not copy Docker diagnostics, credentials or host paths into shareable metadata.

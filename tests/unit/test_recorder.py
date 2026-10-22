@@ -8,13 +8,13 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from benchmarking.engine.sessions.recorder import (
+from benchmarking.evidence.journal import (
     RecordingError,
     RunRecorder,
     recover_submissions,
 )
+from benchmarking.execution.leases import BatchLease
 from benchmarking.files import Asset
-from benchmarking.locking import BatchLease
 from benchmarking.service.state import ServiceState
 
 pytestmark = [pytest.mark.unit, pytest.mark.acceptance, pytest.mark.acceptance_fast]
@@ -25,8 +25,8 @@ def test_process_exit_keeps_committed_submission_but_not_orphan(tmp_path):
     code = '''
 import os, sys
 from benchmarking.files import Asset
-from benchmarking.locking import BatchLease
-from benchmarking.engine.sessions.recorder import RunRecorder
+from benchmarking.execution.leases import BatchLease
+from benchmarking.evidence.journal import RunRecorder
 r = RunRecorder(sys.argv[1])
 a = Asset(b"accepted", "gds")
 ref = r.archive(a)
@@ -142,7 +142,7 @@ def test_resume_discards_only_uncommitted_tail_and_keeps_elapsed_clock(tmp_path,
     with journal.open('ab') as stream:
         stream.write(b'{unfinished')
     original_time = datetime.fromisoformat(first['time']).timestamp()
-    monkeypatch.setattr('benchmarking.engine.sessions.recorder.time.time', lambda: original_time + 120)
+    monkeypatch.setattr('benchmarking.evidence.journal.time.time', lambda: original_time + 120)
     resumed = RunRecorder.resume(recorder.root, discard_incomplete_tail=True)
     event = resumed.event('resumed')
     assert journal.read_bytes().startswith(prefix)
@@ -157,7 +157,7 @@ def test_batch_lease_is_exclusive_across_processes(tmp_path):
     RunRecorder(root)
     holder = subprocess.Popen(
         [sys.executable, "-c", """
-from benchmarking.locking import BatchLease
+from benchmarking.execution.leases import BatchLease
 import sys
 with BatchLease(sys.argv[1]):
     print('ready', flush=True)
@@ -167,7 +167,7 @@ with BatchLease(sys.argv[1]):
         assert holder.stdout.readline().strip() == "ready"
         attempt = subprocess.run(
             [sys.executable, "-c", """
-from benchmarking.locking import BatchLease
+from benchmarking.execution.leases import BatchLease
 import sys
 try:
     with BatchLease(sys.argv[1]):

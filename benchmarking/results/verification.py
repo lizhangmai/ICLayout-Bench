@@ -4,12 +4,12 @@ import json
 import math
 from pathlib import Path
 
-from benchmarking.engine.container_scripts import benchmark_feedback as opinions
-from benchmarking.engine.sessions.recorder import recover_submissions
-from benchmarking.engine.source import source_key
 from benchmarking.evaluation import parse_evaluation
+from benchmarking.evidence.identity import source_key
+from benchmarking.evidence.journal import recover_submissions
+from benchmarking.execution._scripts import benchmark_feedback as opinions
+from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY
 from benchmarking.files import Asset, read_file
-from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY
 
 
 def read_archived_asset(root, reference, label):
@@ -272,7 +272,7 @@ def verify_frozen_run(run_root, report, *, frozen_root, task, agent, execution, 
 
 def verify_service_result(store, result, *, frozen, image_id):
     """Compare a service result with run evidence and caller-frozen task bindings."""
-    from benchmarking.engine.sessions.archive import RunArchive
+    from benchmarking.evidence.archive import RunArchive
 
     archive = RunArchive.for_session(store, result['session_id'])
     if archive is None:

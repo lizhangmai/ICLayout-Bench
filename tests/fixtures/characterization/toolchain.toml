@@ -1,7 +1,7 @@
 [backends.spice]
 type = "ngspice-docker"
 [backends.spice.settings]
-image = "iclayout-eda-open:local"
+image = "docker.io/lizhangmai/iclayout-bench-tools:latest"
 timeout_seconds = 30
 
 [bindings]

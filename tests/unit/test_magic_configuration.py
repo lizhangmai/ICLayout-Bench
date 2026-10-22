@@ -2,8 +2,8 @@
 
 import pytest
 
-from benchmarking.engine.backends.magic import MagicCapacitanceDocker
-from benchmarking.engine.backends.magic_checks import netgen_verdict
+from benchmarking.eda.backends.magic import MagicCapacitanceDocker
+from benchmarking.eda.backends.magic_checks import netgen_verdict
 
 pytestmark = pytest.mark.unit
 
@@ -32,8 +32,8 @@ def test_extraction_diagnostics_distinguish_cell_names_from_errors(tmp_path, mon
     import json
     from types import SimpleNamespace
 
-    from benchmarking.bundles import publish_bundle
     from benchmarking.evaluation import Job
+    from benchmarking.evidence.bundles import publish_bundle
     from benchmarking.files import Asset
 
     class Tool:
@@ -45,7 +45,7 @@ def test_extraction_diagnostics_distinguish_cell_names_from_errors(tmp_path, mon
                                    files={'extracted.spice': Asset(b'.subckt dut P\n.ends\n', 'spice')},
                                    evidence={'console': Asset(log.encode(), 'text')})
 
-    monkeypatch.setattr('benchmarking.engine.backends.magic.DockerTool', Tool)
+    monkeypatch.setattr('benchmarking.eda.backends.magic.DockerTool', Tool)
     publish_bundle({'tech.tech': Asset(b'', 'text')}, {}, tmp_path / 'support')
     backend = MagicCapacitanceDocker(image='unused', support=str(tmp_path / 'support'),
                                     technology='tech.tech', tech_name='test', style='test')

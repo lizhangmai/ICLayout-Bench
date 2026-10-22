@@ -1,17 +1,18 @@
-"""Run the local development service against a Dataset case."""
+"""Serve an isolated evaluation session for a selected Dataset task."""
+
 import argparse
 import os
 import sys
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from benchmarking.dataset import load_dataset
-from benchmarking.engine.runtime import load_case
-from benchmarking.engine.source import implementation_identity
+from benchmarking.eda.images import tool_image
+from benchmarking.eda.runtime import load_case
+from benchmarking.evidence.identity import implementation_identity
+from benchmarking.execution.process import process_start
 from benchmarking.files import append_event, write_json
-
-from .process import process_start
-from .server import LocalService, serve
+from benchmarking.service.server import LocalService, serve
+from benchmarking.tasks.dataset import load_dataset
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--dataset', required=True)
@@ -21,7 +22,7 @@ parser.add_argument('--dataset-name')
 parser.add_argument('--dataset-split', default='test')
 parser.add_argument('--offline', action='store_true')
 parser.add_argument('--data', type=Path, required=True)
-parser.add_argument('--image', default='iclayout-eda-open:local')
+parser.add_argument('--image', help='Evaluator image override; defaults to the declared external runtime or open EDA image')
 parser.add_argument('--solver-image', help='Separate solver image; evaluator keeps --image')
 parser.add_argument('--solver-runtime', help='Explicit operator external runtime for solver mounts')
 parser.add_argument('--port', type=int, default=8765)
@@ -44,8 +45,9 @@ if args.solver_runtime:
         parser.error('Solver runtime must match the external process declaration')
     solver_runtime = runtime.external
 revision = implementation_identity()
+image = tool_image(args.image, external=runtime.external.image if runtime.external else None)
 service = LocalService(args.data, runtime.task, {} if solver_runtime else runtime.agent_resources(),
-                       runtime.backends, args.solver_image or (solver_runtime.image if solver_runtime else args.image),
+                       runtime.backends, args.solver_image or (solver_runtime.image if solver_runtime else image),
                        token, revision=revision, solver_runtime=solver_runtime, recoverable=args.recoverable)
 server = serve(service, args.port, audit=args.data / 'http.jsonl')
 endpoint = f'http://127.0.0.1:{server.server_port}'
@@ -55,7 +57,7 @@ try:
         args.owner_record.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         write_json(args.owner_record, {'pid': os.getpid(), 'start': process_start(os.getpid()),
                                        'endpoint': endpoint})
-    print(f'Local development service: {endpoint}', flush=True)
+    print(f'Evaluation service: {endpoint}', flush=True)
     server.serve_forever()
 except KeyboardInterrupt:
     pass

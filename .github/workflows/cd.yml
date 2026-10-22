@@ -62,7 +62,8 @@ jobs:
           identity = package_version()
           assert identity["version"] == version("iclayout-bench")
           assert identity["commit"] == os.environ["GITHUB_SHA"]
-          for name in ("benchmarking.run", "benchmarking.service", "benchmarking.engine.cli"):
+          for name in ("benchmarking.run", "benchmarking.service", "benchmarking.evaluation",
+                       "benchmarking.execution", "benchmarking.eda"):
               subprocess.run([sys.executable, "-I", "-m", name, "--help"], check=True)
           PYCODE
       - name: Upload distributions

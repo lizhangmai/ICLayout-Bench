@@ -1,1 +1,1 @@
-"""Shared preparation, isolated execution and independent layout evaluation."""
+"""Compatibility entry points for installed clients."""

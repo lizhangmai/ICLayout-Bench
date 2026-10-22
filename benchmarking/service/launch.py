@@ -1,4 +1,4 @@
-"""Launch the installed local service with caller-declared runtime settings."""
+"""Launch the installed evaluation service with caller-declared runtime settings."""
 
 import os
 import selectors
@@ -58,11 +58,11 @@ def launch_service(arguments, *, output, environment, on_event=None,
             with selectors.DefaultSelector() as selector:
                 selector.register(process.stdout, selectors.EVENT_READ)
                 if not selector.select(timeout=startup_timeout):
-                    raise TimeoutError("Local service did not start; see service.log")
+                    raise TimeoutError("Evaluation service did not start; see service.log")
             line = process.stdout.readline().strip()
-            prefix = "Local development service: "
+            prefix = "Evaluation service: "
             if not line.startswith(prefix) or not line.removeprefix(prefix):
-                raise RuntimeError("Local service failed; see service.log")
+                raise RuntimeError("Evaluation service failed; see service.log")
             ready = ServiceProcess(line.removeprefix(prefix), process)
             event("service_ready", pid=process.pid)
             yield ready

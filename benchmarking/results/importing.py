@@ -5,8 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from benchmarking.files import read_file
-
-from .normalization import digest, normalize
+from benchmarking.results.normalization import digest, normalize
 
 
 @dataclass(frozen=True)
@@ -44,6 +43,8 @@ def prepare_result(path, namespace):
         "image": raw.get("image"),
         "namespace": namespace,
     }
+    if "model_usage" in raw:
+        run_data["model_usage"] = raw["model_usage"]
     files = {"result.json": original}
     missing = []
     for name in dict.fromkeys(

@@ -13,9 +13,10 @@ import time
 import pytest
 
 from benchmarking.client import Client, ClientError
-from benchmarking.dataset import load_dataset
-from benchmarking.engine.runtime import load_case
+from benchmarking.eda.images import DEFAULT_IMAGE
+from benchmarking.eda.runtime import load_case
 from benchmarking.service.server import LocalService, serve
+from benchmarking.tasks.dataset import load_dataset
 
 DATASET = os.environ.get('ICLAYOUT_BENCH_DATASET')
 CASE = os.environ.get('ICLAYOUT_BENCH_CASE', 'freepdk45.nangate45-pdk.NAND2_X1')
@@ -26,9 +27,9 @@ CONDITION = {'harness_kind': 'agent', 'harness_id': 'protocol-test', 'harness_ve
 @pytest.fixture
 def host(tmp_path):
     dataset = load_dataset(DATASET)
-    runtime = load_case(dataset.case(CASE), image=os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-eda-open:local'))
+    runtime = load_case(dataset.case(CASE), image=os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', DEFAULT_IMAGE))
     service = LocalService(tmp_path/'store', runtime.task, runtime.agent_resources(), runtime.backends,
-                           os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE','iclayout-eda-open:local'), 'operator-test')
+                           os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE',DEFAULT_IMAGE), 'operator-test')
     server = serve(service)
     thread = threading.Thread(target=server.serve_forever,daemon=True)
     thread.start()
@@ -56,6 +57,38 @@ def complete(client,sid,eid):
     pytest.fail('Execution did not finish')
 
 
+def test_session_task_matches_unified_container_protocol(host):
+    import base64
+
+    service, endpoint = host
+    created = Client(endpoint, 'operator-test', timeout=50).create(service.controller.task.id, CONDITION, key='unified')
+    client, sid = Client(endpoint, created['session_token']), created['session_id']
+    try:
+        command = """python -I - <<'PY'
+import json
+from pathlib import Path
+task = json.loads(Path('/protocol/task.json').read_text())
+assert Path('/protocol/prompt.txt').read_bytes() == Path(task['inputs']['description']).read_bytes()
+harness = json.loads(Path('/protocol/harness.json').read_text())
+assert 'instructions' not in harness
+assert harness['helpers']['submit']['command'] == ['python', '-I', '/protocol/submit.py']
+assert not Path('/protocol/resources.json').exists()
+print(json.dumps(task))
+PY"""
+        started = client.execute(sid, command,
+                                 10, key='read-protocol')
+        result = complete(client, sid, started['execution_id'])
+        assert result['exit_code'] == 0
+        document = json.loads(base64.b64decode(result['log_base64']))
+        assert document == created['task']['description']
+        assert 'resources' in document
+        assert 'evaluation' not in document and 'evaluator_inputs' not in document
+        assert created['task']['problem'] == service.controller.task.problem
+        assert created['task']['sha256'] == service.controller.task.digest
+    finally:
+        client.close(sid, key='close-unified')
+
+
 def test_local_service_restart_restores_workspace_budget_and_accepted_candidate(tmp_path):
     """Kill a real service process while its isolated command has partial writes."""
     import base64
@@ -65,7 +98,7 @@ def test_local_service_restart_restores_workspace_budget_and_accepted_candidate(
     from benchmarking.service.contracts import APIError
 
     dataset = load_dataset(DATASET)
-    image = os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-eda-open:local')
+    image = os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', DEFAULT_IMAGE)
     runtime = load_case(dataset.case(CASE), image=image)
     store = tmp_path / 'store'
     receiver, sender = multiprocessing.get_context('fork').Pipe(duplex=False)
@@ -124,7 +157,7 @@ def test_local_service_restart_restores_workspace_budget_and_accepted_candidate(
         with pytest.raises(ValueError, match='identity'):
             LocalService(store, runtime.task, runtime.agent_resources(), runtime.backends,
                          image, 'original-operator', revision='changed-implementation')
-        with patch('benchmarking.engine.sessions.workspace.SessionWorkspace.restore', side_effect=OSError('transient restore failure')):
+        with patch('benchmarking.execution.workspace.access.SessionWorkspace.restore', side_effect=OSError('transient restore failure')):
             with pytest.raises(APIError) as unavailable:
                 LocalService(store, runtime.task, runtime.agent_resources(), runtime.backends,
                              image, 'original-operator')
@@ -212,13 +245,13 @@ def test_case_worker_submits_evaluates_and_archives_after_scheduler_exit(host, t
 
     import tomli_w
 
-    from benchmarking.locking import BatchLeaseError
-    from benchmarking.participants.local_service import process_start
-    from benchmarking.participants.storage import CaseLease
+    from benchmarking.execution.leases import BatchLeaseError
+    from benchmarking.participants.attempt.service import process_start
+    from benchmarking.participants.attempt.storage import CaseLease
 
     service, endpoint = host
     # Local services use isolated installed-package imports. A development
-    # worktree can select another existing formal environment for that process.
+    # caller can select a compatible installed Python for that process.
     test_python = os.environ.get('ICLAYOUT_BENCH_TEST_PYTHON', sys.executable)
     ready, release = tmp_path / 'ready', tmp_path / 'release'
     script = '''import os, time
@@ -243,16 +276,11 @@ print('Opaque participant finished')
                                     'scheme': {'version': 'fixture', 'launch': {
                                         'command': [test_python, '-c', script], 'files': []}}}))
     batch = tmp_path / 'batch'
-    if lost_owner:
-        from benchmarking.dataset import dataset_root
-        config_path = load_dataset(DATASET).case(service.controller.task.id)
-        case = batch / Path(config_path).parent.relative_to(dataset_root(config_path) / 'tasks')
-    else:
-        case = batch / service.controller.task.id
     worker_pid = None
     native_pid, local_owner = None, None
     with (tmp_path / 'scheduler.log').open('w') as log:
-        mode = ['--dataset', DATASET] if lost_owner else ['--endpoint', endpoint]
+        mode = ['--dataset', DATASET, '--image', os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', DEFAULT_IMAGE)] \
+            if lost_owner else ['--endpoint', endpoint]
         process = subprocess.Popen([test_python, '-m', 'benchmarking.run', '--config', str(config),
                                     *mode, '--output', str(batch)],
                                    cwd=Path(__file__).resolve().parents[1],
@@ -263,7 +291,9 @@ print('Opaque participant finished')
             while not ready.exists() and time.monotonic() < deadline and process.poll() is None:
                 time.sleep(.05)
             assert ready.exists(), (tmp_path / 'scheduler.log').read_text()
-            worker_pid = json.loads((case / '.runtime/worker.json').read_text())['pid']
+            worker_record, = batch.rglob('.runtime/worker.json')
+            case = worker_record.parent.parent
+            worker_pid = json.loads(worker_record.read_text())['pid']
             native_pid = int(ready.read_text())
             if lost_owner:
                 local_owner = json.loads((case / '.runtime/service/.private/owner.json').read_text())
@@ -330,7 +360,7 @@ def test_remote_snapshot_retry_and_independent_evaluation(host, tmp_path):
     client.write(sid,path,b'second',key='rewrite')
     assert client.submit(sid,path,key='candidate') == first
     assert first['candidate_sha256'] == hashlib.sha256(b'first').hexdigest()
-    from benchmarking.participants.bridge import Bridge
+    from benchmarking.participants.mcp import Bridge
     bridge = Bridge(client, sid, tmp_path / 'bridge.jsonl')
     before = client.session(sid)
     checked = bridge.call('check', {})
@@ -425,21 +455,28 @@ def test_remote_snapshot_retry_and_independent_evaluation(host, tmp_path):
         recovered.shutdown()
 
 
-def test_shared_finalizer_waits_for_workspace_execution_before_submission(host, tmp_path):
-    from benchmarking.participants.runner import finalize_session
+@pytest.mark.parametrize('accepted', [False, True])
+def test_shared_finalizer_drains_without_submitting_mutable_workspace(host, tmp_path, accepted):
+    from benchmarking.participants.attempt.runner import finalize_session
     service, _ = host
     client, sid = create(host)
     path = service.controller.task.output.path
+    if accepted:
+        prepared = client.execute(sid, f'mkdir -p output; printf accepted > {path}', 10, key='prepare')
+        complete(client, sid, prepared['execution_id'])
+        client.submit(sid, path, key='participant-submit')
     started = client.execute(sid, f'sleep 1; mkdir -p output; printf candidate > {path}', 10, key='in-flight')
     assert client.session(sid)['active_execution_id'] == started['execution_id']
     output = tmp_path / 'participant'
     (output / '.private').mkdir(parents=True)
     (output / '.private/recovery.json').write_text(json.dumps({'redactions': [client.token]}))
     (output / 'harness-summary.json').write_text(json.dumps({'error': 'fixture_exit'}))
-    created = {'task': {'description': {'output': {'path': '/workspace/' + path}}}}
-    result = finalize_session(client, sid, created, output)
+    result = finalize_session(client, sid, output)
     assert result['state'] in {'complete', 'error'}
-    assert result['submission']['candidate_sha256'] == hashlib.sha256(b'candidate').hexdigest()
+    if accepted:
+        assert result['submission']['candidate_sha256'] == hashlib.sha256(b'accepted').hexdigest()
+    else:
+        assert result['submission'] is None and result['outcome'] == 'no_submission'
     evidence = json.loads((output / 'finalization.json').read_text())
     assert evidence['executions'][started['execution_id']]['exit_code'] == 0
     assert evidence['closed'] and evidence['error'] is None
@@ -449,16 +486,16 @@ def test_shared_finalizer_waits_for_workspace_execution_before_submission(host, 
 
 def test_witness_qualification_uses_one_portable_evaluation(tmp_path):
     """The current contract and reference pass one complete evaluator run."""
+    import tomllib
     from dataclasses import replace
     from types import SimpleNamespace
 
-    from benchmarking.engine.qualification import (
-        run,
-        verify,
-    )
+    from benchmarking.evaluation.qualification import run, verify
 
-    image = os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-eda-open:local')
+    image = os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', DEFAULT_IMAGE)
     runtime = load_case(load_dataset(DATASET).case(CASE), image=image)
+    if not tomllib.loads(runtime.config.read_text()).get('qualification', {}).get('reference'):
+        pytest.skip('Selected dataset has no author reference; qualification needs an author staging dataset')
     output = tmp_path / 'qualification'
     run(runtime, output)
     verify(runtime, output)
@@ -530,10 +567,10 @@ def test_participant_tool_image_changes_solver_without_changing_judge(host, tmp_
     import subprocess
     import sys
 
-    from benchmarking.engine.sessions.docker import DockerSession
-    from benchmarking.participants.config import resolve
-    from benchmarking.participants.runner import run_participant
-    from benchmarking.participants.scheme import resolve_scheme
+    from benchmarking.execution.workspace.docker import DockerSession
+    from benchmarking.participants.attempt.runner import run_participant
+    from benchmarking.participants.batch.config import resolve
+    from benchmarking.participants.harnesses.scheme import resolve_scheme
 
     baseline, endpoint = host
     base_image = DockerSession(baseline.controller.image).image_id
@@ -600,11 +637,11 @@ def test_local_service_records_ownership_before_announcing_readiness(tmp_path):
     import sys
     from pathlib import Path
 
-    from benchmarking.participants.local_service import (
+    from benchmarking.participants.attempt.service import (
         local_service_client,
         local_service_owner,
-        stop,
     )
+    from benchmarking.service.launch import stop
 
     output = tmp_path / 'service'
     owner = output / '.private/owner.json'
@@ -612,15 +649,15 @@ def test_local_service_records_ownership_before_announcing_readiness(tmp_path):
     process = subprocess.Popen([
         sys.executable, '-I', '-m', 'benchmarking.service', '--dataset', DATASET,
         '--case', CASE, '--data', str(output / 'service-store'), '--port', '0',
-        '--image', os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-eda-open:local'),
+        '--image', os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', DEFAULT_IMAGE),
         '--token-env', 'ICLAYOUT_BENCH_LOCAL_TOKEN', '--owner-record', str(owner),
     ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, start_new_session=True)
     try:
         line = process.stdout.readline()
-        assert line.startswith('Local development service: '), process.stderr.read() if process.poll() is not None else line
+        assert line.startswith('Evaluation service: '), process.stderr.read() if process.poll() is not None else line
         recorded = local_service_owner(output)
         assert recorded['pid'] == process.pid
-        assert recorded['endpoint'] == line.strip().removeprefix('Local development service: ')
+        assert recorded['endpoint'] == line.strip().removeprefix('Evaluation service: ')
         # An unrelated collector can locate this child without a parent-written record.
         from benchmarking.files import write_json
         write_json(owner.with_name('access.json'), {'token': 'startup-test'})
@@ -642,7 +679,7 @@ def test_detached_coordinator_refills_slots_after_the_launcher_exits(host, tmp_p
 
     import tomli_w
 
-    from benchmarking.service.process import process_start
+    from benchmarking.execution.process import process_start
 
     service, _ = host
     test_python = os.environ.get('ICLAYOUT_BENCH_TEST_PYTHON', sys.executable)
@@ -663,7 +700,7 @@ while not Path(RELEASE, sid).exists() and time.monotonic() < deadline:
         'scheme': {'version': 'fixture', 'launch': {'command': [test_python, '-c', script], 'files': []}}}))
     output = tmp_path / 'batch'
     launcher = subprocess.run([test_python, '-I', '-m', 'benchmarking.run', '--config', str(config),
-        '--dataset', DATASET, '--image', os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-eda-open:local'),
+        '--dataset', DATASET, '--image', os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', DEFAULT_IMAGE),
         '--output', str(output), '--detach'],
         env=dict(os.environ, ICLAYOUT_BENCH_TOKEN='operator-test'), capture_output=True, text=True,
         timeout=30, check=False, umask=0o077)

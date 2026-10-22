@@ -73,6 +73,27 @@ def inference_summary(reports):
             "usage": usage}
 
 
+def model_usage_summary(measurements):
+    """Compare participant usage without mixing currencies or hiding missing tasks."""
+    from benchmarking.results.usage import TOKEN_FIELDS
+
+    measurements = list(measurements)
+    present = [m for m in measurements if m is not None]
+    tokens = {key: resource_distribution((m.get("tokens") or {}).get(key) if m else None
+                                        for m in measurements) for key in TOKEN_FIELDS}
+    currencies = {m.get("currency") for m in present if m.get("cost") is not None}
+    costs = resource_distribution(m.get("cost") if m else None for m in measurements)
+    seconds = resource_distribution(m.get("api_seconds") if m else None for m in measurements)
+    return {"tasks": len(measurements), "measured": len(present), "tokens": tokens,
+            "api_seconds": seconds,
+            "currency": next(iter(currencies)) if len(currencies) == 1 else None,
+            "cost": costs if len(currencies) <= 1 else resource_distribution(None for _ in measurements),
+            "cost_per_task": costs["sum"] / len(measurements)
+                if len(currencies) == 1 and costs["sum"] is not None and measurements else None,
+            "cost_by_currency": {currency: resource_distribution(m.get("cost") for m in present
+                                      if m.get("currency") == currency) for currency in sorted(currencies)}}
+
+
 def planned_score_summary(values, scheduled):
     """Summarize selected observations against an explicit planned sample count.
 

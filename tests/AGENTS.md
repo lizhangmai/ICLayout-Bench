@@ -20,7 +20,7 @@ to [CONTRIBUTING](../CONTRIBUTING.md#verification).
 ## Case and EDA Regressions
 
 Discover cases and resources from declared catalogs and profiles; keep circuit
-authoring, repair procedures and qualification evidence in Designs. Disposable
+authoring, repair procedures and qualification evidence with the task authors. Disposable
 test outputs belong in `build/runs/`.
 For extraction/model validation, use [analytical controls](../CONTRIBUTING.md#analytical-controls);
 for reference acceptance, use [qualification](../CONTRIBUTING.md#task-qualification).

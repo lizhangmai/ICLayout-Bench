@@ -1,4 +1,5 @@
 """Public HTTP protocol identifiers and validation; no execution dependencies."""
+
 import json
 import math
 import re

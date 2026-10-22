@@ -1,15 +1,44 @@
 """ZCode connection selection, isolation and credential-safe native evidence."""
 
 import json
+import sqlite3
+from pathlib import Path
 
 import pytest
+from helpers.harness import zcode_session
 
-from benchmarking.participants import adapters
-from benchmarking.participants.adapters.contracts import LaunchContext
-from benchmarking.participants.credentials import credential_values
-from benchmarking.participants.recovery import policy
+from benchmarking.participants.attempt.recovery import policy
+from benchmarking.participants.harnesses import registry as adapters
+from benchmarking.participants.harnesses.contracts import LaunchContext
+from benchmarking.participants.harnesses.credentials import credential_values
 
 pytestmark = pytest.mark.unit
+
+
+def test_recorded_policy_rate_limit_uses_bounded_recovery(tmp_path):
+    # Minimized terminal envelope from the 2026-10-14 failed run; no request IDs,
+    # provider connection, user content or stack paths are needed to reproduce it.
+    event = json.loads((Path(__file__).parents[1] / 'fixtures/agents/zcode-1313.json').read_text())
+    (tmp_path / 'harness.jsonl').write_text(json.dumps(event))
+    problem = adapters.harness_failure('zcode', tmp_path, exit_code=1)
+    assert problem['category'] == 'rate_limit' and problem['retryable']
+    assert problem['code'] == 'account_policy_rate_limit'
+
+
+@pytest.mark.parametrize('attribution,category,retryable', [
+    ({'statusCode': 429}, 'unknown', False),
+    ({'statusCode': 429, 'reason': 'rate_limited', 'retryable': True}, 'rate_limit', True),
+    ({'statusCode': 429, 'providerErrorCode': 'insufficient_quota'}, 'quota_exhausted', False),
+    ({'statusCode': 429, 'providerErrorCode': '1312'}, 'provider_overloaded', True),
+    ({'statusCode': 429, 'reason': 'provider_overloaded', 'retryable': True}, 'provider_overloaded', True),
+    ({'statusCode': 429, 'providerErrorCode': 'unrecognized'}, 'unknown', False),
+])
+def test_http_429_requires_specific_provider_evidence(tmp_path, attribution, category, retryable):
+    event = {'type': 'turn.failed', 'payload': {'error': {
+        'code': 'model_request_failed', 'attribution': {'source': 'provider', **attribution}}}}
+    (tmp_path / 'harness.jsonl').write_text(json.dumps(event))
+    problem = adapters.harness_failure('zcode', tmp_path, exit_code=1)
+    assert (problem['category'], problem['retryable']) == (category, retryable)
 
 
 def profile(home, *, kind='anthropic', file_key=False):
@@ -141,7 +170,58 @@ def test_launch_isolates_native_home_config_and_exposes_declared_mcp_only(tmp_pa
     trace.parent.mkdir(); trace.write_text('{"thinking":"retained native reasoning"}\n')
     assert adapters.native_traces('zcode', output) == {'zcode/rollout/model-io-session.jsonl': trace.read_bytes()}
     assert adapters.credential_redactions('zcode', output) == {'selected-fixture-secret'}
-    assert policy(harness='zcode')['resume_session'] is False
-    with pytest.raises(ValueError, match='continuation'):
+    assert policy(harness='zcode')['resume_session'] is True
+    with pytest.raises(ValueError, match='persisted'):
         selected.environment['ICLAYOUT_BENCH_RESUME_ID'] = 'sess_announced'
         adapters.prepare(context)
+
+
+def resume_context(root):
+    home = root / 'selected'; home.mkdir(); profile(home)
+    selected = adapters.resolve('zcode', 'fixture/glm-5.3', 'high', {'EXPERIMENT_KEY': 'fixture-secret'}, home=home)
+    selected.environment['ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS'] = '60'
+    work = root / '.private/workspace'; work.mkdir(parents=True)
+    mcp = work / 'mcp.json'
+    mcp.write_text(json.dumps({'mcpServers': {'layout': {'command': 'fixture-bridge', 'args': [],
+        'env': {'ICLAYOUT_BENCH_SESSION': 'service-original', 'ICLAYOUT_BENCH_TOKEN': 'scoped-secret'}}}}))
+    context = LaunchContext(selected, mcp, work, root, work / 'bridge.py', 'continue original')
+    adapters.prepare(context)
+    return context
+
+
+@pytest.mark.parametrize('change', ['none', 'cwd', 'model', 'effort', 'tools', 'scope', 'ambiguous', 'pending', 'missing'])
+def test_resume_requires_persisted_conversation_and_frozen_bindings(tmp_path, change):
+    context = resume_context(tmp_path)
+    db_path = zcode_session(tmp_path)
+    with sqlite3.connect(db_path) as db:
+        if change == 'cwd':
+            db.execute("UPDATE session SET directory = '/elsewhere'")
+        elif change in {'model', 'effort'}:
+            binding = json.loads(db.execute('SELECT data FROM session_entry').fetchone()[0])
+            if change == 'model':
+                binding['modelSelection']['modelId'] = 'another'
+            else:
+                binding['modelSelection']['options']['reasoningLevel'] = 'max'
+            db.execute('UPDATE session_entry SET data = ?', (json.dumps(binding),))
+        elif change == 'ambiguous':
+            db.execute("INSERT INTO session SELECT 'sess_another', parent_id, directory, path, revert, time_archived FROM session")
+        elif change == 'pending':
+            db.execute('INSERT INTO part (message_id, session_id, data) VALUES (?, ?, ?)', ('user', 'sess_fixture', json.dumps({
+                'type': 'tool', 'tool': 'mcp__layout__write', 'state': {'status': 'running'}})))
+        elif change == 'missing':
+            db.execute('DELETE FROM message')
+    if change in {'tools', 'scope'}:
+        servers = json.loads(context.mcp.read_text())
+        if change == 'tools':
+            servers['mcpServers']['layout']['command'] = 'different-tool'
+        else:
+            servers['mcpServers']['layout']['env']['ICLAYOUT_BENCH_SESSION'] = 'another-session'
+        context.mcp.write_text(json.dumps(servers))
+    context.selection.environment['ICLAYOUT_BENCH_RESUME_ID'] = 'sess_fixture'
+    if change in {'none', 'pending'}:
+        argv = adapters.prepare(context)
+        assert argv[argv.index('--resume') + 1] == 'sess_fixture'
+        assert argv[-1] == context.prompt
+    else:
+        with pytest.raises(ValueError, match='ZCode'):
+            adapters.prepare(context)

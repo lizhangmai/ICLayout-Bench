@@ -21,7 +21,7 @@ import math
 from collections.abc import Mapping
 from typing import Any
 
-from .contracts import EvaluationPlan, Metric
+from benchmarking.evaluation.contracts import EvaluationPlan, Metric
 
 _FAILED = "failed"
 _UNKNOWN = frozenset({"error", "blocked"})
@@ -86,7 +86,21 @@ def _relative_quality(metric: Metric, value: float, baseline: float) -> float:
         raise ValueError("Ratio normalization requires nonnegative observations")
     if metric.quality_target is not None:
         baseline = metric.quality_target
-    if metric.normalization == "target":
+    if metric.normalization == "degradation":
+        loss = baseline - value if metric.direction == "maximize" else value - baseline
+        if loss <= 0:
+            return 1.0
+        # Work in scaled units so finite budgets/observations also work near
+        # floating-point limits, including an overflowing signed difference.
+        if math.isfinite(loss):
+            size = max(loss, metric.scale)
+            scaled_loss = loss / size
+        else:
+            size = max(abs(value), abs(baseline), metric.scale)
+            scaled_loss = abs(value / size - baseline / size)
+        scaled_budget = metric.scale / size
+        ratio = scaled_budget / (scaled_budget + scaled_loss)
+    elif metric.normalization == "target":
         ratio = 1 / (1 + abs(value - baseline) / metric.scale)
     elif metric.normalization == "db20":
         delta = (value - baseline) / 20

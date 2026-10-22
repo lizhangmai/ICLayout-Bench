@@ -6,7 +6,7 @@ import subprocess
 import tomllib
 from pathlib import Path, PurePosixPath
 
-from .normalization import digest
+from benchmarking.results.normalization import digest
 
 
 def reader_summary(case):
@@ -99,7 +99,7 @@ class GitCatalog:
 
 class SnapshotCatalog(GitCatalog):
     def __init__(self, source, revision):
-        from benchmarking.dataset import load_dataset
+        from benchmarking.tasks.dataset import load_dataset
         if not re.fullmatch(r"[0-9a-f]{40,64}", revision or ""):
             raise ValueError("A recorded full Dataset commit is required for catalog binding")
         dataset = load_dataset(source, revision=revision)

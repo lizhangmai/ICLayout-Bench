@@ -3,9 +3,8 @@
 from statistics import mean
 
 from benchmarking.protocol import evaluation_tools
-
-from .normalization import digest
-from .statistics import score_summary
+from benchmarking.results.normalization import digest
+from benchmarking.results.statistics import model_usage_summary, score_summary
 
 
 def aggregate(rows, schedules, filters):
@@ -48,6 +47,7 @@ def aggregate(rows, schedules, filters):
                     for name in ("pass", "fail", "no_submission", "error")
                 },
                 "run_ids": [row["id"] for row in members],
+                "model_usage": model_usage_summary((row.get("data") or {}).get("model_usage") for row in members),
             }
         )
 
@@ -112,6 +112,8 @@ def aggregate(rows, schedules, filters):
                 "coverage": sum(cell["condition_id"] == cid for cell in cells),
                 "total_tasks": len(tasks),
                 "mean": mean(cell["mean"] for cell in included) if included else None,
+                "model_usage": model_usage_summary((row.get("data") or {}).get("model_usage")
+                                                   for row in rows if row["condition_id"] == cid),
             }
         )
     return {

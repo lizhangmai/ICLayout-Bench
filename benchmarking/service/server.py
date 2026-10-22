@@ -14,9 +14,8 @@ from urllib.parse import parse_qs, urlsplit
 
 from benchmarking.files import EvidenceError, append_event
 from benchmarking.protocol import PROTOCOL, json_bytes
-
-from .application import LocalService
-from .contracts import APIError, session_limits
+from benchmarking.service.application import LocalService
+from benchmarking.service.contracts import APIError, session_limits
 
 __all__ = ['APIError', 'Handler', 'LocalService', 'serve', 'session_limits']
 

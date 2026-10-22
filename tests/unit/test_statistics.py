@@ -55,6 +55,127 @@ def test_usage_summary_keeps_attempts_with_no_report():
     assert summary["output_tokens"]["known"] == 0
 
 
+def price_table(**overrides):
+    return {"currency": "USD", "source": "https://provider.example/pricing", "as_of": "2026-10-16",
+            "input_per_million": 2, "cache_read_per_million": .2,
+            "cache_write_per_million": 2.5, "output_per_million": 10, **overrides}
+
+
+def test_model_cost_distinguishes_cache_reads_writes_and_reasoning_without_double_counting():
+    from benchmarking.results.usage import (
+        UsageEvidence,
+        request_record,
+        summarize_usage,
+    )
+
+    call = request_record("a", "model", input_tokens=1000, cached=700, written=100,
+                          output=50, reasoning=30, seconds=2)
+    report = summarize_usage(UsageEvidence([call, call]), model="model", pricing=price_table(), wall_seconds=20)
+    assert report["tokens"] == {"input_tokens": 1000, "uncached_input_tokens": 200,
+        "cached_input_tokens": 700, "cache_write_input_tokens": 100, "output_tokens": 50, "reasoning_output_tokens": 30}
+    assert report["cost"] == pytest.approx(.00129)
+    assert report["cost_source"] == "api_token_pricing"
+    assert report["api_seconds"] == 2
+    assert report["wall_seconds"] == 20
+    assert report["request_count"] == 1
+
+
+def test_native_cost_including_zero_is_used_without_repricing():
+    from benchmarking.results.usage import (
+        UsageEvidence,
+        request_record,
+        summarize_usage,
+    )
+
+    call = request_record("a", "model", input_tokens=1000, cached=0, written=0, output=100, cost=0)
+    report = summarize_usage(UsageEvidence([call]), model="model", pricing=price_table())
+    assert report["cost"] == 0 and report["cost_source"] == "provider"
+    report = summarize_usage(UsageEvidence([call], reported_cost=.7), model="model", pricing=price_table())
+    assert report["cost"] == .7 and report["cost_source"] == "harness_reported"
+    assert report["api_seconds"] is None
+
+
+def test_model_pricing_uses_each_requests_context_length_and_keeps_unpriced_models_unknown():
+    from benchmarking.results.usage import (
+        UsageEvidence,
+        request_record,
+        summarize_usage,
+        validate_pricing,
+    )
+
+    rates = price_table(long_context_threshold=1000, long_context={
+        "input_per_million": 4, "cache_read_per_million": .4,
+        "cache_write_per_million": 5, "output_per_million": 15})
+    validate_pricing(rates)
+    call = request_record("a", "model", input_tokens=2000, cached=1000, written=0, output=100)
+    report = summarize_usage(UsageEvidence([call]), model="model", pricing=rates)
+    assert report["cost"] == pytest.approx(.0059)
+    unknown = request_record("b", "other-model", input_tokens=100, cached=0, written=0, output=10)
+    partial = summarize_usage(UsageEvidence([call, unknown]), model="model", pricing=rates)
+    assert partial["cost"] is None and partial["coverage"]["cost"] == {"known": 1, "missing": 1}
+    invalid = request_record("c", "model", input_tokens=100, cached=101, written=0, output=10)
+    assert summarize_usage(UsageEvidence([invalid]), model="model", pricing=rates)["cost"] is None
+    rates['models'] = {'other-model': {'input_per_million': 1, 'cache_read_per_million': .1,
+                                     'cache_write_per_million': 0, 'output_per_million': 5}}
+    validate_pricing(rates)
+    other = summarize_usage(UsageEvidence([unknown]), model='model', pricing=rates)
+    assert other['cost'] == pytest.approx(.00015)
+
+
+@pytest.mark.parametrize("started,expected", [
+    ("2026-10-16T01:00:00Z", .003), ("2026-10-16T04:00:00Z", .0015),
+    ("2026-10-17T01:00:00Z", .0015), ("2026-10-01T01:00:00Z", .0015), (None, None),
+])
+def test_peak_and_off_peak_prices_respect_utc_boundaries_weekends_and_explicit_holidays(started, expected):
+    from benchmarking.results.usage import (
+        UsageEvidence,
+        request_record,
+        summarize_usage,
+    )
+
+    rates = price_table(input_per_million=2, output_per_million=10,
+        peak_utc_hours=["01:00-04:00", "06:00-10:00"], off_peak_dates=["2026-10-01"],
+        off_peak={"input_per_million": 1, "cache_read_per_million": .1,
+                  "cache_write_per_million": 1.25, "output_per_million": 5})
+    call = request_record("a", "model", input_tokens=1000, cached=0, written=0, output=100, started_at=started)
+    report = summarize_usage(UsageEvidence([call]), model="model", pricing=rates)
+    assert report["cost"] == pytest.approx(expected) if expected is not None else report["cost"] is None
+
+
+def test_task_usage_aggregation_preserves_missing_tasks_and_currencies():
+    from benchmarking.results.statistics import model_usage_summary
+
+    a = {"tokens": {"output_tokens": 100}, "api_seconds": 2, "cost": 1, "currency": "USD"}
+    b = {"tokens": {"output_tokens": 300}, "api_seconds": 6, "cost": 3, "currency": "USD"}
+    report = model_usage_summary([a, b])
+    assert report["cost_per_task"] == 2
+    assert report["tokens"]["output_tokens"]["sum"] == 400
+    assert report["api_seconds"]["sum"] == 8
+    assert model_usage_summary([a, None])["cost_per_task"] is None
+    assert model_usage_summary([a, {**b, "currency": "CNY"}])["cost_per_task"] is None
+    assert model_usage_summary([a, {**b, "api_seconds": None}])["api_seconds"]["sum"] is None
+
+
+def test_replaced_attempt_costs_use_their_own_snapshots_and_missing_attempts_stay_unknown():
+    from benchmarking.results.usage import (
+        UsageEvidence,
+        combine_usage,
+        request_record,
+        summarize_usage,
+    )
+
+    call = request_record('r1', 'model', input_tokens=1000, cached=0, written=0, output=100, seconds=2)
+    first = summarize_usage(UsageEvidence([call]), model='model', pricing=price_table(), wall_seconds=10)
+    second = summarize_usage(UsageEvidence([call], reported_cost=1), model='model', wall_seconds=20)
+    combined = combine_usage([first, second])
+    assert combined['cost'] == pytest.approx(1.003)
+    assert combined['api_seconds'] == 4
+    assert combined['wall_seconds'] == 30
+    assert len({r['id'] for r in combined['requests']}) == 2
+    assert combined['cost_source'] == 'mixed'
+    assert combine_usage([None, second])['cost'] is None
+
+
 def test_gateway_summary_keeps_failed_requests_and_missing_cost():
     reports = [{"inference": {"wall_seconds": 5, "denied_requests": 2, "requests": [
         {"outcome": "completed", "usage": {"input_tokens": 3, "cost": 0}},

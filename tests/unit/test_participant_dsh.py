@@ -7,12 +7,12 @@ from pathlib import Path
 import pytest
 import zstandard
 
-from benchmarking.participants import adapters
-from benchmarking.participants.adapters.contracts import (
+from benchmarking.participants.harnesses import registry as adapters
+from benchmarking.participants.harnesses.contracts import (
     LaunchContext,
     ParticipantSelection,
 )
-from benchmarking.participants.adapters.dsh import prepare
+from benchmarking.participants.harnesses.dsh import prepare
 
 pytestmark = pytest.mark.unit
 
@@ -25,7 +25,7 @@ def test_explicit_native_home_is_passed_to_dsh_configuration_composition(tmp_pat
         assert kwargs['env']['DSH_HOME'] == str(home)
         return '--json --session-id' if '--help' in args else '[]'
 
-    monkeypatch.setattr('benchmarking.participants.adapters.dsh.subprocess.check_output', cli)
+    monkeypatch.setattr('benchmarking.participants.harnesses.dsh.subprocess.check_output', cli)
     selected = adapters.resolve('dsh', None, 'high', {'DSH_HOME': str(tmp_path / 'missing-host')}, home=home)
     assert selected.condition['model'] == 'chosen-model'
     assert selected.settings['native_home'] == str(home)
@@ -60,18 +60,18 @@ def test_dsh_native_credentials_and_refreshed_store_are_isolated(tmp_path):
 
 
 def test_dsh_provider_credential_reference_is_redacted_regardless_of_env_name(monkeypatch):
-    from benchmarking.participants.credentials import credential_values
+    from benchmarking.participants.harnesses.credentials import credential_values
 
     rows = [{'id': 'llm-deepseek', 'config': {'apiKeyEnv': 'CUSTOM_PROVIDER_KEY'}}]
     selected = {'provider': 'deepseek-official', 'model': 'deepseek-flash'}
-    monkeypatch.setattr('benchmarking.participants.adapters.dsh.configuration', lambda env: (rows, {}, selected))
+    monkeypatch.setattr('benchmarking.participants.harnesses.dsh.configuration', lambda env: (rows, {}, selected))
     selection = adapters.resolve('dsh', None, 'high', {'CUSTOM_PROVIDER_KEY': 'custom-provider-secret'})
     assert 'custom-provider-secret' in credential_values(selection.settings)
 
 
 def test_dsh_resumes_exact_persisted_main_session(tmp_path):
-    from benchmarking.participants.attempt import AttemptState
-    from benchmarking.participants.recovery import continuation_id
+    from benchmarking.participants.attempt.recovery import continuation_id
+    from benchmarking.participants.attempt.state import AttemptState
 
     work = tmp_path / '.private/workspace'; work.mkdir(parents=True)
     condition = {'harness': 'dsh', 'provider': 'deepseek-official', 'model': 'deepseek-flash', 'effort_resolved': 'high'}
@@ -81,17 +81,17 @@ def test_dsh_resumes_exact_persisted_main_session(tmp_path):
     with pytest.raises(ValueError, match='native session'):
         prepare(ctx)
     native_session(tmp_path)
-    sid = continuation_id(tmp_path, {'harness': 'dsh'}, AttemptState(), {})
+    sid = continuation_id(tmp_path, {'harness': 'dsh'}, AttemptState())
     assert sid == 'session-fixture'
     argv = prepare(ctx)
     assert '--json' in argv and argv[argv.index('--session-id') + 1] == sid
     native_session(tmp_path, session='session-other')
     with pytest.raises(ValueError, match='persisted native'):
-        continuation_id(tmp_path, {'harness': 'dsh'}, AttemptState(), {})
+        continuation_id(tmp_path, {'harness': 'dsh'}, AttemptState())
 
 
 def test_dsh_decompresses_all_frames_before_trace_redaction(tmp_path):
-    from benchmarking.participants.evidence import read_traces
+    from benchmarking.participants.attempt.evidence import read_traces
 
     content = 'thinking ' + 'x' * 16000 + ' rotated-fixture-secret'
     raw = native_session(tmp_path, content=content)
@@ -111,8 +111,8 @@ def test_dsh_decompresses_all_frames_before_trace_redaction(tmp_path):
 def test_dsh_terminal_cleanup_retains_complete_decompressed_records(tmp_path):
     from test_participant_runner import terminal_files
 
-    from benchmarking.participants.storage import CaseRecord
-    from benchmarking.participants.terminal import finish_case
+    from benchmarking.participants.attempt.storage import CaseRecord
+    from benchmarking.participants.attempt.worker import finish_case
 
     record = CaseRecord(tmp_path)
     record.initialize({'endpoint': 'https://fixture', 'plan': [{'model': 'fixture', 'effort': 'high'}]})
@@ -131,9 +131,9 @@ def test_dsh_terminal_cleanup_retains_complete_decompressed_records(tmp_path):
 
 
 def test_dsh_old_cli_is_rejected_before_model_dispatch(monkeypatch):
-    from benchmarking.participants.adapters.dsh import configuration
+    from benchmarking.participants.harnesses.dsh import configuration
 
-    monkeypatch.setattr('benchmarking.participants.adapters.dsh.subprocess.check_output', lambda *a, **kw: 'Usage: dsh task')
+    monkeypatch.setattr('benchmarking.participants.harnesses.dsh.subprocess.check_output', lambda *a, **kw: 'Usage: dsh task')
     with pytest.raises(ValueError, match='--json and --session-id'):
         configuration({})
 

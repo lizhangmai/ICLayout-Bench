@@ -6,12 +6,12 @@ from pathlib import Path
 import pytest
 import tomli_w
 
-from benchmarking.participants import adapters
-from benchmarking.participants.adapters.contracts import (
+from benchmarking.participants.attempt.state import AttemptState
+from benchmarking.participants.harnesses import registry as adapters
+from benchmarking.participants.harnesses.contracts import (
     LaunchContext,
     ParticipantSelection,
 )
-from benchmarking.participants.attempt import AttemptState
 
 pytestmark = pytest.mark.unit
 CONCURRENT_REQUEST_LIMIT = "provider.auth_error: 403 You've reached your concurrent request limit. Please wait for your ongoing requests to finish and try again."
@@ -73,290 +73,6 @@ def native_session(output, *, session='session_fixture', model='fixture/k3', eff
                    {'type': 'thinking', 'thinking': 'retained native reasoning'}]}}]
     wire.write_text(''.join(json.dumps(event) + '\n' for event in events))
     return root, wire
-
-
-def native_tool_delivery(output, wire, *, tool='execute', wire_format='messages'):
-    from types import SimpleNamespace
-
-    from benchmarking.participants.bridge import Bridge, dispatch
-
-    executed = []
-
-    def execute(sid, command, seconds, *, key):
-        executed.append((command, key))
-        return {'execution_id': 'fixture-execution', 'state': 'complete'}
-
-    def write(sid, path, content, *, key):
-        executed.append((path, key))
-        return {'path': path, 'size_bytes': len(content)}
-
-    def submit(sid, path, *, key):
-        executed.append((path, key))
-        return {'submission_id': 'fixture-submission', 'sequence': 1}
-
-    client = SimpleNamespace(
-        session=lambda sid: {'state': 'active', 'remaining_seconds': 600, 'capabilities': ['process-feedback']},
-        execute=execute, write=write, submit=submit,
-        check=lambda sid, seconds, *, key: execute(sid, 'check', seconds, key=key),
-        poll=lambda *args, **kwargs: {'state': 'complete', 'exit_code': 0, 'log_base64': '',
-                                     'next_offset': 0, 'truncated': False},
-    )
-    bridge = Bridge(client, 'fixture-session', output / 'tools.jsonl')
-    arguments = {'execute': {'command': 'echo fixture'}, 'write': {'path': 'fixture.py', 'content': 'fixture'},
-                 'submit': {'path': 'output/final.gds'}, 'check': {}}[tool]
-    response = dispatch(bridge, {'id': 1, 'method': 'tools/call',
-                                'params': {'name': tool, 'arguments': arguments}})
-    messages = [
-        {'role': 'assistant', 'toolCalls': [{'type': 'function', 'id': 'tool_fixture',
-            'name': 'mcp__layout__' + tool, 'arguments': json.dumps(arguments)}]},
-        {'role': 'tool', 'toolCallId': 'tool_fixture', 'content': response['result']['content']},
-    ]
-    if wire_format == 'loop':
-        records = [{'type': 'context.append_loop_event', 'agentId': 'main', 'event': event}
-                   for event in [
-                       {'type': 'step.begin', 'uuid': 'step_fixture', 'step': 1,
-                        'turnId': 'turn_fixture'},
-                       {'type': 'tool.call', 'uuid': 'call_fixture', 'stepUuid': 'step_fixture',
-                        'toolCallId': 'tool_fixture', 'name': 'mcp__layout__' + tool,
-                        'args': arguments},
-                       {'type': 'tool.result', 'parentUuid': 'call_fixture',
-                        'toolCallId': 'tool_fixture',
-                        'result': {'output': response['result']['content'][0]['text'], 'durationMs': 1}},
-                   ]]
-    else:
-        records = [{'type': 'agent.message.appended',
-                    'message': {'message': message, 'meta': {}}} for message in messages]
-    with wire.open('a') as stream:
-        for record in records:
-            stream.write(json.dumps(record) + '\n')
-    return bridge, executed
-
-
-@pytest.mark.parametrize('tool,wire_format', [
-    ('execute', 'messages'), ('execute', 'loop'), ('write', 'loop'), ('submit', 'loop'), ('check', 'loop'),
-])
-def test_persisted_tool_reply_permits_same_session_continuation_without_replay(tmp_path, tool, wire_format):
-    from benchmarking.participants.recovery import continuation_id
-
-    _, wire = native_session(tmp_path)
-    _, executed = native_tool_delivery(tmp_path, wire, tool=tool, wire_format=wire_format)
-    status = {'state': 'active', 'remaining_seconds': 600, 'active_execution_id': None}
-    native_id = continuation_id(tmp_path, {'harness': 'kimi-code'}, AttemptState(), status)
-    assert native_id == 'session_fixture'
-    assert not (tmp_path / 'tools.delivery.json').exists()
-    assert len(executed) == 1
-    assert continuation_id(tmp_path, {'harness': 'kimi-code'}, AttemptState(), status) == native_id
-    assert len(executed) == 1
-
-
-@pytest.mark.parametrize('wire_format', ['messages', 'loop'])
-def test_confirmation_survives_interruption_before_delivery_marker_cleanup(tmp_path, monkeypatch, wire_format):
-    from benchmarking.participants.recovery import continuation_id
-
-    _, wire = native_session(tmp_path)
-    _, executed = native_tool_delivery(tmp_path, wire, wire_format=wire_format)
-    marker = tmp_path / 'tools.delivery.json'
-    original_unlink = Path.unlink
-
-    def interrupted_unlink(path, *args, **kwargs):
-        if path == marker:
-            raise OSError('fixture interruption before cleanup')
-        return original_unlink(path, *args, **kwargs)
-
-    status = {'state': 'active', 'remaining_seconds': 600}
-    with monkeypatch.context() as patch:
-        patch.setattr(Path, 'unlink', interrupted_unlink)
-        with pytest.raises(ValueError, match='Unresolved tool operation'):
-            continuation_id(tmp_path, {'harness': 'kimi-code'}, AttemptState(), status)
-    assert marker.exists()
-    assert continuation_id(tmp_path, {'harness': 'kimi-code'}, AttemptState(), status) == 'session_fixture'
-    assert not marker.exists() and len(executed) == 1
-
-
-@pytest.mark.parametrize('boundary', ['step_end', 'next_step', 'repeated_call', 'after_error', 'after_undo', 'mirrored_messages'])
-def test_kimi_loop_delivery_accepts_the_latest_reply_across_step_boundaries(tmp_path, boundary):
-    from benchmarking.participants.recovery import continuation_id
-
-    _, wire = native_session(tmp_path)
-    bridge, executed = native_tool_delivery(tmp_path, wire, wire_format='loop')
-    events = [json.loads(line) for line in wire.read_text().splitlines()]
-    if boundary == 'step_end':
-        events.insert(-1, {'type': 'context.append_loop_event', 'agentId': 'main',
-                           'event': {'type': 'step.end', 'uuid': 'step_fixture'}})
-    elif boundary == 'next_step':
-        events.append({'type': 'context.append_loop_event', 'agentId': 'main',
-                       'event': {'type': 'step.begin', 'uuid': 'next_step'}})
-    elif boundary == 'mirrored_messages':
-        call, reply = events[-2]['event'], events[-1]['event']
-        events.extend([{'type': 'agent.message.appended', 'kind': 'event',
-                        'message': {'message': message, 'meta': {}}} for message in [
-                            {'role': 'assistant', 'toolCalls': [{'type': 'function', 'id': call['toolCallId'],
-                                'name': call['name'], 'arguments': json.dumps(call['args'])}]},
-                            {'role': 'tool', 'toolCallId': reply['toolCallId'],
-                             'content': [{'type': 'text', 'text': reply['result']['output']}]},
-                        ]])
-    else:
-        if boundary == 'after_error':
-            events[-1]['event']['result']['isError'] = True
-        elif boundary == 'after_undo':
-            events.append({'type': 'context.undo', 'agentId': 'main'})
-        second = bridge.call('execute', {'command': 'echo fixture'})
-        events.extend([{'type': 'context.append_loop_event', 'agentId': 'main', 'event': event}
-                       for event in [
-                           {'type': 'step.begin', 'uuid': 'second_step'},
-                           {'type': 'tool.call', 'uuid': 'second_call', 'stepUuid': 'second_step',
-                            'toolCallId': 'second_tool', 'name': 'mcp__layout__execute',
-                            'args': {'command': 'echo fixture'}},
-                           {'type': 'tool.result', 'parentUuid': 'second_call', 'toolCallId': 'second_tool',
-                            'result': {'output': json.dumps(second)}},
-                       ]])
-    wire.write_text(''.join(json.dumps(event) + '\n' for event in events))
-    assert continuation_id(tmp_path, {'harness': 'kimi-code'}, AttemptState(),
-                           {'state': 'active', 'remaining_seconds': 600}) == 'session_fixture'
-    assert not (tmp_path / 'tools.delivery.json').exists()
-    assert len(executed) == (1 if boundary in {'step_end', 'next_step', 'mirrored_messages'} else 2)
-
-
-@pytest.mark.parametrize('problem', [
-    'missing_reply', 'assistant_text', 'invalid_content', 'wrong_arguments', 'missing_call_id',
-    'corrupt_wire', 'stale_reply', 'new_unanswered_call', 'reused_call_id', 'changed_marker',
-    'missing_bridge_result', 'corrupt_bridge_row', 'pending_tool', 'active_execution',
-])
-def test_unproven_tool_delivery_never_authorizes_continuation(tmp_path, problem):
-    """Legacy messages retain parsing and bridge guard coverage.
-
-    Shared call/result matching counterexamples are owned by the current loop
-    protocol test below, whose successful normalized exchange is checked above.
-    """
-    from benchmarking.participants.recovery import continuation_id
-
-    _, wire = native_session(tmp_path)
-    bridge, executed = native_tool_delivery(tmp_path, wire)
-    events = [json.loads(line) for line in wire.read_text().splitlines()]
-    call = events[-2]['message']['message']['toolCalls'][0]
-    reply = events[-1]['message']['message']
-    status = {'state': 'active', 'remaining_seconds': 600, 'active_execution_id': None}
-    if problem == 'missing_reply':
-        events.pop()
-    elif problem == 'assistant_text':
-        reply['role'] = 'assistant'
-    elif problem == 'invalid_content':
-        reply['content'][0]['text'] = 'not JSON'
-    elif problem == 'wrong_arguments':
-        call['arguments'] = '{"command":"different"}'
-    elif problem == 'missing_call_id':
-        call.pop('id')
-    elif problem == 'stale_reply':
-        # A second identical execution can return identical bytes. Its older
-        # persisted reply must not acknowledge the newer delivery marker.
-        bridge.call('execute', {'command': 'echo fixture'})
-    elif problem == 'new_unanswered_call':
-        events.append({'type': 'agent.message.appended', 'message': {'message': {
-            'role': 'assistant', 'toolCalls': [dict(call, id='new-call')]}}})
-    elif problem == 'reused_call_id':
-        bridge.call('execute', {'command': 'echo fixture'})
-        events.append({'type': 'agent.message.appended', 'message': {'message': {
-            'role': 'assistant', 'toolCalls': [dict(call)]}}})
-    elif problem == 'changed_marker':
-        marker = tmp_path / 'tools.delivery.json'
-        entry = json.loads(marker.read_text())
-        entry['result'] = {'output': 'different'}
-        marker.write_text(json.dumps(entry))
-    elif problem == 'missing_bridge_result':
-        log = tmp_path / 'tools.jsonl'
-        log.write_text(log.read_text().splitlines()[0] + '\n')
-    elif problem == 'corrupt_bridge_row':
-        with (tmp_path / 'tools.jsonl').open('a') as stream:
-            stream.write('["arguments"]\n')
-    elif problem == 'pending_tool':
-        (tmp_path / 'tools.pending.json').write_text('{}')
-    elif problem == 'active_execution':
-        status['active_execution_id'] = 'still-running'
-    wire.write_text(''.join(json.dumps(event) + '\n' for event in events))
-    if problem == 'corrupt_wire':
-        with wire.open('a') as stream:
-            stream.write('{')
-    with pytest.raises(ValueError, match='Unresolved tool operation'):
-        continuation_id(tmp_path, {'harness': 'kimi-code'}, AttemptState(), status)
-    assert (tmp_path / 'tools.delivery.json').exists()
-    assert len(executed) == (2 if problem in {'stale_reply', 'reused_call_id'} else 1)
-
-
-@pytest.mark.parametrize('problem', [
-    'missing_reply', 'assistant_text', 'changed_result', 'invalid_content', 'wrong_tool',
-    'wrong_arguments', 'wrong_reply_id', 'missing_call_id', 'wrong_parent_uuid',
-    'missing_call_uuid', 'foreign_call', 'foreign_reply', 'missing_step', 'closed_step',
-    'new_step_before_reply', 'stale_reply', 'new_unanswered_call', 'reused_call_id',
-    'reply_before_call', 'error_result', 'annotated_result', 'clear', 'undo', 'compaction',
-    'mirrored_reply_only',
-])
-def test_kimi_loop_delivery_requires_a_complete_main_agent_exchange(tmp_path, problem):
-    from benchmarking.participants.recovery import continuation_id
-
-    _, wire = native_session(tmp_path)
-    bridge, executed = native_tool_delivery(tmp_path, wire, wire_format='loop')
-    events = [json.loads(line) for line in wire.read_text().splitlines()]
-    call = events[-2]['event']
-    reply = events[-1]['event']
-    if problem == 'missing_reply':
-        events.pop()
-    elif problem == 'assistant_text':
-        events[-1]['event'] = {'type': 'content.part', 'stepUuid': 'step_fixture',
-                               'part': {'type': 'text', 'text': reply['result']['output']}}
-    elif problem == 'changed_result':
-        reply['result']['output'] = '{"output":"different"}'
-    elif problem == 'invalid_content':
-        reply['result']['output'] = 'not JSON'
-    elif problem == 'wrong_tool':
-        call['name'] = 'mcp__other__execute'
-    elif problem == 'wrong_arguments':
-        call['args'] = {'command': 'different'}
-    elif problem == 'wrong_reply_id':
-        reply['toolCallId'] = 'different'
-    elif problem == 'missing_call_id':
-        call.pop('toolCallId')
-    elif problem == 'wrong_parent_uuid':
-        reply['parentUuid'] = 'different'
-    elif problem == 'missing_call_uuid':
-        call.pop('uuid')
-    elif problem == 'foreign_call':
-        events[-2]['agentId'] = 'other-agent'
-    elif problem == 'foreign_reply':
-        events[-1]['agentId'] = 'other-agent'
-    elif problem == 'missing_step':
-        events.pop(-3)
-    elif problem == 'closed_step':
-        events.insert(-2, {'type': 'context.append_loop_event', 'agentId': 'main',
-                           'event': {'type': 'step.end', 'uuid': 'step_fixture'}})
-    elif problem == 'new_step_before_reply':
-        events.insert(-1, {'type': 'context.append_loop_event', 'agentId': 'main',
-                           'event': {'type': 'step.begin', 'uuid': 'next_step'}})
-    elif problem == 'stale_reply':
-        bridge.call('execute', {'command': 'echo fixture'})
-    elif problem in {'new_unanswered_call', 'reused_call_id'}:
-        events.append({'type': 'context.append_loop_event', 'agentId': 'main', 'event':
-                       dict(call, uuid='second_call', toolCallId=(
-                           'second_tool' if problem == 'new_unanswered_call' else 'tool_fixture'))})
-    elif problem == 'reply_before_call':
-        events[-2:] = events[-1:] + events[-2:-1]
-    elif problem == 'error_result':
-        reply['result']['isError'] = True
-    elif problem == 'annotated_result':
-        reply['result']['note'] = 'different model-facing result'
-    elif problem in {'clear', 'undo', 'compaction'}:
-        events.append({'type': {'clear': 'context.clear', 'undo': 'context.undo',
-                               'compaction': 'context.apply_compaction'}[problem],
-                       'agentId': 'main'})
-    elif problem == 'mirrored_reply_only':
-        events[-1] = {'type': 'agent.message.appended', 'message': {'message': {
-            'role': 'tool', 'toolCallId': reply['toolCallId'],
-            'content': [{'type': 'text', 'text': reply['result']['output']}]}}}
-    wire.write_text(''.join(json.dumps(event) + '\n' for event in events))
-    with pytest.raises(ValueError, match='Unresolved tool operation'):
-        continuation_id(tmp_path, {'harness': 'kimi-code'}, AttemptState(),
-                        {'state': 'active', 'remaining_seconds': 600, 'active_execution_id': None})
-    assert (tmp_path / 'tools.delivery.json').exists()
-    assert len(executed) == (2 if problem == 'stale_reply' else 1)
 
 
 @pytest.mark.parametrize('key', ['oauth/kimi-code', 'custom'])
@@ -433,7 +149,7 @@ def test_oauth_refresh_survives_continuation_and_the_next_case(tmp_path, kimi_co
     import shutil
 
     from benchmarking.files import atomic_write
-    from benchmarking.participants.recovery import continuation_id, policy
+    from benchmarking.participants.attempt.recovery import continuation_id, policy
 
     home, config = kimi_config
     config['providers']['fixture'] = {'type': 'kimi', 'oauth': {'storage': 'file', 'key': 'oauth/fixture'}}
@@ -451,7 +167,7 @@ def test_oauth_refresh_survives_continuation_and_the_next_case(tmp_path, kimi_co
     # Capacity failures do not emit a session.resume_hint: discover only the
     # single persisted native conversation in this attempt's isolated home.
     (output / 'harness.jsonl').write_text('{"role":"meta","type":"system.version"}\n')
-    native_id = continuation_id(output, {'harness': 'kimi-code'}, AttemptState(), {'state': 'active'})
+    native_id = continuation_id(output, {'harness': 'kimi-code'}, AttemptState())
     selected.environment['ICLAYOUT_BENCH_RESUME_ID'] = native_id
     resume = adapters.prepare(ctx)
     assert resume[resume.index('--session') + 1] == 'session_fixture'
@@ -487,8 +203,8 @@ def test_kimi_resume_rejects_missing_ambiguous_or_changed_native_binding(tmp_pat
 
 
 def test_native_reasoning_and_logs_survive_export_without_credentials(tmp_path):
-    from benchmarking.participants.evidence import read_traces
-    from benchmarking.results.participant_export import traces
+    from benchmarking.participants.attempt.evidence import read_traces
+    from benchmarking.results.package import traces
 
     output = tmp_path / 'participant'
     root, wire = native_session(output)
@@ -516,7 +232,7 @@ def test_native_reasoning_and_logs_survive_export_without_credentials(tmp_path):
 @pytest.mark.parametrize('terminal_error,stop', [
     ('provider.rate_limit: 429 The engine is currently overloaded', 'success'),
     (CONCURRENT_REQUEST_LIMIT, 'success'),
-    (CONCURRENT_REQUEST_LIMIT, 'delivered_tool'),
+    (CONCURRENT_REQUEST_LIMIT, 'unanswered_tool'),
     *[(CONCURRENT_REQUEST_LIMIT, stop) for stop in ('pause_-15', 'pause_130')],
     ("provider.rate_limit: 429 We're receiving too many requests", 'success'),
     *[(CONCURRENT_REQUEST_LIMIT, stop) for stop in
@@ -528,15 +244,15 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
 
     from test_participant_runner import ServiceFixture
 
-    from benchmarking.participants.runner import run_participant
+    from benchmarking.participants.attempt.runner import run_participant
 
     home, config = kimi_config
     selected = selection(home, config)
     service = ServiceFixture()
     service.remaining = 1000
-    monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *a, **kw: service)
-    monkeypatch.setattr('benchmarking.participants.adapters.cli_version', lambda *a: 'kimi 2.1.1')
-    monkeypatch.setattr('benchmarking.participants.recovery.capacity_delay', lambda settings, n: 30 * 2 ** n)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: service)
+    monkeypatch.setattr('benchmarking.participants.harnesses.registry.cli_version', lambda *a: 'kimi 2.1.1')
+    monkeypatch.setattr('benchmarking.participants.attempt.recovery.capacity_delay', lambda settings, n: 30 * 2 ** n)
     launches, delays, timeouts = [], [], []
     output = tmp_path / 'result'
     row = {'harness': 'kimi-code', 'task': 'fixture'}
@@ -547,7 +263,7 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
         delays.append(seconds)
         service.remaining -= seconds
 
-    monkeypatch.setattr('benchmarking.participants.runner.time.sleep', sleep)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.time.sleep', sleep)
 
     def execute(argv, *, stdout, stderr, **kwargs):
         launches.append(argv)
@@ -557,8 +273,16 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
             stdout.write('{"type":"error","code":"rate_limit_error","retry_after":400}\n')
         if len(launches) == 1:
             _, wire = native_session(output)
-            if stop == 'delivered_tool':
-                native_tool_delivery(output, wire, wire_format='loop')
+            if stop == 'unanswered_tool':
+                with wire.open('a') as stream:
+                    for event in [
+                        {'type': 'step.begin', 'uuid': 'interrupted-step'},
+                        {'type': 'tool.call', 'uuid': 'interrupted-call', 'stepUuid': 'interrupted-step',
+                         'toolCallId': 'original-call', 'name': 'mcp__layout__execute',
+                         'args': {'command': 'native tool'}},
+                    ]:
+                        stream.write(json.dumps({'type': 'context.append_loop_event',
+                            'agentId': 'main', 'event': event}) + '\n')
             stderr.write('error: failed to run prompt: ' + terminal_error + '\n')
             if stop == 'mixed_failure':
                 stderr.write('error: failed to run prompt: provider.api_error: 400 fixture request rejected\n')
@@ -571,7 +295,7 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
         stdout.write('{"role":"assistant","content":"fixture completion"}\n')
         return 0, False
 
-    monkeypatch.setattr('benchmarking.participants.runner.execute', execute)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', execute)
     with patch.object(service, 'create', wraps=service.create) as create:
         result, error = run_participant(service, row, output, selected)
         assert create.call_count == 1
@@ -585,7 +309,7 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
             assert summary['capacity_recovery']['resumes'] == 1
             assert json.loads((output / '.private/recovery.json').read_text())['phase'] == 'suspended'
             return
-        if stop not in {'success', 'delivered_tool'}:
+        if stop not in {'success', 'unanswered_tool'}:
             assert error == ('cli_exit_-15' if stop == 'signal' else 'cli_exit_1')
             assert len(launches) == (2 if stop == 'quota' else 1)
             assert service.closed == (['fixture-session'] if stop in {'quota', 'resume_disabled'} else [])
@@ -612,8 +336,8 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
 def test_terminal_cleanup_keeps_kimi_native_records(tmp_path):
     from test_participant_runner import terminal_files
 
-    from benchmarking.participants.storage import CaseRecord
-    from benchmarking.participants.terminal import finish_case
+    from benchmarking.participants.attempt.storage import CaseRecord
+    from benchmarking.participants.attempt.worker import finish_case
 
     record = CaseRecord(tmp_path)
     record.initialize({'endpoint': 'https://fixture', 'plan': [{'model': 'fixture', 'effort': 'high'}]})
@@ -633,7 +357,7 @@ def test_terminal_cleanup_keeps_kimi_native_records(tmp_path):
 
 
 def test_provider_api_key_environment_is_redacted_regardless_of_variable_name(kimi_config):
-    from benchmarking.participants.credentials import credential_values
+    from benchmarking.participants.harnesses.credentials import credential_values
 
     home, config = kimi_config
     selected = selection(home, config)

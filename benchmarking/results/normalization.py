@@ -6,7 +6,7 @@ import math
 import mimetypes
 from pathlib import Path
 
-from benchmarking.harnesses import scheme_identity
+from benchmarking.execution.harness import scheme_identity
 
 
 def digest(value):

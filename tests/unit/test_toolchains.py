@@ -1,7 +1,6 @@
 import pytest
 
-from benchmarking.engine.toolchain_config import load_toolchain_spec
-from benchmarking.engine.toolchains import load_toolchain
+from benchmarking.eda.toolchain import load_toolchain, load_toolchain_spec
 
 pytestmark = pytest.mark.unit
 
@@ -103,7 +102,7 @@ response = "a"
     "R1 a b 1\n+ tc1=0.01", "R1 a b 1\nVlb_branch_R1 c 0 0",
 ])
 def test_branch_resistors_reject_semantics_they_cannot_preserve(card):
-    from benchmarking.engine.backends.ngspice import branch_resistors
+    from benchmarking.eda.backends.ngspice import branch_resistors
     from benchmarking.files import Asset
 
     with pytest.raises(ValueError):
@@ -116,7 +115,7 @@ def test_branch_resistors_reject_semantics_they_cannot_preserve(card):
     {'max_parallel_jobs': 4, 'threads': 4, 'cpu_budget': 8},
 ])
 def test_ngspice_rejects_invalid_resource_allocations_before_tool_start(settings, monkeypatch):
-    from benchmarking.engine.backends import ngspice
+    from benchmarking.eda.backends import ngspice
 
     class UnavailableTool:
         def __init__(self, *args, **kwargs):
@@ -130,9 +129,9 @@ def test_ngspice_rejects_invalid_resource_allocations_before_tool_start(settings
 def test_ngspice_resource_settings_bind_through_toolchain_and_preserve_startup(toolchain_config, monkeypatch):
     import json
 
-    from benchmarking.engine.backends import ngspice
-    from benchmarking.engine.tools.types import ToolResult
+    from benchmarking.eda.backends import ngspice
     from benchmarking.evaluation import Job
+    from benchmarking.execution.tools import ToolResult
     from benchmarking.files import Asset
 
     calls = []
@@ -183,7 +182,7 @@ settings = {image = "test", support = "models", max_parallel_jobs = 2, threads =
 def test_external_installation_binds_readonly_and_rejects_changed_identity(tmp_path, monkeypatch):
     import json
 
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.environment import ExternalRuntime
 
     installation = tmp_path / 'installed'
     installation.mkdir()
@@ -216,7 +215,7 @@ def test_external_installation_binds_readonly_and_rejects_changed_identity(tmp_p
 
 def test_external_module_selection_keeps_tool_arguments_separate(tmp_path, monkeypatch):
     """Operator module names become shell setup, never part of tool arguments."""
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.environment import ExternalRuntime
 
     installation = tmp_path / 'installed'
     installation.mkdir()
@@ -237,7 +236,7 @@ def test_external_module_selection_keeps_tool_arguments_separate(tmp_path, monke
 
 
 def test_external_pdk_subdirectories_exclude_unmounted_examples_and_symlink_escapes(tmp_path):
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.environment import ExternalRuntime
 
     pdk = tmp_path / 'installed'
     rules = pdk / 'rules'
@@ -257,8 +256,30 @@ def test_external_pdk_subdirectories_exclude_unmounted_examples_and_symlink_esca
         runtime.pdk_file('rules/escape')
 
 
+def test_pdk_variant_moves_native_discovery_with_the_selected_root(tmp_path):
+    from benchmarking.eda.environment import ExternalRuntime
+
+    for name in ('base', 'variant'):
+        directory = tmp_path / name
+        directory.mkdir()
+        (directory / 'identity').write_text(name)
+    runtime = ExternalRuntime('variants', {'image': 'operator-image',
+        'environment': {'PDK_ROOT': '/pdk/base', 'PROCESS_VARIANT': '/pdk/variant',
+                        'PDK_TECH_PATH': '/pdk/base/technology', 'PDK_LAYER_MAP': '/pdk/base/stream.map',
+                        'PDK_TECH_LIBRARY': 'technology', 'MODULEPATH': '/modules'},
+        'mounts': [{'source': str(tmp_path / n), 'target': '/pdk/' + n,
+                    'release': '1', 'identity_paths': ['identity']} for n in ('base', 'variant')]})
+    selected = runtime.select_pdk('PROCESS_VARIANT')
+    assert selected.environment['PDK_ROOT'] == '/pdk/variant'
+    assert selected.environment['PDK_TECH_PATH'] == '/pdk/variant/technology'
+    assert selected.environment['PDK_LAYER_MAP'] == '/pdk/variant/stream.map'
+    assert selected.environment['PDK_TECH_LIBRARY'] == 'technology'
+    assert runtime.environment['PDK_ROOT'] == '/pdk/base'
+    assert selected.environment['MODULEPATH'] == '/modules'
+
+
 def test_external_pdk_file_mount_hashes_itself_and_excludes_adjacent_assets(tmp_path):
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.environment import ExternalRuntime
 
     deck = tmp_path / 'process.svrf'
     deck.write_text('original rule')
@@ -282,7 +303,7 @@ def test_external_pdk_file_mount_hashes_itself_and_excludes_adjacent_assets(tmp_
 
 
 def test_tool_environment_only_applies_to_the_selected_tool_and_rejects_literal_license_values():
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.environment import ExternalRuntime
 
     profile = {'image': 'operator', 'mounts': [], 'environment': {},
                'modules': {'hspice': ['vendor/hspice'], 'customcompiler': ['vendor/customcompiler']},
@@ -297,7 +318,7 @@ def test_tool_environment_only_applies_to_the_selected_tool_and_rejects_literal_
 
 
 def test_license_server_aliases_preserve_forwarded_settings_without_recording_values(monkeypatch):
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.environment import ExternalRuntime
 
     monkeypatch.setenv('SNPSLMD_LICENSE_FILE', '27000@local-license-alias')
     runtime = ExternalRuntime('license-transport', {'image': 'operator', 'mounts': [], 'environment': {},
@@ -307,15 +328,16 @@ def test_license_server_aliases_preserve_forwarded_settings_without_recording_va
     assert '27000@local-license-alias' not in runtime.docker_args()
 
 
-def test_external_runtime_is_bound_from_process_manifest(tmp_path, monkeypatch):
+@pytest.mark.parametrize('network', ['none', 'host', 'operator-license-network'])
+def test_external_runtime_is_bound_from_process_manifest(tmp_path, monkeypatch, network):
     import tomli_w
 
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.environment import ExternalRuntime
 
     installation = tmp_path / 'pdk'
     installation.mkdir()
     (installation / 'rules').write_text('approved deck')
-    profile = {'image': 'operator-image', 'environment': {'PDK_ROOT': '/pdk'},
+    profile = {'image': 'operator-image', 'network': network, 'environment': {'PDK_ROOT': '/pdk'},
                'mounts': [{'source': str(installation), 'target': '/pdk',
                            'release': 'v1', 'identity_paths': ['rules']}]}
     manifest = tmp_path / 'pdk.toml'
@@ -325,4 +347,31 @@ def test_external_runtime_is_bound_from_process_manifest(tmp_path, monkeypatch):
     runtime = ExternalRuntime.from_manifest(manifest)
     assert runtime.name == 'example'
     assert runtime.image == 'operator-image'
+    assert runtime.network == network
     assert runtime.mounts[0]['source'] == str(installation)
+
+@pytest.mark.parametrize('setting', ['mos_models', 'resistor_models', 'bipolar_models', 'mos_junctions'])
+def test_retired_circuit_rewriting_is_rejected_before_tool_start(toolchain_config, setting):
+    config = toolchain_config(f'''
+[backends.rc]
+type = "calibre-native"
+settings = {{ {setting} = {{}} }}
+[bindings]
+"layout.extract_rc" = "rc"
+''')
+    def factory(**_):
+        pytest.fail('Retired circuit conversion must be rejected before tool initialization')
+    with pytest.raises(ValueError, match='retired circuit rewriting'):
+        load_toolchain(config, factories={'calibre-native': factory})
+
+
+def test_process_policy_requires_native_declarations(toolchain_config):
+    config = toolchain_config('''
+[backends.lvs]
+type = "calibre-native"
+settings = { finfet = true }
+[bindings]
+"layout.lvs" = "lvs"
+''')
+    with pytest.raises(ValueError, match='Retired finfet policy'):
+        load_toolchain(config, factories={'calibre-native': lambda **_: pytest.fail('Tool started')})

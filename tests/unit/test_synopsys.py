@@ -5,43 +5,22 @@ from types import SimpleNamespace
 
 import pytest
 
-from benchmarking.engine.backends.synopsys import (
+from benchmarking.eda.backends.synopsys import (
     HspiceNative,
     _native_version,
     hspice_measures,
     icv_drc_summary,
     icv_lvs_summary,
-    star_spice,
+    starrc_netlist,
 )
-from benchmarking.engine.external import ExternalRuntime
-from benchmarking.engine.netlists.spice import expand_mos_multiplicity
-from benchmarking.engine.tools.native import NativeTool
+from benchmarking.eda.environment import ExternalRuntime
+from benchmarking.execution.tools.native import NativeTool
 from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
 
 
-def test_lvs_multiplicity_preserves_per_unit_fin_count_and_body_nets():
-    source = '''.subckt TOP D G S B
-MP D G S pmos W=21n L=15n nfin=1 m=2
-MN D G S B nfet W=48n L=20n
-+ nfin=2 m=3
-.ends TOP
-'''
-    expanded = expand_mos_multiplicity(source)
-    cards = [line.split() for line in expanded.splitlines() if line.startswith('M')]
-    assert len(cards) == 5
-    assert [tokens[1:] for tokens in cards[:2]] == [
-        ['D', 'G', 'S', 'pmos', 'W=21n', 'L=15n', 'nfin=1']] * 2
-    assert [tokens[1:] for tokens in cards[2:]] == [
-        ['D', 'G', 'S', 'B', 'nfet', 'W=48n', 'L=20n', 'nfin=2']] * 3
-    assert len({tokens[0] for tokens in cards}) == 5
-    # The translator must not mutate the simulation input or accept a fractional
-    # physical device inventory during source comparison.
-    assert 'm=2' in source and 'm=3' in source
-    for count in ('0', '-1', '1.5'):
-        with pytest.raises(ValueError, match='positive integer'):
-            expand_mos_multiplicity(source.replace('m=2', 'm=' + count))
+
 
 
 def test_icv_drc_requires_declared_top_completion_and_rule_coverage():
@@ -65,17 +44,20 @@ TOP equivalence point: [top, TOP]
 check_property = 2 device_name
 recognize_gate = 0 device_name
 '''
-    assert icv_lvs_summary(report, 'top')
-    assert not icv_lvs_summary(report.replace('PASS', 'FAIL'), 'top')
+    checks = {'check_property': 2, 'recognize_gate': 0}
+    assert icv_lvs_summary(report, 'top', checks)
+    assert not icv_lvs_summary(report.replace('PASS', 'FAIL'), 'top', checks)
+    assert icv_lvs_summary(report.replace('2 device_name', '3 device_names'), 'top',
+                           {'check_property': 3, 'recognize_gate': 0})
     for bad in (report + report, report.replace('2 device_name', '0 device_name'),
                 report.replace('0 device_name', '2 device_name'), report.replace('[top, TOP]', '[other, TOP]')):
         with pytest.raises(ValueError):
-            icv_lvs_summary(bad, 'top')
+            icv_lvs_summary(bad, 'top', checks)
 
 
-def test_starrc_preserves_three_terminal_device_geometry_and_coupling():
+def test_starrc_preserves_native_models_and_rejects_missing_supply_ports():
     extracted = '''*|DSPF 1.3
-.SUBCKT TOP OUT IN
+.SUBCKT TOP OUT IN VDD! GND!
 Rwire IN NGATE 1000
 Cwire NGATE GND! 1e-15
 Ccouple NGATE OUT 2e-15
@@ -84,20 +66,18 @@ M1 OUT NGATE GND! nmos W=21n L=15n nfin=1
 M2 OUT NGATE VDD! pmos W=21n L=15n nfin=1 ADEJ=4e-16 ASEJ=5e-16 PDEJ=62n PSEJ=72n
 .ENDS TOP
 '''
-    adapted = star_spice(extracted, 'TOP', ['IN', 'OUT', 'VDD!', 'GND!'], {'nmos': 'nfet', 'pmos': 'pfet'})
-    assert '.subckt TOP IN OUT VDD! GND!' in adapted
-    assert 'Ccouple NGATE OUT 2e-15' in adapted and 'Rwire IN NGATE 1000' in adapted
-    assert 'M1 OUT NGATE GND! nfet W=21n L=15n nfin=1 ADEJ=2e-16 ASEJ=3e-16' in adapted
-    # ICV introduces numeric internal ports; the full LVS proves their topology.
-    internal = extracted.replace('.SUBCKT TOP OUT IN', '.SUBCKT TOP OUT IN 7').replace(
-        'Cwire NGATE GND! 1e-15', 'Cwire NGATE 7 1e-15\nCinternal 7 GND! 3e-15')
-    adapted = star_spice(internal, 'TOP', ['IN', 'OUT', 'VDD!', 'GND!'], {'nmos': 'nfet', 'pmos': 'pfet'})
-    assert '.subckt TOP IN OUT VDD! GND!' in adapted and 'Cinternal 7 GND! 3e-15' in adapted
-    for bad in (extracted.replace('1000', '0'), extracted.replace('ASEJ=3e-16', ''),
-                extracted.replace('nmos', 'unknown'), extracted.replace('W=21n', 'W=nan'),
-                extracted + extracted):
+    ports = ['IN', 'OUT', 'VDD!', 'GND!']
+    bound = starrc_netlist(extracted, 'TOP', ports)
+    assert '.SUBCKT TOP IN OUT VDD! GND!' in bound
+    assert 'M1 OUT NGATE GND! nmos' in bound
+    assert '+ ADEJ=2e-16 ASEJ=3e-16' in bound
+    assert 'Ccouple NGATE OUT 2e-15' in bound
+    for bad in (extracted.replace('TOP OUT IN VDD! GND!', 'TOP OUT IN'),
+                extracted.replace('TOP OUT IN VDD! GND!', 'TOP OUT IN VDD! GND! 7'),
+                extracted.replace('1000', '0'), extracted.replace('ASEJ=3e-16', ''),
+                extracted.replace('W=21n', 'W=nan'), extracted + extracted):
         with pytest.raises(ValueError):
-            star_spice(bad, 'TOP', ['IN', 'OUT', 'VDD!', 'GND!'], {'nmos': 'nfet', 'pmos': 'pfet'})
+            starrc_netlist(bad, 'TOP', ports)
 
 
 def test_hspice_completion_finite_scalars_and_atto_units():
@@ -130,7 +110,7 @@ def test_hspice_model_cards_and_library_sections(monkeypatch, sections, statemen
             return SimpleNamespace(returncode=0, reason='', evidence={},
                                    files={'result.lis': Asset(b'delay= 5p\n***** job concluded\n', 'text')})
 
-    monkeypatch.setattr('benchmarking.engine.backends.synopsys.NativeTool', Tool)
+    monkeypatch.setattr('benchmarking.eda.backends.synopsys.NativeTool', Tool)
     runtime = SimpleNamespace(pdk_file=lambda name: (None, '/models/tt.pm'),
                               module_command=lambda module, command: command)
     backend = HspiceNative(runtime=runtime, model='tt.pm', sections=sections)
@@ -165,6 +145,29 @@ def test_native_frozen_bytes_license_redaction_and_timeout(monkeypatch):
     assert 'missing:missing' in result.evidence
 
 
+def test_native_process_controls_are_frozen_and_cannot_shadow_job_inputs():
+    control = '// Process interface\ninline subckt native (D G S B)\nends native\n'
+    runtime = ExternalRuntime('test', {'image': 'unused', 'environment': {}, 'mounts': [],
+        'control_files': {'models.scs': control}})
+    tool = NativeTool(runtime, timeout_seconds=10)
+    path = runtime.control_path('@models.scs')
+    result = tool.run([sys.executable, '-c',
+        f'from pathlib import Path; Path("copy.scs").write_bytes(Path({path!r}).read_bytes())'],
+        {}, {'copy.scs': 'text'},
+        file_rewriter=lambda name, content, root: content.replace(b'Process', b'corrupted'))
+    assert result.returncode == 0 and result.files['copy.scs'].content == control.encode()
+    with pytest.raises(ValueError, match='collide'):
+        tool.run([], {path: Asset(b'candidate override', 'text')}, {})
+    with pytest.raises(ValueError, match='Unknown native'):
+        runtime.control_path('@missing.scs')
+    runtime.control_files['models.scs'] = 'changed process interface'
+    with pytest.raises(ValueError, match='changed since preparation'):
+        tool.run([], {}, {})
+    with pytest.raises(ValueError):
+        ExternalRuntime('test', {'image': 'unused', 'environment': {}, 'mounts': [],
+            'control_files': {'../outside.scs': control}})
+
+
 def test_native_version_parser_keeps_backend_module_and_accepted_exit_codes():
     commands = []
 
@@ -181,3 +184,33 @@ def test_native_version_parser_keeps_backend_module_and_accepted_exit_codes():
     assert commands == [['load', 'icv', 'icv', '-V']]
     with pytest.raises(ValueError, match='release identity'):
         _native_version(probe, runtime, 'icv', ['icv', '-V'], r'Version (\S+) for linux64')
+
+def test_icv_passes_source_and_native_rules_without_process_rewrites(monkeypatch, tmp_path):
+    from benchmarking.eda.backends.synopsys import ICVNative
+
+    deck = tmp_path / 'native.rules'
+    rules = 'native process comparison and reduction rules\n'
+    deck.write_text(rules)
+    captured = {}
+    class Tool:
+        def __init__(self, *_args, **_kwargs):
+            pass
+        def probe(self, *_args, **_kwargs):
+            return SimpleNamespace(returncode=0, stdout=b'Version test for linux64')
+        def run(self, command, files, exports, **kwargs):
+            captured.update(files)
+            report = b'Final comparison result:PASS\nTOP equivalence point: [TOP, TOP]\ncheck_property = 2 device_name\nrecognize_gate = 0 device_name\n'
+            return SimpleNamespace(reason='', returncode=0, evidence={},
+                                   files={'TOP.LVS_ERRORS': Asset(report, 'text')})
+    monkeypatch.setattr('benchmarking.eda.backends.synopsys.NativeTool', Tool)
+    runtime = SimpleNamespace(pdk_file=lambda _: (deck, str(deck)),
+                              module_command=lambda _module, command: command)
+    backend = ICVNative(runtime=runtime, check='lvs', deck='native.rules',
+                        lvs_checks={'check_property': 2, 'recognize_gate': 0})
+    source = Asset(b'.subckt TOP D G S\nM0 D G S nfet w=21n l=15n nfin=1 m=3\n.ends TOP\n', 'spice')
+    job = SimpleNamespace(stage='check', parameters={})
+    result = backend.run(job, {'layout': Asset(b'frozen', 'gds'), 'netlist': source,
+                              'task': Asset(b'{"output":{"top_cell":"TOP"},"netlist_subcircuit":"TOP"}', 'json')})
+    assert result.status == 'passed'
+    assert captured['source.spice'] == source
+    assert captured['control.rs'].content == rules.encode()

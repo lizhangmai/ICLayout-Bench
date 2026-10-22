@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from benchmarking.tasks import load_task
+from benchmarking.tasks.contract import load_task
 
 pytestmark = pytest.mark.unit
 
@@ -63,6 +63,22 @@ max_bytes = 1048576
 
 def replace(config: Path, before: str, after: str):
     config.write_text(config.read_text().replace(before, after))
+
+
+def test_problem_document_is_required_for_solving_and_preserves_original_bytes(package):
+    from dataclasses import replace as updated
+
+    from benchmarking.tasks.contract import InputFile
+
+    task = load_task(package)
+    with pytest.raises(ValueError, match='inputs.description'):
+        _ = task.problem
+    problem = '# Layout task\r\n\r\n中文要求。\r\n'
+    content = problem.encode('utf-8')
+    description = InputFile('description', 'problem.md', hashlib.sha256(content).hexdigest(), content)
+    assert updated(task, inputs=(*task.inputs, description)).problem == problem
+    with pytest.raises(ValueError, match='nonempty'):
+        _ = updated(task, inputs=(*task.inputs, updated(description, content=b' \n'))).problem
 
 
 def test_task_identity_tracks_published_coefficient_and_output(package):
@@ -150,7 +166,7 @@ def test_inline_constraints_are_frozen_and_shared_with_solver_and_evaluator(inli
     destination = tmp_path / "solver-inputs"
     task.materialize(destination)
     assert {p.relative_to(destination).as_posix() for p in destination.rglob("*") if p.is_file()} == {
-        "input/spec.spice", "evaluation/plan.toml", "evaluation/testbench.spice",
+        "input/spec.spice", "evaluation/testbench.spice",
     }
 
 
@@ -196,7 +212,7 @@ def test_case_metadata_does_not_supply_solver_inputs(executable_case, tmp_path):
     updated.materialize(destination)
     assert {p.relative_to(destination).as_posix(): p.read_bytes()
             for p in destination.rglob("*") if p.is_file()} == {
-        item.path: item.content for item in task.inputs
+        item.path: item.content for item in task.inputs if item.role != 'evaluation'
     }
 
 
@@ -252,7 +268,7 @@ observations = ["dc:gain"]
 unit = "1"
 direction = "maximize"
 aggregation = "min"
-lower = 1.0
+requirement = {{ lower = 1.0, rationale = "The synthetic gain must exceed unity for feedback." }}
 '''
     files = {"evaluation": ("evaluation/plan.toml", plan, "toml"),
              "testbench": ("evaluation/testbench.spice", "* generic testbench", "spice")}
@@ -279,7 +295,9 @@ def test_evaluation_and_arbitrary_named_testbenches_are_frozen_inputs(package, t
     (tmp_path / "evaluation/plan.toml").write_text("changed after loading")
     destination = tmp_path / "prepared"
     task.materialize(destination)
-    assert hashlib.sha256((destination / "evaluation/plan.toml").read_bytes()).hexdigest() == before
+    assert not (destination / "evaluation/plan.toml").exists()
+    assert 'evaluation' not in task.solver_description()['inputs']
+    assert hashlib.sha256(task.evaluation_inputs()['input:evaluation'].content).hexdigest() == before
     assert task.description()["evaluation"]["metrics"][0]["id"] == "gain"
     assert not (destination / "provenance.json").exists()
 
@@ -302,8 +320,8 @@ def test_inline_evaluation_freezes_public_rules_without_an_extra_solver_file(pac
     assert "evaluation" not in task.description()["inputs"]
 
     replace(package, "lower = 1.0", "lower = 700.0")
-    task.description()["evaluation"]["metrics"][0]["lower"] = 900.0
-    assert task.description()["evaluation"]["metrics"][0]["lower"] == 1.0
+    task.description()["evaluation"]["metrics"][0]["requirement"]["lower"] = 900.0
+    assert task.description()["evaluation"]["metrics"][0]["requirement"]["lower"] == 1.0
     assert task.input_assets()["evaluation"] == frozen
     assert load_task(package).digest != task.digest
     destination = tmp_path / "solver-inputs"
@@ -334,4 +352,84 @@ def test_task_budget_is_published_frozen_and_service_owned(package):
 
     replace(package, f"hours = {hours}", "hours = 0")
     with pytest.raises(ValueError, match="hours"):
+        load_task(package)
+
+
+def test_evaluator_inputs_are_frozen_but_never_materialized(package, tmp_path):
+    from benchmarking.tasks.contract import task_contract
+
+    raw = b".subckt SYNTHETIC A B\nRprivate A B 123\n.ends\n"
+    private = tmp_path / "trusted/lvs.cdl"
+    private.parent.mkdir()
+    private.write_bytes(raw)
+    add_evaluation(package, reference="input:lvs_source", inline=True)
+    package.write_text(package.read_text() + '\n[evaluator_inputs.lvs_source]\n'
+                       'path = "trusted/lvs.cdl"\nformat = "spice"\nsha256 = "'
+                       + hashlib.sha256(raw).hexdigest() + '"\n')
+    task = load_task(package)
+    frozen = task.evaluation_inputs()["input:lvs_source"]
+    identity = task_contract(task)
+    private.write_bytes(b"changed after load")
+    task.materialize(tmp_path / "solver")
+    assert frozen.content == raw
+    assert not (tmp_path / "solver/trusted").exists()
+    description = task.description()
+    assert "lvs_source" not in description["inputs"]
+    assert description["evaluator_inputs"]["lvs_source"] == frozen.identity()
+    assert "Rprivate" not in json.dumps(description)
+    assert "trusted/lvs.cdl" not in json.dumps(description)
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        load_task(package)
+    raw2 = raw.replace(b"123", b"456")
+    private.write_bytes(raw2)
+    replace(package, frozen.sha256, hashlib.sha256(raw2).hexdigest())
+    assert task_contract(load_task(package)) != identity
+    assert task.evaluation_inputs()["input:lvs_source"] == frozen
+
+
+@pytest.mark.parametrize("role,path", [("netlist", "trusted/source.cdl"),
+                                      ("evaluation", "trusted/plan.toml"),
+                                      ("lvs", "input/spec.spice")])
+def test_evaluator_inputs_cannot_shadow_solver_or_inline_inputs(package, role, path):
+    package.write_text(package.read_text() + f'\n[evaluator_inputs.{role}]\n'
+                       f'path = "{path}"\nsha256 = "' + 'a' * 64 + '"\n')
+    with pytest.raises(ValueError, match="distinct|Overlapping"):
+        load_task(package)
+
+
+def test_generated_evaluator_bytes_do_not_define_the_task(package, tmp_path):
+    from benchmarking.tasks.contract import task_contract
+
+    add_evaluation(package, reference="input:lvs_source", inline=True)
+    private = tmp_path / "trusted/source.cdl"
+    private.parent.mkdir()
+    raw = b"* Netlisted on: 11:00:00\n.subckt SYNTHETIC A B\n.ends\n"
+    private.write_bytes(raw)
+    package.write_text(package.read_text() + '\n[evaluator_inputs.lvs_source]\n'
+                       'path = "trusted/source.cdl"\nformat = "spice"\nderived_from = ["netlist"]\n')
+    original = load_task(package)
+    private.write_bytes(raw.replace(b"11:00:00", b"12:34:56"))
+    regenerated = load_task(package)
+    assert original.digest == regenerated.digest
+    assert task_contract(original) == task_contract(regenerated)
+    assert original.input_assets()["lvs_source"].sha256 != regenerated.input_assets()["lvs_source"].sha256
+    assert original.input_assets()["lvs_source"].content == raw
+    assert regenerated.description()["evaluator_inputs"]["lvs_source"] == {
+        "derived_from": ["netlist"], "format": "spice"}
+    regenerated.materialize(tmp_path / "solver")
+    assert not (tmp_path / "solver/trusted").exists()
+    source = tmp_path / "input/spec.spice"
+    before = hashlib.sha256(source.read_bytes()).hexdigest()
+    source.write_bytes(source.read_bytes().replace(b"A B", b"B A"))
+    replace(package, before, hashlib.sha256(source.read_bytes()).hexdigest())
+    changed = load_task(package)
+    assert changed.digest != original.digest
+    assert task_contract(changed) != task_contract(original)
+
+
+@pytest.mark.parametrize("origin", ['[]', '["missing"]', '["netlist", "netlist"]', '"netlist"'])
+def test_generated_evaluator_inputs_require_explicit_authoritative_origins(package, origin):
+    package.write_text(package.read_text() + '\n[evaluator_inputs.lvs_source]\n'
+                       f'path = "trusted/source.cdl"\nderived_from = {origin}\n')
+    with pytest.raises(ValueError, match="authoritative"):
         load_task(package)

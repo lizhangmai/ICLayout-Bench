@@ -7,8 +7,9 @@ import pytest
 from helpers.catalog import CASES as PUBLISHED_CASES
 from helpers.catalog import ROOT, read_case
 
-from benchmarking.engine.evaluate import run_evaluation
-from benchmarking.engine.runtime import load_case
+from benchmarking.eda.images import DEFAULT_IMAGE
+from benchmarking.eda.runtime import load_case
+from benchmarking.evaluation.runner import run_evaluation
 from benchmarking.files import Asset
 
 pytestmark = [pytest.mark.integration, pytest.mark.acceptance_eda]
@@ -19,7 +20,7 @@ CASES = [path for path in PUBLISHED_CASES for data in [read_case(path)]
 
 @pytest.fixture(scope='module')
 def prepare_case(tmp_path_factory):
-    image = os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', 'iclayout-eda-open:local')
+    image = os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', DEFAULT_IMAGE)
     environments = {}
 
     def prepare(case):

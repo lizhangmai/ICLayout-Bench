@@ -1,17 +1,11 @@
 """Small command-line summaries remain useful without replacing durable reports."""
 
-import importlib.util
 import json
-from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
-_SPEC = importlib.util.spec_from_file_location("iclayout_bench_main", ROOT / "benchmarking/engine/cli.py")
-_MODULE = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(_MODULE)
-_inference_preflight = _MODULE._inference_preflight
-
+from benchmarking.evaluation import cli as _MODULE
+from benchmarking.execution.cli import _inference_preflight
 
 pytestmark = [pytest.mark.unit, pytest.mark.acceptance, pytest.mark.acceptance_fast]
 
@@ -41,12 +35,14 @@ def test_case_toolchain_default_and_explicit_override(executable_case, tmp_path,
     command = "evaluate"
     case = executable_case
     output = tmp_path / "result"
-    argv = ["benchmarking.engine.cli", command, str(case), "--output", str(output)]
+    argv = ["benchmarking.evaluation.cli", command, str(case), "--output", str(output)]
     selected = []
     invoked = []
     bindings = {}
+    monkeypatch.delenv('ICLAYOUT_BENCH_IMAGE', raising=False)
 
-    def load(path):
+    def load(path, **options):
+        assert options == ({'image': 'selected-image'} if override else {})
         selected.append(path)
         return bindings
 
@@ -69,7 +65,10 @@ def test_case_toolchain_default_and_explicit_override(executable_case, tmp_path,
 
     monkeypatch.setattr(_MODULE, "run_evaluation", evaluate)
     if override:
-        argv += ["--toolchain", str(tmp_path / "override.toml")]
+        alternate = tmp_path / "override.toml"
+        alternate.write_text('[backends.fixture]\ntype = "synthetic"\nsettings = {}\n'
+                             '[bindings]\n"layout.artifact" = "fixture"\n')
+        argv += ["--toolchain", str(alternate), '--image', 'selected-image']
     monkeypatch.setattr("sys.argv", argv)
     _MODULE.main()
     assert selected == [tmp_path / "override.toml" if override else case]

@@ -8,15 +8,86 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from benchmarking.participants.adapters import prepare as prepare_harness
-from benchmarking.participants.adapters.contracts import (
+from benchmarking.participants.batch.config import read_configs, read_matrix, resolve
+from benchmarking.participants.harnesses.contracts import (
     LaunchContext,
     ParticipantSelection,
 )
-from benchmarking.participants.bridge import Bridge, dispatch
-from benchmarking.participants.config import read_configs, read_matrix, resolve
+from benchmarking.participants.harnesses.registry import prepare as prepare_harness
+from benchmarking.participants.mcp import Bridge, dispatch
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.fixture
+def price_snapshot():
+    return {'currency': 'USD', 'source': 'https://provider.example/pricing', 'as_of': '2026-10-16',
+            'input_per_million': 2, 'cache_read_per_million': .2,
+            'cache_write_per_million': 2.5, 'output_per_million': 10}
+
+
+def test_price_snapshot_is_preserved_in_experiment_conditions_and_rejects_ambiguous_rates(tmp_path, price_snapshot):
+    import tomli_w
+
+    row = {'harness': 'codex', 'model': 'fixture', 'effort': 'high', 'tasks': ['fixture'],
+           'concurrency': 1, 'repetitions': 1,
+           'pricing': price_snapshot}
+    path = tmp_path / 'experiment.toml'
+    path.write_text(tomli_w.dumps(row))
+    selected, = read_configs([path])
+    assert selected['pricing'] == row['pricing']
+    row['pricing']['cache_read_per_million'] = -1
+    path.write_text(tomli_w.dumps(row))
+    with pytest.raises(ValueError, match='cache_read_per_million'):
+        read_configs([path])
+
+
+@pytest.mark.parametrize('matrix', [False, True])
+def test_profile_pricing_file_selects_model_and_freezes_an_independent_snapshot(
+        tmp_path, monkeypatch, price_snapshot, matrix):
+    import tomli_w
+
+    profile = tmp_path / 'harnesses/fixture/api'
+    profile.mkdir(parents=True)
+    prices = profile / 'pricing.toml'
+    prices.write_text(tomli_w.dumps({'models': {'other': dict(price_snapshot, output_per_million=99),
+                                               'fixture': price_snapshot}}))
+    configs = tmp_path / 'configs'
+    configs.mkdir()
+    path = configs / 'experiment.toml'
+    row = {'name': 'fixture', 'harness': 'codex', 'model': 'fixture', 'effort': 'high',
+           'tasks': ['fixture'], 'concurrency': 1, 'repetitions': 1,
+           'pricing_file': '../harnesses/fixture/api/pricing.toml'}
+
+    def save():
+        path.write_text(tomli_w.dumps({'defaults': row, 'runs': [{}]} if matrix else row))
+
+    save()
+    monkeypatch.chdir(profile)
+    read = read_matrix if matrix else lambda path: read_configs([path])
+    selected, = read(path)
+    assert selected['pricing'] == price_snapshot
+    assert 'pricing_file' not in selected
+    updated = dict(price_snapshot, output_per_million=20)
+    prices.write_text(tomli_w.dumps({'models': {'fixture': updated}}))
+    new, = read(path)
+    assert new['pricing'] == updated
+    assert selected['pricing'] == price_snapshot
+
+    row['pricing'] = price_snapshot
+    save()
+    with pytest.raises(ValueError, match='Use pricing or pricing_file'):
+        read(path)
+    row.pop('pricing')
+    row['model'] = 'unlisted'
+    save()
+    with pytest.raises(ValueError, match='no price for configured model'):
+        read(path)
+    row['model'] = 'fixture'
+    save()
+    prices.write_text(tomli_w.dumps({'models': {'fixture': dict(price_snapshot, output_per_million=-1)}}))
+    with pytest.raises(ValueError, match='output_per_million'):
+        read(path)
 
 
 @pytest.mark.parametrize('harness,matrix', [
@@ -45,7 +116,7 @@ def test_native_home_paths_are_relative_to_each_configuration(tmp_path, monkeypa
     ('claude-code', 'settings.json', '.credentials.json'),
 ])
 def test_native_home_selection_never_falls_back_to_host_authentication(tmp_path, monkeypatch, harness, configuration, credential):
-    from benchmarking.participants import adapters
+    from benchmarking.participants.harnesses import registry as adapters
 
     host = tmp_path / 'host'; host.mkdir()
     chosen = tmp_path / 'chosen'; chosen.mkdir()
@@ -146,7 +217,7 @@ def test_codex_native_auth_mode_selects_the_matching_stored_credentials(tmp_path
 
 @pytest.mark.parametrize('explicit', [False, True])
 def test_local_service_inherits_the_operator_cache_without_session_controls(tmp_path, monkeypatch, explicit):
-    from benchmarking.participants.local_service import service
+    from benchmarking.participants.attempt.service import service
 
     monkeypatch.setenv('XDG_CACHE_HOME', str(tmp_path / 'xdg'))
     monkeypatch.delenv('ICLAYOUT_BENCH_CACHE_DIR', raising=False)
@@ -157,7 +228,7 @@ def test_local_service_inherits_the_operator_cache_without_session_controls(tmp_
     monkeypatch.setenv('ICLAYOUT_BENCH_SESSION', 'unrelated-session')
     monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'unrelated-token')
     process = Mock(pid=123456)
-    process.stdout.readline.return_value = 'Local development service: http://localhost:1234\n'
+    process.stdout.readline.return_value = 'Evaluation service: http://localhost:1234\n'
     spawned = Mock(return_value=process)
     monkeypatch.setattr('benchmarking.service.launch.subprocess.Popen', spawned)
     selector = Mock()
@@ -176,34 +247,8 @@ def test_local_service_inherits_the_operator_cache_without_session_controls(tmp_
         assert 'ICLAYOUT_BENCH_TOKEN' not in environment
 
 
-@pytest.mark.parametrize('name,known', [('execute', True), ('check', True), ('submit', True), ('write', False)])
-def test_checkpoint_tool_reconciliation_observes_without_replaying(tmp_path, name, known):
-    from benchmarking.participants.bridge import reconcile_restarted_tools
-
-    client = Mock()
-    client.session.return_value = {'recovery': {'workspace_restored': True}, 'active_execution_id': None}
-    response = {'execution_id': 'interrupted'} if name in {'execute', 'check'} else {'submission_id': 'accepted'}
-    client.request.return_value = {'known': known, 'response': response if known else None}
-    client.poll.return_value = {'state': 'error', 'exit_code': None, 'log_base64': '', 'next_offset': 0, 'truncated': False}
-    pending = tmp_path / 'tools.pending.json'
-    pending.write_text(json.dumps({'tool': name, 'key': 'original-key', 'arguments': {}}))
-    result, = reconcile_restarted_tools(client, 'same-session', tmp_path)
-    assert not pending.exists()
-    namespace = {'execute': 'executions', 'check': 'executions', 'submit': 'submissions', 'write': 'files'}[name]
-    client.request.assert_called_once_with('GET', f'/sessions/same-session/requests/{namespace}/original-key')
-    if name in {'execute', 'check'}:
-        assert result['result']['state'] == 'error' and result['result']['exit_code'] is None
-    elif known:
-        assert result['result']['submission_id'] == 'accepted'
-    else:
-        assert result['result'] == {'state': 'not_committed', 'workspace_rolled_back': True}
-    for mutation in (client.execute, client.write, client.submit, client.check):
-        mutation.assert_not_called()
-    assert json.loads((tmp_path / 'tools.jsonl').read_text()) == result
-
-
 def test_editable_package_identity_tracks_loaded_source(tmp_path, monkeypatch):
-    from benchmarking.participants.config import package_identity
+    from benchmarking.evidence.identity import package_identity
 
     package = tmp_path / 'benchmarking'
     package.mkdir()
@@ -213,7 +258,7 @@ def test_editable_package_identity_tracks_loaded_source(tmp_path, monkeypatch):
     dist.read_text.return_value = json.dumps({'dir_info': {'editable': True}})
     monkeypatch.setattr('importlib.metadata.distribution', lambda name: dist)
     monkeypatch.setattr('benchmarking.__file__', str(source))
-    monkeypatch.setattr('benchmarking.participants.config.package_version', lambda: {'commit': 'test-commit'})
+    monkeypatch.setattr('benchmarking.evidence.identity.package_version', lambda: {'commit': 'test-commit'})
     before = package_identity()
     assert before['commit'] == 'test-commit'
     source.write_text('VALUE = 2\n')
@@ -229,6 +274,41 @@ def test_editable_package_identity_tracks_loaded_source(tmp_path, monkeypatch):
 
 def prepare_harness_args(condition, env, settings, mcp, directory):
     return prepare_harness(LaunchContext(ParticipantSelection(condition, env, settings), mcp, directory, directory, directory / "bridge.py", "task"))
+
+
+@pytest.mark.parametrize('matrix', [False, True])
+@pytest.mark.parametrize('configured_source', [{'source_env': 'EXAMPLE_DATASET'}, {'source': 'old/dataset'}])
+def test_explicit_dataset_selects_and_freezes_rows_before_resolving_configured_source(
+        tmp_path, monkeypatch, matrix, configured_source):
+    import tomli_w
+
+    from benchmarking.participants.batch.plan import ExperimentRequest, plan_conditions
+
+    monkeypatch.delenv('EXAMPLE_DATASET', raising=False)
+    source = tmp_path / 'chosen-dataset'; source.mkdir()
+    config_dir = tmp_path / 'configs'; config_dir.mkdir()
+    config = config_dir / 'experiment.toml'
+    row = {'name': 'fixture', 'harness': 'codex', 'model': 'fixture', 'effort': 'low',
+           'concurrency': 1, 'repetitions': 1,
+           'dataset': {**configured_source, 'revision': 'old', 'name': 'all', 'split': 'test'}}
+    config.write_text(tomli_w.dumps({'defaults': row, 'runs': [{}]} if matrix else row))
+    dataset = Mock(identity={'source': str(source), 'commit': 'chosen'})
+    records = Mock(); records.to_list.return_value = [{'task_id': 'chosen.case'}]
+    dataset.native_cases.return_value = records, {'chosen.case': source / 'case.toml'}
+    monkeypatch.chdir(tmp_path)
+    request = ExperimentRequest(config=None if matrix else [config], matrix=config if matrix else None,
+        case=None, repetitions=None, concurrency=None, dataset='chosen-dataset', revision='chosen', offline=True,
+        image='unused', endpoint=None, token_env='unused', output=None, results_data=None,
+        resume=False, replace_unfinished=False)
+    with patch('benchmarking.tasks.dataset.load_dataset', return_value=dataset) as load, \
+            patch('benchmarking.participants.batch.plan.resolve', return_value=ParticipantSelection({}, {}, {})):
+        condition, = plan_conditions(request).conditions
+    load.assert_called_once_with(str(source), revision='chosen', local_files_only=True)
+    dataset.native_cases.assert_called_once_with('all', 'test')
+    assert condition.row['tasks'] == ['chosen.case']
+    assert condition.row['dataset']['source'] == str(source)
+    assert condition.row['dataset']['commit'] == 'chosen'
+    assert condition.row['dataset']['local_files_only'] is True
 
 
 class SelectionTests(unittest.TestCase):
@@ -247,14 +327,14 @@ class SelectionTests(unittest.TestCase):
             path = Path(directory) / 'experiment.toml'
             path.write_text(tomli_w.dumps(fields))
             with patch.dict(os.environ, {'EXAMPLE_DATASET': 'org/public-data'}), \
-                    patch('benchmarking.dataset.load_dataset', return_value=dataset) as load:
+                    patch('benchmarking.tasks.dataset.load_dataset', return_value=dataset) as load:
                 rows = read_configs([path])
                 load.assert_called_once_with('org/public-data', revision=None, local_files_only=False)
                 self.assertEqual(rows[0]['tasks'], ['fixture'])
                 self.assertEqual(rows[0]['dataset']['source'], 'org/public-data')
                 self.assertNotIn('source_env', rows[0]['dataset'])
             for value in (None, '', '   '):
-                with patch.dict(os.environ), patch('benchmarking.dataset.load_dataset') as load:
+                with patch.dict(os.environ), patch('benchmarking.tasks.dataset.load_dataset') as load:
                     os.environ.pop('EXAMPLE_DATASET', None)
                     if value is not None:
                         os.environ['EXAMPLE_DATASET'] = value
@@ -347,8 +427,8 @@ class SelectionTests(unittest.TestCase):
                 read_matrix(path)
 
     def test_dsh_omitted_effort_stays_unspecified(self):
-        from benchmarking.participants.adapters.dsh import resolve as resolve_dsh
-        with patch("benchmarking.participants.adapters.dsh.configuration", return_value=([], {}, {
+        from benchmarking.participants.harnesses.dsh import resolve as resolve_dsh
+        with patch("benchmarking.participants.harnesses.dsh.configuration", return_value=([], {}, {
                 "provider": "deepseek-official", "model": "deepseek-flash"})):
             selected = resolve_dsh(None, None, {}).condition
             self.assertIsNone(selected["effort_resolved"])
@@ -376,6 +456,34 @@ class FakeClient:
 
 
 class BridgeTests(unittest.TestCase):
+    def test_long_command_returns_control_and_can_be_polled_and_cancelled_after_expiry(self):
+        from types import SimpleNamespace
+
+        with tempfile.TemporaryDirectory() as directory:
+            client = Mock()
+            client.session.return_value = {'remaining_seconds': 1, 'budget': {'policy': 'soft'}}
+            client.execute.return_value = {'execution_id': 'e'}
+            client.poll.return_value = {'log_base64': '', 'next_offset': 0,
+                'state': 'running', 'exit_code': None, 'truncated': False}
+            clock = [0]
+            def sleep(seconds):
+                clock[0] += seconds
+                if clock[0] > 11:
+                    raise AssertionError('Long MCP command never returned control')
+            with patch('benchmarking.participants.mcp.time', SimpleNamespace(
+                    monotonic=lambda: clock[0], sleep=sleep)):
+                bridge = Bridge(client, 's', Path(directory) / 'tools.jsonl')
+                result = bridge.call('execute', {'command': 'native tool'})
+                assert result['state'] == 'running' and result['execution_id'] == 'e'
+                assert client.execute.call_args.args[2] is None
+                client.session.return_value = {'remaining_seconds': 0, 'budget': {'policy': 'soft'}}
+                result = bridge.call('poll', {'execution_id': 'e', 'offset': result['next_offset'], 'wait_seconds': 0})
+                assert result['state'] == 'running'
+                client.cancel.return_value = {'execution_id': 'e', 'state': 'running'}
+                bridge.call('cancel', {'execution_id': 'e'})
+                assert client.cancel.call_args.args == ('s', 'e')
+                assert client.execute.call_count == 1
+
     def test_soft_budget_reply_reminds_and_stops_another_optimization_round(self):
         with tempfile.TemporaryDirectory() as directory:
             client = Mock()
@@ -410,7 +518,6 @@ class BridgeTests(unittest.TestCase):
             result = dispatch(bridge, {'id': 1, 'method': 'tools/call',
                 'params': {'name': 'execute', 'arguments': {'command': 'too late'}}})
             assert result['result']['isError'] is True
-            assert not bridge.pending.exists()
             client.submit.return_value = {'accepted': True}
             assert bridge.call('submit', {'path': 'output/final.gds'})['accepted'] is True
 
@@ -418,17 +525,21 @@ class BridgeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             client = FakeClient()
             log = Path(directory) / "tools.jsonl"
-            bridge = Bridge(client, "session", log)
+            bridge = Bridge(client, "session", log, instructions='Use the declared participant tool.')
             response = dispatch(bridge, {"id": 1, "method": "initialize"})
             self.assertIn("tools", response["result"]["capabilities"])
+            self.assertEqual(response['result']['instructions'], 'Use the declared participant tool.')
             self.assertIsNone(dispatch(bridge, {"method": "notifications/initialized"}))
             self.assertEqual({t['name'] for t in dispatch(bridge, {"id": 2, "method": "tools/list"})['result']['tools']},
-                             {'status', 'read', 'write', 'execute', 'submit', 'check', 'report'})
+                             {'status', 'read', 'write', 'execute', 'submit', 'check', 'report', 'poll', 'cancel'})
+            plain = Bridge(client, 'session', log)
+            self.assertNotIn('instructions', dispatch(plain, {'id': 1, 'method': 'initialize'})['result'])
+            self.assertEqual(dispatch(bridge, {'id': 2, 'method': 'tools/list'})['result'],
+                             dispatch(plain, {'id': 2, 'method': 'tools/list'})['result'])
             written = dispatch(bridge, {"id": 3, "method": "tools/call", "params": {
                 "name": "write", "arguments": {"path": "probe.txt", "content": "hello"}}})
             self.assertNotIn("isError", written["result"])
             self.assertEqual(bridge.call("read", {"path": "probe.txt"})["content"], "hello")
-            bridge.call("read", {"path": "probe.txt"})  # Next request acknowledges the prior mutation reply.
             restarted = Bridge(client, "session", log)
             blocked = dispatch(restarted, {"id": 4, "method": "tools/call", "params": {
                 "name": "write", "arguments": {"path": "probe.txt", "content": "changed"}}})
@@ -472,11 +583,12 @@ if __name__ == "__main__":
     unittest.main()
 
 
-def test_unresolved_tool_blocks_other_mutations_and_replays_original_timeout(tmp_path):
+def test_new_agent_calls_after_transport_loss_use_new_keys_and_current_allowance(tmp_path):
     from benchmarking.client import ClientError
     client = Mock()
     client.session.return_value = {'remaining_seconds': 120}
-    client.execute.side_effect = [ClientError('transport_error', 'lost', retryable=True), {'execution_id': 'e'}]
+    client.execute.side_effect = [ClientError('transport_error', 'lost', retryable=True),
+                                  {'execution_id': 'e'}, {'execution_id': 'another'}]
     client.poll.return_value = {'log_base64': '', 'next_offset': 0, 'state': 'complete', 'exit_code': 0, 'truncated': False}
     log = tmp_path / 'tools.jsonl'
     bridge = Bridge(client, 's', log)
@@ -484,12 +596,92 @@ def test_unresolved_tool_blocks_other_mutations_and_replays_original_timeout(tmp
         bridge.call('execute', {'command': 'increment'})
     first = client.execute.call_args
     bridge = Bridge(client, 's', log)
-    with pytest.raises(ClientError, match='unresolved'):
-        bridge.call('execute', {'command': 'different'})
     client.session.return_value = {'remaining_seconds': 20}
+    bridge.call('execute', {'command': 'different'})
+    assert client.execute.call_args.args == ('s', 'different', 20)
     bridge.call('execute', {'command': 'increment'})
-    assert client.execute.call_args == first
-    assert not bridge.pending.exists()
+    assert client.execute.call_args.args == ('s', 'increment', 20)
+    keys = [call.kwargs['key'] for call in client.execute.call_args_list]
+    assert len(set(keys)) == 3
+    assert client.execute.call_args_list[0] == first
+    requests = [json.loads(line) for line in log.read_text().splitlines() if 'arguments' in json.loads(line)]
+    assert [row['arguments']['command'] for row in requests] == ['increment', 'different', 'increment']
+
+
+@pytest.mark.parametrize('tool,arguments', [
+    ('execute', {'command': 'tail diagnostic.log', 'wait_seconds': 0}),
+    ('write', {'path': 'build.py', 'content': 'updated layout'}),
+])
+def test_rejected_workspace_mutation_does_not_block_cancel_or_submission(tmp_path, tool, arguments):
+    from benchmarking.client import ClientError
+
+    client = Mock()
+    client.session.return_value = {'remaining_seconds': 120, 'active_execution_id': 'long-command'}
+    client.execute.side_effect = ClientError('conflict', 'Execution in progress', status=409)
+    client.write.side_effect = ClientError('conflict', 'Execution in progress', status=409)
+    client.cancel.return_value = {'execution_id': 'long-command', 'state': 'cancelled'}
+    client.submit.return_value = {'accepted': True}
+    bridge = Bridge(client, 's', tmp_path / 'tools.jsonl')
+
+    def call(name, arguments):
+        return dispatch(bridge, {'id': 1, 'method': 'tools/call',
+                                'params': {'name': name, 'arguments': arguments}})['result']
+
+    rejected = call(tool, arguments)
+    assert rejected['isError'] is True
+    cancelled = call('cancel', {'execution_id': 'long-command'})
+    assert not cancelled.get('isError'), cancelled
+    submitted = call('submit', {'path': 'output/final.gds'})
+    assert not submitted.get('isError'), submitted
+
+
+@pytest.mark.parametrize('failure_phase', ['poll', 'budget', 'read', 'invalid_response'])
+def test_observation_failure_keeps_evidence_and_allows_agent_cancellation(tmp_path, failure_phase):
+    from benchmarking.client import ClientError
+
+    client = Mock()
+    client.session.return_value = {'remaining_seconds': 120}
+    client.execute.return_value = {'execution_id': 'started'}
+    client.poll.return_value = {'log_base64': '', 'next_offset': 0, 'state': 'complete',
+                                'exit_code': 0, 'truncated': False}
+    client.cancel.return_value = {'execution_id': 'started', 'state': 'cancelled'}
+    if failure_phase == 'poll':
+        client.poll.side_effect = ClientError('not_found', 'Unavailable observation', status=404)
+    elif failure_phase == 'budget':
+        client.session.side_effect = [{'remaining_seconds': 120},
+                                     ClientError('not_found', 'Unavailable status', status=404)]
+    elif failure_phase == 'invalid_response':
+        client.execute.side_effect = ClientError('invalid_response', 'Invalid JSON', status=400)
+    else:
+        client.execute.side_effect = ClientError('transport_error', 'Delivery unknown', retryable=True)
+    bridge = Bridge(client, 's', tmp_path / 'tools.jsonl')
+
+    def call(name, arguments):
+        return dispatch(bridge, {'id': 1, 'method': 'tools/call',
+                                'params': {'name': name, 'arguments': arguments}})['result']
+
+    assert call('execute', {'command': 'increment', 'wait_seconds': 0})['isError']
+    original = json.loads((tmp_path / 'tools.jsonl').read_text().splitlines()[0])
+    if failure_phase == 'read':
+        client.read.side_effect = ClientError('not_found', 'Unavailable file', status=404)
+        assert call('read', {'path': 'missing'})['isError']
+    client.session.side_effect = None
+    client.session.return_value = {'remaining_seconds': 100}
+    assert not call('cancel', {'execution_id': 'started'}).get('isError')
+    assert client.execute.call_count == 1
+    assert client.cancel.call_args.kwargs['key'] != original['key']
+    assert json.loads((tmp_path / 'tools.jsonl').read_text().splitlines()[0]) == original
+
+
+def test_invalid_poll_wait_reports_the_limit_without_contacting_the_service(tmp_path):
+    client = Mock()
+    bridge = Bridge(client, 's', tmp_path / 'tools.jsonl')
+    reply = dispatch(bridge, {'id': 1, 'method': 'tools/call', 'params': {
+        'name': 'poll', 'arguments': {'execution_id': 'long-command', 'wait_seconds': 60}}})
+    assert reply['result']['isError'] is True
+    detail = reply['result']['content'][0]['text']
+    assert 'between 0 and 30' in detail and 'repeated poll' in detail
+    assert not client.mock_calls
 
 
 def test_native_resume_keeps_sandbox_and_explicit_session(tmp_path):
@@ -508,26 +700,26 @@ def test_native_resume_keeps_sandbox_and_explicit_session(tmp_path):
     assert '--no-session-persistence' not in args
 
 
-def test_bridge_restart_does_not_assume_last_reply_was_delivered(tmp_path):
-    from benchmarking.client import ClientError
+def test_bridge_restart_allows_new_agent_actions_without_last_reply_confirmation(tmp_path):
     client = FakeClient()
     log = tmp_path / 'tools.jsonl'
     Bridge(client, 's', log).call('write', {'path': 'a', 'content': 'once'})
     restarted = Bridge(client, 's', log)
-    with pytest.raises(ClientError, match='delivery is unknown'):
-        restarted.call('write', {'path': 'a', 'content': 'twice'})
     assert client.files['a'] == b'once'
+    restarted.call('write', {'path': 'a', 'content': 'twice'})
+    assert client.files['a'] == b'twice'
+    assert len(client.keys) == len(set(client.keys)) == 2
 
 
 @pytest.mark.parametrize('harness,expected,continuation,overrides', [
     ('codex', 5, True, None), ('claude-code', 5, True, None), ('dsh', 0, True, None),
-    ('kimi-code', 5, True, None), ('zcode', 0, False, None), ('command', 0, False, None),
+    ('kimi-code', 5, True, None), ('zcode', 5, True, None), ('command', 0, False, None),
     ('codex', 5, True, {}), ('codex', 5, True, {'http_attempts': 4}),
     ('codex', 5, False, {'resume_session': False}),
 ])
 def test_recovery_defaults_follow_harness_support(harness, expected, continuation, overrides):
-    from benchmarking.participants.config import validate
-    from benchmarking.participants.recovery import policy
+    from benchmarking.participants.attempt.recovery import policy
+    from benchmarking.participants.batch.config import validate
 
     row = {'name': 'fixture', 'harness': harness, 'model': 'fixture', 'effort': 'high',
            'tasks': ['fixture'], 'concurrency': 1, 'repetitions': 1}
@@ -540,12 +732,12 @@ def test_recovery_defaults_follow_harness_support(harness, expected, continuatio
     assert settings['http_attempts'] == (4 if overrides == {'http_attempts': 4} else 3)
     assert settings['backoff_seconds'] == 1
     assert settings['max_backoff_seconds'] == 8
-    assert settings['network_resumes'] == (0 if harness in {'command', 'zcode'} else 5)
+    assert settings['network_resumes'] == (0 if harness == 'command' else 5)
 
 
 def test_dsh_supports_manual_resume_but_not_ambiguous_capacity_recovery():
-    from benchmarking.participants.config import validate
-    from benchmarking.participants.recovery import DISABLED
+    from benchmarking.participants.attempt.recovery import DISABLED
+    from benchmarking.participants.batch.config import validate
     row = {'name': 'fixture', 'harness': 'dsh', 'model': 'fixture', 'effort': 'high',
            'tasks': ['fixture'], 'concurrency': 1, 'repetitions': 1,
            'recovery': DISABLED | {'resume_session': True}}
@@ -565,8 +757,8 @@ def test_dsh_supports_manual_resume_but_not_ambiguous_capacity_recovery():
     ('command', {'network_resumes': 5}),
 ])
 def test_capacity_recovery_rejects_invalid_or_unsupported_policies(harness, recovery):
-    from benchmarking.participants.config import validate
-    from benchmarking.participants.recovery import DISABLED
+    from benchmarking.participants.attempt.recovery import DISABLED
+    from benchmarking.participants.batch.config import validate
 
     with pytest.raises(ValueError, match='capacity|network'):
         validate({'name': 'fixture', 'harness': harness, 'model': 'fixture', 'effort': 'high',
@@ -577,7 +769,7 @@ def test_capacity_recovery_rejects_invalid_or_unsupported_policies(harness, reco
 @pytest.mark.parametrize('recovery', [[], {'http_attempts': 0}, {'resume_session': 1}, {'unexpected': 3},
                                        {'backoff_seconds': 9}, {'network_resumes': -1}])
 def test_recovery_overrides_preserve_validation(recovery):
-    from benchmarking.participants.recovery import policy
+    from benchmarking.participants.attempt.recovery import policy
 
     with pytest.raises(ValueError):
         policy(recovery, harness='codex')
@@ -616,7 +808,7 @@ def test_tool_schemes_freeze_files_and_keep_contrasts_in_distinct_outputs(tmp_pa
     """
     import sys
 
-    from benchmarking.participants.scheme import check, identity
+    from benchmarking.participants.harnesses.scheme import check, identity
 
     script = tmp_path / 'tool.py'
     script.write_text('print("version one")\n')

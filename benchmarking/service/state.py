@@ -10,7 +10,7 @@ import json
 import uuid
 from pathlib import Path
 
-from benchmarking.engine.sessions.archive import RunArchive
+from benchmarking.evidence.archive import RunArchive
 from benchmarking.files import atomic_write, sync_directory
 from benchmarking.protocol import PROTOCOL, json_bytes
 

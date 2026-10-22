@@ -7,7 +7,7 @@ import tomllib
 import pytest
 import tomli_w
 
-from benchmarking.tasks import load_task
+from benchmarking.tasks.contract import load_task
 
 pytestmark = pytest.mark.unit
 

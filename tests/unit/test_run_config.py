@@ -2,9 +2,9 @@
 
 import pytest
 
-from benchmarking.engine.sessions.config import load_run_config
+from benchmarking.execution.harness import SESSION_PROTOCOL
+from benchmarking.execution.workspace.config import load_run_config
 from benchmarking.files import Asset
-from benchmarking.harnesses import SESSION_PROTOCOL
 
 pytestmark = pytest.mark.unit
 

@@ -5,14 +5,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from benchmarking.engine.backends.calibre_starrc import (
+from benchmarking.eda.backends.calibre_starrc import (
     CalibreStarRCNative,
     command_setting,
 )
-from benchmarking.engine.external import ExternalRuntime
-from benchmarking.engine.tools.native import NativeTool
-from benchmarking.engine.tools.types import ToolResult
+from benchmarking.eda.environment import ExternalRuntime
 from benchmarking.evaluation import Job
+from benchmarking.execution.tools import ToolResult
+from benchmarking.execution.tools.native import NativeTool
 from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit

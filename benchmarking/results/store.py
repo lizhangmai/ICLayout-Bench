@@ -9,12 +9,11 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from benchmarking.protocol import evaluation_mode, layout_score_value
-
-from . import schema as s
-from .comparison import aggregate
-from .importing import prepare_result
-from .normalization import digest, finite, media
-from .objects import FileObjects
+from benchmarking.results import schema as s
+from benchmarking.results.comparison import aggregate
+from benchmarking.results.importing import prepare_result
+from benchmarking.results.normalization import digest, finite, media
+from benchmarking.results.objects import FileObjects
 
 __all__ = ["ResultStore", "ensure_record", "now"]
 
@@ -54,7 +53,7 @@ class ResultStore:
                 connection.execute("PRAGMA journal_mode=WAL")
 
         # Serialize table initialization across local CLI / web processes.
-        from benchmarking.locking import BatchLease
+        from benchmarking.execution.leases import BatchLease
 
         with BatchLease(self.root), self.engine.begin() as conn:
             s.metadata.create_all(conn)

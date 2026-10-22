@@ -74,7 +74,7 @@ def test_experiment_default_retry_replays_lost_execution_response_once(monkeypat
     """Transport loss after commit must not execute a side effect twice."""
     from helpers.service import Simulator
 
-    from benchmarking.participants.recovery import policy
+    from benchmarking.participants.attempt.recovery import policy
     server = Simulator()
     try:
         client = Client(server.endpoint, 'secret', retry_policy=policy(harness='codex'))
@@ -103,7 +103,7 @@ def test_experiment_default_retry_replays_lost_execution_response_once(monkeypat
     ('budget_exhausted', 429, False, 1),
 ])
 def test_retry_is_bounded_and_does_not_treat_budget_as_rate_limit(monkeypatch, code, status, retryable, expected):
-    from benchmarking.participants.recovery import policy
+    from benchmarking.participants.attempt.recovery import policy
     client = Client('http://localhost:1', 'secret', retry_policy=policy(harness='codex'))
     calls, sleeps = [], []
     def fail(*args, **kwargs):

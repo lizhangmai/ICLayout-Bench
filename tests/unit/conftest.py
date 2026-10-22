@@ -36,6 +36,8 @@ url = "https://example.invalid/synthetic-circuit"
 @pytest.fixture
 def executable_case(circuit_case):
     root = circuit_case.parent
+    problem = b'# Synthetic layout\n\nImplement the declared circuit.\n'
+    (root / 'problem.md').write_bytes(problem)
     plan = 'mode = "physical"\nmetrics = []\n'
     for gate in ("artifact", "drc", "lvs"):
         plan += f'''[[jobs]]
@@ -51,6 +53,9 @@ inputs = {{ layout = "candidate" }}
 kind = "netlist_to_gds"
 family = "synthetic"
 environment = "synthetic-tools"
+[task.inputs.description]
+path = "problem.md"
+sha256 = "{hashlib.sha256(problem).hexdigest()}"
 [task.inputs.netlist]
 path = "synthetic-source/circuit.spice"
 sha256 = "{hashlib.sha256((root / 'synthetic-source/circuit.spice').read_bytes()).hexdigest()}"
@@ -68,6 +73,7 @@ max_bytes = 1024
 [toolchain]
 [toolchain.backends.fixture]
 type = "synthetic"
+settings = {{}}
 [toolchain.bindings]
 "layout.artifact" = "fixture"
 ''')

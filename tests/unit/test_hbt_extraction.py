@@ -4,8 +4,7 @@ from textwrap import dedent
 
 import pytest
 
-from benchmarking.engine.backends.hbt.merge import merge_hbt_netlists
-from benchmarking.engine.backends.hbt.netlist import convert_klayout_netlist
+from benchmarking.eda.backends.hbt.merge import merge_hbt_netlists
 
 pytestmark = pytest.mark.unit
 
@@ -14,25 +13,11 @@ def _netlist(cards, ports="OUT IN GND"):
     return (f".SUBCKT AMP {ports}\n" + "\n".join(cards) + "\n.ENDS AMP\n").encode()
 
 
-def test_klayout_conversion_keeps_nx_and_requested_port_order():
-    native = b"""* native KLayout output
-.SUBCKT AMP VEE OUT IN
-Q$1 $internal IN VEE VEE npn13G2 we=70n le=900n Nx=5 m=1
-Q$2 OUT $internal VEE VEE npn13G2 we=70n le=900n Nx=4 m=1
-R$3 OUT VEE VEE rppd w=2u l=3u ps=0u b=0 m=1
-.ENDS AMP
-"""
 
-    converted = convert_klayout_netlist(native, ["IN", "OUT", "VEE"])
-
-    assert ".SUBCKT AMP IN OUT VEE" in converted
-    assert "Nx=5" in converted and "Nx=4" in converted
-    assert "$internal" not in converted
-    assert "rppd w=2u l=3u ps=0u b=0 m=1" in converted
 
 
 def test_hbt_reads_escaped_nets_continuations_and_comments():
-    from benchmarking.engine.backends.hbt.netlist import parse_spice_netlist
+    from benchmarking.eda.backends.hbt.netlist import parse_spice_netlist
 
     raw = r'''* the extractor's comment may contain an unmatched quote: "
 .SUBCKT AMP OUT IN
@@ -59,15 +44,15 @@ Rwire \$10 wire# 1
 
 @pytest.mark.parametrize('reader', ['hbt', 'dspf'])
 def test_netlist_readers_reject_orphan_continuations(reader):
-    from benchmarking.engine.backends.hbt.netlist import parse_spice_netlist
-    from benchmarking.engine.netlists.dspf import adapt_dspf
+    from benchmarking.eda.backends.hbt.netlist import parse_spice_netlist
+    from benchmarking.eda.netlists.dspf import bind_extracted_netlist
 
     raw = '+ OUT IN GND\n.SUBCKT AMP OUT IN GND\n.ENDS AMP\n'
     with pytest.raises(ValueError, match='continuation.*line at 1'):
         if reader == 'hbt':
             parse_spice_netlist(raw)
         else:
-            adapt_dspf(raw, 'AMP', ['OUT', 'IN', 'GND'], {})
+            bind_extracted_netlist(raw, 'AMP', ['OUT', 'IN', 'GND'])
 
 
 def test_merge_rejects_ambiguous_parallel_hbts():
@@ -128,23 +113,11 @@ R4 n1 n2 4
     assert details["internal_net_mapping"]["nint"] == ["n1", "n2"]
 
 
-def test_tap_area_and_perimeter_are_mapped_to_model_resistance():
-    model = "ptap1"
-    native = f""".SUBCKT AMP OUT IN GND
-Q1 OUT IN GND GND npn13G2 we=70n le=900n Nx=5 m=1
-R1 OUT GND {model} A=1p P=4u
-.ENDS AMP
-""".encode()
-
-    converted = convert_klayout_netlist(native, ["OUT", "IN", "GND"])
-
-    # The model receives an explicit R derived from the PDK symbol expression;
-    # the native A/P values must not silently select the model default.
-    # The reviewed SG13G2 symbol law gives an area branch of 980 ohm
-    # and perimeter branch of 245 ohm for 1 um² / 4 um: parallel R=196 ohm.
-    card = next(line for line in converted.splitlines() if f" {model} " in line)
-    resistance = float(card.split('R=', 1)[1].split()[0])
-    assert resistance == pytest.approx(196)
+def test_tap_geometry_does_not_synthesize_model_resistance():
+    native = _klayout()[:-len(b'.ENDS AMP\n')] + b'Rtap OUT GND ptap1 A=1p P=4u\n.ENDS AMP\n'
+    magic = _magic()[:-len(b'.ENDS AMP\n')] + b'Rtap OUT GND ptap1 A=1p P=4u\n.ENDS AMP\n'
+    with pytest.raises(ValueError, match='native extracted R'):
+        merge_hbt_netlists(native, magic, PORTS, magic)
 
 
 @pytest.mark.parametrize('variant,expected', [
@@ -167,10 +140,10 @@ def test_hbt_terminal_diagnostics_require_native_provenance_and_complete_mapping
     import json
     from types import SimpleNamespace
 
-    from benchmarking.bundles import publish_bundle
-    from benchmarking.engine.backends.hbt.backend import SG13G2HBTRCDocker
-    from benchmarking.engine.backends.magic import MagicRCDocker
+    from benchmarking.eda.backends.hbt.backend import SG13G2HBTRCDocker
+    from benchmarking.eda.backends.magic import MagicRCDocker
     from benchmarking.evaluation import Job
+    from benchmarking.evidence.bundles import publish_bundle
     from benchmarking.files import Asset
 
     native = b'''.SUBCKT AMP OUT IN GND
@@ -211,8 +184,8 @@ R3 e_local GND 3
             return SimpleNamespace(reason='', returncode=0,
                                    files=files, evidence={'console': Asset(log.encode(), 'text')})
 
-    monkeypatch.setattr('benchmarking.engine.backends.klayout.DockerTool', Tool)
-    monkeypatch.setattr('benchmarking.engine.backends.magic.DockerTool', Tool)
+    monkeypatch.setattr('benchmarking.eda.backends.klayout.DockerTool', Tool)
+    monkeypatch.setattr('benchmarking.eda.backends.magic.DockerTool', Tool)
     publish_bundle({'rules.lvs': Asset(b'# test', 'text'),
                     'profile.json': Asset(b'{"deck":"rules.lvs","variables":{},"scope":"test candidate extraction"}', 'json')},
                    {}, tmp_path / 'klayout')
@@ -343,8 +316,7 @@ def test_local_rc_terminals_survive_hbt_replacement():
     """Replacing the HBT card must preserve candidate-local RC endpoints."""
     magic = _magic().replace(b"we=70n le=900n", b"le=70n we=0.9u")
     magic = magic[:-len(b".ENDS AMP\n")] + b"CLOCAL out_local c_local 4f\n.ENDS AMP\n"
-    merged, details = merge_hbt_netlists(_klayout(), magic, PORTS, magic)
-    assert details["synthetic_hbt_ties"] == []
+    merged, _ = merge_hbt_netlists(_klayout(), magic, PORTS, magic)
     assert "Q1 OUT IN GND GND" not in merged
 
     assert "Q1 out_local in_local e_local GND npn13G2" in merged
@@ -380,7 +352,7 @@ def test_isolated_port_repair_rejects_a_referenced_local_terminal():
         b"CLOCAL e_local c_local 4f\n.ENDS AMP\n"
     )
 
-    with pytest.raises(ValueError, match="external references"):
+    with pytest.raises(ValueError, match="candidate|topology|connected"):
         merge_hbt_netlists(_klayout(), magic, PORTS, magic)
 
 
@@ -451,9 +423,8 @@ def test_shared_internal_contacts_require_final_rc_wires():
 
 
 def test_fixed_geometry_rejects_wrong_emitter_width():
-    we = "71n"
     with pytest.raises(ValueError):
-        convert_klayout_netlist(_klayout(we=we), PORTS)
+        merge_hbt_netlists(_klayout(we='71n'), _magic(), PORTS, _magic())
 
 
 def _split_internal_contacts(*, local_card="", anchor_card="", topology_reordered=False):
@@ -476,23 +447,19 @@ def _split_internal_contacts(*, local_card="", anchor_card="", topology_reordere
     return _netlist(native, ports), magic, _netlist(cards, ports)
 
 
-def test_internal_split_contact_repairs_to_unique_anchored_magic_endpoint():
-    klayout, magic, topology = _split_internal_contacts(topology_reordered=True)
-
-    merged, details = merge_hbt_netlists(
-        klayout, magic, ["OUT0", "IN0", "OUT1", "IN1", "GND"], topology
-    )
-
-    assert "Q0 OUT0 IN0 b_anchor GND npn13G2" in merged
-    assert "Q1 OUT1 IN1 b_anchor GND npn13G2" in merged
-    assert "RDEV b_anchor OUT1 GND rppd" in merged
-    assert details["isolated_hbt_internal_repairs"] == [{
-        "klayout_net": "nint",
-        "isolated_local": "e_local",
-        "anchored_contact": "b_anchor",
-        "external_references": 0,
-    }]
-    assert details["synthetic_hbt_ties"] == []
+@pytest.mark.parametrize('has_wire', [False, True])
+def test_split_internal_contact_requires_an_extracted_wire(has_wire):
+    wire = 'Rnative e_local b_anchor 10' if has_wire else ''
+    klayout, magic, topology = _split_internal_contacts(anchor_card=wire, topology_reordered=True)
+    ports = ["OUT0", "IN0", "OUT1", "IN1", "GND"]
+    if not has_wire:
+        with pytest.raises(ValueError, match='topology|mapping|contact'):
+            merge_hbt_netlists(klayout, magic, ports, topology)
+    else:
+        merged, _ = merge_hbt_netlists(klayout, magic, ports, topology)
+        assert 'Q0 OUT0 IN0 e_local GND npn13G2' in merged
+        assert 'Q1 OUT1 IN1 b_anchor GND npn13G2' in merged
+        assert 'Rnative e_local b_anchor 10' in merged
 
 
 def test_internal_split_contact_requires_exactly_one_isolated_endpoint():
@@ -522,64 +489,16 @@ def test_internal_split_contact_rejects_topology_only_isolation():
         )
 
 
-@pytest.mark.parametrize("anchor", ["retained", "absent", "topology-only"])
-def test_isolated_internal_contact_requires_a_passive_anchor_in_both_extractions(anchor):
-    native = _klayout(passive=True).replace(b"Q1 OUT IN GND", b"Q1 OUT IN NINT").replace(
-        b"RDEV OUT GND", b"RDEV NINT OUT")
-    topology = _magic(passive=True, rc=False).replace(
-        b"Q1 out_local in_local", b"Q1 OUT IN").replace(b"RDEV OUT GND", b"RDEV b_anchor OUT")
-    final = topology
-    if anchor != "retained":
-        final = final.replace(b"RDEV b_anchor OUT", b"RDEV OUT OUT")
-        if anchor == "absent":
-            topology = final
-        with pytest.raises(ValueError, match="passive|mapping|geometry|anchored"):
-            merge_hbt_netlists(native, final, PORTS, topology)
-    else:
-        merged, details = merge_hbt_netlists(native, final, PORTS, topology)
-        assert "Q1 OUT IN b_anchor GND npn13G2" in merged
-        assert details["isolated_hbt_internal_repairs"] == [{
-            "klayout_net": "nint", "isolated_local": "e_local",
-            "anchored_contact": "b_anchor", "external_references": 0,
-        }]
+def test_passive_anchor_does_not_reconnect_an_isolated_hbt():
+    native = _klayout(passive=True).replace(b'Q1 OUT IN GND', b'Q1 OUT IN NINT').replace(
+        b'RDEV OUT GND', b'RDEV NINT OUT')
+    magic = _magic(passive=True, rc=False).replace(
+        b'Q1 out_local in_local', b'Q1 OUT IN').replace(b'RDEV OUT GND', b'RDEV b_anchor OUT')
+    with pytest.raises(ValueError):
+        merge_hbt_netlists(native, magic, PORTS, magic)
 
 
-@pytest.mark.parametrize("distinct_anchors", [True, False], ids=["named-ports", "ambiguous-body"])
-def test_passive_anchor_identity_follows_the_hbt_permutation(distinct_anchors):
-    """Same-size passives need independent terminal identity, not shape guessing.
 
-    The nontrivial four-HBT emission permutation follows the reviewed LNA.
-    Named outer ports prove correspondence; a shared body port cannot.
-    """
-    anchors = [f"P{i}" for i in range(4)] if distinct_anchors else ["VSS"] * 4
-    body = "GND" if distinct_anchors else "VSS"
-    ports = " ".join(dict.fromkeys(["IN", "OUT", *anchors, body]))
-    native = [
-        "Q$1 N1 N0 E1 GND npn13G2 we=70n le=900n Nx=1 m=1",
-        "Q$2 N0 IN E0 GND npn13G2 we=70n le=900n Nx=1 m=1",
-        "Q$3 N2 N1 E2 GND npn13G2 we=70n le=900n Nx=1 m=1",
-        "Q$4 OUT N2 E3 GND npn13G2 we=70n le=900n Nx=1 m=1",
-        *(f"R${i} {port} E{i} GND rsil w=4u l=20u" for i, port in enumerate(anchors)),
-    ]
-    magic = [
-        "X2 n1 n0 e1 GND npn13g2 we=70n le=900n",
-        "X9 n2 n1 e2 GND npn13g2 we=70n le=900n",
-        "X10 OUT n2 e3 GND npn13g2 we=70n le=900n",
-        "X13 n0 IN e0 GND npn13g2 we=70n le=900n",
-        *(f"X{j} {port} a{i} GND rsil w=4u l=20u" for i, (j, port) in enumerate(zip((0, 1, 3, 4), anchors))),
-    ]
-    native = _netlist([card.replace("GND", body) for card in native], ports)
-    magic = _netlist([card.replace("GND", body) for card in magic], ports)
-    if not distinct_anchors:
-        with pytest.raises(ValueError, match="unique|ambiguous|anchored|mapping|multiple"):
-            merge_hbt_netlists(native, magic, ["IN", "OUT", "VSS"], magic)
-    else:
-        merged, details = merge_hbt_netlists(native, magic, ports.split(), magic)
-        assert details["isolated_hbt_internal_repairs"] == [
-            {"klayout_net": f"e{i}", "isolated_local": f"e{i}",
-             "anchored_contact": f"a{i}", "external_references": 0} for i in range(4)
-        ]
-        assert all(f"a{i}" in merged for i in range(4))
 
 
 def test_named_resistor_tails_disambiguate_identical_hbt_branches():
@@ -611,14 +530,14 @@ def test_merged_interface_consumes_wrapped_subcircuit_header():
     native = b".subckt AMP OUT IN GND\nQ1 OUT IN GND GND npn13G2 Nx=3\n.ends AMP\n"
     magic = b".subckt AMP OUT\n+ IN GND\nX1 OUT IN GND GND npn13g2\n.ends AMP\n"
     merged, _ = merge_hbt_netlists(native, magic, ["IN", "OUT", "GND"], magic)
-    from benchmarking.engine.backends.hbt.netlist import parse_spice_netlist
+    from benchmarking.eda.backends.hbt.netlist import parse_spice_netlist
     assert parse_spice_netlist(merged, strict_devices=False).ports == ("IN", "OUT", "GND")
 
 
 @pytest.mark.parametrize("changed", [None, "candidate_sha256", "database_sha256", "top_cell"])
 def test_kpex_rejects_a_database_bound_to_a_different_candidate(changed):
     """An LVS database from a different submission must not drive extraction."""
-    from benchmarking.engine.backends.kpex import validate_binding
+    from benchmarking.eda.backends.kpex import validate_binding
     from benchmarking.files import Asset
 
     layout = Asset(b"candidate snapshot", "gds")
@@ -633,15 +552,21 @@ def test_kpex_rejects_a_database_bound_to_a_different_candidate(changed):
         validate_binding(layout, database, binding, "DUT")
 
 
-@pytest.mark.parametrize("terminals,width,expected", [
-    (("A", "B", "SUB"), 0.5, "passed"),
-    (("B", "A", "SUB"), 0.5, "passed"),
-    (("B", "A", "A"), 0.5, "error"),
-    (("A", "A", "SUB"), 0.5, "error"),
-    (("B", "A", "SUB"), 0.6, "error"),
-], ids=["unchanged", "swapped-ends", "wrong-substrate", "shorted-ends", "wrong-width"])
+@pytest.mark.parametrize("terminals,width,header,expected", [
+    (("A", "B", "SUB"), 0.5, "A B SUB", "passed"),
+    (("B", "A", "SUB"), 0.5, "A B SUB", "passed"),
+    (("B", "A", "A"), 0.5, "A B SUB", "error"),
+    (("A", "A", "SUB"), 0.5, "A B SUB", "error"),
+    (("B", "A", "SUB"), 0.6, "A B SUB", "error"),
+    (("A", "B", "SUB"), 0.5, "A B", "interface"),
+    (("A", "B", "SUB"), 0.5, "A B SUB EXTRA", "interface"),
+    (("A", "B", "SUB"), 0.5, "A A B SUB", "interface"),
+    (("A", "B", "SUB"), 0.5, "A B SUB SUB", "interface"),
+    (("A", "B", "SUB"), 0.5, "A B SUB PLANE", "passed"),
+], ids=["unchanged", "swapped-ends", "wrong-substrate", "shorted-ends", "wrong-width",
+        "missing-port", "extra-port", "duplicate-port", "duplicate-substrate", "declared-plane"])
 def test_kpex_uses_completed_native_lvs_after_database_reload(
-        native_tmp_path, monkeypatch, terminals, width, expected):
+        native_tmp_path, monkeypatch, terminals, width, header, expected):
     """A persisted native LVS verdict retains the device rules used to compare.
 
     Independent oracle: a symmetric resistor connects A and B with its bulk at
@@ -655,15 +580,15 @@ def test_kpex_uses_completed_native_lvs_after_database_reload(
     pytest.importorskip("klayout_pex")
     from types import SimpleNamespace
 
-    from benchmarking.engine.container_scripts import kpex_runner as runner
+    from benchmarking.eda._scripts import kpex_runner as runner
 
     def populate(netlist, ends, device_width):
         device_class = db.DeviceClassResistor()
-        device_class.name = "rsil"
+        device_class.name = "film"
         device_class.clear_parameters()
         device_class.clear_terminals()
         device_class.clear_equivalent_terminal_ids()
-        for name in ("rsil_1", "rsil_2", "rsil_sub"):
+        for name in ("film_1", "film_2", "film_sub"):
             device_class.add_terminal(db.DeviceTerminalDefinition(name))
         parameters = {"w": device_width, "l": 1.0, "ps": 0.0, "b": 0.0, "m": 1.0}
         for name in parameters:
@@ -684,11 +609,11 @@ def test_kpex_uses_completed_native_lvs_after_database_reload(
         for name, value in parameters.items():
             device.set_parameter(name, value)
         anchor_class = db.DeviceClassCapacitor()
-        anchor_class.name = "cap_cmim"
+        anchor_class.name = "plate"
         anchor_class.clear_parameters()
         anchor_class.clear_terminals()
         anchor_class.clear_equivalent_terminal_ids()
-        for name in ("mim_top", "mim_btm"):
+        for name in ("upper", "lower"):
             anchor_class.add_terminal(db.DeviceTerminalDefinition(name))
         for name in ("w", "l", "m"):
             anchor_class.add_parameter(db.DeviceParameterDefinition(name))
@@ -718,18 +643,37 @@ def test_kpex_uses_completed_native_lvs_after_database_reload(
 
     def run_capacitance(*args, **kwargs):
         (native_tmp_path / "extracted.spice").write_text(
-            ".SUBCKT DUT A B SUB\nXphysical_1 B A SUB rsil w=0.5u l=1u m=1\n"
-            "Xphysical_2 A SUB cap_cmim w=2u l=3u m=1\n.ENDS DUT\n")
+            f".SUBCKT DUT {header}\nXphysical_1 B A SUB film w=0.5u l=1u m=1\n"
+            "Xphysical_2 A SUB plate w=2u l=3u m=1\n.ENDS DUT\n")
 
     monkeypatch.chdir(native_tmp_path)
     monkeypatch.setattr(runner.subprocess, "run", run_geometry)
     monkeypatch.setattr(runner, "KpexCLI", lambda: SimpleNamespace(main=run_capacitance))
     monkeypatch.setattr(runner.NetlistPrinter, "write_device", runner.NetlistPrinter.write_device)
-    config = {"top_cell": "DUT", "ports": ["A", "B", "SUB"], "substrate": "SUB"}
-    if expected == "error":
-        with pytest.raises(ValueError, match="KPEX geometry extraction differs"):
+    process = {"pdk": "synthetic", "deck": "synthetic.lvs", "variables": {},
+               "substrate_node": "PLANE", "devices": {
+                   "film": {"terminals": ["film_1", "film_2", "film_sub"],
+                            "parameters": {"w": "u", "l": "u", "m": ""}, "reference_prefix": "R"},
+                   "plate": {"terminals": ["upper", "lower"],
+                             "parameters": {"w": "u", "l": "u", "m": ""}, "reference_prefix": "C"}}}
+    from benchmarking.eda.backends.kpex import validate_process
+    validate_process(process)
+    config = {"top_cell": "DUT", "ports": ["A", "B", "SUB"], "substrate": "SUB", "process": process}
+    if expected in {"error", "interface"}:
+        message = "KPEX geometry extraction differs" if expected == "error" else "output interface differs"
+        with pytest.raises(ValueError, match=message):
             runner.extract(config)
     else:
         details = runner.extract(config)
-        assert details["physical_devices"] == {"rsil": 1, "cap_cmim": 1}
+        assert details["physical_devices"] == {"film": 1, "plate": 1}
         assert ".SUBCKT DUT A B SUB" in (native_tmp_path / "extracted.spice").read_text()
+
+@pytest.mark.parametrize('terminal', ['e_local', 'out_local', 'in_local'])
+def test_isolated_port_contact_is_never_reconnected(terminal):
+    magic = _magic()
+    wire = {'e_local': b'R3 e_local GND 3\n',
+            'out_local': b'R1 out_local OUT 1\n',
+            'in_local': b'R2 in_local IN 2\n'}[terminal]
+    disconnected = magic.replace(wire, b'')
+    with pytest.raises(ValueError):
+        merge_hbt_netlists(_klayout(), disconnected, PORTS, disconnected)

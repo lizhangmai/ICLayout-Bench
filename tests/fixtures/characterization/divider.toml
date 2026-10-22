@@ -15,8 +15,10 @@ observations = ["operating_point:ratio"]
 unit = "1"
 direction = "target"
 aggregation = "min"
+[metrics.requirement]
 lower = 0.49
 upper = 0.51
+rationale = "Analytical simulator control: equal resistors must divide the applied voltage by two within one percentage point."
 
 [[metrics]]
 id = "dc_power"
@@ -25,4 +27,6 @@ observations = ["operating_point:power"]
 unit = "W"
 direction = "minimize"
 aggregation = "max"
+[metrics.requirement]
 upper = 0.0006
+rationale = "Analytical simulator control: the declared divider must remain below its 0.6 mW supply limit."

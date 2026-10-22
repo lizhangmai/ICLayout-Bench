@@ -7,7 +7,7 @@ pytestmark = pytest.mark.unit
 def test_continuous_clock_phase_retains_drift_and_rejects_missing_edges(period):
     import math
 
-    from benchmarking.engine.measurements.waveform import measure_waveform
+    from benchmarking.evaluation.measurements.waveform import measure_waveform
     time = [i/100 for i in range(1101)]
     samples = {'time': time, 'reference': [math.sin(2*math.pi*(t-.1)) for t in time],
                'clock': [math.sin(2*math.pi*(t-.3)/period) for t in time]}
@@ -30,7 +30,7 @@ def test_continuous_clock_phase_retains_drift_and_rejects_missing_edges(period):
 def test_coherent_binary_adc_spectrum_includes_harmonics_and_bit_order():
     import math
 
-    from benchmarking.engine.measurements.waveform import measure_waveform
+    from benchmarking.evaluation.measurements.waveform import measure_waveform
     codes = [8, 11, 12, 11, 8, 5, 4, 5] * 4
     samples = {'time': list(range(33))}
     traces = {}

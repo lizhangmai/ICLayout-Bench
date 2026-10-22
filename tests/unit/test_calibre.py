@@ -2,15 +2,14 @@
 
 import pytest
 
-from benchmarking.engine.backends.calibre import (
+from benchmarking.eda.backends.calibre import (
     bind_text_variables,
     control_deck,
     drc_summary,
-    finfet_netlist,
-    junction_properties,
     lvs_summary,
+    validate_mos_parameters,
 )
-from benchmarking.engine.netlists.dspf import adapt_dspf
+from benchmarking.eda.netlists.dspf import bind_extracted_netlist
 
 pytestmark = pytest.mark.unit
 
@@ -79,60 +78,53 @@ Cload OUT GND 1e-9
 M0 GND GND GND GND nmodel l=2e-6 w=3e-6 as=1e-12 ad=2e-12 ps=3e-6 pd=4e-6
 .ends TOP
 '''
-    adapted = adapt_dspf(circuit, 'TOP', ['GND', 'IN', 'OUT'], {}, True)
+    adapted = bind_extracted_netlist(circuit, 'TOP', ['GND', 'IN', 'OUT'], require_junctions=True)
     assert '.SUBCKT TOP GND IN OUT' in adapted
     for component in circuit.splitlines()[1:4]:
         assert component in adapted
     continued = circuit.replace(' w=3e-6', '\n* geometry annotation\n  + w=3e-6')
     continued = '\n'.join('  ' + line for line in continued.splitlines()) + '\n'
-    assert adapt_dspf(continued, 'TOP', ['GND', 'IN', 'OUT'], {}, True) == adapted.replace(
-        '.ends TOP', '* geometry annotation\n.ends TOP')
+    assert bind_extracted_netlist(continued, 'TOP', ['GND', 'IN', 'OUT'], require_junctions=True) == continued.replace(
+        '  .subckt TOP OUT GND IN', '.SUBCKT TOP GND IN OUT')
     wrapped_comment = circuit + '\n* expanding symbol: generated export\n+ of pins=3\n'
-    assert adapt_dspf(wrapped_comment, 'TOP', ['GND', 'IN', 'OUT'], {}, True) == (
-        adapted + '* expanding symbol: generated export of pins=3\n')
+    assert bind_extracted_netlist(wrapped_comment, 'TOP', ['GND', 'IN', 'OUT'], require_junctions=True) == (
+        adapted + '\n* expanding symbol: generated export\n+ of pins=3\n')
     with pytest.raises(ValueError, match='required geometry'):
-        adapt_dspf(circuit.replace(' as=1e-12', ''), 'TOP', ['GND', 'IN', 'OUT'], {}, True)
+        bind_extracted_netlist(circuit.replace(' as=1e-12', ''), 'TOP', ['GND', 'IN', 'OUT'], require_junctions=True)
     with pytest.raises(ValueError, match='ports differ'):
-        adapt_dspf(circuit, 'TOP', ['GND', 'IN', 'MISSING'], {}, True)
+        bind_extracted_netlist(circuit, 'TOP', ['GND', 'IN', 'MISSING'], require_junctions=True)
 
 
-def test_finfet_preserves_physical_fin_count_and_bulk_junction_parameters():
+def test_declared_parameter_checks_preserve_native_cards():
     circuit = '''.subckt TOP D G S B
 M0 D G S B nfet l=20n w=48n nfin=2 adej=6.08e-16 asej=6.08e-16 pdej=168n psej=168n
 R0 D internal 10
 C0 internal S 1f
 .ends TOP
 '''
-    assert finfet_netlist(circuit) == circuit
-    adapted = adapt_dspf(finfet_netlist(circuit), 'TOP', ['D', 'G', 'S', 'B'], {})
+    rules = {"nfin": "positive_integer", "adej": "nonnegative", "psej": "nonnegative"}
+    assert validate_mos_parameters(circuit, rules) == circuit
+    adapted = bind_extracted_netlist(validate_mos_parameters(circuit, rules), 'TOP', ['D', 'G', 'S', 'B'])
     assert circuit.splitlines()[1] in adapted
     for changed in (circuit.replace(' nfin=2', ''), circuit.replace('nfin=2', 'nfin=2.5'),
                     circuit.replace('adej=6.08e-16', 'adej=-1'),
                     circuit.replace('psej=168n', 'psej=nan')):
         with pytest.raises(ValueError):
-            finfet_netlist(changed)
+            validate_mos_parameters(changed, rules)
 
 
-def test_junction_adaptation_binds_declared_active_geometry():
-    deck = '''DEVICE MN(NTEST) gate poly(G) diff(S) diff(D) bulk(B)
-[ PROPERTY W, L
-W = PERIM_CO(gate,diff)/2
-L = AREA(gate)/W ]
-'''
-    mapping = {'NTEST': {'type': 'MN', 'gate': 'gate', 'active': 'active'}}
-    text = junction_properties(deck, mapping)
-    assert '<active> [ PROPERTY W, L, AS, AD, PS, PD' in text
-    assert 'AS = AREA(S) * W / PERIM_IN(S,active)' in text
-    assert 'PD = PERIM(D) * W / PERIM_IN(D,active)' in text
-    assert 'W = PERIM_CO(gate,diff)/2' in text
-    with pytest.raises(ValueError, match='exactly once'):
-        junction_properties(deck+deck, mapping)
+def test_framework_rejects_process_geometry_and_model_rewrite_settings():
+    from benchmarking.eda.backends.calibre_config import CalibreConfiguration
+
+    for setting in ('mos_junctions', 'mos_models'):
+        with pytest.raises(TypeError, match='Unknown Calibre settings'):
+            CalibreConfiguration.parse('rc', 'native.rules', {setting: {'model': {}}}, connectivity='xrc')
 
 
 def test_explicit_native_execution_preserves_frozen_bytes_and_failure_evidence():
-    from benchmarking.engine.backends.calibre import _rewrite_workspace_paths
-    from benchmarking.engine.external import ExternalRuntime
-    from benchmarking.engine.tools.native import NativeTool
+    from benchmarking.eda.backends.calibre import _rewrite_workspace_paths
+    from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.execution.tools.native import NativeTool
     from benchmarking.files import Asset
 
     runtime = ExternalRuntime('native-test', {'image': 'unused', 'environment': {}, 'mounts': []})
@@ -150,8 +142,8 @@ def test_explicit_native_execution_preserves_frozen_bytes_and_failure_evidence()
 
 
 def test_native_timeout_is_an_error_without_fabricated_outputs():
-    from benchmarking.engine.external import ExternalRuntime
-    from benchmarking.engine.tools.native import NativeTool
+    from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.execution.tools.native import NativeTool
     from benchmarking.files import Asset
 
     runtime = ExternalRuntime('native-test', {'image': 'unused', 'environment': {}, 'mounts': []})
@@ -168,18 +160,16 @@ Rwire IN OUT 1
 Cwire OUT VSS 1e-15
 .ends TOP
 '''
-    adapted = adapt_dspf(circuit, 'TOP', ['IN', 'OUT', 'VSS'], {}, True,
-                         subcircuit_mos_models=['native_n'])
+    adapted = bind_extracted_netlist(circuit, 'TOP', ['IN', 'OUT', 'VSS'], require_junctions=True, subcircuit_mos_models=['native_n'])
     assert circuit.splitlines()[1] in adapted
     with pytest.raises(ValueError, match='required geometry'):
-        adapt_dspf(circuit.replace(' ad=2e-13', ''), 'TOP', ['IN', 'OUT', 'VSS'], {}, True,
-                   subcircuit_mos_models=['native_n'])
+        bind_extracted_netlist(circuit.replace(' ad=2e-13', ''), 'TOP', ['IN', 'OUT', 'VSS'], require_junctions=True, subcircuit_mos_models=['native_n'])
     with pytest.raises(ValueError, match='physical devices'):
-        adapt_dspf(circuit, 'TOP', ['IN', 'OUT', 'VSS'], {}, True)
+        bind_extracted_netlist(circuit, 'TOP', ['IN', 'OUT', 'VSS'], require_junctions=True)
 
 
 def test_process_variant_is_explicitly_mounted_and_keeps_default(tmp_path):
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.environment import ExternalRuntime
     (tmp_path / 'identity').write_text('variant')
     runtime = ExternalRuntime('variants', {'image': 'unused',
         'environment': {'PDK_ROOT': '/default', 'VARIANT_ROOT': str(tmp_path)},
@@ -206,10 +196,10 @@ def test_archived_drc_reads_only_the_declared_regular_member(native_tmp_path, mo
     import tarfile
     from types import SimpleNamespace
 
-    from benchmarking.engine.backends.calibre import CalibreNative
-    from benchmarking.engine.external import ExternalRuntime
-    from benchmarking.engine.tools.types import ToolResult
+    from benchmarking.eda.backends.calibre import CalibreNative
+    from benchmarking.eda.environment import ExternalRuntime
     from benchmarking.evaluation import Job
+    from benchmarking.execution.tools import ToolResult
     from benchmarking.files import Asset
 
     raw = b'LAYOUT PRIMARY "old"\nVARIABLE INPUT_NAMES "previous"\nwidth_rule { INTERNAL M1 < 0.2 }\n'
@@ -219,7 +209,7 @@ def test_archived_drc_reads_only_the_declared_regular_member(native_tmp_path, mo
         archive.addfile(member, io.BytesIO(raw))
     captured = {}
 
-    from benchmarking.engine.tools.native import NativeTool
+    from benchmarking.execution.tools.native import NativeTool
 
     monkeypatch.setattr(NativeTool, 'probe', lambda *args, **kwargs:
                         SimpleNamespace(returncode=0, stdout=b'Calibre native release'))
@@ -271,18 +261,16 @@ Cwire OUT VSS 1e-15
 .ends TOP
 """
     with pytest.raises(ValueError, match='ports differ'):
-        adapt_dspf(circuit, 'TOP', ['OUT', 'Vcm', 'VSS'], {})
-    adapted = adapt_dspf(circuit, 'TOP', ['OUT', 'Vcm', 'VSS'], {},
-                         case_insensitive_ports=True)
+        bind_extracted_netlist(circuit, 'TOP', ['OUT', 'Vcm', 'VSS'])
+    adapted = bind_extracted_netlist(circuit, 'TOP', ['OUT', 'Vcm', 'VSS'], case_insensitive_ports=True)
     assert adapted.splitlines()[0] == '.SUBCKT TOP OUT Vcm VSS'
     assert adapted.splitlines()[1:] == circuit.splitlines()[1:]
     with pytest.raises(ValueError, match='ports differ'):
-        adapt_dspf(circuit, 'TOP', ['VCM', 'Vcm', 'VSS'], {},
-                   case_insensitive_ports=True)
+        bind_extracted_netlist(circuit, 'TOP', ['VCM', 'Vcm', 'VSS'], case_insensitive_ports=True)
 
 
 def test_tool_module_selection_requires_a_declared_profile():
-    from benchmarking.engine.external import ExternalRuntime
+    from benchmarking.eda.environment import ExternalRuntime
     runtime = ExternalRuntime('versions', {'image': 'unused', 'mounts': [],
         'environment': {}, 'modules': {'spectre': ['cadence/current'],
                                       'spectre_previous': ['cadence/previous']}})

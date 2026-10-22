@@ -5,12 +5,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from benchmarking.engine.backends.calibre_quantus import CalibreQuantusNative
-from benchmarking.engine.external import ExternalRuntime
-from benchmarking.engine.netlists.dspf import adapt_dspf
-from benchmarking.engine.tools.native import NativeTool
-from benchmarking.engine.tools.types import ToolResult
+from benchmarking.eda.backends.calibre_quantus import CalibreQuantusNative
+from benchmarking.eda.environment import ExternalRuntime
+from benchmarking.eda.netlists.dspf import bind_extracted_netlist
 from benchmarking.evaluation import Job
+from benchmarking.execution.tools import ToolResult
+from benchmarking.execution.tools.native import NativeTool
 from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
@@ -22,7 +22,9 @@ def native_probe(self, command, **kwargs):
     return SimpleNamespace(returncode=0, stdout=output)
 
 
-@pytest.mark.parametrize('failure', ['', 'lvs', 'junctions', 'completion', 'exit'])
+@pytest.mark.parametrize('failure', ['', 'lvs', 'junctions', 'completion', 'exit', 'stuck-exit',
+                                    'stuck-no-console', 'bad-exit-report', 'missing-exit-report',
+                                    'recreated-log-grace'])
 @pytest.mark.parametrize('within_pdk', [False, True])
 def test_cci_rc_requires_complete_physical_evidence(native_tmp_path, monkeypatch, failure, within_pdk):
     pdk = native_tmp_path / 'pdk'
@@ -43,7 +45,7 @@ def test_cci_rc_requires_complete_physical_evidence(native_tmp_path, monkeypatch
         'mounts': mounts})
     monkeypatch.setattr(NativeTool, 'probe', native_probe)
     backend = CalibreQuantusNative(runtime=runtime, deck='lvs.rules', technology_env='QRC_ROOT',
-                                  ground='GND', resistor_models={'poly': {'type': 'primitive', 'model': 'poly'}})
+                                  ground='GND')
     report = '''OVERALL COMPARISON RESULTS
 CELL SUMMARY
 **********
@@ -65,13 +67,45 @@ M0 OUT IN GND GND nmodel L=2e-6 W=3e-6 AS=1e-12 AD=2e-12 PS=3e-6 PD=4e-6
     if failure == 'junctions':
         circuit = circuit.replace(' AS=1e-12', '')
     captured = {}
+    native_execute = backend.tool.run
+    if failure == 'recreated-log-grace':
+        backend.process_exit_grace_seconds = .1
 
     def execute(command, files, exports, **kwargs):
         captured.update(files)
+        if failure == 'recreated-log-grace':
+            # Keep the generated waiter's arguments, redirections and exports;
+            # substitute only the licensed executable and preceding LVS/CCI.
+            script = files['run.sh'].content.decode().split('python3 wait_process_tree.py', 1)[1]
+            script = 'python3 wait_process_tree.py' + script.replace('quantus -cmd qrc.cmd', 'python3 fake_quantus.py')
+            worker = ('from pathlib import Path\nimport time\n'
+                      f'Path("lvs.report").write_text({report!r})\n'
+                      f'Path("extracted.dspf").write_text({circuit!r})\n'
+                      'Path("qrc.log").unlink(missing_ok=True)\n'
+                      'Path("qrc.log").write_text("Quantus terminated normally\\n")\n'
+                      'time.sleep(3)\n')
+            staged = files | {'run.sh': Asset(script.encode(), 'text'),
+                              'fake_quantus.py': Asset(worker.encode(), 'python')}
+            return native_execute(command, staged, exports, **kwargs)
         evidence = {'lvs.report': Asset(report.encode(), 'text'),
                     'qrc.log': Asset(b'Quantus terminated normally' if failure != 'completion' else b'aborted', 'text'),
+                    'qrc.console.log': Asset(b'native console', 'text'),
                     'extracted.dspf': Asset(circuit.encode(), 'spice')}
-        return ToolResult(1 if failure == 'exit' else 0, '', evidence, {})
+        timed_out = failure in {'stuck-exit', 'stuck-no-console'}
+        code = 124 if timed_out else 1 if failure == 'exit' else 0
+        exit_report = {'schema': 'iclayout-tool-exit-v1', 'returncode': code,
+                       'command_returncode': 137 if timed_out else code,
+                       'completion_seen': failure != 'completion', 'exit_grace_exceeded': timed_out,
+                       'exit_grace_seconds': backend.process_exit_grace_seconds, 'processes': []}
+        evidence['qrc.exit.json'] = Asset(json.dumps(exit_report).encode(), 'json')
+        if failure == 'stuck-exit':
+            evidence['qrc.console.log'] = Asset(
+                b'EDA process did not exit after its completion marker: {"processes": []}', 'text')
+        elif failure == 'bad-exit-report':
+            evidence['qrc.exit.json'] = Asset(b'{broken', 'json')
+        elif failure == 'missing-exit-report':
+            del evidence['qrc.exit.json']
+        return ToolResult(code, f'Native Calibre/Quantus exited with {code}' if code else '', evidence, {})
 
     monkeypatch.setattr(backend.tool, 'run', execute)
     job = Job('rc', 'extract', 'layout.extract_rc', (), (), (('netlist', 'spice'),), None,
@@ -86,6 +120,12 @@ M0 OUT IN GND GND nmodel L=2e-6 W=3e-6 AS=1e-12 AD=2e-12 PS=3e-6 PD=4e-6
     if failure:
         assert result.status == 'error' and not result.outputs
         assert 'qrc.log' in result.evidence
+        if failure in {'stuck-exit', 'stuck-no-console', 'recreated-log-grace'}:
+            assert 'process tree did not exit' in result.reason
+            assert 'execution_error' in result.evidence
+            assert b'Quantus terminated normally' in result.evidence['qrc.log'].content
+        elif failure in {'exit', 'bad-exit-report', 'missing-exit-report'}:
+            assert 'execution_error' in result.evidence
     else:
         assert result.status == 'passed'
         extracted = result.outputs['netlist'].content.decode()
@@ -114,6 +154,5 @@ def test_quantus_technology_cannot_read_an_undeclared_author_workspace(native_tm
 ])
 def test_native_two_terminal_resistor_requires_physical_dimensions(card):
     circuit = '.subckt TOP IN OUT GND\n'+card+'\nCwire OUT GND 1e-9\n.ends TOP\n'
-    with pytest.raises(ValueError, match='primitive resistor lacks valid geometry'):
-        adapt_dspf(circuit, 'TOP', ['IN', 'OUT', 'GND'], {},
-                   resistor_models={'poly': {'type': 'primitive', 'model': 'poly'}})
+    with pytest.raises(ValueError):
+        bind_extracted_netlist(circuit, 'TOP', ['IN', 'OUT', 'GND'])

@@ -9,22 +9,25 @@ import time
 import uuid
 from pathlib import Path
 
-from benchmarking.engine.sessions.config import RunConfig
-from benchmarking.engine.sessions.control import SessionControl
-from benchmarking.engine.source import evaluation_identity
+from benchmarking.evidence.identity import evaluation_identity
+from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
+from benchmarking.execution.leases import BatchLease
+from benchmarking.execution.workspace.config import RunConfig
+from benchmarking.execution.workspace.environment import (
+    resource_preflight,
+    task_description,
+)
 from benchmarking.files import Asset, relative
-from benchmarking.harnesses import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
-from benchmarking.locking import BatchLease
 from benchmarking.protocol import (
     PROTOCOL,
     SESSION_STARTUP_TIMEOUT_SECONDS,
     condition,
     json_bytes,
 )
-
-from . import views
-from .contracts import APIError, fields, session_limits, utc
-from .state import ServiceState
+from benchmarking.service import views
+from benchmarking.service.contracts import APIError, fields, session_limits, utc
+from benchmarking.service.state import ServiceState
+from benchmarking.service.supervisor import SessionControl
 
 
 class SessionController:
@@ -184,7 +187,8 @@ class SessionController:
         if operation == 'submissions':
             fields(body, ('path',))
             if body['path'] != self.task.output.path:
-                raise ValueError('Submit the declared task output path')
+                raise APIError(400, 'invalid_submission_path',
+                               'Submit the declared workspace-relative output path: ' + self.task.output.path)
             return 200, self._submit(data, key)
         if operation == 'executions':
             fields(body, ('command', 'timeout_seconds'))
@@ -233,6 +237,7 @@ class SessionController:
     def _create(self, body, key):
         if body['task_id'] != self.task.id:
             raise APIError(404, 'not_found', 'Task not found')
+        _ = self.task.problem  # Validate the author input before allocating a session.
         cond = condition(body['condition'])
         if len(self.state.runs) >= 100 or any(self._status(d)['state'] not in ('complete','error') for d in self.state.runs.values()):
             raise APIError(503, 'unavailable', 'Local service capacity reached')
@@ -317,8 +322,10 @@ class SessionController:
         startup.update(state='ready', elapsed_seconds=time.monotonic()-started)
         self.state.write_startup(sid, startup)
         response = self._status(data) | {'protocol': PROTOCOL, 'session_token': data['token'],
-            'task': {'id': self.task.id, 'sha256': self.task.digest, 'description': self.task.description(),
-                      'input_paths': [f'/task/{i.path}' for i in self.task.inputs], 'workspace_root': '/workspace'},
+            'task': {'id': self.task.id, 'sha256': self.task.digest,
+                      'problem': self.task.problem,
+                      'description': task_description(self.task, resource_preflight(self.resources, self.solver_runtime)),
+                      'input_paths': [f'/task/{i.path}' for i in self.task.solver_inputs], 'workspace_root': '/workspace'},
             'limits': data['limits'], 'capabilities': [PROCESS_FEEDBACK_CAPABILITY],
             'tool_identity': data['tool_identity'], 'retained_until': data['retained_until']}
         data['creation_response'] = response

@@ -6,8 +6,7 @@ from pathlib import Path
 
 from benchmarking.files import Asset, atomic_write
 from benchmarking.protocol import evaluation_mode, layout_score_value
-
-from .statistics import score_summary
+from benchmarking.results.statistics import model_usage_summary, score_summary
 
 
 def _csv(path, columns, rows):
@@ -180,4 +179,40 @@ def export_results(results, destination):
             }
         ),
     )
+    return output
+
+
+def export_participant_results(results, destination):
+    """Export task cost, duration and native usage separately from judge verdicts."""
+    from benchmarking.results.normalization import normalize
+
+    output = Path(destination)
+    output.mkdir(parents=True, exist_ok=False, mode=0o700)
+    rows, groups = [], {}
+    for result in results:
+        evaluation, condition, task, _, repetition = normalize(result)
+        usage = result.get("model_usage") or {}
+        row = {"task": task, "session_id": evaluation["session_id"], "repetition": repetition,
+               "harness": condition["harness"], "model": condition["model"],
+               "effort": condition["effort_resolved"], "outcome": evaluation["outcome"],
+               **(usage.get("tokens") or {}), "api_seconds": usage.get("api_seconds"),
+               "cost_per_task": usage.get("cost"), "currency": usage.get("currency"),
+               "cost_source": usage.get("cost_source"),
+               "wall_seconds": (result.get("execution") or {}).get("elapsed_seconds")}
+        rows.append(row)
+        key = (condition["harness"], condition["model"], condition["effort_resolved"])
+        groups.setdefault(key, []).append(result.get("model_usage"))
+    from benchmarking.results.usage import TOKEN_FIELDS
+    columns = ("task", "session_id", "repetition", "harness", "model", "effort", "outcome",
+               *TOKEN_FIELDS, "api_seconds", "cost_per_task", "currency",
+               "cost_source", "wall_seconds")
+    _csv(output / "runs.csv", columns, rows)
+    summaries = [{"harness": key[0], "model": key[1], "effort": key[2], **model_usage_summary(values)}
+                 for key, values in groups.items()]
+    atomic_write(output / "summary.json", (json.dumps(summaries, indent=2) + "\n").encode())
+    atomic_write(output / "results.json", (json.dumps(results, indent=2) + "\n").encode())
+    manifest = {"usage_provenance": "participant_reported", "missing_csv_values": "empty",
+                "files": {p.name: Asset(p.read_bytes(), "binary").identity()
+                          for p in sorted(output.iterdir()) if p.is_file()}}
+    atomic_write(output / "manifest.json", (json.dumps(manifest, indent=2) + "\n").encode())
     return output

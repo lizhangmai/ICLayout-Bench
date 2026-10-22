@@ -1,0 +1,21 @@
+{
+  "type": "turn.failed",
+  "payload": {
+    "error": {
+      "type": "unknown_error",
+      "code": "1313",
+      "attribution": {
+        "source": "provider",
+        "reason": "rate_limited",
+        "errorPhase": "stream",
+        "exceptionKind": "provider_business",
+        "providerKind": "anthropic",
+        "transport": "sse",
+        "statusCode": 429,
+        "providerErrorCode": "1313",
+        "retryable": false
+      }
+    },
+    "turnPhase": "processing_input"
+  }
+}

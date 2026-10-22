@@ -1,4 +1,5 @@
 """Public release identity, shared by source runs and built distributions."""
+
 import json
 import subprocess
 from importlib.metadata import version

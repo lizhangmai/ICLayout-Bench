@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from benchmarking.participants.adapters.contracts import ParticipantSelection
+from benchmarking.participants.harnesses.contracts import ParticipantSelection
 
 pytest.importorskip("sqlalchemy")
 
@@ -82,6 +82,8 @@ def change(path, operation):
 def test_import_is_independent_idempotent_and_preserves_unknowns(tmp_path):
     store = ResultStore(tmp_path / "archive")
     source = result(tmp_path / "source")
+    from benchmarking.results.importing import prepare_result
+    assert 'model_usage' not in prepare_result(source, 'local').run_data
     imported = store.import_result(source)
     assert store.import_result(source)["status"] == "existing"
     source.parent.rename(tmp_path / "unavailable-source")
@@ -97,6 +99,58 @@ def test_import_is_independent_idempotent_and_preserves_unknowns(tmp_path):
     assert c["outcomes"]["error"] == 1
     assert store.comparison()["totals"][0]["mean"] is None
     assert not store.verify()["failures"]
+    store.close()
+
+
+def test_participant_usage_survives_terminal_cleanup_archive_comparison_and_csv(tmp_path):
+    import csv
+
+    from test_participant_runner import terminal_files
+
+    from benchmarking.participants.attempt.storage import CaseRecord
+    from benchmarking.participants.attempt.worker import finish_case
+    from benchmarking.results.analysis import export_participant_results
+
+    root = tmp_path / 'case'
+    record = CaseRecord(root)
+    record.initialize({'endpoint': 'https://fixture', 'plan': [
+        {'harness': 'command', 'model': 'fixture-model', 'effort': 'high', 'tasks': ['fixture']}]})
+    record.begin()
+    summary = terminal_files(record.participant)
+    summary.update(state='finished', task='fixture', score=None)
+    record.record_summary(summary)
+    pricing = {'currency': 'USD', 'source': 'https://provider.example/pricing', 'as_of': '2026-10-16',
+               'input_per_million': 2, 'cache_read_per_million': .2,
+               'cache_write_per_million': 2.5, 'output_per_million': 10}
+    (record.participant / 'conditions.json').write_text(json.dumps({
+        'selection': {'harness': 'command', 'model': 'fixture-model'}, 'pricing': pricing}))
+    (record.participant / 'harness-summary.json').write_text('{"elapsed_seconds": 5}')
+    event = {'type': 'model.usage', 'request_id': 'r1', 'model': 'fixture-model', 'elapsed_seconds': 2,
+             'usage': {'input_tokens': 100, 'cached_input_tokens': 60, 'cache_write_input_tokens': 0, 'output_tokens': 20}}
+    (record.participant / 'harness.jsonl').write_text(json.dumps(event) + '\n')
+    finish_case(root)
+    raw = json.loads((root / 'result.json').read_text())
+    assert not record.runtime.exists()
+    assert raw['model_usage']['cost'] == pytest.approx(.000292)
+    assert raw['model_usage']['api_seconds'] == 2
+    assert raw['model_usage']['wall_seconds'] == 5
+    assert raw['model_usage']['pricing'] == pricing
+    assert all(value is None for value in raw['evaluation']['usage'].values())
+    store = ResultStore(tmp_path / 'archive')
+    imported = store.import_result(root)
+    assert store.detail(imported['run_id'])['data']['model_usage'] == raw['model_usage']
+    totals = store.comparison()['totals'][0]['model_usage']
+    assert totals['cost_per_task'] == pytest.approx(.000292)
+    assert totals['api_seconds']['sum'] == 2
+    export_participant_results([raw], tmp_path / 'analysis')
+    with (tmp_path / 'analysis/runs.csv').open() as stream:
+        row, = csv.DictReader(stream)
+    assert float(row['cost_per_task']) == pytest.approx(.000292)
+    assert float(row['api_seconds']) == 2
+    assert float(row['wall_seconds']) == 5
+    summaries = json.loads((tmp_path / 'analysis/summary.json').read_text())
+    for exported in (raw['model_usage'], totals, row, *summaries):
+        assert not {'output_tokens_per_second', 'wall_output_tokens_per_second'} & exported.keys()
     store.close()
 
 
@@ -231,7 +285,8 @@ def test_comparison_aggregation_uses_rows_and_schedules_without_database():
     assert len(result["tasks"]) == 3
     assert len(result["conditions"]) == 1
     assert sorted(cell["measured"] for cell in result["cells"]) == [0, 1]
-    assert result["totals"] == [
+    assert result["totals"][0]["model_usage"]["cost_per_task"] is None
+    assert [{k: v for k, v in total.items() if k != "model_usage"} for total in result["totals"]] == [
         {
             "condition_id": "condition-a",
             "common_tasks": 1,
@@ -353,8 +408,10 @@ def test_runner_storage_configuration_does_not_change_frozen_conditions(
     tmp_path, monkeypatch
 ):
     """Archive destinations affect delivery only, never whether completed work is rerun."""
-    from benchmarking.participants import batch, cli, planning
-    from benchmarking.participants.config import read_configs
+    from benchmarking.participants import cli
+    from benchmarking.participants.batch import plan as planning
+    from benchmarking.participants.batch import runner as batch
+    from benchmarking.participants.batch.config import read_configs
 
     config = tmp_path / "experiment.toml"
     base = 'harness="codex"\nmodel="model-a"\nefforts=["medium"]\ntasks=["case"]\nconcurrency=1\nrepetitions=1\n'
@@ -462,7 +519,7 @@ def test_catalog_preserves_netlist_bytes_without_drawings_and_rejects_mismatches
 # exclude live credentials and reject attacker-controlled archive paths. Existing
 # SQL tests do not exercise that transport boundary; all artifacts use tmp_path.
 def test_portable_package_preserves_results_without_runtime(tmp_path):
-    from benchmarking.transfer import pack, unpack
+    from benchmarking.results.transfer import pack, unpack
     source = result(tmp_path / "source")
     (source.parent / ".runtime").mkdir()
     (source.parent / ".runtime" / "credentials").write_text("never packaged")
@@ -483,7 +540,7 @@ def test_portable_package_preserves_results_without_runtime(tmp_path):
 def test_package_rejects_symlinks_traversal_and_digest_tampering(tmp_path):
     import zipfile
 
-    from benchmarking.transfer import pack, unpack
+    from benchmarking.results.transfer import pack, unpack
     source = result(tmp_path / "source")
     package = tmp_path / "results.zip"
     pack(source, package)
@@ -504,7 +561,7 @@ def test_package_rejects_symlinks_traversal_and_digest_tampering(tmp_path):
 
 
 def test_upload_client_never_sends_credentials_over_remote_http():
-    from benchmarking.transfer import request
+    from benchmarking.results.transfer import request
     with pytest.raises(ValueError, match="HTTPS"):
         request("http://example.org", "test-only", "/api/uploads")
 

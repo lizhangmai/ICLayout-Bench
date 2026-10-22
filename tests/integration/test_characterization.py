@@ -11,10 +11,11 @@ import tomli_w
 from helpers.spice_raw import read_raw
 from helpers.stimuli import command, number
 
-from benchmarking.engine.backends.ngspice import NgspiceDocker
-from benchmarking.engine.evaluate import run_evaluation
-from benchmarking.engine.toolchains import load_toolchain
+from benchmarking.eda.backends.ngspice import NgspiceDocker
+from benchmarking.eda.images import DEFAULT_IMAGE
+from benchmarking.eda.toolchain import load_toolchain
 from benchmarking.evaluation import parse_evaluation
+from benchmarking.evaluation.runner import run_evaluation
 from benchmarking.files import Asset
 
 pytestmark = pytest.mark.integration
@@ -23,7 +24,8 @@ FIXTURES = Path(__file__).resolve().parents[2] / "tests/fixtures/characterizatio
 
 @pytest.fixture(scope="module")
 def backends():
-    return load_toolchain(FIXTURES / "toolchain.toml")
+    return load_toolchain(FIXTURES / "toolchain.toml",
+                          image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", DEFAULT_IMAGE))
 
 
 def asset(name):
@@ -54,7 +56,7 @@ def test_rc_transient_and_ac_match_analytic_values_and_retain_waveforms(tmp_path
     del inputs["input:dut"]
     plan = parse_evaluation(tomli_w.dumps(config).encode())
     backend = NgspiceDocker(
-        image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-eda-open:local"),
+        image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", DEFAULT_IMAGE),
         resistor_formulation=formulation, threads=threads,
         max_parallel_jobs=2, cpu_budget=2 * threads)
     report = run_evaluation(plan, inputs, {"circuit.simulate": backend}, tmp_path / "rc")
@@ -126,7 +128,7 @@ def test_branch_resistors_preserve_picoampere_kcl(tmp_path):
     This analytical control verifies numerical formulation, not circuit signoff.
     """
     backend = NgspiceDocker(
-        image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", "iclayout-eda-open:local"),
+        image=os.environ.get("ICLAYOUT_BENCH_TEST_IMAGE", DEFAULT_IMAGE),
         resistor_formulation="branch")
     plan = parse_evaluation(b'''
 mode = "characterization"

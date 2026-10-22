@@ -6,7 +6,7 @@ __pycache__/
 /build/
 /dist/
 
-# Legacy and tool caches
+# Tool caches
 /.cache/
 .pytest_cache/
 .ruff_cache/
@@ -21,7 +21,3 @@ auth.json
 
 # Generated run artifacts
 /results/
-
-# Participant workspaces are maintained outside the framework checkout
-/examples/
-/experiments/

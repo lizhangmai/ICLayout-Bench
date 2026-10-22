@@ -48,24 +48,24 @@ def runner_config(constraints):
     }
 
 
-def test_uncapped_area_uses_all_declared_layers_and_legacy_bbox_still_rejects(
+def test_uncapped_area_uses_all_declared_layers_and_explicit_bbox_still_rejects(
     native_geometry_runner, monkeypatch, tmp_path
 ):
     runner, db = native_geometry_runner
     candidate = tmp_path / "candidate.gds"
     write_candidate(db, candidate)
     monkeypatch.chdir(tmp_path)
-    legacy = {
+    outline = {
         "hard": [{"id": "outline", "type": "bbox_max", "functional_layers": FUNCTIONAL_LAYERS,
                   "max_width_um": 8.0, "max_height_um": 8.0}],
         "quality": [{"id": "area", "type": "functional_bbox_area", "layers_from": "outline"}],
     }
 
-    legacy_status, _, legacy_details, legacy_measurements = runner.inspect(runner_config(legacy))
+    outline_status, _, outline_details, outline_measurements = runner.inspect(runner_config(outline))
 
-    assert legacy_status == "failed"
-    assert legacy_details["outline"]["passed"] is False
-    assert legacy_measurements == {}
+    assert outline_status == "failed"
+    assert outline_details["outline"]["passed"] is False
+    assert outline_measurements == {}
 
     quality_only = {
         "hard": [],
@@ -73,7 +73,7 @@ def test_uncapped_area_uses_all_declared_layers_and_legacy_bbox_still_rejects(
                       "functional_layers": FUNCTIONAL_LAYERS}],
     }
     status, _, details, measurements = runner.inspect(runner_config(quality_only))
-    cap_area = legacy["hard"][0]["max_width_um"] * legacy["hard"][0]["max_height_um"]
+    cap_area = outline["hard"][0]["max_width_um"] * outline["hard"][0]["max_height_um"]
 
     assert status == "passed"
     assert details["area"] == {"passed": True, "width_um": 12.0, "height_um": 10.0}

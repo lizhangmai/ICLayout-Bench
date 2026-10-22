@@ -12,8 +12,8 @@ from dataclasses import replace
 
 import pytest
 
-from benchmarking.engine.inference import InferenceConfig, InferenceGateway
-from benchmarking.engine.sessions.recorder import RunRecorder
+from benchmarking.evidence.journal import RunRecorder
+from benchmarking.execution.inference import InferenceConfig, InferenceGateway
 from benchmarking.files import Asset
 
 pytestmark = [pytest.mark.integration, pytest.mark.acceptance, pytest.mark.acceptance_fast]

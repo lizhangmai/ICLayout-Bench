@@ -5,7 +5,10 @@ import json
 import math
 import re
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Protocol
+
+from benchmarking.files import Asset
 
 
 def identifier(value: object) -> str:
@@ -14,12 +17,10 @@ def identifier(value: object) -> str:
     return value
 
 
-
 def number(value: object) -> float:
     if type(value) not in {int, float} or not math.isfinite(value):
         raise ValueError("Expected a finite numeric value")
     return float(value)
-
 
 
 @dataclass(frozen=True)
@@ -37,7 +38,6 @@ class Job:
     def parameters(self) -> dict:
         # Each backend receives its own copy, keeping the frozen plan immutable.
         return json.loads(self.parameters_json)
-
 
 
 @dataclass(frozen=True)
@@ -61,7 +61,6 @@ class Metric:
     @property
     def is_requirement(self) -> bool:
         return self.lower is not None or self.upper is not None
-
 
 
 @dataclass(frozen=True)
@@ -93,14 +92,12 @@ class EvaluationPlan:
         return frozenset(references)
 
 
-
 def _decode_evaluation(raw: bytes, file_format: str) -> dict:
     if file_format == "toml":
         return tomllib.loads(raw.decode("utf-8"))
     if file_format == "json":
         return json.loads(raw)
     raise ValueError("Evaluation plan format must be toml or json")
-
 
 
 @dataclass(frozen=True)
@@ -114,9 +111,40 @@ class ScoringSpec:
     rationale: str
 
 
-
 SCORING_METHOD = "layout"
 
 
-
 SCORING_DIMENSIONS = frozenset({"response", "bias", "supply"})
+
+
+@dataclass(frozen=True)
+class Measurement:
+    value: float
+    unit: str
+
+
+@dataclass
+class JobResult:
+    status: str  # passed, failed (check/extraction rejection), or error (no valid result)
+    reason: str = ""
+    measurements: dict[str, Measurement] = field(default_factory=dict)
+    outputs: dict[str, Asset] = field(default_factory=dict)
+    evidence: dict[str, Asset] = field(default_factory=dict)
+    failure: dict | None = None
+
+
+class Backend(Protocol):
+    """A trusted tool adapter. It must not read the solver's mutable workspace.
+
+    run receives only immutable declared inputs and fresh parameters. Return
+    failed for a completed check or extraction rejecting the artifact. Returned
+    unusable candidate extractions are acceptance failures; infrastructure failures
+    and unexpected adapter exceptions remain errors. Evidence is archived as bytes.
+    A backend may use a container, subprocess, remote worker or native library.
+    Reentrant backends may advertise max_parallel_jobs; other backends run serially.
+    """
+
+    @property
+    def identity(self) -> dict: ...
+
+    def run(self, job: Job, inputs: dict[str, Asset]) -> JobResult: ...

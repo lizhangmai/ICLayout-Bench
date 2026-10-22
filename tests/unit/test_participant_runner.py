@@ -8,14 +8,14 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from helpers.harness import native_session
+from helpers.harness import codex_tool_reply, native_session
 
 from benchmarking.client import ClientError
-from benchmarking.participants.adapters.contracts import (
+from benchmarking.participants.attempt.runner import run_participant
+from benchmarking.participants.harnesses.contracts import (
     LaunchContext,
     ParticipantSelection,
 )
-from benchmarking.participants.runner import run_participant
 from benchmarking.protocol import PROTOCOL, USAGE_FIELDS
 
 pytestmark = pytest.mark.unit
@@ -25,10 +25,10 @@ pytestmark = pytest.mark.unit
 def external_runtime_boundaries(monkeypatch):
     from types import SimpleNamespace
 
-    from benchmarking.participants.case import execute_owned_slot
-    monkeypatch.setattr("benchmarking.participants.worker.supervise_slot", execute_owned_slot)
-    monkeypatch.setattr("benchmarking.participants.planning.DockerSession", lambda image: SimpleNamespace(image_id=image))
-    monkeypatch.setattr("benchmarking.participants.planning.harness_version", lambda _: ("1.2.3", "fixture-cli 1.2.3"))
+    from benchmarking.participants.attempt.worker import execute_owned_slot
+    monkeypatch.setattr("benchmarking.participants.batch.worker.supervise_slot", execute_owned_slot)
+    monkeypatch.setattr("benchmarking.participants.batch.plan.DockerSession", lambda image: SimpleNamespace(image_id=image))
+    monkeypatch.setattr("benchmarking.participants.batch.plan.harness_version", lambda _: ("1.2.3", "fixture-cli 1.2.3"))
 
 
 def write_dataset(root, names):
@@ -40,6 +40,11 @@ def write_dataset(root, names):
         process.mkdir(parents=True, exist_ok=True)
         (process / 'pdk.toml').write_text('id="fixture"\n')
     return root
+
+
+def case_run(root, task):
+    directory, = (root / task).iterdir()
+    return directory
 
 
 class ServiceFixture:
@@ -55,7 +60,8 @@ class ServiceFixture:
         self.condition = condition
         return {'session_id': 'fixture-session', 'session_token': 'scoped-fixture-token',
                 'limits': {'wall_seconds': self.remaining, 'max_command_seconds': self.remaining},
-                'task': {'description': {'hours': self.remaining / 3600, 'output': {'path': '/workspace/output/final.gds'}}}}
+                'task': {'problem': '# Fixture problem\n',
+                         'description': {'hours': self.remaining / 3600, 'output': {'path': '/workspace/output/final.gds'}}}}
 
     def session(self, sid):
         return {'state': 'active' if self.active else 'complete', 'remaining_seconds': self.remaining}
@@ -83,6 +89,38 @@ class ServiceFixture:
         }
 
 
+def test_initial_prompt_contains_problem_verbatim_without_serializing_the_task_plan(tmp_path, monkeypatch):
+    problem = '# Layout task\n\nPreserve the declared circuit.\n中文要求。\n'
+    fixture = ServiceFixture()
+    create = fixture.create
+
+    def created(*args, **kwargs):
+        response = create(*args, **kwargs)
+        response['task']['problem'] = problem
+        response['task']['description']['evaluation'] = {
+            'pre_layout': {'internal_measurements': 'evaluator-only-' + 'x' * 1_100_000}}
+        return response
+
+    fixture.create = created
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
+    monkeypatch.setattr('benchmarking.participants.harnesses.registry.prepare', lambda context: ['fixture'])
+    monkeypatch.setattr('benchmarking.participants.harnesses.registry.cli_version', lambda *a: 'fixture')
+    prompts = []
+
+    def execute(argv, *, prompt, **kwargs):
+        prompts.append(prompt)
+        assert prompt == problem
+        assert 'evaluator-only-' not in prompt
+        assert len(prompt) < 10_000
+        return 0, False
+
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', execute)
+    selection = ParticipantSelection({'model': 'fixture', 'effort_resolved': 'low'}, {}, {})
+    result, error = run_participant(fixture, {'harness': 'command', 'task': 'fixture'}, tmp_path, selection)
+    assert error is None and result['outcome'] == 'no_submission'
+    assert len(prompts) == 1
+
+
 def terminal_files(output, outcome='no_submission'):
     (output / 'analysis').mkdir(parents=True, exist_ok=True)
     result = ServiceFixture().result('fixture-session')
@@ -95,7 +133,7 @@ class InFlightService(ServiceFixture):
     """A protocol execution survives the participant; enforce the real service guard."""
     def __init__(self, *, race=False, conflict=False):
         super().__init__()
-        self.busy = not race and not conflict
+        self.busy = not race
         self.race, self.conflict = race, conflict
         self.submitted = []
 
@@ -105,37 +143,25 @@ class InFlightService(ServiceFixture):
     def poll(self, sid, eid, *, offset=0):
         import base64
         assert eid == 'in-flight'
+        if self.conflict:
+            raise ClientError('conflict', 'Execution status conflict', status=409)
         self.busy = False
         raw = b'execution finished scoped-fixture-token\n' if offset == 0 else b''
         return {'execution_id': eid, 'state': 'complete', 'exit_code': 0,
                 'log_base64': base64.b64encode(raw).decode(), 'next_offset': offset + len(raw), 'truncated': False}
 
     def submit(self, sid, path, *, key):
-        import time
-
-        from benchmarking.service.contracts import APIError
-        from benchmarking.service.controller import SessionController
         self.submitted.append((path, key))
-        if self.race:
-            self.busy, self.race = True, False
-        if self.conflict:
-            raise ClientError('conflict', 'Idempotency key conflict', status=409)
-        service = object.__new__(SessionController)
-        service._status = lambda _: self.session(sid)
-        try:
-            service._active({'deadline_epoch': time.time() + 60}, idle=True)
-        except APIError as exc:
-            raise ClientError(exc.code, str(exc), status=exc.status) from exc
-        return {'submission_id': 'accepted', 'sequence': 1, 'size_bytes': 10}
+        raise AssertionError("Session settlement must never submit workspace output")
 
 
 @pytest.mark.parametrize('harness', ['codex', 'claude-code', 'command'])
 def test_failed_harness_drains_execution_before_shared_finalization(tmp_path, monkeypatch, harness):
     import sys
 
-    from benchmarking.participants.recovery import DISABLED
-    from benchmarking.participants.runner import run_one
-    from benchmarking.participants.scheme import resolve_scheme
+    from benchmarking.participants.attempt.recovery import DISABLED
+    from benchmarking.participants.attempt.runner import run_one
+    from benchmarking.participants.harnesses.scheme import resolve_scheme
 
     fixture = InFlightService()
     selected = {'harness': harness, 'model': 'fixture', 'effort_resolved': 'high', 'effort_requested': 'high'}
@@ -143,15 +169,15 @@ def test_failed_harness_drains_execution_before_shared_finalization(tmp_path, mo
     argv = [sys.executable, '-c', 'import sys; print("participant interrupted"); sys.exit(7)']
     if harness == 'command':
         row['scheme'] = resolve_scheme({'version': 'fixture', 'launch': {'command': argv, 'files': []}}, tmp_path, harness)
-    monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *a, **kw: fixture)
-    monkeypatch.setattr('benchmarking.participants.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
-    monkeypatch.setattr('benchmarking.participants.adapters.prepare', lambda *a: argv)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
+    monkeypatch.setattr('benchmarking.participants.harnesses.registry.prepare', lambda *a: argv)
     output = tmp_path / 'participant'
     summary = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
     assert summary['state'] == 'finished'
     assert summary['harness_error'] == 'cli_exit_7'
     assert summary['failure']['source'] == 'harness_exit'
-    assert fixture.submitted == [('output/final.gds', 'runner-final-submit')]
+    assert not fixture.submitted
     assert fixture.closed == ['fixture-session']
     assert (output / 'analysis/manifest.json').exists()
     finalization = json.loads((output / 'finalization.json').read_text())
@@ -161,23 +187,28 @@ def test_failed_harness_drains_execution_before_shared_finalization(tmp_path, mo
     assert all(b'scoped-fixture-token' not in path.read_bytes() for path in (output / 'observation').rglob('*') if path.is_file())
 
 
-def test_finalization_reconciles_execution_race_with_same_submission_key(tmp_path):
-    from benchmarking.participants.runner import finalize_session
+def test_finalization_retains_only_participant_accepted_snapshot(tmp_path):
+    from benchmarking.participants.attempt.runner import finalize_session
     fixture = InFlightService(race=True)
     fixture.condition = {}
     (tmp_path / '.private').mkdir()
     (tmp_path / '.private/recovery.json').write_text('{"redactions": []}')
-    created = {'task': {'description': {'output': {'path': '/workspace/output/final.gds'}}}}
-    result = finalize_session(fixture, 'fixture-session', created, tmp_path)
-    assert result['state'] == 'complete'
-    assert fixture.submitted == [('output/final.gds', 'runner-final-submit')] * 2
+    receipt = {'submission_id': 'explicit', 'sequence': 1, 'candidate_sha256': 'a' * 64}
+    session, result = fixture.session, fixture.result
+    fixture.session = lambda sid: dict(session(sid), last_submission=receipt)
+    fixture.result = lambda sid: dict(result(sid), submission=receipt)
+    outcome = finalize_session(fixture, 'fixture-session', tmp_path)
+    assert outcome['submission'] == receipt
+    assert not fixture.submitted
     assert fixture.closed == ['fixture-session']
+    record = json.loads((tmp_path / 'finalization.json').read_text())
+    assert record['receipt'] == receipt and record['submission'] == 'retained'
 
 
 def test_finalization_wait_obeys_deadline_and_retains_accepted_candidate(tmp_path, monkeypatch):
     from types import SimpleNamespace
 
-    from benchmarking.participants.runner import finalize_session
+    from benchmarking.participants.attempt.runner import finalize_session
     fixture = InFlightService()
     fixture.condition = {}
     fixture.remaining = 1
@@ -189,11 +220,10 @@ def test_finalization_wait_obeys_deadline_and_retains_accepted_candidate(tmp_pat
     clock = [0]
     def sleep(seconds):
         clock[0] += seconds
-    monkeypatch.setattr('benchmarking.participants.lifecycle.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
+    monkeypatch.setattr('benchmarking.participants.attempt.settlement.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
     (tmp_path / '.private').mkdir()
     (tmp_path / '.private/recovery.json').write_text('{"redactions": []}')
-    created = {'task': {'description': {'output': {'path': '/workspace/output/final.gds'}}}}
-    result = finalize_session(fixture, 'fixture-session', created, tmp_path)
+    result = finalize_session(fixture, 'fixture-session', tmp_path)
     assert clock[0] == 1
     assert not fixture.submitted
     assert fixture.closed == ['fixture-session']
@@ -202,19 +232,35 @@ def test_finalization_wait_obeys_deadline_and_retains_accepted_candidate(tmp_pat
 
 
 def test_finalization_keeps_primary_error_when_close_also_fails(tmp_path, monkeypatch):
-    from benchmarking.participants.runner import finalize_session
+    from benchmarking.participants.attempt.runner import finalize_session
     fixture = InFlightService(conflict=True)
     def close(*a, **kw):
         raise ClientError('transport_error', 'response lost')
     monkeypatch.setattr(fixture, 'close', close)
-    created = {'task': {'description': {'output': {'path': '/workspace/output/final.gds'}}}}
     with pytest.raises(ClientError) as caught:
-        finalize_session(fixture, 'fixture-session', created, tmp_path)
+        finalize_session(fixture, 'fixture-session', tmp_path)
     assert caught.value.code == 'conflict'
     evidence = json.loads((tmp_path / 'finalization.json').read_text())
     assert evidence['error']['code'] == 'conflict'
     assert evidence['close_error']['code'] == 'transport_error'
     assert not evidence['closed']
+
+
+def test_operator_interruption_is_not_replaced_by_transport_failure_during_close(tmp_path, monkeypatch):
+    from benchmarking.participants.attempt.settlement import settle_session
+
+    fixture = InFlightService()
+    def interrupted(*a, **kw):
+        raise KeyboardInterrupt
+    def close(*a, **kw):
+        raise ClientError('transport_error', 'service shutting down')
+    monkeypatch.setattr(fixture, 'session', interrupted)
+    monkeypatch.setattr(fixture, 'close', close)
+    with pytest.raises(KeyboardInterrupt):
+        settle_session(fixture, 'fixture-session', tmp_path)
+    record = json.loads((tmp_path / 'finalization.json').read_text())
+    assert record['error']['code'] == 'operator_interrupted'
+    assert record['close_error']['code'] == 'transport_error'
 
 
 @pytest.mark.parametrize('failure_code', ['conflict', 'infrastructure_error', 'result_transport'])
@@ -225,10 +271,9 @@ def test_unrelated_finalization_conflict_retains_original_harness_failure(tmp_pa
     fixture = InFlightService(conflict=failure_code != 'result_transport')
     tasks = ['fixture', 'untouched'] if failure_code == 'infrastructure_error' else ['fixture']
     if failure_code == 'infrastructure_error':
-        def submit(sid, path, *, key):
-            fixture.submitted.append((path, key))
+        def poll(sid, eid, *, offset=0):
             raise ClientError(failure_code, 'service unavailable', status=500)
-        monkeypatch.setattr(fixture, 'submit', submit)
+        monkeypatch.setattr(fixture, 'poll', poll)
     if failure_code == 'result_transport':
         def result(sid):
             raise ClientError('transport_error', 'response lost')
@@ -238,38 +283,38 @@ def test_unrelated_finalization_conflict_retains_original_harness_failure(tmp_pa
                       f'tasks={json.dumps(tasks)}\nconcurrency=1\nrepetitions=1\n'
                       '[recovery]\nhttp_attempts=1\nbackoff_seconds=0\nmax_backoff_seconds=0\nresume_session=false\n')
     selected = {'harness': 'claude-code', 'model': 'fixture', 'effort_resolved': 'high', 'effort_requested': 'high'}
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *a: ParticipantSelection(selected, {}, {}))
-    monkeypatch.setattr('benchmarking.participants.local_service.service', lambda *a: nullcontext(fixture))
-    monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *a, **kw: fixture)
-    monkeypatch.setattr('benchmarking.participants.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
-    monkeypatch.setattr('benchmarking.participants.adapters.prepare', lambda *a: [sys.executable, '-c', 'import sys; sys.exit(7)'])
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *a: ParticipantSelection(selected, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.attempt.service.service', lambda *a: nullcontext(fixture))
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
+    monkeypatch.setattr('benchmarking.participants.harnesses.registry.prepare', lambda *a: [sys.executable, '-c', 'import sys; sys.exit(7)'])
     dataset = write_dataset(tmp_path / 'dataset', tasks)
     output = tmp_path / 'batch'
     assert main(['--config', str(config), '--dataset', str(dataset), '--output', str(output)]) == 1
-    result = json.loads((output / 'fixture/fixture/cases/fixture/result.json').read_text())
+    result = json.loads((case_run(output, 'fixture') / 'result.json').read_text())
     assert result['summary']['harness_error'] == 'cli_exit_7'
     assert result['summary']['failure']['source'] == 'harness_exit'
     assert result['summary']['finalization_error']['failure']['code'] == ('transport_error' if failure_code == 'result_transport' else failure_code)
-    assert len(fixture.submitted) == 1
+    assert not fixture.submitted
     assert fixture.closed == ['fixture-session']
     if len(tasks) > 1:
-        assert json.loads((output / 'untouched/fixture/cases/untouched/result.json').read_text())['state'] == 'blocked'
+        assert json.loads((case_run(output, 'untouched') / 'result.json').read_text())['state'] == 'blocked'
 
 
 class LifecycleTests(unittest.TestCase):
     def exercise(self, code, seconds):
         import sys
 
-        from benchmarking.participants.recovery import DISABLED
+        from benchmarking.participants.attempt.recovery import DISABLED
         fixture = ServiceFixture()
         fixture.remaining = seconds
         selected = {'harness': 'claude-code', 'model': 'fixture-model', 'effort_resolved': 'xhigh',
                     'effort_requested': None, 'effort_source': 'test', 'provider_effective_effort': None}
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / 'run'
-            with patch('benchmarking.participants.runner.Client', return_value=fixture), \
-                    patch('benchmarking.participants.runner.subprocess.check_output', return_value='fixture-cli'), \
-                    patch('benchmarking.participants.adapters.prepare', return_value=[sys.executable, '-c', code]):
+            with patch('benchmarking.participants.attempt.runner.Client', return_value=fixture), \
+                    patch('benchmarking.participants.attempt.runner.subprocess.check_output', return_value='fixture-cli'), \
+                    patch('benchmarking.participants.harnesses.registry.prepare', return_value=[sys.executable, '-c', code]):
                 result, error = run_participant(fixture, {'harness': 'claude-code', 'task': 'fixture', 'recovery': DISABLED}, output, ParticipantSelection(copy.deepcopy(selected), {}, {}))
             self.assertEqual(fixture.closed, ['fixture-session'])
             self.assertEqual(result['outcome'], 'no_submission')
@@ -299,9 +344,9 @@ class LifecycleTests(unittest.TestCase):
             return response
         fixture.create = mismatched_create
         with tempfile.TemporaryDirectory() as directory, \
-                patch('benchmarking.participants.runner.Client', return_value=fixture), \
-                patch('benchmarking.participants.runner.subprocess.check_output', return_value='fixture-cli'), \
-                patch('benchmarking.participants.adapters.prepare') as launch:
+                patch('benchmarking.participants.attempt.runner.Client', return_value=fixture), \
+                patch('benchmarking.participants.attempt.runner.subprocess.check_output', return_value='fixture-cli'), \
+                patch('benchmarking.participants.harnesses.registry.prepare') as launch:
             with self.assertRaisesRegex(ValueError, 'wall_seconds'):
                 run_participant(fixture, {'harness': 'claude-code', 'task': 'fixture'}, Path(directory) / 'run', ParticipantSelection({'model': 'fixture-model'}, {}, {}))
             launch.assert_not_called()
@@ -317,29 +362,29 @@ class LifecycleTests(unittest.TestCase):
                 write_dataset(Path(directory), ["fixture"])
                 config = Path(directory) / 'trial.toml'
                 config.write_text('harness="claude-code"\nmodel="fixture-model"\ntasks=["fixture"]\nconcurrency=1\neffort="high"\nrepetitions=1\n')
-                case_path = 'fixture/fixture/cases/fixture' if local else 'fixture'
                 fixture = ServiceFixture()
                 fixture.remaining = 3 * 3600
                 selected = ParticipantSelection({'harness': 'claude-code', 'model': 'fixture-model',
                              'effort_resolved': 'high', 'effort_requested': None}, {}, {})
 
-                def local_service(prepared, output, image, recoverable, batch=batch, fixture=fixture, case_path=case_path):
-                    self.assertEqual(output, batch / case_path / '.runtime/service')
+                def local_service(prepared, output, image, recoverable, batch=batch, fixture=fixture):
+                    self.assertEqual(output, case_run(batch, 'fixture') / '.runtime/service')
                     (output / 'service.log').write_text('fixture service')
                     return nullcontext(fixture)
 
-                with patch('benchmarking.participants.planning.default_output', return_value=batch), \
-                        patch('benchmarking.participants.planning.resolve', return_value=selected), \
-                        patch('benchmarking.participants.case.Client', return_value=fixture), \
-                        patch('benchmarking.participants.local_service.service', side_effect=local_service), \
-                        patch('benchmarking.participants.runner.Client', return_value=fixture), \
-                        patch('benchmarking.participants.runner.subprocess.check_output', return_value='fixture-cli 1.2.3'), \
-                        patch('benchmarking.participants.adapters.prepare', return_value=[sys.executable, '-c', 'print("done")']), \
+                with patch('benchmarking.participants.batch.plan.default_output', return_value=batch), \
+                        patch('benchmarking.participants.batch.plan.resolve', return_value=selected), \
+                        patch('benchmarking.participants.attempt.worker.Client', return_value=fixture), \
+                        patch('benchmarking.participants.attempt.service.service', side_effect=local_service), \
+                        patch('benchmarking.participants.attempt.runner.Client', return_value=fixture), \
+                        patch('benchmarking.participants.attempt.runner.subprocess.check_output', return_value='fixture-cli 1.2.3'), \
+                        patch('benchmarking.participants.harnesses.registry.prepare', return_value=[sys.executable, '-c', 'print("done")']), \
                         patch.dict('os.environ', {'ICLAYOUT_BENCH_ENDPOINT': ''}), \
                         patch('builtins.print'):
                     mode = ['--dataset', directory] if local else ['--endpoint', fixture.endpoint]
                     code = main(['--config', str(config), *mode])
                 self.assertEqual(code, 0)
+                case_path = str(case_run(batch, 'fixture').relative_to(batch))
                 result = json.loads((batch / case_path / 'result.json').read_text())
                 self.assertEqual(result['summary']['directory'], case_path)
                 self.assertEqual(result['evaluation']['outcome'], 'no_submission')
@@ -365,15 +410,15 @@ class LifecycleTests(unittest.TestCase):
                 if row['name'].startswith('first'):
                     raise RuntimeError('fixture failure')
                 return terminal_files(out)
-            with patch('benchmarking.participants.planning.default_output', side_effect=lambda group: root / Path(group).name), \
-                    patch('benchmarking.participants.planning.harness_version', return_value=('1.2.3', 'fixture 1.2.3')), \
-                    patch('benchmarking.participants.planning.resolve', return_value=selection), \
-                    patch('benchmarking.participants.runner.run_one', side_effect=run), \
+            with patch('benchmarking.participants.batch.plan.default_output', side_effect=lambda group: root / Path(group).name), \
+                    patch('benchmarking.participants.batch.plan.harness_version', return_value=('1.2.3', 'fixture 1.2.3')), \
+                    patch('benchmarking.participants.batch.plan.resolve', return_value=selection), \
+                    patch('benchmarking.participants.attempt.runner.run_one', side_effect=run), \
                     patch.dict('os.environ', {'ICLAYOUT_BENCH_TOKEN': 'fixture-token'}), \
                     patch('builtins.print'):
                 code = main(['--matrix', str(matrix), '--endpoint', 'http://127.0.0.1:8765'])
             self.assertEqual(code, 1)
-            summary = [json.loads(p.read_text())['summary'] for p in sorted(root.glob('*/test/result.json'))]
+            summary = [json.loads(p.read_text())['summary'] for p in sorted(root.glob('*/test/*/result.json'))]
             self.assertEqual(len(summary), 2)
             self.assertEqual(summary[0]['harness_error'], 'RuntimeError')
             self.assertEqual(summary[1]['outcome'], 'no_submission')
@@ -389,7 +434,7 @@ def test_environment_defaults_and_explicit_runner_overrides(tmp_path, monkeypatc
     monkeypatch.setenv('ICLAYOUT_BENCH_ENDPOINT', 'https://example.invalid/evaluation')
     monkeypatch.setenv('ICLAYOUT_BENCH_IMAGE', 'tools:configured')
     monkeypatch.setenv('ICLAYOUT_BENCH_OUTPUT', 'results/from-env')
-    with patch('benchmarking.participants.batch.execute_condition', return_value=0) as execute:
+    with patch('benchmarking.participants.batch.runner.execute_condition', return_value=0) as execute:
         assert main(['--config', str(config)]) == 0
         assert execute.call_args.args[0].image == 'tools:configured'
         assert execute.call_args.args[3] == tmp_path / 'results/from-env'
@@ -398,12 +443,14 @@ def test_environment_defaults_and_explicit_runner_overrides(tmp_path, monkeypatc
         assert execute.call_args.args[3] == tmp_path / 'results/explicit'
         monkeypatch.setenv('ICLAYOUT_BENCH_OUTPUT', '')
         assert main(['--config', str(config)]) == 0
-        first = execute.call_args.args[3]
-        assert first.parent == tmp_path / 'results/trial'
+        assert execute.call_args.args[3] == tmp_path / 'results/trial'
+        first = execute.call_args.args[0].case_paths['library.cell']
         from datetime import datetime
-        datetime.strptime(first.name, '%Y%m%d-%H%M%S-%f').astimezone()
+        assert Path(first).parent == Path('library.cell')
+        datetime.strptime(Path(first).name, '%Y%m%d-%H%M%S-%f').astimezone()
         assert main(['--config', str(config)]) == 0
-        assert execute.call_args.args[3] != first
+        assert execute.call_args.args[3] == tmp_path / 'results/trial'
+        assert execute.call_args.args[0].case_paths['library.cell'] != first
         with pytest.raises(SystemExit):
             main(['--config', str(config), '--resume'])
 
@@ -452,25 +499,40 @@ if __name__ == '__main__':
     ('codex', 'rotated_credentials'),
     ('claude-code', 'rotated_credentials'),
     ('codex', 'rate_limit_success'),
+    ('codex', 'delivered_tool'),
+    ('codex', 'undelivered_tool'),
     ('claude-code', 'rate_limit_success'),
+    *[(harness, stop) for harness in ('codex', 'claude-code', 'zcode')
+      for stop in ('active_execution', 'active_after_wait')],
+    *[('zcode', stop) for stop in ('success', 'limit', 'deadline', 'insufficient_budget', 'pending_tool',
+                                 'pending_after_wait', 'missing_thread', 'retry_after', 'rate_limit_success')],
 ])
 def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, monkeypatch, harness, stop):
     """Run real child processes emitting native events; only the service/provider boundaries are fixtures."""
     import sys
     from types import SimpleNamespace
 
-    from benchmarking.participants.recovery import DISABLED
-    from benchmarking.participants.runner import CONTINUE_PROMPT, run_one
+    from benchmarking.participants.attempt.recovery import DISABLED
+    from benchmarking.participants.attempt.runner import CONTINUE_PROMPT, run_one
 
     reconnect_then_capacity = stop == 'reconnect_then_capacity'
     rotated_credentials = stop == 'rotated_credentials'
     rate_limited = stop == 'rate_limit_success'
+    active_execution = stop in {'active_execution', 'active_after_wait'}
+    active_after_wait = stop == 'active_after_wait'
+    delivery = stop if stop in {'delivered_tool', 'undelivered_tool'} else None
+    unresolved_request = stop == 'pending_tool'
+    unresolved_after_wait = stop == 'pending_after_wait'
+    if delivery or unresolved_request or unresolved_after_wait:
+        stop = 'success'
     if rate_limited:
         stop = 'success'
-    if reconnect_then_capacity or rotated_credentials:
+    if reconnect_then_capacity or rotated_credentials or active_execution:
         stop = 'success'
 
-    fixture = ServiceFixture()
+    fixture = InFlightService() if active_execution else ServiceFixture()
+    if active_after_wait:
+        fixture.busy = False
     fixture.remaining = 20 if stop == 'insufficient_budget' else 1000
     output = tmp_path / 'participant'
     selected = {'harness': harness, 'model': 'fixture-model', 'effort_resolved': 'xhigh', 'effort_requested': 'xhigh'}
@@ -483,7 +545,7 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
         row['recovery']['capacity_resumes'] = 0
     launches, prompts, delays, timeouts = [], [], [], []
     clock = [0]
-    native_id = 'original-native-thread'
+    native_id = 'sess_original-native-thread' if harness == 'zcode' else 'original-native-thread'
     capacity = {'type': 'turn.failed', 'error': {'message': 'Selected model is at capacity. Please try a different model.'}}
     if harness == 'claude-code':
         capacity = {'type': 'error', 'error': {'type': 'overloaded_error'}}
@@ -493,19 +555,41 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
                         {'type': 'text', 'text': 'API Error: Request rejected (429) fixture rate limit'}]}})
     if stop == 'retry_after':
         capacity['error']['retry_after'] = 400
+    if harness == 'zcode':
+        detail = {'code': '1313' if rate_limited else '1312', 'attribution': {'source': 'provider'}}
+        if stop == 'retry_after':
+            detail['retry_after'] = 400
+        capacity = {'type': 'turn.failed', 'payload': {'error': detail}}
 
     def launch(context):
         condition, env = context.selection.condition, context.selection.environment
         nonlocal native_id
         assert fixture.active
         assert condition == selected
+        if harness == 'zcode':
+            env['ZCODE_DATA_BASE_DIR'] = str(output / '.private/native-home')
         launches.append(dict(env))
+        if active_execution and len(launches) > 1:
+            assert fixture.busy, 'Native continuation must not drain the existing execution'
+            assert not (output / 'finalization.json').exists()
         if harness == 'claude-code':
             native_id = env['ICLAYOUT_BENCH_NATIVE_ID']
         if stop != 'missing_thread':
             native_session(output, harness, native_id)
         events = [] if stop == 'missing_thread' else [{'type': 'thread.started', 'thread_id': native_id}]
         if len(launches) == 1 or stop == 'limit':
+            if delivery:
+                arguments = {'command': 'fixture-command', 'wait_seconds': 10}
+                result = {'execution_id': 'fixture-execution', 'state': 'running', 'next_offset': 0}
+                request = {'tool': 'execute', 'arguments': arguments, 'mutation': True, 'key': 'fixture-mutation'}
+                reply = {'tool': 'execute', 'key': request['key'], 'result': result}
+                (output / 'tools.jsonl').write_text(json.dumps(request) + '\n' + json.dumps(reply) + '\n')
+                native = codex_tool_reply(native_id, 'execute', arguments, result)
+                if delivery == 'undelivered_tool':
+                    native.pop()
+                path = next((output / '.private/native-home/sessions').rglob('*.jsonl'))
+                with path.open('a') as stream:
+                    stream.write(''.join(json.dumps(event) + '\n' for event in native))
             if reconnect_then_capacity:
                 events.extend([{'type': 'turn.started'},
                                {'type': 'error', 'message': 'Reconnecting... 2/5 (request timed out)'},
@@ -513,8 +597,9 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
                                {'type': 'error', 'message': 'Selected model is at capacity. Please try a different model.'}])
             events.append(capacity)
             exit_code = 1
-            if stop == 'pending_tool':
-                (output / 'tools.delivery.json').write_text('{}')
+            if unresolved_request:
+                (output / 'tools.jsonl').write_text(json.dumps({'tool': 'execute', 'mutation': True,
+                    'key': 'unanswered', 'arguments': {'command': 'native tool'}}) + '\n')
         elif stop == 'authentication':
             events.append({'type': 'error', 'error': {'code': 'invalid_api_key'}})
             exit_code = 1
@@ -530,7 +615,7 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
         return [sys.executable, '-c',
                 f'import sys; from pathlib import Path; {rotate}Path("prompt.txt").write_text(sys.stdin.read()); print({raw!r}); sys.exit({exit_code})']
 
-    from benchmarking.participants.process import execute as actual_execute
+    from benchmarking.execution.process import execute as actual_execute
 
     def execute(*args, **kwargs):
         prompts.append(kwargs['prompt'])
@@ -541,8 +626,11 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
         delays.append(seconds)
         clock[0] += seconds
         fixture.remaining = 0 if stop == 'deadline' else fixture.remaining - seconds
-        if stop == 'pending_after_wait':
-            (output / 'tools.pending.json').write_text('{}')
+        if active_execution:
+            fixture.busy = True
+        if unresolved_after_wait:
+            (output / 'tools.jsonl').write_text(json.dumps({'tool': 'execute', 'mutation': True,
+                'key': 'unanswered', 'arguments': {'command': 'native tool'}}) + '\n')
 
     original_session = fixture.session
     service_error = []
@@ -553,16 +641,20 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
         return original_session(sid)
 
     monkeypatch.setattr(fixture, 'session', session)
-    monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *a, **kw: fixture)
-    monkeypatch.setattr('benchmarking.participants.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
-    monkeypatch.setattr('benchmarking.participants.adapters.prepare', launch)
-    monkeypatch.setattr('benchmarking.participants.runner.execute', execute)
-    monkeypatch.setattr('benchmarking.participants.recovery.capacity_delay', lambda settings, attempt: min(300, 30 * 2 ** attempt))
-    monkeypatch.setattr('benchmarking.participants.runner.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
+    monkeypatch.setattr('benchmarking.participants.harnesses.registry.prepare', launch)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', execute)
+    monkeypatch.setattr('benchmarking.participants.attempt.recovery.capacity_delay', lambda settings, attempt: min(300, 30 * 2 ** attempt))
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
     with patch.object(fixture, 'create', wraps=fixture.create) as create:
         summary = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
     assert create.call_count == 1
     assert fixture.closed == ([] if stop == 'service_error' else ['fixture-session'])
+    if active_execution:
+        finalization = json.loads((output / 'finalization.json').read_text())
+        assert finalization['executions']['in-flight']['state'] == 'complete'
+        assert not fixture.submitted
     if rotated_credentials:
         for path in (output / 'observation').rglob('*'):
             if path.is_file():
@@ -584,7 +676,7 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
     assert len(launches) == (3 if stop == 'limit' else 2 if stop in {'success', 'authentication'} else 1)
     for env in launches[1:]:
         assert env['ICLAYOUT_BENCH_RESUME_ID'] == native_id
-        home = 'CODEX_HOME' if harness == 'codex' else 'CLAUDE_CONFIG_DIR'
+        home = {'codex': 'CODEX_HOME', 'claude-code': 'CLAUDE_CONFIG_DIR', 'zcode': 'ZCODE_DATA_BASE_DIR'}[harness]
         assert env[home] == launches[0][home]
         assert env['ICLAYOUT_BENCH_SESSION'] == launches[0]['ICLAYOUT_BENCH_SESSION']
     assert all(prompt == CONTINUE_PROMPT for prompt in prompts[1:])
@@ -595,7 +687,7 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
     assert timeouts == ([1000, 970, 910] if stop == 'limit' else [1000, 970] if stop in {'success', 'authentication'}
                         else [20] if stop == 'insufficient_budget' else [1000])
     assert recovery['outcome'] == {'success': 'recovered', 'limit': 'limit_reached', 'deadline': 'deadline', 'insufficient_budget': 'deadline',
-                                   'pending_tool': 'unsafe_to_resume', 'pending_after_wait': 'unsafe_to_resume', 'missing_thread': 'unsafe_to_resume',
+                                   'missing_thread': 'native_session_missing',
                                    'authentication': 'stopped_on_other_error', 'retry_after': 'retry_after_exceeds_cap',
                                    'service_error': 'stopped_on_other_error'}[stop]
     assert len(recovery['interruptions']) == (3 if stop == 'limit' else 1)
@@ -607,7 +699,7 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
         assert delays == [30]
     else:
         assert summary['failure']['category'] == {'authentication': 'authentication', 'service_error': 'network_transient'}.get(stop, 'provider_overloaded')
-    if stop in {'pending_tool', 'missing_thread', 'retry_after', 'service_error', 'insufficient_budget'}:
+    if stop in {'missing_thread', 'retry_after', 'service_error', 'insufficient_budget'}:
         assert not delays
 
 
@@ -616,15 +708,25 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
                                  'missing_native', 'disabled', 'resume_disabled', 'authentication',
                                  'quota', 'mixed_failure', 'successful_exit')],
     ('claude-code', 'success'), ('claude-code', 'limit'),
+    *[(harness, stop) for harness in ('codex', 'claude-code')
+      for stop in ('active_execution', 'active_after_wait')],
 ])
 def test_network_continuation_preserves_session_and_can_resume_after_exhaustion(tmp_path, monkeypatch, harness, stop):
     """Native disconnection must continue the saved solve, never create a new one."""
     import sys
     from types import SimpleNamespace
 
-    from benchmarking.participants.runner import CONTINUE_PROMPT, run_one
+    from benchmarking.participants.attempt.runner import CONTINUE_PROMPT, run_one
 
-    fixture = ServiceFixture()
+    active_execution = stop in {'active_execution', 'active_after_wait'}
+    active_after_wait = stop == 'active_after_wait'
+    unresolved_request = stop == 'pending_tool'
+    unresolved_after_wait = stop == 'pending_after_wait'
+    if active_execution or unresolved_request or unresolved_after_wait:
+        stop = 'success'
+    fixture = InFlightService() if active_execution or stop == 'limit' else ServiceFixture()
+    if active_after_wait or stop == 'limit':
+        fixture.busy = False
     fixture.remaining = 1000
     selected = {'harness': harness, 'model': 'fixture-model', 'effort_resolved': 'high', 'effort_requested': 'high'}
     row = {'name': 'trial', 'harness': harness, 'task': 'fixture'}
@@ -646,6 +748,9 @@ def test_network_continuation_preserves_session_and_can_resume_after_exhaustion(
             native_session(output, harness, env['ICLAYOUT_BENCH_NATIVE_ID'])
         if len(launches) > 1:
             assert context.prompt == CONTINUE_PROMPT
+        if len(launches) > 1 and (active_execution or manually_recovered[0]):
+            assert fixture.busy, 'Native continuation must not drain the existing execution'
+            assert not (output / 'finalization.json').exists()
         failing = not manually_recovered[0] and (len(launches) == 1 or stop == 'limit')
         events = [{'type': 'thread.started', 'thread_id': env['ICLAYOUT_BENCH_NATIVE_ID']}]
         code = 'connection_error' if failing else {'authentication': 'invalid_api_key', 'quota': 'insufficient_quota'}.get(stop)
@@ -655,13 +760,14 @@ def test_network_continuation_preserves_session_and_can_resume_after_exhaustion(
             events.append({'type': 'turn.completed'})
         if stop == 'mixed_failure':
             events.append({'type': 'error', 'error': {'code': 'unrecognized_failure'}})
-        if stop == 'pending_tool':
-            (output / 'tools.pending.json').write_text('{}')
+        if unresolved_request and len(launches) == 1:
+            (output / 'tools.jsonl').write_text(json.dumps({'tool': 'execute', 'mutation': True,
+                'key': 'unanswered', 'arguments': {'command': 'native tool'}}) + '\n')
         raw = '\n'.join(json.dumps(e) for e in events)
         exit_code = 0 if stop == 'successful_exit' else int(bool(code))
         return [sys.executable, '-c', f'import sys; print({raw!r}); sys.exit({exit_code})']
 
-    from benchmarking.participants.process import execute as actual_execute
+    from benchmarking.execution.process import execute as actual_execute
 
     def execute(*args, **kwargs):
         timeouts.append(kwargs['timeout'])
@@ -671,15 +777,18 @@ def test_network_continuation_preserves_session_and_can_resume_after_exhaustion(
         delays.append(seconds)
         clock[0] += seconds
         fixture.remaining = 0 if stop == 'deadline' else fixture.remaining - seconds
-        if stop == 'pending_after_wait':
-            (output / 'tools.delivery.json').write_text('{}')
+        if active_execution:
+            fixture.busy = True
+        if unresolved_after_wait:
+            (output / 'tools.jsonl').write_text(json.dumps({'tool': 'execute', 'mutation': True,
+                'key': 'unanswered', 'arguments': {'command': 'native tool'}}) + '\n')
 
-    monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *a, **kw: fixture)
-    monkeypatch.setattr('benchmarking.participants.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
-    monkeypatch.setattr('benchmarking.participants.adapters.prepare', launch)
-    monkeypatch.setattr('benchmarking.participants.runner.execute', execute)
-    monkeypatch.setattr('benchmarking.participants.recovery.network_delay', lambda settings, n: min(300, 30 * 2 ** n))
-    monkeypatch.setattr('benchmarking.participants.runner.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
+    monkeypatch.setattr('benchmarking.participants.harnesses.registry.prepare', launch)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', execute)
+    monkeypatch.setattr('benchmarking.participants.attempt.recovery.network_delay', lambda settings, n: min(300, 30 * 2 ** n))
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
     with patch.object(fixture, 'create', wraps=fixture.create) as create:
         summary = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
         assert create.call_count == 1
@@ -699,8 +808,7 @@ def test_network_continuation_preserves_session_and_can_resume_after_exhaustion(
         else:
             recovery = summary['network_recovery']
             assert recovery['outcome'] == {'success': 'recovered', 'limit': 'limit_reached',
-                                          'deadline': 'deadline', 'pending_tool': 'unsafe_to_resume',
-                                          'pending_after_wait': 'unsafe_to_resume', 'missing_native': 'unsafe_to_resume',
+                                          'deadline': 'deadline', 'missing_native': 'native_session_missing',
                                           'authentication': 'stopped_on_other_error', 'quota': 'stopped_on_other_error'}[stop]
         if stop in {'success', 'resume_disabled'}:
             assert summary['state'] == 'finished'
@@ -718,6 +826,7 @@ def test_network_continuation_preserves_session_and_can_resume_after_exhaustion(
             assert (output / '.private/recovery.json').is_file()
             manually_recovered[0] = True
             fixture.remaining = 30
+            fixture.busy = True
             resumed = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
             assert create.call_count == 1
             assert resumed['state'] == 'finished'
@@ -738,10 +847,10 @@ def test_local_capacity_recovery_exports_both_launches_before_removing_runtime(t
     fixture = ServiceFixture()
     clock, launches = [0], []
     selected = {'harness': 'codex', 'model': 'fixture-model', 'effort_resolved': 'xhigh', 'effort_requested': 'xhigh'}
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *a: ParticipantSelection(selected, {'CODEX_HOME': str(tmp_path / 'caller-home')}, {}))
-    monkeypatch.setattr('benchmarking.participants.local_service.service', lambda *a: nullcontext(fixture))
-    monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *a, **kw: fixture)
-    monkeypatch.setattr('benchmarking.participants.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *a: ParticipantSelection(selected, {'CODEX_HOME': str(tmp_path / 'caller-home')}, {}))
+    monkeypatch.setattr('benchmarking.participants.attempt.service.service', lambda *a: nullcontext(fixture))
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
 
     def launch(context):
         env = context.selection.environment
@@ -756,12 +865,12 @@ def test_local_capacity_recovery_exports_both_launches_before_removing_runtime(t
         clock[0] += seconds
         fixture.remaining -= seconds
 
-    monkeypatch.setattr('benchmarking.participants.adapters.prepare', launch)
-    monkeypatch.setattr('benchmarking.participants.recovery.capacity_delay', lambda *a: 30)
-    monkeypatch.setattr('benchmarking.participants.runner.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
+    monkeypatch.setattr('benchmarking.participants.harnesses.registry.prepare', launch)
+    monkeypatch.setattr('benchmarking.participants.attempt.recovery.capacity_delay', lambda *a: 30)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
     batch = tmp_path / 'batch'
     assert main(['--config', str(config), '--dataset', str(dataset), '--output', str(batch)]) == 0
-    case = batch / 'fixture/fixture/cases/fixture'
+    case = case_run(batch, 'fixture')
     result = json.loads((case / 'result.json').read_text())
     assert result['state'] == 'finished'
     assert result['execution']['capacity_recovery']['outcome'] == 'recovered'
@@ -776,14 +885,15 @@ def test_local_capacity_recovery_exports_both_launches_before_removing_runtime(t
 
 
 @pytest.mark.parametrize('third_case', [False, True])
-def test_repeated_capacity_interruptions_cool_only_related_new_dispatch(tmp_path, monkeypatch, third_case):
+@pytest.mark.parametrize('harness,category', [('codex', 'provider_overloaded'), ('zcode', 'rate_limit')])
+def test_repeated_capacity_interruptions_cool_only_related_new_dispatch(tmp_path, monkeypatch, third_case, harness, category):
     from types import SimpleNamespace
 
     from benchmarking.run import main
 
     tasks = ['a', 'b', 'c'] if third_case else ['a', 'b']
     matrix = tmp_path / 'trial.toml'
-    matrix.write_text('[defaults]\nharness="codex"\neffort="high"\nconcurrency=1\nrepetitions=1\n'
+    matrix.write_text(f'[defaults]\nharness="{harness}"\neffort="high"\nconcurrency=1\nrepetitions=1\n'
                       f'tasks={json.dumps(tasks)}\n'
                       '[[runs]]\nname="first"\nmodel="first"\n'
                       '[[runs]]\nname="second"\nmodel="second"\ntasks=["a"]\n')
@@ -794,12 +904,12 @@ def test_repeated_capacity_interruptions_cool_only_related_new_dispatch(tmp_path
         calls.append((row['model'], row['task'], clock[0]))
         result = terminal_files(output)
         if row['model'] == 'first' and row['task'] in {'a', 'b'}:
-            result['capacity_recovery'] = {'interruptions': [{'failure': {'category': 'provider_overloaded'}}]}
+            result['capacity_recovery'] = {'interruptions': [{'failure': {'category': category}}]}
         return result
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda harness, model, effort: ParticipantSelection({'harness': harness, 'model': model}, {}, {}))
-    monkeypatch.setattr('benchmarking.participants.planning.default_output', lambda group: tmp_path / Path(group).name)
-    monkeypatch.setattr('benchmarking.participants.runner.run_one', run)
-    monkeypatch.setattr('benchmarking.participants.batch.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda harness, model, effort: ParticipantSelection({'harness': harness, 'model': model}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.default_output', lambda group: tmp_path / Path(group).name)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.run_one', run)
+    monkeypatch.setattr('benchmarking.participants.batch.runner.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
     monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'fixture-token')
     assert main(['--matrix', str(matrix), '--endpoint', 'https://fixture']) == 0
     expected_clock = 300 if third_case else 0
@@ -815,7 +925,7 @@ def test_repeated_capacity_interruptions_cool_only_related_new_dispatch(tmp_path
 def test_same_session_resume_preserves_budget_and_private_credentials(tmp_path, service_restarted, harness):
     import sys
 
-    from benchmarking.participants.runner import run_one
+    from benchmarking.participants.attempt.runner import run_one
     fixture = ServiceFixture()
     selected = {'harness': harness, 'model': 'fixture-model', 'effort_resolved': 'high', 'effort_requested': 'high'}
     row = {'name': 'trial', 'harness': harness, 'task': 'fixture'}
@@ -832,9 +942,9 @@ def test_same_session_resume_preserves_budget_and_private_credentials(tmp_path, 
             thread = json.dumps({'type': 'thread.started', 'thread_id': env['ICLAYOUT_BENCH_NATIVE_ID']})
             return [sys.executable, '-c', f'import sys; print({thread!r}); print({events!r}); sys.exit(1)']
         return [sys.executable, '-c', 'import os; print(os.environ["ICLAYOUT_BENCH_TOKEN"]); print(os.environ["PROVIDER_API_KEY"])']
-    with patch('benchmarking.participants.runner.Client', return_value=fixture), \
-            patch('benchmarking.participants.runner.subprocess.check_output', return_value='fixture-cli'), \
-            patch('benchmarking.participants.adapters.prepare', side_effect=launch), \
+    with patch('benchmarking.participants.attempt.runner.Client', return_value=fixture), \
+            patch('benchmarking.participants.attempt.runner.subprocess.check_output', return_value='fixture-cli'), \
+            patch('benchmarking.participants.harnesses.registry.prepare', side_effect=launch), \
             patch.object(fixture, 'create', wraps=fixture.create) as create:
         first = run_one(fixture, row, output, ParticipantSelection(selected, {"PROVIDER_API_KEY": "fixture-api-secret"}, {}))
         assert first['state'] == 'suspended'
@@ -843,20 +953,17 @@ def test_same_session_resume_preserves_budget_and_private_credentials(tmp_path, 
         fixture.remaining = 30  # Human billing wait did not reset the service clock.
         if service_restarted:
             original_status = fixture.session
-            fixture.session = lambda sid: dict(original_status(sid), recovery={'workspace_restored': True})
-            def lookup(method, path):
-                assert method == 'GET' and path.endswith('/requests/files/interrupted-write')
-                return {'known': False, 'response': None}
-            fixture.request = lookup
-            (output / 'tools.pending.json').write_text(json.dumps({
-                'tool': 'write', 'key': 'interrupted-write', 'arguments': {'path': 'saved.py', 'content': 'content'}}))
+            fixture.session = lambda sid: dict(original_status(sid), recovery={
+                'workspace_restored': True, 'interrupted_executions': ['interrupted-command']})
+            (output / 'tools.jsonl').write_text(json.dumps({'tool': 'write', 'mutation': True,
+                'key': 'interrupted-write', 'arguments': {'path': 'saved.py', 'content': 'content'}}) + '\n')
         second = run_one(fixture, row, output, ParticipantSelection(selected, {"PROVIDER_API_KEY": "fixture-api-secret"}, {}))
         assert create.call_count == 1
         assert second['state'] == 'finished'
         assert observed[1]['ICLAYOUT_BENCH_RESUME_ID'] == observed[0]['ICLAYOUT_BENCH_NATIVE_ID']
         if service_restarted:
-            assert not (output / 'tools.pending.json').exists()
-            assert 'not_committed' in prompts[1] and 'rolled back' in prompts[1]
+            assert 'interrupted-write' in (output / 'tools.jsonl').read_text()
+            assert 'interrupted-command' in prompts[1] and 'rolled back' in prompts[1]
         assert (output / 'launch-1-harness.jsonl').exists()
         # A repeated collection must not re-launch or overwrite finished exports.
         run_participant(fixture, row, output, ParticipantSelection(selected, {}, {}))
@@ -874,14 +981,14 @@ def test_batch_resume_skips_completed_and_rejects_config_change(tmp_path, monkey
     config = tmp_path / 'trial.toml'
     config.write_text('harness="codex"\nmodel="fixture"\neffort="high"\ntasks=["test"]\nconcurrency=1\nrepetitions=2\n')
     monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'secret')
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection({'harness': 'codex', 'model': 'fixture'}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({'harness': 'codex', 'model': 'fixture'}, {}, {}))
     calls = []
     def run(*args):
         calls.append(args)
         if len(calls) == 2:
             raise KeyboardInterrupt
         return terminal_files(args[2]) | {'state': 'finished', 'harness_error': None}
-    monkeypatch.setattr('benchmarking.participants.runner.run_one', run)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.run_one', run)
     args = ['--config', str(config), '--endpoint', 'http://localhost:1', '--output', str(tmp_path / 'batch')]
     with pytest.raises(KeyboardInterrupt):
         main(args)
@@ -896,24 +1003,24 @@ def test_batch_resume_skips_completed_and_rejects_config_change(tmp_path, monkey
 
 
 def test_concurrent_batch_resume_cannot_launch(tmp_path, monkeypatch):
-    from benchmarking.participants.storage import CaseLease
+    from benchmarking.participants.attempt.storage import CaseLease
     from benchmarking.run import main
     config = tmp_path / 'trial.toml'
     config.write_text('harness="codex"\nmodel="fixture"\neffort="high"\ntasks=["test"]\nconcurrency=1\nrepetitions=1\n')
     batch = tmp_path / 'batch'
     batch.mkdir()
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection({}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({}, {}, {}))
     (batch / 'test').mkdir()
-    with CaseLease(batch / 'test'), patch('benchmarking.participants.runner.run_one') as launch, pytest.raises(SystemExit):
+    with CaseLease(batch / 'test'), patch('benchmarking.participants.attempt.runner.run_one') as launch, pytest.raises(SystemExit):
         main(['--config', str(config), '--endpoint', 'http://localhost:1', '--output', str(batch), '--resume'])
     launch.assert_not_called()
 
 
 def test_attempt_export_keeps_distinct_sessions_and_redacts_private_traces(tmp_path):
-    from benchmarking.engine.sessions.recorder import RunRecorder
+    from benchmarking.evidence.journal import RunRecorder
     from benchmarking.files import Asset, write_json
-    from benchmarking.participants.evidence import read_attempt_evidence
-    from benchmarking.results.participant_export import export_attempts
+    from benchmarking.participants.attempt.evidence import read_attempt_evidence
+    from benchmarking.results.package import export_attempts
 
     runtime = tmp_path / 'attempt'
     participant = runtime / 'participant'
@@ -947,13 +1054,13 @@ def test_explicit_replacement_keeps_failed_attempt_and_pending_plan_in_same_batc
     config.write_text('harness="codex"\nmodel="fixture"\neffort="high"\n'
                       'tasks=["interrupted", "finished", "pending"]\nconcurrency=1\nrepetitions=1\n')
     monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'fixture-token')
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *a: ParticipantSelection({'harness': 'codex', 'model': 'fixture'}, {}, {}))
-    monkeypatch.setattr('benchmarking.participants.planning.package_version', lambda: {'version': 'old', 'commit': 'old'})
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *a: ParticipantSelection({'harness': 'codex', 'model': 'fixture'}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.package_version', lambda: {'version': 'old', 'commit': 'old'})
     batch = tmp_path / 'batch'
     calls = []
     closed = ServiceFixture()
     closed.active = False
-    monkeypatch.setattr('benchmarking.participants.replacement.Client', lambda *a, **kw: closed)
+    monkeypatch.setattr('benchmarking.participants.batch.replacement.Client', lambda *a, **kw: closed)
     def run(access, row, output, selection):
         calls.append(row['task'])
         if row['task'] == 'interrupted' and len(calls) == 1:
@@ -966,36 +1073,39 @@ def test_explicit_replacement_keeps_failed_attempt_and_pending_plan_in_same_batc
             (output / 'harness.jsonl').write_text('{"message":"capacity_failure old-scoped-token"}\n')
             raise RuntimeError('interrupted')
         return terminal_files(output)
-    monkeypatch.setattr('benchmarking.participants.runner.run_one', run)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.run_one', run)
     args = ['--config', str(config), '--endpoint', 'https://fixture', '--output', str(batch)]
     assert main(args + ['--case', 'interrupted', '--case', 'finished']) == 1
-    failed = json.loads((batch / 'interrupted/result.json').read_text())
-    original_finished = (batch / 'finished/result.json').read_bytes()
+    interrupted = case_run(batch, 'interrupted')
+    finished = case_run(batch, 'finished')
+    failed = json.loads((interrupted / 'result.json').read_text())
+    original_finished = (finished / 'result.json').read_bytes()
     pending = copy.deepcopy(failed)
     pending.pop('summary')
     pending['state'] = 'pending'
     pending['identity']['plan'][0]['tasks'] = ['pending']
-    (batch / 'pending').mkdir()
-    save(batch / 'pending/result.json', pending)
-    monkeypatch.setattr('benchmarking.participants.planning.package_version', lambda: {'version': 'repaired', 'commit': 'repaired'})
+    pending_root = batch / 'pending' / interrupted.name
+    pending_root.mkdir(parents=True)
+    save(pending_root / 'result.json', pending)
+    monkeypatch.setattr('benchmarking.participants.batch.plan.package_version', lambda: {'version': 'repaired', 'commit': 'repaired'})
     selected = args + ['--case', 'interrupted', '--case', 'pending']
     with pytest.raises(SystemExit):
         main(args + ['--case', 'interrupted', '--case', 'finished', '--replace-unfinished'])
-    assert json.loads((batch / 'interrupted/result.json').read_text()) == failed
+    assert json.loads((interrupted / 'result.json').read_text()) == failed
     with pytest.raises(SystemExit):
         main(selected + ['--resume'])
     assert main(selected + ['--replace-unfinished']) == 0
     assert calls == ['interrupted', 'finished', 'interrupted', 'pending']
-    result = json.loads((batch / 'interrupted/result.json').read_text())
+    result = json.loads((interrupted / 'result.json').read_text())
     assert result['identity']['benchmark']['commit'] == 'repaired'
     attempt, = result['attempts']
     assert attempt['record'] == failed
     assert attempt['conditions'] == {'framework': 'old'}
     assert attempt['execution']['error'] == 'capacity_failure'
-    assert b'old-scoped-token' not in (batch / 'interrupted' / next(f for f in result['files'] if f.startswith('attempts/') and f.endswith('agent.jsonl'))).read_bytes()
-    assert json.loads((batch / 'pending/result.json').read_text())['prior_plans'] == [pending]
-    assert (batch / 'finished/result.json').read_bytes() == original_finished
-    assert not (batch / 'interrupted/.runtime').exists()
+    assert b'old-scoped-token' not in (interrupted / next(f for f in result['files'] if f.startswith('attempts/') and f.endswith('agent.jsonl'))).read_bytes()
+    assert json.loads((pending_root / 'result.json').read_text())['prior_plans'] == [pending]
+    assert (finished / 'result.json').read_bytes() == original_finished
+    assert not (interrupted / '.runtime').exists()
     with pytest.raises(SystemExit):
         main(selected + ['--replace-unfinished'])
     assert calls == ['interrupted', 'finished', 'interrupted', 'pending']
@@ -1004,7 +1114,7 @@ def test_explicit_replacement_keeps_failed_attempt_and_pending_plan_in_same_batc
 @pytest.mark.parametrize('changed', ['model', 'effort', 'image', 'inputs', 'endpoint', 'repetitions'])
 def test_replacement_rejects_changed_solve_conditions(tmp_path, changed):
     from benchmarking.files import write_json as save
-    from benchmarking.participants.replacement import validate_replacement
+    from benchmarking.participants.batch.replacement import validate_replacement
     identity = {'benchmark': {'commit': 'old'}, 'cli_version': 'old', 'endpoint': None,
                 'image': 'image-id', 'inputs': {'case': {'case_sha256': 'original'}},
                 'plan': [{'model': 'fixture', 'effort': 'high', 'repetitions': 1, 'tasks': ['case']}]}
@@ -1023,7 +1133,8 @@ def test_replacement_rejects_changed_solve_conditions(tmp_path, changed):
 @pytest.mark.parametrize('fault', ['move', 'record', 'commit'])
 def test_interrupted_replacement_preserves_evidence_and_completes_same_transaction(tmp_path, monkeypatch, fault):
     from benchmarking.files import write_json as save
-    from benchmarking.participants import replacement, storage
+    from benchmarking.participants.attempt import storage
+    from benchmarking.participants.batch import replacement
     old = {'identity': {'plan': [{'model': 'fixture'}], 'benchmark': {'commit': 'old'}}, 'state': 'suspended'}
     save(tmp_path / 'result.json', old)
     runtime = tmp_path / '.runtime'
@@ -1060,8 +1171,8 @@ def test_interrupted_replacement_preserves_evidence_and_completes_same_transacti
 def test_replacement_rejects_live_local_service(tmp_path):
     from contextlib import ExitStack
 
-    from benchmarking.locking import BatchLease
-    from benchmarking.participants.replacement import lease_replacement
+    from benchmarking.execution.leases import BatchLease
+    from benchmarking.participants.batch.replacement import lease_replacement
     store = tmp_path / '.runtime/service/service-store'
     store.mkdir(parents=True)
     with BatchLease(store), ExitStack() as stack, pytest.raises(OSError):
@@ -1069,9 +1180,9 @@ def test_replacement_rejects_live_local_service(tmp_path):
 
 
 def test_finished_case_cleanup_waits_for_live_evidence_store(tmp_path):
-    from benchmarking.locking import BatchLease
-    from benchmarking.participants.storage import CaseRecord
-    from benchmarking.participants.terminal import finish_case
+    from benchmarking.execution.leases import BatchLease
+    from benchmarking.participants.attempt.storage import CaseRecord
+    from benchmarking.participants.attempt.worker import finish_case
 
     record = CaseRecord(tmp_path)
     record.initialize({'endpoint': 'https://fixture', 'plan': [{'model': 'fixture', 'effort': 'off'}]})
@@ -1096,21 +1207,21 @@ def test_finished_case_cleanup_waits_for_live_evidence_store(tmp_path):
 
 def test_replacement_rejects_active_remote_session(tmp_path, monkeypatch):
     from benchmarking.files import write_json as save
-    from benchmarking.participants.replacement import validate_replacement
+    from benchmarking.participants.batch.replacement import validate_replacement
     identity = {'endpoint': 'https://fixture', 'plan': [{'model': 'fixture'}]}
     save(tmp_path / 'result.json', {'identity': identity, 'state': 'suspended'})
     (tmp_path / '.runtime/participant/.private').mkdir(parents=True)
     save(tmp_path / '.runtime/participant/.private/recovery.json',
          {'created': {'session_id': 'old', 'session_token': 'scoped-token'}})
     fixture = ServiceFixture()
-    monkeypatch.setattr('benchmarking.participants.replacement.Client', lambda *a, **kw: fixture)
+    monkeypatch.setattr('benchmarking.participants.batch.replacement.Client', lambda *a, **kw: fixture)
     with pytest.raises(ValueError, match='Collect the existing remote'):
         validate_replacement(tmp_path, identity)
 
 
 @pytest.mark.parametrize('harness', ['codex', 'kimi-code'])
 def test_fatal_provider_errors_halt_related_dispatch_without_creating_extra_repetitions(tmp_path, monkeypatch, harness):
-    from benchmarking.participants import adapters
+    from benchmarking.participants.harnesses import registry as adapters
     from benchmarking.run import main
     config = tmp_path / 'trial.toml'
     config.write_text(f'harness="{harness}"\nmodel="fixture"\neffort="high"\ntasks=["test"]\nconcurrency=1\nrepetitions=3\n')
@@ -1119,8 +1230,8 @@ def test_fatal_provider_errors_halt_related_dispatch_without_creating_extra_repe
         (tmp_path / 'harness.stderr').write_text('error: failed to run prompt: The provided authorization grant is invalid\n')
     problem = adapters.harness_failure(harness, tmp_path, exit_code=1)
     monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'secret')
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection({'harness': harness, 'model': 'fixture'}, {}, {}))
-    with patch('benchmarking.participants.runner.run_one', return_value={'state': 'suspended', 'harness_error': 'cli_exit_1',
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({'harness': harness, 'model': 'fixture'}, {}, {}))
+    with patch('benchmarking.participants.attempt.runner.run_one', return_value={'state': 'suspended', 'harness_error': 'cli_exit_1',
                'failure': problem}) as run:
         assert main(['--config', str(config), '--endpoint', 'http://localhost:1',
                      '--output', str(tmp_path / 'batch')]) == 1
@@ -1134,12 +1245,12 @@ def test_service_restart_terminates_lost_execution_and_preserves_receipt(tmp_pat
     """Durable HTTP metadata after abrupt loss; no Docker or model is started."""
     import time
 
-    from benchmarking.engine.sessions.recorder import RunRecorder
+    from benchmarking.evidence.journal import RunRecorder
     from benchmarking.files import Asset
-    from benchmarking.participants.evidence import read_participant_evidence
-    from benchmarking.results.participant_export import export_run
+    from benchmarking.participants.attempt.evidence import read_participant_evidence
+    from benchmarking.results.package import export_run
     from benchmarking.service.server import APIError, LocalService
-    from benchmarking.tasks import load_task
+    from benchmarking.tasks.contract import load_task
     runtime = tmp_path / '.runtime'
     root = runtime / 'service/service-store'
     sid = 'interrupted'
@@ -1201,9 +1312,9 @@ def test_lost_close_reply_recovers_finalization_without_model_relaunch(tmp_path)
     def lost(sid, **kwargs):
         close(sid, **kwargs)
         raise ClientError('transport_error', 'response lost')
-    with patch('benchmarking.participants.runner.Client', return_value=fixture), \
-            patch('benchmarking.participants.runner.subprocess.check_output', return_value='fixture-cli'), \
-            patch('benchmarking.participants.adapters.prepare', return_value=[sys.executable, '-c', 'print("done")']) as launch:
+    with patch('benchmarking.participants.attempt.runner.Client', return_value=fixture), \
+            patch('benchmarking.participants.attempt.runner.subprocess.check_output', return_value='fixture-cli'), \
+            patch('benchmarking.participants.harnesses.registry.prepare', return_value=[sys.executable, '-c', 'print("done")']) as launch:
         with patch.object(fixture, 'close', side_effect=lost), pytest.raises(ClientError):
             run_participant(fixture, row, output, ParticipantSelection(selected, {}, {}))
         result, _ = run_participant(fixture, row, output, ParticipantSelection(selected, {}, {}))
@@ -1219,9 +1330,9 @@ def test_batch_resume_rejects_changed_dataset_input(tmp_path, monkeypatch, resou
     dataset = write_dataset(tmp_path / 'dataset', ['test'])
     asset = dataset / ('tasks/test/pdk.toml' if resource_binding else 'tasks/test/fixture/cases/test/input.spice')
     monkeypatch.delenv('ICLAYOUT_BENCH_ENDPOINT', raising=False)
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection({}, {}, {}))
-    monkeypatch.setattr('benchmarking.participants.local_service.service', lambda *args: nullcontext(ServiceFixture()))
-    with patch('benchmarking.participants.runner.run_one', side_effect=lambda a, r, out, s: terminal_files(out)) as launch:
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.attempt.service.service', lambda *args: nullcontext(ServiceFixture()))
+    with patch('benchmarking.participants.attempt.runner.run_one', side_effect=lambda a, r, out, s: terminal_files(out)) as launch:
         args = ['--config', str(config), '--dataset', str(dataset), '--output', str(tmp_path / 'batch')]
         assert main(args) == 0
         asset.write_text('different input')
@@ -1231,21 +1342,21 @@ def test_batch_resume_rejects_changed_dataset_input(tmp_path, monkeypatch, resou
 
 
 def test_runner_interruption_is_not_inferred_as_a_model_failure(tmp_path):
-    from benchmarking.participants.recovery import DISABLED
-    from benchmarking.participants.runner import run_one
+    from benchmarking.participants.attempt.recovery import DISABLED
+    from benchmarking.participants.attempt.runner import run_one
     fixture = ServiceFixture()
     selected = {'harness': 'claude-code', 'model': 'fixture', 'effort_resolved': 'high', 'effort_requested': 'high'}
     row = {'name': 'trial', 'harness': 'claude-code', 'task': 'fixture',
            'recovery': DISABLED | {'resume_session': True}}
     output = tmp_path / 'participant'
-    with patch('benchmarking.participants.runner.Client', return_value=fixture), \
-            patch('benchmarking.participants.runner.subprocess.check_output', return_value='fixture-cli'), \
-            patch('benchmarking.participants.runner.subprocess.Popen', side_effect=KeyboardInterrupt), \
+    with patch('benchmarking.participants.attempt.runner.Client', return_value=fixture), \
+            patch('benchmarking.participants.attempt.runner.subprocess.check_output', return_value='fixture-cli'), \
+            patch('benchmarking.participants.attempt.runner.subprocess.Popen', side_effect=KeyboardInterrupt), \
             pytest.raises(KeyboardInterrupt):
         run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
     fixture.active = False  # Service subsequently closes under its own deadline.
-    with patch('benchmarking.participants.runner.Client', return_value=fixture), \
-            patch('benchmarking.participants.runner.subprocess.check_output', return_value='fixture-cli'):
+    with patch('benchmarking.participants.attempt.runner.Client', return_value=fixture), \
+            patch('benchmarking.participants.attempt.runner.subprocess.check_output', return_value='fixture-cli'):
         summary = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
     assert summary['failure']['category'] == 'unknown'
     assert summary['harness_error'] == 'runner_interrupted'
@@ -1256,8 +1367,8 @@ def test_interrupted_runner_can_collect_without_native_continuation(tmp_path, mo
     """A command has delivered its candidate; its supervisor dies before cleanup."""
     import sys
 
-    from benchmarking.participants.runner import run_one
-    from benchmarking.participants.scheme import resolve_scheme
+    from benchmarking.participants.attempt.runner import run_one
+    from benchmarking.participants.harnesses.scheme import resolve_scheme
 
     fixture = InFlightService()
     selected = {'harness': 'command', 'model': 'fixture', 'effort_resolved': None}
@@ -1265,10 +1376,10 @@ def test_interrupted_runner_can_collect_without_native_continuation(tmp_path, mo
            'scheme': resolve_scheme({'version': 'fixture', 'launch': {
                'command': [sys.executable, '-c', 'pass'], 'files': []}}, tmp_path, 'command')}
     output = tmp_path / 'participant'
-    monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *a, **kw: fixture)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
     def interrupted(*args, **kwargs):
         raise KeyboardInterrupt
-    monkeypatch.setattr('benchmarking.participants.runner.execute', interrupted)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', interrupted)
     with pytest.raises(KeyboardInterrupt):
         run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
     assert json.loads((output / '.private/recovery.json').read_text())['phase'] == 'running'
@@ -1276,7 +1387,7 @@ def test_interrupted_runner_can_collect_without_native_continuation(tmp_path, mo
         run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
     def forbidden(*args, **kwargs):
         pytest.fail('Collection must never relaunch a participant')
-    monkeypatch.setattr('benchmarking.participants.runner.execute', forbidden)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', forbidden)
     summary = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}), collect_only=True)
     assert summary['state'] == 'finished'
     assert summary['harness_error'] == 'runner_interrupted'
@@ -1288,7 +1399,7 @@ def test_interrupted_runner_can_collect_without_native_continuation(tmp_path, mo
 def test_collect_only_cli_preserves_old_identity_and_never_resolves_harness(tmp_path, monkeypatch, wrong_identity):
     import sys
 
-    from benchmarking.participants.scheme import resolve_scheme
+    from benchmarking.participants.harnesses.scheme import resolve_scheme
     from benchmarking.run import main
 
     fixture = InFlightService()
@@ -1301,10 +1412,10 @@ def test_collect_only_cli_preserves_old_identity_and_never_resolves_harness(tmp_
     case = batch / 'fixture'
     output = case / '.runtime/participant'
     output.parent.mkdir(parents=True)
-    monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *a, **kw: fixture)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
     def interrupted(*args, **kwargs):
         raise KeyboardInterrupt
-    monkeypatch.setattr('benchmarking.participants.runner.execute', interrupted)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', interrupted)
     with pytest.raises(KeyboardInterrupt):
         run_participant(fixture, dict(row, task='fixture'), output, ParticipantSelection(selected, {}, {}))
     identity = {'benchmark': {'version': 'old-release', 'commit': 'old-commit'},
@@ -1312,9 +1423,9 @@ def test_collect_only_cli_preserves_old_identity_and_never_resolves_harness(tmp_
     (case / 'result.json').write_text(json.dumps({'identity': identity, 'state': 'running'}))
     def forbidden(*args, **kwargs):
         pytest.fail('Collection must not resolve or launch a harness')
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', forbidden)
-    monkeypatch.setattr('benchmarking.participants.planning.harness_version', forbidden)
-    monkeypatch.setattr('benchmarking.participants.runner.execute', forbidden)
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', forbidden)
+    monkeypatch.setattr('benchmarking.participants.batch.plan.harness_version', forbidden)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', forbidden)
     if wrong_identity:
         fixture.condition = dict(fixture.condition, model='different-model')
         with pytest.raises(SystemExit) as error:
@@ -1337,8 +1448,8 @@ def test_case_lease_remains_exclusive_after_scheduler_closes_its_descriptor(tmp_
     import subprocess
     import sys
 
-    from benchmarking.locking import BatchLeaseError
-    from benchmarking.participants.storage import CaseLease
+    from benchmarking.execution.leases import BatchLeaseError
+    from benchmarking.participants.attempt.storage import CaseLease
 
     child = None
     try:
@@ -1358,8 +1469,8 @@ def test_case_lease_remains_exclusive_after_scheduler_closes_its_descriptor(tmp_
 def test_collect_only_commits_existing_terminal_export_without_contacting_service(tmp_path, monkeypatch):
     import sys
 
-    from benchmarking.participants.runner import run_one, save
-    from benchmarking.participants.scheme import resolve_scheme
+    from benchmarking.participants.attempt.runner import run_one, save
+    from benchmarking.participants.harnesses.scheme import resolve_scheme
     from benchmarking.run import main
 
     fixture = ServiceFixture()
@@ -1370,7 +1481,7 @@ def test_collect_only_commits_existing_terminal_export_without_contacting_servic
     case = tmp_path / 'batch/fixture'
     runtime = case / '.runtime'
     runtime.mkdir(parents=True)
-    monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *a, **kw: fixture)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
     selection = ParticipantSelection({'harness': 'command', 'model': 'fixture', 'effort_resolved': 'off'}, {}, {})
     summary = run_one(fixture, dict(row, task='fixture'), runtime / 'participant', selection)
     summary.update(result='participant/analysis/result.json', task='fixture', directory='fixture', repetition=1)
@@ -1379,8 +1490,8 @@ def test_collect_only_commits_existing_terminal_export_without_contacting_servic
     save(case / 'result.json', {'identity': identity, 'state': 'finalizing', 'summary': summary})
     def forbidden(*args, **kwargs):
         pytest.fail('A committed terminal export needs neither service nor model')
-    monkeypatch.setattr('benchmarking.participants.local_service.local_service_client', forbidden)
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', forbidden)
+    monkeypatch.setattr('benchmarking.participants.attempt.service.local_service_client', forbidden)
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', forbidden)
     assert main(['--collect-only', '--output', str(tmp_path / 'batch')]) == 0
     final = json.loads((case / 'result.json').read_text())
     assert final['state'] == 'finished'
@@ -1414,8 +1525,8 @@ def test_case_list_bounds_independent_sessions_and_prints_completed_results(tmp_
         with lock:
             active -= 1
         return summary
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection({}, {}, {}))
-    monkeypatch.setattr('benchmarking.participants.runner.run_one', run)
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.run_one', run)
     monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'fixture-token')
     args = ['--config', str(config), '--endpoint', 'https://fixture', '--output', str(tmp_path / 'batch')]
     assert main(args) == 0
@@ -1448,17 +1559,17 @@ def test_local_case_list_routes_dataset_inputs_and_rejects_missing_cases(tmp_pat
     dataset = write_dataset(tmp_path / 'dataset', ['a'])
     routed = []
     monkeypatch.delenv('ICLAYOUT_BENCH_ENDPOINT', raising=False)
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection({}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({}, {}, {}))
     def local_service(path, output, image, *flags):
         assert flags == (recoverable,)
         return nullcontext(path)
-    monkeypatch.setattr('benchmarking.participants.local_service.service', local_service)
+    monkeypatch.setattr('benchmarking.participants.attempt.service.service', local_service)
     def run(access, row, output, selection):
         assert access['case'] == row['task']
         assert access['dataset'] == str(dataset)
         routed.append(row['task'])
         return terminal_files(output)
-    monkeypatch.setattr('benchmarking.participants.runner.run_one', run)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.run_one', run)
     args = ['--config', str(config), '--output', str(tmp_path / 'batch'), '--dataset', str(dataset)]
     with pytest.raises(SystemExit):
         main(args)
@@ -1482,16 +1593,16 @@ def test_native_mcp_approval_failure_is_not_a_zero_score_and_stops_dispatch(tmp_
     config.write_text('harness="codex"\nmodel="fixture"\neffort="high"\n'
                       'tasks=["fixture"]\nconcurrency=1\nrepetitions=2\n')
     selected = {'harness': 'codex', 'model': 'fixture', 'effort_resolved': 'high', 'effort_requested': 'high'}
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection(selected, {}, {}))
-    monkeypatch.setattr('benchmarking.participants.case.Client', lambda *args, **kwargs: fixture)
-    monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *args, **kwargs: fixture)
-    monkeypatch.setattr('benchmarking.participants.runner.subprocess.check_output', lambda *args, **kwargs: 'fixture-cli')
-    monkeypatch.setattr('benchmarking.participants.planning.harness_version', lambda _: ('1.2.3', 'codex 1.2.3'))
-    with patch('benchmarking.participants.adapters.prepare', return_value=[sys.executable, '-c',
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection(selected, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.attempt.worker.Client', lambda *args, **kwargs: fixture)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *args, **kwargs: fixture)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.subprocess.check_output', lambda *args, **kwargs: 'fixture-cli')
+    monkeypatch.setattr('benchmarking.participants.batch.plan.harness_version', lambda _: ('1.2.3', 'codex 1.2.3'))
+    with patch('benchmarking.participants.harnesses.registry.prepare', return_value=[sys.executable, '-c',
                'print(' + repr(json.dumps(event)) + ')']) as launch:
         args = ['--config', str(config), '--endpoint', fixture.endpoint, '--output', str(tmp_path / 'batch')]
         assert main(args) == 1
-        records = [json.loads(p.read_text()) for p in sorted((tmp_path / 'batch/fixture').glob('repetition-*/result.json'))]
+        records = [json.loads(p.read_text()) for p in sorted(case_run(tmp_path / 'batch', 'fixture').glob('repetition-*/result.json'))]
         summaries = [r['summary'] for r in records]
         first, second = summaries
         assert first['failure']['category'] == 'harness_configuration'
@@ -1508,7 +1619,7 @@ def test_native_mcp_approval_failure_is_not_a_zero_score_and_stops_dispatch(tmp_
 
 @pytest.mark.parametrize('mode,category', [('prose', None), ('unknown', 'unknown'), ('recovered', None)])
 def test_mcp_failure_requires_structured_unrecovered_evidence(tmp_path, mode, category):
-    from benchmarking.participants.adapters.codex import harness_failure
+    from benchmarking.participants.harnesses.codex import harness_failure
     message = 'MCP tool call requires approval, but approval policy is never'
     item = {'type': 'mcp_tool_call', 'server': 'layout', 'tool': 'read', 'status': 'failed',
             'error': {'message': message}}
@@ -1532,22 +1643,23 @@ def test_timestamped_results_and_explicit_case_reuse(tmp_path, monkeypatch, caps
                       f'tasks=["library.cell", "other.cell"]\nconcurrency=1\nrepetitions={repetitions}\n')
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'fixture')
-    monkeypatch.setattr('benchmarking.participants.planning.harness_version', lambda _: ('1.2.3', 'codex-cli 1.2.3'))
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection({}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.harness_version', lambda _: ('1.2.3', 'codex-cli 1.2.3'))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({}, {}, {}))
     args = ['--config', str(config), '--endpoint', 'http://localhost:1']
-    with patch('benchmarking.participants.runner.run_one', side_effect=lambda a, r, out, s: terminal_files(out)) as launch:
+    with patch('benchmarking.participants.attempt.runner.run_one', side_effect=lambda a, r, out, s: terminal_files(out)) as launch:
         assert main(args) == 0
-        root, = (tmp_path / 'results/trial').iterdir()
+        root = tmp_path / 'results/trial'
         args += ['--output', str(root)]
         for task in ['library.cell', 'other.cell']:
-            directory = root / task
+            directory = case_run(root, task)
             for repetition in range(1, repetitions + 1):
                 slot = directory if repetitions == 1 else directory / f'repetition-{repetition}'
                 assert json.loads((slot / 'result.json').read_text())['summary']['task'] == task
         assert {p.name for p in root.iterdir() if not p.name.startswith(".")} == {'library.cell', 'other.cell'}
-        from benchmarking.participants.storage import CaseLease
+        from benchmarking.participants.attempt.storage import CaseLease
         count = launch.call_count
-        with CaseLease(root / 'library.cell'), pytest.raises(SystemExit):
+        directory = case_run(root, 'library.cell')
+        with CaseLease(directory), pytest.raises(SystemExit):
             main(args)
         assert launch.call_count == count
         capsys.readouterr()
@@ -1555,7 +1667,7 @@ def test_timestamped_results_and_explicit_case_reuse(tmp_path, monkeypatch, caps
         assert launch.call_count == count
         assert 'SKIP case=library.cell' in capsys.readouterr().out
         # A different benchmark version cannot silently reuse this case.
-        manifest = root / 'library.cell' / ('result.json' if repetitions == 1 else 'repetition-1/result.json')
+        manifest = directory / ('result.json' if repetitions == 1 else 'repetition-1/result.json')
         original_record = manifest.read_text()
         recorded = json.loads(original_record)
         assert 'inputs' not in recorded['identity']
@@ -1566,7 +1678,7 @@ def test_timestamped_results_and_explicit_case_reuse(tmp_path, monkeypatch, caps
         assert json.loads(manifest.read_text()) == recorded
         assert launch.call_count == count
         manifest.write_text(original_record)
-        slot = root / 'library.cell'
+        slot = directory
         if repetitions > 1:
             slot /= 'repetition-1'
         summary_path = slot / 'result.json'
@@ -1586,6 +1698,108 @@ def test_timestamped_results_and_explicit_case_reuse(tmp_path, monkeypatch, caps
         assert launch.call_count == count
 
 
+def test_updated_profile_prices_apply_to_new_runs_and_preserve_resumed_run_prices(tmp_path, monkeypatch):
+    import tomli_w
+
+    from benchmarking.run import main
+
+    prices = tmp_path / 'pricing.toml'
+    original = {'currency': 'USD', 'source': 'https://provider.example/pricing', 'as_of': '2026-10-16',
+                'input_per_million': 2, 'cache_read_per_million': .2,
+                'cache_write_per_million': 2.5, 'output_per_million': 10}
+    prices.write_text(tomli_w.dumps({'models': {'fixture': original}}))
+    config = tmp_path / 'trial.toml'
+    config.write_text('harness="codex"\nmodel="fixture"\neffort="medium"\n'
+                      'tasks=["interrupted", "finished"]\nconcurrency=1\nrepetitions=2\n'
+                      'pricing_file="pricing.toml"\n')
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'fixture-token')
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({}, {}, {}))
+    observed = []
+
+    def run(access, row, output, selection):
+        observed.append(copy.deepcopy(row['pricing']))
+        if len(observed) == 1:
+            raise RuntimeError('synthetic interruption')
+        return terminal_files(output)
+
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.run_one', run)
+    arguments = ['--config', str(config), '--endpoint', 'https://fixture']
+    reuse = arguments + ['--output', str(tmp_path / 'retained')]
+    assert main(reuse) == 1
+    finished = case_run(tmp_path / 'retained', 'finished') / 'repetition-1/result.json'
+    retained = finished.read_bytes()
+    updated = dict(original, input_per_million=4, output_per_million=20)
+    prices.write_text(tomli_w.dumps({'models': {'fixture': updated}}))
+    assert main(reuse + ['--resume']) == 0
+    assert observed == [original] * 5
+    assert finished.read_bytes() == retained
+    assert main(reuse) == 0  # Completed runs continue to use their recorded prices.
+    assert observed == [original] * 5
+    assert main(arguments) == 0
+    assert observed[5:] == [updated] * 4
+    for result in (tmp_path / 'results').rglob('result.json'):
+        assert json.loads(result.read_text())['identity']['plan'][0]['pricing'] == updated
+    config.write_text(config.read_text().replace('effort="medium"', 'effort="low"'))
+    with pytest.raises(SystemExit):
+        main(reuse + ['--resume'])
+    assert len(observed) == 9
+
+
+def test_new_runs_preserve_task_history_and_reuse_only_the_latest(tmp_path, monkeypatch, capsys):
+    from datetime import datetime
+
+    from benchmarking.run import main
+
+    config = tmp_path / 'trial.toml'
+    config.write_text('harness="codex"\nmodel="fixture"\neffort="medium"\n'
+                      'tasks=["library.cell"]\nconcurrency=1\nrepetitions=1\n')
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *a: ParticipantSelection({}, {}, {}))
+    outcomes = iter(['pass', 'fail'])
+    calls = []
+
+    def run(access, row, output, selection):
+        calls.append(output)
+        return terminal_files(output, next(outcomes))
+
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.run_one', run)
+    args = ['--config', str(config), '--endpoint', 'https://fixture']
+    root = tmp_path / 'results/trial'
+    monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'fixture')
+    assert main(args) == 0
+    first = case_run(root, 'library.cell')
+    original = {p.relative_to(first): p.read_bytes() for p in first.rglob('*') if p.is_file()}
+    archived = root / '.batches/previous'
+    archived.mkdir(parents=True)
+    (archived / 'result.json').write_bytes((first / 'result.json').read_bytes())
+    assert main(args) == 0
+    history = sorted((root / 'library.cell').iterdir())
+    assert len(history) == 2 and history[0] == first
+    for directory in history:
+        datetime.strptime(directory.name, '%Y%m%d-%H%M%S-%f').astimezone()
+    latest = history[-1]
+    assert json.loads((latest / 'result.json').read_text())['evaluation']['outcome'] == 'fail'
+    capsys.readouterr()
+    explicit = args + ['--output', str(root)]
+    assert main(explicit) == 0
+    assert str(latest / 'result.json') in capsys.readouterr().out
+    assert len(calls) == 2
+    assert main(['--status', '--output', str(root)]) == 0
+    status = json.loads(capsys.readouterr().out)
+    assert {r['directory'] for r in status['cases']} == {str(p.relative_to(root)) for p in history}
+    record = json.loads((latest / 'result.json').read_text())
+    record['identity']['benchmark']['commit'] = 'changed'
+    (latest / 'result.json').write_text(json.dumps(record))
+    with pytest.raises(SystemExit):
+        main(explicit + ['--resume'])
+    (latest / 'result.json').unlink()
+    with pytest.raises(SystemExit):
+        main(explicit + ['--resume'])
+    assert len(calls) == 2
+    assert original == {p.relative_to(first): p.read_bytes() for p in first.rglob('*') if p.is_file()}
+
+
 def test_append_cases_skips_original_and_runs_new_cases_concurrently(tmp_path, monkeypatch, capsys):
     """Public behavior: grow a completed plan, without touching its original evidence."""
     import threading
@@ -1597,9 +1811,9 @@ def test_append_cases_skips_original_and_runs_new_cases_concurrently(tmp_path, m
                           f'tasks={json.dumps(tasks)}\nconcurrency={concurrency}\nrepetitions=1\n')
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv('ICLAYOUT_BENCH_ENDPOINT', raising=False)
-    monkeypatch.setattr('benchmarking.participants.planning.harness_version', lambda _: ('1.2.3', 'codex-cli 1.2.3'))
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection({}, {}, {}))
-    monkeypatch.setattr('benchmarking.participants.local_service.service', lambda *args: nullcontext(None))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.harness_version', lambda _: ('1.2.3', 'codex-cli 1.2.3'))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.attempt.service.service', lambda *args: nullcontext(None))
     dataset = write_dataset(tmp_path / 'dataset', ['old', 'new-a', 'new-b'])
     barrier = threading.Barrier(2)
     calls = []
@@ -1608,39 +1822,42 @@ def test_append_cases_skips_original_and_runs_new_cases_concurrently(tmp_path, m
         if row['task'] != 'old':
             barrier.wait(timeout=5)  # Cannot pass if the two new sessions are serialized.
         return terminal_files(output, 'pass')
-    monkeypatch.setattr('benchmarking.participants.runner.run_one', run)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.run_one', run)
     configure(['old'], 1)
     args = ['--config', str(config), '--dataset', str(dataset)]
     assert main(args) == 0
-    root, = (tmp_path / 'results/trial').iterdir()
+    root = tmp_path / 'results/trial'
     args += ['--output', str(root)]
-    original = {str(p.relative_to(root / 'old/fixture/cases/old')): p.read_bytes() for p in (root / 'old/fixture/cases/old').rglob('*') if p.is_file()}
-    manifest = (root / 'old/fixture/cases/old/result.json').read_bytes()
+    old = case_run(root, 'old')
+    original = {str(p.relative_to(old)): p.read_bytes() for p in old.rglob('*') if p.is_file()}
+    manifest = (old / 'result.json').read_bytes()
     configure(['old', 'new-a', 'new-b'], 2)
     capsys.readouterr()
     assert main(args) == 0
     printed = capsys.readouterr().out
     assert 'SKIP case=old ' in printed
-    assert str(root / 'old/fixture/cases/old/result.json') in printed
+    assert str(old / 'result.json') in printed
     assert sorted(calls) == ['new-a', 'new-b', 'old']
-    assert original == {str(p.relative_to(root / 'old/fixture/cases/old')): p.read_bytes() for p in (root / 'old/fixture/cases/old').rglob('*') if p.is_file()}
-    assert (root / 'old/fixture/cases/old/result.json').read_bytes() == manifest
+    assert original == {str(p.relative_to(old)): p.read_bytes() for p in old.rglob('*') if p.is_file()}
+    assert (old / 'result.json').read_bytes() == manifest
     assert {p.name for p in root.iterdir() if not p.name.startswith(".")} == {'old', 'new-a', 'new-b'}
     assert main(args) == 0
     assert len(calls) == 3
     import shutil
     relocated = tmp_path / 'relocated'
-    copied = relocated / 'results' / root.name / 'old/fixture/cases/old'
-    shutil.copytree(root / 'old/fixture/cases/old', copied)
+    copied_root = relocated / 'results' / root.name
+    copied = copied_root / old.relative_to(root)
+    shutil.copytree(old, copied)
     configure(['old'], 1)
     monkeypatch.chdir(relocated)
-    assert main(args) == 0
+    relocated_args = args[:-2] + ['--output', str(copied_root)]
+    assert main(relocated_args) == 0
     assert len(calls) == 3
-    assert {p.name for p in copied.parent.iterdir()} == {'old'}
+    assert {p.name for p in copied.parent.iterdir()} == {old.name}
     monkeypatch.chdir(tmp_path)
     configure(['old', 'new-a', 'new-b'], 2)
     # Inputs are version-owned: changing the benchmark release rejects all dispatch.
-    monkeypatch.setattr('benchmarking.participants.planning.package_version', lambda: {"version": "different", "commit": None})
+    monkeypatch.setattr('benchmarking.participants.batch.plan.package_version', lambda: {"version": "different", "commit": None})
     with pytest.raises(SystemExit):
         main(args)
     assert len(calls) == 3
@@ -1648,14 +1865,14 @@ def test_append_cases_skips_original_and_runs_new_cases_concurrently(tmp_path, m
 
 def test_startup_failure_is_durable_and_same_key_never_starts_another_worker(tmp_path, executable_case, monkeypatch):
     from benchmarking.service.server import APIError, LocalService
-    from benchmarking.tasks import load_task
+    from benchmarking.tasks.contract import load_task
     task = load_task(executable_case)
     attempts = []
     def broken_startup(*args, **kwargs):
         attempts.append(1)
         raise OSError('resource archive unavailable')
-    monkeypatch.setattr('benchmarking.engine.sessions.control.run_session', broken_startup)
-    monkeypatch.setattr('benchmarking.engine.sessions.control.AttachedSession', lambda *args, **kwargs: object())
+    monkeypatch.setattr('benchmarking.service.supervisor.run_session', broken_startup)
+    monkeypatch.setattr('benchmarking.service.supervisor.AttachedSession', lambda *args, **kwargs: object())
     body = {'task_id': task.id, 'condition': {'harness_kind': 'agent', 'harness_id': 'startup-test',
             'harness_version': '1', 'model': 'none', 'prompt_sha256': None, 'configuration_sha256': None}}
     root = tmp_path / 'service'
@@ -1681,8 +1898,8 @@ def test_slow_resource_provisioning_has_separate_startup_and_solve_budgets(tmp_p
     from types import SimpleNamespace
 
     import benchmarking.service.server as server_module
-    from benchmarking.engine.sessions import control as session_control
-    from benchmarking.tasks import load_task
+    from benchmarking.service import supervisor as session_control
+    from benchmarking.tasks.contract import load_task
     task = load_task(executable_case)
     release = threading.Event()
     observed = []
@@ -1731,29 +1948,29 @@ def test_default_case_storage_retains_blocked_dispatch_without_batch_summary(tmp
                       'tasks=["first", "second"]\nconcurrency=1\nrepetitions=1\n')
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("ICLAYOUT_BENCH_TOKEN", "fixture-token")
-    monkeypatch.setattr('benchmarking.participants.planning.harness_version', lambda _: ('1.2.3', 'codex 1.2.3'))
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *args: ParticipantSelection({}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.harness_version', lambda _: ('1.2.3', 'codex 1.2.3'))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({}, {}, {}))
     result = {'outcome': 'error', 'failure': {'category': 'quota_exhausted', 'stop_dispatch': True}}
-    with patch('benchmarking.participants.runner.run_one', side_effect=lambda a, r, out, s: terminal_files(out, 'error') | result) as launch:
+    with patch('benchmarking.participants.attempt.runner.run_one', side_effect=lambda a, r, out, s: terminal_files(out, 'error') | result) as launch:
         assert main(['--config', str(config), '--endpoint', 'https://fixture']) == 1
         assert launch.call_count == 1
-    root, = (tmp_path / 'results/trial').iterdir()
+    root = tmp_path / 'results/trial'
     assert {p.name for p in root.iterdir() if not p.name.startswith(".")} == {'first', 'second'}
-    assert json.loads((root / 'second/result.json').read_text())['state'] == 'blocked'
-    assert not (root / 'second/.runtime').exists()
+    assert json.loads((case_run(root, 'second') / 'result.json').read_text())['state'] == 'blocked'
+    assert not (case_run(root, 'second') / '.runtime').exists()
 
 
-def test_command_participant_receives_contract_and_keeps_one_identity_across_tasks(tmp_path, monkeypatch):
+def test_command_participant_receives_problem_and_keeps_one_identity_across_tasks(tmp_path, monkeypatch):
     """Exercise the new launcher using a real subprocess and existing HTTP double.
 
-    The task contract, scoped credential and stdin are independent API inputs.
+    The problem, optional scheme instructions and scoped credential are separate inputs.
     Changing instructions must distinguish schemes; task/output paths must not.
     No provider or EDA claim is made by this Public-owned regression.
     """
     import sys
 
-    from benchmarking.participants.config import resolve
-    from benchmarking.participants.scheme import resolve_scheme
+    from benchmarking.participants.batch.config import resolve
+    from benchmarking.participants.harnesses.scheme import resolve_scheme
 
     script = tmp_path / 'participant.py'
     script.write_text('import json, os, sys\n'
@@ -1761,7 +1978,9 @@ def test_command_participant_receives_contract_and_keeps_one_identity_across_tas
                       'assert "session_token" not in task\n'
                       'assert os.environ["ICLAYOUT_BENCH_TOKEN"] == "scoped-fixture-token"\n'
                       'assert os.environ["ICLAYOUT_BENCH_MODEL"] == "fixture-model"\n'
-                      'assert "TASK CONTRACT:" in sys.stdin.read()\n'
+                      'assert sys.stdin.read() == task["task"]["problem"]\n'
+                      'scheme_instructions = open(os.environ["ICLAYOUT_BENCH_INSTRUCTIONS_FILE"]).read()\n'
+                      'print(json.dumps({"scheme_instructions": scheme_instructions}))\n'
                       'assert "layout" in json.load(open(os.environ["ICLAYOUT_BENCH_MCP_CONFIG"]))["mcpServers"]\n'
                       'print("contract received")\n')
     raw = {'version': 'test-1', 'launch': {'command': [sys.executable, 'participant.py'], 'files': ['participant.py']}}
@@ -1769,7 +1988,7 @@ def test_command_participant_receives_contract_and_keeps_one_identity_across_tas
     for index, (task, instructions) in enumerate([('one', ''), ('two', ''), ('one', 'Use tool A')]):
         scheme = resolve_scheme(dict(raw, instructions=instructions), tmp_path, 'command')
         fixture = ServiceFixture()
-        monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *a, fixture=fixture, **kw: fixture)
+        monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, fixture=fixture, **kw: fixture)
         selection = resolve('command', 'fixture-model', 'medium')
         condition, env, settings = selection.condition, selection.environment, selection.settings
         output = tmp_path / str(index)
@@ -1778,6 +1997,7 @@ def test_command_participant_receives_contract_and_keeps_one_identity_across_tas
         assert result['outcome'] == 'no_submission'
         assert result['score'] is None
         assert 'contract received' in (output / 'harness.jsonl').read_text()
+        assert json.loads((output / 'harness.jsonl').read_text().splitlines()[0]) == {'scheme_instructions': instructions}
         identities.append(fixture.condition['configuration_sha256'])
     assert identities[0] == identities[1]
     assert identities[0] != identities[2]
@@ -1785,7 +2005,7 @@ def test_command_participant_receives_contract_and_keeps_one_identity_across_tas
 
 @pytest.mark.parametrize('harness', ['codex', 'claude-code'])
 def test_declared_mcp_tool_is_enabled_without_putting_its_credentials_on_argv(tmp_path, harness):
-    from benchmarking.participants.adapters import prepare
+    from benchmarking.participants.harnesses.registry import prepare
 
     selected = {'harness': harness, 'model': 'fixture-model', 'effort_requested': 'medium', 'effort_resolved': 'medium'}
     settings = {'mcp_servers': {'a': {'command': '/tools/a', 'args': ['serve'], 'env': {'A_API_KEY': 'private-key'}}}}
@@ -1811,7 +2031,7 @@ def test_kimi_isolates_native_configuration_and_delivers_task_via_mcp(tmp_path, 
 
     import tomli_w
 
-    from benchmarking.participants.config import resolve
+    from benchmarking.participants.batch.config import resolve
 
     home = tmp_path / 'host'
     home.mkdir()
@@ -1837,13 +2057,13 @@ def test_kimi_isolates_native_configuration_and_delivers_task_via_mcp(tmp_path, 
     with pytest.raises(ValueError, match='explicitly supported'):
         resolve('kimi-code', 'fixture/k3', 'xhigh')
     fixture = ServiceFixture()
-    monkeypatch.setattr('benchmarking.participants.runner.Client', lambda *a, **kw: fixture)
-    monkeypatch.setattr('benchmarking.participants.adapters.cli_version', lambda *a: 'kimi 1.2.3')
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
+    monkeypatch.setattr('benchmarking.participants.harnesses.registry.cli_version', lambda *a: 'kimi 1.2.3')
 
     def execute(argv, *, cwd, env, prompt, **kwargs):
         assert argv[0] == 'kimi'
         assert argv[argv.index('--prompt') + 1] == prompt
-        assert 'TASK CONTRACT:' in prompt
+        assert prompt == '# Fixture problem\n'
         assert 'private-provider-key' not in ' '.join(argv)
         isolated = Path(env['KIMI_CODE_HOME'])
         assert isolated != home
@@ -1864,7 +2084,7 @@ def test_kimi_isolates_native_configuration_and_delivers_task_via_mcp(tmp_path, 
         assert servers['layout']['toolTimeoutMs'] > fixture.remaining * 1000
         return 0, False
 
-    monkeypatch.setattr('benchmarking.participants.runner.execute', execute)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', execute)
     output = tmp_path / 'result'
     result, error = run_participant(fixture, {'harness': 'kimi-code', 'task': 'fixture'}, output, ParticipantSelection(selected, env, settings))
     assert error is None
@@ -1881,14 +2101,14 @@ def test_resume_observes_orphans_and_refills_before_the_slow_case_finishes(tmp_p
     import threading
     import time
 
-    from benchmarking.participants.storage import CaseLease, CaseRecord
+    from benchmarking.participants.attempt.storage import CaseLease, CaseRecord
     from benchmarking.run import main
 
     config = tmp_path / 'trial.toml'
     config.write_text('harness="codex"\nmodel="fixture"\neffort="medium"\n'
                       'tasks=["fast", "slow", "next"]\nconcurrency=2\nrepetitions=1\n')
     monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'fixture')
-    monkeypatch.setattr('benchmarking.participants.planning.resolve', lambda *a: ParticipantSelection({}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *a: ParticipantSelection({}, {}, {}))
     next_started = threading.Event()
     launches = []
 
@@ -1898,22 +2118,23 @@ def test_resume_observes_orphans_and_refills_before_the_slow_case_finishes(tmp_p
             next_started.set()
         return terminal_files(output)
 
-    monkeypatch.setattr('benchmarking.participants.runner.run_one', run)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.run_one', run)
     output = tmp_path / 'batch'
     args = ['--config', str(config), '--endpoint', 'https://fixture', '--output', str(output)]
     assert main(args) == 0
     launches.clear()
     next_started.clear()
-    pending = json.loads((output / 'next/result.json').read_text())
+    next_case = case_run(output, 'next')
+    pending = json.loads((next_case / 'result.json').read_text())
     pending.update(state='pending')
     pending.pop('summary')
-    (output / 'next/result.json').write_text(json.dumps(pending))
+    (next_case / 'result.json').write_text(json.dumps(pending))
     owners = []
     failures = []
     script = '''import json, os, sys, time
 from pathlib import Path
 from benchmarking.files import write_json
-from benchmarking.service.process import process_start
+from benchmarking.execution.process import process_start
 p = json.load(sys.stdin)
 root = Path(p['root'])
 write_json(root / '.runtime/worker.json', {'pid': os.getpid(), 'start': process_start(os.getpid()),
@@ -1926,7 +2147,7 @@ write_json(root / 'result.json', p['finished'])
 '''
     try:
         for task in ('fast', 'slow'):
-            root = output / task
+            root = case_run(output, task)
             finished = json.loads((root / 'result.json').read_text())
             if task == 'fast' and stop_dispatch:
                 finished['summary']['failure'] = {'category': 'quota_exhausted', 'stop_dispatch': True}
@@ -1959,7 +2180,7 @@ write_json(root / 'result.json', p['finished'])
         while time.monotonic() < until and recovering.is_alive():
             events = [json.loads(line) for line in journal.read_text().splitlines(keepends=True)
                       if line.endswith('\n')]
-            if any(event['event'] == 'worker_adopted' and event['case'] == 'fast' for event in events):
+            if any(event['event'] == 'worker_adopted' and event['case'] == str(case_run(output, 'fast').relative_to(output)) for event in events):
                 break
             time.sleep(.01)
         else:
@@ -1968,7 +2189,7 @@ write_json(root / 'result.json', p['finished'])
         if stop_dispatch:
             recovering.join(3)
             assert not recovering.is_alive() and not failures
-            assert CaseRecord(output / 'next').read()['state'] == 'blocked'
+            assert CaseRecord(next_case).read()['state'] == 'blocked'
         else:
             assert next_started.wait(3), failures
         assert not (tmp_path / 'slow.release').exists()
@@ -1987,10 +2208,14 @@ write_json(root / 'result.json', p['finished'])
 
 
 def test_capacity_delay_is_bounded_and_respects_exponential_intervals(monkeypatch):
-    from benchmarking.participants.recovery import DISABLED, capacity_delay, policy
+    from benchmarking.participants.attempt.recovery import (
+        DISABLED,
+        capacity_delay,
+        policy,
+    )
 
     settings = policy(DISABLED | {'capacity_resumes': 5})
-    monkeypatch.setattr('benchmarking.participants.recovery.random.uniform', lambda *args: 1.1)
+    monkeypatch.setattr('benchmarking.participants.attempt.recovery.random.uniform', lambda *args: 1.1)
     assert [capacity_delay(settings, n) for n in range(5)] == [33, 66, 132, 264, 300]
 
 
@@ -2001,9 +2226,9 @@ def test_collect_only_waits_for_the_shared_case_lease(tmp_path, repetitions):
     import sys
     import time
 
-    from benchmarking.locking import BatchLeaseError
-    from benchmarking.participants.case import CollectRequest, collect_batch
-    from benchmarking.participants.storage import CaseLease
+    from benchmarking.execution.leases import BatchLeaseError
+    from benchmarking.participants.attempt.storage import CaseLease
+    from benchmarking.participants.attempt.worker import CollectRequest, collect_batch
 
     output = tmp_path / 'batch'
     case_root = output / 'fixture'
@@ -2050,9 +2275,9 @@ def test_collect_only_waits_for_the_shared_case_lease(tmp_path, repetitions):
 def test_status_requires_no_provider_and_excludes_private_record_fields(tmp_path, capsys):
     import os
 
+    from benchmarking.execution.process import process_start
     from benchmarking.files import write_json
     from benchmarking.run import main
-    from benchmarking.service.process import process_start
 
     root = tmp_path / 'batch'
     case = root / 'fixture'
@@ -2075,10 +2300,10 @@ def test_status_requires_no_provider_and_excludes_private_record_fields(tmp_path
 def test_live_scheduler_prevents_orphan_adoption_and_pid_reuse_does_not_authorize_it(tmp_path):
     import os
 
+    from benchmarking.execution.leases import BatchLeaseError
+    from benchmarking.execution.process import process_start
     from benchmarking.files import write_json
-    from benchmarking.locking import BatchLeaseError
-    from benchmarking.participants.scheduler import live_worker
-    from benchmarking.service.process import process_start
+    from benchmarking.participants.batch.coordinator import live_worker
 
     runtime = tmp_path / '.runtime'
     runtime.mkdir()
@@ -2093,10 +2318,10 @@ def test_live_scheduler_prevents_orphan_adoption_and_pid_reuse_does_not_authoriz
 
 
 def test_resume_rejects_an_unverified_live_owner_outside_the_selected_cases(tmp_path):
+    from benchmarking.execution.leases import BatchLeaseError
     from benchmarking.files import write_json
-    from benchmarking.locking import BatchLeaseError
-    from benchmarking.participants.scheduler import live_slots
-    from benchmarking.participants.storage import CaseLease
+    from benchmarking.participants.attempt.storage import CaseLease
+    from benchmarking.participants.batch.coordinator import live_slots
 
     case = tmp_path / 'unselected'
     case.mkdir()
@@ -2148,7 +2373,7 @@ def test_command_runner_uses_service_budget_and_retains_last_submission(tmp_path
 def test_soft_evaluation_waits_beyond_default_deadline(monkeypatch):
     from types import SimpleNamespace
 
-    from benchmarking.participants import lifecycle
+    from benchmarking.participants.attempt import settlement as lifecycle
 
     clock = iter([0, 1, 601, 602])
     monkeypatch.setattr(lifecycle.time, 'monotonic', lambda: next(clock))

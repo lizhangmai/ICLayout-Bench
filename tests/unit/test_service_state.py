@@ -61,10 +61,10 @@ def test_failed_checkpoint_blocks_successful_mutation_replay(tmp_path, executabl
     import base64
     import time
 
-    from benchmarking.engine.sessions.control import SessionControl
     from benchmarking.service.application import LocalService
     from benchmarking.service.contracts import APIError
-    from benchmarking.tasks import load_task
+    from benchmarking.service.supervisor import SessionControl
+    from benchmarking.tasks.contract import load_task
 
     class Workspace:
         active = True
@@ -161,10 +161,10 @@ def test_concurrent_mutation_replay_is_atomic_and_survives_restart(tmp_path, exe
     import time
     from concurrent.futures import ThreadPoolExecutor
 
-    from benchmarking.engine.sessions.control import SessionControl
     from benchmarking.service.application import LocalService
     from benchmarking.service.contracts import APIError
-    from benchmarking.tasks import load_task
+    from benchmarking.service.supervisor import SessionControl
+    from benchmarking.tasks.contract import load_task
 
     task = load_task(executable_case)
     writes = []
@@ -217,11 +217,11 @@ def test_injected_runtime_serves_a_scoped_session_over_http(tmp_path, executable
     import threading
 
     from benchmarking.client import Client, ClientError
-    from benchmarking.engine.sessions.control import SessionControl
-    from benchmarking.engine.sessions.recorder import RunRecorder
+    from benchmarking.evidence.journal import RunRecorder
     from benchmarking.service.application import LocalService
     from benchmarking.service.server import serve
-    from benchmarking.tasks import load_task
+    from benchmarking.service.supervisor import SessionControl
+    from benchmarking.tasks.contract import load_task
 
     class Workspace:
         active = True
@@ -275,6 +275,20 @@ def test_injected_runtime_serves_a_scoped_session_over_http(tmp_path, executable
         first = client.write(sid, 'candidate.txt', b'candidate', key='write')
         assert client.write(sid, 'candidate.txt', b'candidate', key='write') == first
         assert client.read(sid, 'candidate.txt') == b'candidate'
+        with pytest.raises(ClientError) as wrong_path:
+            client.submit(sid, '/workspace/' + task.output.path, key='absolute-path')
+        assert wrong_path.value.code == 'invalid_submission_path'
+        assert task.output.path in str(wrong_path.value)
+        from benchmarking.participants.mcp import Bridge, dispatch
+
+        bridge = Bridge(client, sid, tmp_path / 'tools.jsonl')
+        rejected = dispatch(bridge, {'id': 1, 'method': 'tools/call', 'params': {
+            'name': 'submit', 'arguments': {'path': '/workspace/' + task.output.path}}})
+        assert rejected['result']['isError'] is True
+        assert task.output.path in rejected['result']['content'][0]['text']
+        assert 'workspace-relative' in rejected['result']['content'][0]['text']
+        bridge.call('write', {'path': 'after-rejection.txt', 'content': 'Agent continues'})
+        assert client.read(sid, 'after-rejection.txt') == b'Agent continues'
         with pytest.raises(ClientError) as denied:
             access.read(sid, 'candidate.txt')
         assert denied.value.status == 404

@@ -1,1 +1,1 @@
-"""Public local HTTP evaluation service, reused by operator deployments."""
+"""HTTP evaluation service with isolated participant sessions."""

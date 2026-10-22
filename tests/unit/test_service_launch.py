@@ -28,7 +28,7 @@ def child(monkeypatch):
         launch.stop(process, timeout=1)
 
 
-READY = "print('Local development service: http://127.0.0.1:12345', flush=True); import time; time.sleep(60)"
+READY = "print('Evaluation service: http://127.0.0.1:12345', flush=True); import time; time.sleep(60)"
 
 
 def test_service_passes_declared_settings_and_stops_on_body_failure(tmp_path, child):

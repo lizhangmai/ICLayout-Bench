@@ -1,40 +1,64 @@
 # Contributing and Verification
 
-Public owns participant code, shared definitions, preparation, isolated sessions,
-EDA backends, independent evaluation and the local HTTP adapter. Operators own
-operator admission, controlled reruns and reviewed releases. Public installation
-and CI must not import operator applications. Exclude `third_party/` from framework
-searches, lint and tests.
+ICLayout-Bench provides participant runners, shared contracts, resource preparation,
+isolated sessions, EDA backends and independent evaluation. Changes should work
+without a maintainer's other repositories, datasets or machine configuration.
+Exclude `third_party/` from framework searches, lint and tests.
+
+## Development setup
+
+Use Python 3.12+ and uv. From a fresh clone:
+
+```bash
+git clone https://github.com/lizhangmai/ICLayout-Bench.git
+cd ICLayout-Bench
+uv sync --locked --extra results
+```
+
+`uv sync` creates the project environment when needed and installs the package in
+editable mode with the locked development dependencies. The offline checks below
+need no Docker, Dataset, agent CLI or model credentials. EDA checks require the
+additional tools and explicit inputs described in [verification](#verification).
+Keep credentials and generated experiment results out of tracked source; choose
+configuration and output paths to suit your workflow.
 
 ## Implementation map
 
-Keep declarations, execution and presentation with their owning modules:
+Use the package that owns the operation. The same boundaries apply to Python
+imports, command entry points and bundled helper scripts.
+Keep case names, circuit fixes and process-specific preparation in declared task
+resources rather than shared orchestration modules.
 
-| Package or module | Responsibility |
+| Package | Responsibility and internal organization |
 | --- | --- |
-| `evaluation/` | Frozen plan contracts, requirements, baseline pairing, parsing and task scoring. `graph.py` owns candidate job ordering, transitive dependencies and source graph correspondence; parsing owns declaration decoding. `benchmarking.evaluation.scoring` owns the installed scoring entry points. `benchmarking.evaluation` retains its import interface. |
-| `engine/contracts.py` and `engine/evaluate.py` | Backend result contracts and independent evaluation orchestration. Backends import the contracts without importing the executor. |
-| `engine/toolchain_config.py` and `engine/toolchains.py` | Toolchain declarations and support-profile validation without EDA imports; binding to selected trusted backends through a lazy installed registry, respectively. |
-| `engine/sessions/` | `config.py` owns frozen solver configuration; `execution.py` owns recorded independent runs; `control.py` supervises live sessions; `recorder.py` and `archive.py` write and read durable evidence. `staging.py` owns declared read-only inputs; `docker.py` owns the container, sockets and bounded console evidence. Workspace and protocol modules own durable control requests. Consumers import these owning modules directly; file/lease primitives come from `benchmarking.files` and `benchmarking.locking`. |
-| `engine/feedback.py` | Participant diagnostics, evidence truncation and score observation projection. |
-| `service/application.py`, `controller.py` and `views.py` | HTTP framing and route translation; atomic authenticated session reads, mutations and replay; pure status and result projections, respectively. The adapter composes a `SessionController`, which owns the lock and runtime supervision. Callers may inject a dedicated `SessionControl` through the constructor, including its runner and session factory; controller shutdown owns that supervisor's sessions. `ServiceState` owns durable records. |
-| `engine/sessions/control.py`, `archive.py` and `service/state.py` | Live runtime supervision, shared reading of ordered committed journal events and run evidence, and durable HTTP projection, respectively. Only a final line without a newline may be ignored when reading a live journal; malformed committed lines and sequence gaps are errors. |
-| `participants/planning.py`, `attempt.py`, `launch.py` and `runner.py` | Paired condition records, frozen attempt identity, scoped native CLI preparation and participant lifecycle/recovery. `ParticipantSelection` keeps the public condition separate from private environment/settings, which travel only over the worker pipe. Preparation returns a complete `LaunchContext`; adapters construct commands from that context, including its current continuation prompt. Neither private launch type is a result format. `ParticipantAttempt` owns state transitions and commits them before publishing the in-memory state. Adapters own CLI metadata and native event interpretation; `recovery.py` owns continuation safety and bounded capacity decisions. The runner executes those decisions and rechecks deadline/tool state after waiting. |
-| `participants/storage.py`, `case.py`, `batch.py`, `scheduler.py`, `worker.py` and `terminal.py` | `CaseRecord` owns scheduling records and durable summary commits; case execution and collection use one terminal export/cleanup/preview/outbox path. `batch.py` dispatches bounded work as each slot completes; `scheduler.py` owns coordinator leases, detachment, status and read-only orphan observation. Independent workers retain case leases beyond scheduler exit. Local services are recovered only through recorded process identities. |
-| `engine/sessions/archive.py`, `participants/evidence.py`, `results/participant_export.py` and `participants/terminal.py` | Read frozen evaluator evidence; read and redact participant runtime files; export explicit `ParticipantEvidence` and `AttemptEvidence` records without inspecting runtime paths; then commit terminal state before releasing private runtime data. Failed attempts retain each session's candidate and checks separately. |
-| `harnesses.py` | Shared harness declarations and portable participant-tool scheme identities, independent of result storage and participant execution. |
-| `participants/adapters/contracts.py` and `adapters/__init__.py` | One declaration of installed harness modules derives the accepted harness names; lazy lookup and adapter operations share that declaration. |
-| `engine/backends/hbt/` | Connectivity and passive proofs produce a validated replacement plan; merge only applies approved cards and preserves distributed RC. |
-| `engine/netlists/spice.py` and `dspf.py` | Shared SPICE continuation handling, source line indices, quoted tokens and scalar values; strict native DSPF interface adaptation, respectively. HBT extraction owns device/model interpretation on top of these lexical rules. |
-| `files.py` and `engine/tools/docker.py` | Validated asset snapshots and installed-resource provenance; Docker execution and read-only bind arguments, respectively. Solver staging and evaluator tools use the same Docker transport without putting container arguments on the shared resource type. |
-| `engine/backends/calibre_config.py` and `calibre.py` | Typed rule, DRC, LVS and RC declarations and operation validation; shared rule binding, strict LVS/CCI controls and result acceptance. Docker and native adapters own execution. StarRC and Quantus select CCI extraction from construction and reuse the same controls/deck preparation. Backend identities include the grouped configuration and its implementation. |
-| `engine/backends/spectre.py`, `spectre_x.py`, `spectre_aps.py` and `spectre_native.py` | Shared simulation and measurement acceptance; explicit X/APS command options; Docker or native tool construction. Docker owns its memory allocation, while native construction accepts only host execution settings. |
-| `results/` | Export validation, structured analysis, shared statistics, EDA previews, delivery outbox and optional SQL archives. Artifact validation in `importing.py` precedes transactional metadata import in `store.py`. |
+| `tasks/` | `contract.py` validates immutable task declarations; `dataset.py` selects cases and their declared files; `documents.py` renders authored problem documents. No EDA execution or participant scheduling. |
+| `evaluation/` | `contracts.py` defines plans and backend results; `plans.py` decodes and validates the complete job/metric graph; `runner.py` executes that graph; `measurements/` interprets observations; `scoring.py` calculates task scores; `qualification.py` audits and verifies reference evidence. `feedback.py` projects participant diagnostics. `cli.py` composes these operations with selected EDA backends. |
+| `eda/` | `toolchain.py` validates declarations and lazily constructs adapters; `runtime.py` binds declared case inputs and resources. `backends/` owns tool invocation and native report acceptance; `oa/` provides native authoring interfaces; `resources/` prepares reviewed installations and support bundles; `netlists/` parses native circuit representations. `_scripts/` contains only EDA job helpers. Process and case policies remain in declared task resources. |
+| `execution/` | `tools/` executes bounded frozen jobs through Docker or native tools; `workspace/` stages and operates isolated solver workspaces; `process.py`, `leases.py` and `retry.py` provide shared process control. `inference/` owns the controlled model gateway. `harness.py` defines portable tool schemes. `_scripts/` contains staged workspace/protocol helpers. Execution does not schedule experiments or judge a design. |
+| `evidence/` | `bundles.py` validates immutable artifact bundles; `journal.py` writes and reads ordered committed events; `archive.py` reconstructs recorded run evidence; `identity.py` records the installed implementation. Only an unfinished final journal line may be ignored; malformed committed lines and sequence gaps are errors. |
+| `participants/` | `batch/` resolves experiment configuration, schedules repetitions and supervises independent workers. `attempt/` owns one solve's durable state, launch, continuation, recovery, settlement and terminal evidence collection. `harnesses/` registers native adapters and keeps each provider's configuration, event parsing, traces and usage interpretation in that provider's module. `mcp.py` exposes the participant HTTP tools. |
+| `service/` | `application.py` translates HTTP routes; `controller.py` owns authenticated mutations and replay; `views.py` projects responses; `state.py` stores service records. `session.py` composes solver execution with independent evaluation; `supervisor.py` owns live session handles. A controller can receive a dedicated supervisor, runner and workspace factory. |
+| `results/` | `package.py` exports explicit immutable evaluation and participant evidence; `verification.py` checks terminal records; `analysis.py` and the statistics modules return structured data. `preview.py` and `native_preview.py` produce EDA preview assets. `importing.py` validates artifacts before `store.py` transactionally imports metadata; `objects.py` stores content-addressed files. `outbox.py` and `transfer.py` own handoff. Charts and website publishing belong to consuming applications. |
 
-Preview and outbox operations do not require the SQL results extra. Presentation
-code uses ResultStore operations rather than accessing its SQL engine. When changing
-installed module paths, migrate consumers and documentation to the owning modules
-and remove superseded aliases. Include new evaluation/session files in their recorded source identities.
+The evaluation core depends on backend contracts rather than concrete EDA tools;
+CLI and service composition choose implementations. Adapters depend on execution
+primitives and evaluation contracts. Batch orchestration calls attempt operations.
+Result packaging accepts explicit evidence records rather than interpreting
+participant runtime directories. SQL remains optional for previews and handoff.
+Presentation code uses `ResultStore` operations rather than its SQL engine.
+
+Related tool modes share an implementation: Spectre base/X/APS and native
+construction live in `eda/backends/spectre.py`; each harness owns its native
+records and events. Keep small files only where they establish a distinct
+responsibility, rather than splitting one operation across forwarding modules.
+Include new evaluation/session implementation files in their recorded identities.
+
+Commands use `benchmarking.evaluation`, `benchmarking.execution` and
+`benchmarking.eda`. Existing documented client imports (`benchmarking.dataset`,
+`benchmarking.task_documents`, `benchmarking.transfer`, result progress/finalization
+and the resource cache resolver) and legacy engine CLI commands have explicit
+compatibility facades. Framework code and updated consumers import the owning
+modules directly; do not add compatibility wrappers for internal implementations.
 
 <a id="verification"></a>
 
@@ -52,18 +76,7 @@ Routine local commits do not require a distribution build or isolated wheel test
 The affected container, evaluator, and task qualification checks below still apply
 when their behavior changes. Report which checks ran and which are deferred to CI.
 
-Reuse the checkout's existing `.venv` for local development and checks. Inspect
-its interpreter and installed dependencies before changing it; repair this environment
-instead of creating a task-specific Python installation under `build/`, `.local/`
-or a temporary directory. Persistent participant environments belong to independent
-experiment projects outside this checkout, with their own project and lockfile and
-a fixed non-editable wheel. Follow [the running guide](docs/running.md#experiment-environment);
-experiments reuse their selected environment without per-run installation or upgrades.
-Use the maintained CI wheel-isolation job when that release gate is required.
-Build directories hold disposable artifacts, never an alternative runtime or
-the only copy of experiment evidence.
-
-From Public, the full offline checks need neither Docker nor operator applications:
+After [development setup](#development-setup), run the offline checks:
 
 ```bash
 uv sync --locked --extra results
@@ -88,10 +101,9 @@ Check built distributions from outside the checkout or with Python `-I`, and
 assert that imports come from the installation environment. A source-tree import
 cannot validate a wheel. CI runs a short check with `python -I` after installation:
 imports must come from the installation, version metadata must match the build,
-and the participant runner, service and evaluator CLI must start. Routine local
-changes reuse the formal environment and relevant tests. Leave clean installation
-checks to CI unless the change affects packaging or an independent local check
-is explicitly needed.
+and the participant runner, service and evaluator CLI must start. Run the relevant
+tests during development; the CI package job checks a clean wheel installation
+independently of the source checkout.
 The wheel includes `benchmarking` and its subpackages with their
 runtime data; it excludes operator modules. Use the default `uv build` command
 above: it builds the wheel from a fresh source distribution, keeping retired
@@ -101,8 +113,10 @@ Follow [test conventions](tests/AGENTS.md)
 before adding regressions.
 
 Keep one owner for each tested behavior. `test_catalogs.py` checks catalog
-ownership, qualification metadata, SPICE interfaces and isolated materialization
-in one traversal of every declared case. `test_evaluate.py` owns execution and
+ownership, declared candidate/qualified status, simulator interfaces and isolated
+materialization in one traversal of every declared case. Run it on the complete
+development catalog as well as selected delivery snapshots; passing these checks
+does not establish reference qualification. `test_evaluate.py` owns execution and
 verdicts; `test_scoring.py` owns score arithmetic and baseline semantics.
 `test_hbt_extraction.py` owns HBT conversion, correspondence and extraction
 diagnostics; `test_run_config.py` owns runtime and harness configuration.
@@ -137,15 +151,23 @@ EDA checks below remain separate. Coverage comparisons can reveal accidental
 losses during cleanup; retaining every historical branch is not a requirement.
 Document deliberate reductions and the remaining evidence limits.
 
-Reuse a compatible image for container and shared evaluator changes:
+Pull the published tools image, or select a compatible image you built:
 
 ```bash
-ICLAYOUT_BENCH_TEST_IMAGE=iclayout-eda-open:local uv run --locked pytest -m acceptance_container
+docker pull docker.io/lizhangmai/iclayout-bench-tools:latest
+ICLAYOUT_BENCH_TEST_IMAGE=docker.io/lizhangmai/iclayout-bench-tools:latest \
+  uv run --locked pytest -m acceptance_container
 export ICLAYOUT_BENCH_DATASET=/path/to/dataset
-ICLAYOUT_BENCH_TEST_IMAGE=iclayout-eda-open:local \
+ICLAYOUT_BENCH_TEST_IMAGE=docker.io/lizhangmai/iclayout-bench-tools:latest \
   uv run --locked pytest tests/test_http.py
-ICLAYOUT_BENCH_TEST_IMAGE=iclayout-eda-open:local uv run --locked --group eda pytest \
-  tests/integration/test_public_references.py -k 'cell_6t or NAND2_X1'
+```
+
+`ICLAYOUT_BENCH_DATASET` must identify a Dataset directory for the catalog and
+HTTP tests. Download a published snapshot if needed:
+
+```bash
+uv run --locked hf download MAI716/ICLayout-Bench --type dataset \
+  --local-dir /path/to/dataset
 ```
 
 For the native Dataset table, use the locked environment and
@@ -156,9 +178,9 @@ ICLAYOUT_BENCH_DATASET=/path/to/dataset \
   uv run --locked pytest tests/unit/test_catalogs.py
 ```
 
-The Bench checks use the actual Datasets reader for corpus membership,
-the core membership flag, streaming, and contract/input hashes. Designs owns
-table regeneration, drift checks, and publication selection.
+The checks use the actual Datasets reader for corpus membership,
+the core membership flag, streaming, and contract/input hashes. Dataset authors
+maintain the index and select their published cases.
 They require no Docker, remote publication or model calls.
 
 Participant-check and release-path changes also require `tests/test_http.py`
@@ -167,8 +189,17 @@ semantics. Use the installed wheel to qualify affected real cases under
 [task qualification](#task-qualification). This is separate from offline table
 validation and does not imply model performance.
 
-Obtain the independent Dataset working copy or set the environment variable to an HF
-Dataset ID. Reference/counterexample tests resolve their own cached resources. A judge,
+Reference/counterexample tests require an author verification Dataset containing
+the declared witnesses, which participant Datasets omit:
+
+```bash
+ICLAYOUT_BENCH_DATASET=/path/to/author-verification-dataset \
+ICLAYOUT_BENCH_TEST_IMAGE=docker.io/lizhangmai/iclayout-bench-tools:latest \
+  uv run --locked --group eda pytest \
+  tests/integration/test_public_references.py -k 'cell_6t or NAND2_X1'
+```
+
+These tests resolve their declared resources from the supplied Dataset. A judge,
 scoring, backend or task change requires all affected case checks and shared
 regressions under the [qualification rules](#task-qualification), not just
 the two-case smoke selection above. The HTTP suite also derives an import-only Python tool image and compares it
@@ -187,9 +218,12 @@ checks. `build/` holds disposable generated data.
 
 The public [Dockerfile](Dockerfile) is the single open EDA image recipe. It pins
 tool sources, archive digests and patches and installs the locked Python `eda`
-dependencies. Update those pins only when changing a tool version or source
-intentionally. Preparation, authoring, solving and evaluation use
-`iclayout-eda-open:local`; individual invocations retain their isolation.
+dependencies, including its `agent-tools` group of scientific and scripting
+packages. Update those pins only when changing a tool version or source
+intentionally. The published image is
+`docker.io/lizhangmai/iclayout-bench-tools:latest`; development builds can use any
+explicit tag. Select the image with `--image` or `ICLAYOUT_BENCH_IMAGE`, and use
+`ICLAYOUT_BENCH_TEST_IMAGE` for container tests.
 
 Choose the smallest image change that covers the work:
 
@@ -200,16 +234,16 @@ Choose the smallest image change that covers the work:
 | Native EDA tools or system libraries | Update the public recipe and build scripts; validate the affected tools and container/EDA behavior with a candidate image. |
 | No compatible image can be reused, the base system changes, or clean release reproduction is requested | Build the public Dockerfile and run the applicable verification matrix. |
 
-When a full image build and toolchain smoke check are needed, use the standard
-preview command and integration check:
+When a full image build and toolchain smoke check are needed, build from the
+source checkout and select the resulting image explicitly:
 
 ```bash
-python -m benchmarking.engine.preview build --image iclayout-eda-open:local
-bash tests/integration/test_toolchain.sh
+uv run --locked python -m benchmarking.eda build --source . \
+  --image iclayout-bench-tools:dev
+ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:dev \
+  bash tests/integration/test_toolchain.sh
 ```
 
-Use `iclayout-eda-open:local` as the standard evaluation image for cases that
-use the maintained open toolchain. Do not create case-specific evaluation tags.
 The image must provide the complete locked EDA group, including KPEX. Solver and
 evaluator containers use the same prepared toolchain; Agent harnesses run outside
 the EDA image.
@@ -219,13 +253,13 @@ Build through the same entry point for Python and native-tool changes:
 ```bash
 docker build --platform linux/amd64 \
   --build-arg HTTP_PROXY --build-arg HTTPS_PROXY --build-arg NO_PROXY \
-  -t iclayout-eda-open:local .
+  -t iclayout-bench-tools:dev .
 ```
 
 Add `--network host` only when the build needs a host loopback proxy. The build
 context excludes tasks, PDKs and credentials. Run affected checks from
-[Verification](#verification) before starting an experiment. Do not maintain
-separate case, solver, evaluator or dependency-overlay image recipes.
+[Verification](#verification). Participant tools can derive a solver image from
+this base; declare that selection through the participant tool scheme.
 
 The public Dockerfile installs Python dependencies after native tool compilation,
 so lockfile changes can reuse those native layers. Normal builds use the cache;
@@ -238,11 +272,12 @@ actually produced them; a rebuilt image does not retroactively validate them.
 ### Publishing the tools image
 
 The [image workflow](.github/workflows/image.yml) publishes the public tools
-Dockerfile to Docker Hub. Create a public Docker Hub repository and configure:
+Dockerfile to Docker Hub. Release maintainers configure the destination below;
+forks can choose their own namespace:
 
 | Setting | Type | Value |
 | --- | --- | --- |
-| `DOCKERHUB_IMAGE` | Variable | `YOUR_NAMESPACE/iclayout-bench-tools` |
+| `DOCKERHUB_IMAGE` | Variable | `lizhangmai/iclayout-bench-tools`, or your publication namespace |
 | `DOCKERHUB_USERNAME` | Variable | Docker Hub login that owns the access token |
 | `DOCKERHUB_TOKEN` | Secret | Access token with write access to the repository |
 
@@ -255,54 +290,10 @@ Python imports, not Dataset qualification; run affected EDA checks separately.
 
 ## Task qualification
 
-The qualification command evaluates an explicitly supplied reference GDS once
-with the complete physical and electrical plan. It does not call a model or use a
-participant session. Apply the [validity and quality principle](docs/tasks.md#validity-and-quality)
-when defining that plan: qualification proves feasibility, while the score records
-solution quality. A low finite reference score is not a qualification failure.
-Run it to establish feasibility for a selected reference and evaluation plan:
-
-```bash
-python -m benchmarking.engine.qualification audit \
-  --dataset /path/to/dataset --case CASE_ID
-python -m benchmarking.engine.qualification run \
-  --dataset /path/to/dataset --case CASE_ID \
-  --output /path/to/new-qualification
-python -m benchmarking.engine.qualification verify \
-  --dataset /path/to/dataset --case CASE_ID \
-  --output /path/to/new-qualification
-```
-
-A passing run leaves one compact, portable `qualification.json`. Waveforms, logs and other
-run files are scratch by default. Add `--retain-evaluation` to `run` to keep them
-in `output/evaluation`, including failed runs. Failed runs do not write a passing
-`qualification.json`; retry with a fresh output directory. `verify` checks the recorded passing outcome, reference bytes
-and declared evaluation inputs. It does not compare the current task contract,
-evaluation plan, PDK declaration, backend identities or evaluator code with the
-recorded run. A passing verification therefore confirms historical reference
-evidence for matching bytes; evidence that a changed plan or environment passes
-requires a new run. Participant HTTP/MCP behavior has separate integration tests
-and is not asserted by this qualification report.
-
-Before accepting a delivery, verify each delivered or changed case against its
-actual recipient export. Keep qualification evidence outside the static Dataset.
-Dataset maintainers own delivery summaries, core-selection acceptance and release
-file enumeration; these authoring operations are not part of this package.
-
-Dataset loading and ordinary evaluation do not consume retained qualification
-reports. A `qualified` status alone does not establish acceptance. A full
-qualification requires a passing complete plan on the same reference GDS; it
-establishes feasibility under declared conditions, not manufacturing signoff or
-participant performance. Separate repeated runs may be used when numerical
-stability itself needs study.
-
-`audit` performs contract classification without an EDA run. `run` repeats this
-preflight automatically and rejects legacy implicit metric bounds. Explicit
-requirements need a functional rationale; performance targets belong in quality
-normalization and weights. The retained report includes this classification.
-The audit cannot establish that a written rationale is physically justified;
-authors must review it and the invalid/valid-degraded controls. On failure,
-diagnose the contract, measurement and environment before changing the reference.
+The [qualification guide](docs/tasks.md#qualification) defines the audit, run and
+verify commands, retained evidence and changed-input rules.
+Use the checkout environment for development checks and the selected installed
+release for recipient-side verification.
 
 ### Validation scope and changed inputs
 
@@ -342,20 +333,22 @@ remain authoring work rather than independent extraction oracles.
 
 ## Ownership and review
 
-Update the owning guide when interfaces change. Architecture owns the shared
-protocol and module responsibilities; running owns local/remote participation;
-tools owns preparation/backend setup. Operators document their own formal workflows.
+Update the owning guide when interfaces change. Architecture owns responsibilities,
+the HTTP contract and extension boundaries.
+Running owns participant configuration, execution, recovery and result analysis;
+tasks owns task/scoring/qualification contracts; tools owns EDA setup and backend
+references. Operators document their own formal workflows.
 Preserve unrelated changes and verify and commit affected repositories separately.
 
 <a id="ci-cd"></a>
 
 ## CI and release
 
-Public push/PR checks cover lint, documentation, offline regressions and independent
+Push/PR checks cover lint, documentation, offline regressions and independent
 wheel installation. Its manually dispatched EDA workflow builds the public image
 and checks containers, HTTP sessions and selected public references without operator applications.
-The operator's own workflow pins a compatible Public revision and verifies operator
-behavior against it. Hidden assets, credentials and raw model transcripts never
+Applications integrating Bench pin a compatible package release and test their
+own behavior against it. Hidden assets, credentials and raw model transcripts never
 enter release artifacts.
 
 The [release workflow](.github/workflows/cd.yml) builds and checks wheel/sdist
@@ -407,10 +400,10 @@ session continuation. Container/EDA qualification is separate.
 
 `tests/test_http.py` also terminates real schedulers and case workers to verify
 independent settlement, lease ownership and collection of the accepted candidate.
-These use the formal test image and an explicit Dataset. Local service subprocesses
+These use a compatible test image and an explicit Dataset. Service subprocesses
 use isolated installed-package imports; when testing a development worktree, set
-`ICLAYOUT_BENCH_TEST_PYTHON` to an existing formal environment with that worktree
-installed. No replacement environment or source-path injection is needed.
+`ICLAYOUT_BENCH_TEST_PYTHON` to the Python interpreter where that worktree is
+installed.
 
 ## Result archive verification
 
@@ -428,7 +421,6 @@ models. The current table definitions initialize empty databases. Changes to exi
 tables require an explicit, backed-up data update and checks against retained data. PostgreSQL uses the same interface; deployment-specific backup and
 recovery remain an operator responsibility.
 
-The operator Web service owns browser and HTTP authorization tests in operator applications.
-Public distributions contain shared result processing without a browser frontend
-or standalone viewer. Wheel smoke checks verify the result CLI outside the source
-checkout and ensure the retired viewer module is absent.
+Consuming applications test their own browser interfaces and authorization.
+The Bench package provides structured result processing and no browser frontend.
+Wheel smoke checks verify that the result CLI works outside the source checkout.

@@ -5,10 +5,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from benchmarking.bundles import publish_bundle
-from benchmarking.engine.backends.hbt.backend import SG13G2HBTRCDocker
-from benchmarking.engine.backends.klayout import KLayoutDocker
+from benchmarking.eda.backends.hbt.backend import SG13G2HBTRCDocker
+from benchmarking.eda.backends.klayout import KLayoutDocker
 from benchmarking.evaluation import Job
+from benchmarking.evidence.bundles import publish_bundle
 from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
@@ -25,8 +25,8 @@ def settings(tmp_path, monkeypatch):
             self.inputs = inputs
             return SimpleNamespace(reason="tool boundary stop", returncode=1, evidence={}, files={})
 
-    monkeypatch.setattr("benchmarking.engine.backends.klayout.DockerTool", Tool)
-    monkeypatch.setattr("benchmarking.engine.backends.magic.DockerTool", Tool)
+    monkeypatch.setattr("benchmarking.eda.backends.klayout.DockerTool", Tool)
+    monkeypatch.setattr("benchmarking.eda.backends.magic.DockerTool", Tool)
     profile = {"deck": "rules.lvs", "variables": {"disable_tap_extraction": "false"}, "scope": "strict taps"}
     publish_bundle({"rules.lvs": Asset(b"# fixture", "text"),
                     "profile.json": Asset(json.dumps(profile).encode(), "json")}, {}, tmp_path / "klayout")
@@ -56,12 +56,12 @@ def test_body_boundary_is_explicit_without_changing_physical_lvs(settings, disab
 
 
 def test_hbt_identity_covers_split_implementation_modules(settings):
-    from benchmarking.engine.source import package_source
+    from benchmarking.evidence.identity import package_source
 
     adapter = SG13G2HBTRCDocker(**settings)
     names = ("netlist", "connectivity", "passives", "matching", "merge", "backend")
     expected = {
-        name: Asset(package_source(f"engine/backends/hbt/{name}.py").read_bytes(), "python").sha256
+        name: Asset(package_source(f"eda/backends/hbt/{name}.py").read_bytes(), "python").sha256
         for name in names
     }
 

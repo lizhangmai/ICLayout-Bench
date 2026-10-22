@@ -1,9 +1,8 @@
 """Translate HTTP routes into atomic local session operations."""
 
 from benchmarking.protocol import identifier, json_bytes
-
-from .contracts import APIError
-from .controller import SessionController
+from benchmarking.service.contracts import APIError
+from benchmarking.service.controller import SessionController
 
 
 class LocalService:

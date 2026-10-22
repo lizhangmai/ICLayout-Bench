@@ -4,9 +4,9 @@ import argparse
 import os
 from pathlib import Path
 
-from .client import Client
-from .files import Asset, atomic_write
-from .protocol import evaluation_mode, json_bytes
+from benchmarking.client import Client
+from benchmarking.files import Asset, atomic_write
+from benchmarking.protocol import evaluation_mode, json_bytes
 
 
 def export_observation(client, session_id, destination, *, participant_files=()):
