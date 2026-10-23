@@ -122,7 +122,6 @@ def test_framework_rejects_process_geometry_and_model_rewrite_settings():
 
 
 def test_explicit_native_execution_preserves_frozen_bytes_and_failure_evidence():
-    from benchmarking.eda.backends.calibre import _rewrite_workspace_paths
     from benchmarking.eda.environment import ExternalRuntime
     from benchmarking.execution.tools.native import NativeTool
     from benchmarking.files import Asset
@@ -131,9 +130,8 @@ def test_explicit_native_execution_preserves_frozen_bytes_and_failure_evidence()
     tool = NativeTool(runtime, 5, failure_label='Calibre')
     frozen = Asset(b'/workspace/unchanged\x00binary', 'gds')
     files = {'candidate.gds': frozen, 'run.sh': Asset(
-        b'cat /workspace/candidate.gds > copied.gds\nprintf "native error"\nexit 3\n', 'text')}
-    result = tool.run(['bash', 'run.sh'], files, {'copied.gds': 'gds'},
-                      file_rewriter=_rewrite_workspace_paths)
+        b'cat candidate.gds > copied.gds\nprintf "native error"\nexit 3\n', 'text')}
+    result = tool.run(['bash', 'run.sh'], files, {'copied.gds': 'gds'})
     assert result.files['copied.gds'] == frozen
     assert result.returncode == 3 and result.reason
     assert result.evidence['console'].content == b'native error'

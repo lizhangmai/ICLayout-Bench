@@ -5,14 +5,16 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
+import sys
 from pathlib import Path
 
 from benchmarking.eda.environment import ExternalRuntime
 from benchmarking.eda.netlists.dspf import bind_extracted_netlist
 from benchmarking.evaluation.contracts import JobResult
 from benchmarking.evidence.identity import package_source
-from benchmarking.execution.tools.docker import DockerTool
+from benchmarking.execution.tools.native import NativeEDATool
 from benchmarking.files import Asset, keys
 
 
@@ -93,14 +95,13 @@ def lvs_summary(log, summary, comparison, cells, top):
             'execution_steps': int(rules[0]), 'cells_checked': int(checked[0])}
 
 
-class AssuraDocker:
+class AssuraNative:
     def __init__(self, *, runtime, drc_deck, timeout_seconds=300):
         if not isinstance(runtime, ExternalRuntime):
             raise TypeError('Assura backend requires a resolved external runtime')
         self.runtime = runtime
         self.drc_deck = drc_deck
-        self.tool = DockerTool(self.runtime.image, ['assura', '-h'], timeout_seconds,
-                               runtime=self.runtime)
+        self.tool = NativeEDATool(self.runtime, 'assura', ['assura', '-h'], timeout_seconds)
         version = re.findall(r'^sub-version (.+)$', self.tool.version, re.MULTILINE)
         if len(version) != 1:
             raise ValueError('Incomplete Assura version identity')
@@ -108,7 +109,7 @@ class AssuraDocker:
 
     @property
     def identity(self):
-        return {'adapter': 'assura-drc-docker', 'drc_deck': self.drc_deck,
+        return {'adapter': 'assura-drc-native', 'drc_deck': self.drc_deck,
                 **self.tool.identity,
                 'adapter_sha256': Asset(Path(__file__).read_bytes(), 'python').sha256}
 
@@ -137,15 +138,14 @@ class AssuraDocker:
                          evidence=evidence)
 
 
-class AssuraLvsDocker:
+class AssuraLvsNative:
     def __init__(self, *, runtime, extract_deck, compare_deck, binding_deck, timeout_seconds=300):
         if not isinstance(runtime, ExternalRuntime):
             raise TypeError('Assura backend requires a resolved external runtime')
         self.runtime = runtime
         self.decks = {'extract_deck': extract_deck, 'compare_deck': compare_deck,
                       'binding_deck': binding_deck}
-        self.tool = DockerTool(self.runtime.image, ['assura', '-h'], timeout_seconds,
-                               runtime=self.runtime)
+        self.tool = NativeEDATool(self.runtime, 'assura', ['assura', '-h'], timeout_seconds)
         version = re.findall(r'^sub-version (.+)$', self.tool.version, re.MULTILINE)
         if len(version) != 1:
             raise ValueError('Incomplete Assura version identity')
@@ -153,7 +153,7 @@ class AssuraLvsDocker:
 
     @property
     def identity(self):
-        return {'adapter': 'assura-lvs-docker', **self.decks, **self.tool.identity,
+        return {'adapter': 'assura-lvs-native', **self.decks, **self.tool.identity,
                 'adapter_sha256': Asset(Path(__file__).read_bytes(), 'python').sha256}
 
     def run(self, job, inputs):
@@ -186,7 +186,7 @@ class AssuraLvsDocker:
         return JobResult(data['status'], '' if data['match'] else 'Assura LVS mismatch', evidence=evidence)
 
 
-class AssuraRCDocker(AssuraLvsDocker):
+class AssuraRCNative(AssuraLvsNative):
     """Quantus extraction from a freshly checked Assura GDS/CDL database."""
 
     def __init__(self, *, runtime, extract_deck, compare_deck, binding_deck,
@@ -202,8 +202,7 @@ class AssuraRCDocker(AssuraLvsDocker):
         self.settings = {'qrc_technology': qrc_technology,
                          'require_junctions': require_junctions,
                          'junctionless_models': list(junctionless_models)}
-        raw = DockerTool(self.runtime.image, ['quantus', '-version'], timeout_seconds,
-                         runtime=self.runtime).version
+        raw = NativeEDATool(self.runtime, 'quantus', ['quantus', '-version'], timeout_seconds).version
         self.quantus_version = {}
         for label in ('Version', 'Build Ref. No.', 'Build Date'):
             values = re.findall(r'^'+re.escape(label)+r'\s*:\s*(.+)$', raw, re.MULTILINE)
@@ -213,7 +212,7 @@ class AssuraRCDocker(AssuraLvsDocker):
 
     @property
     def identity(self):
-        return {**super().identity, 'adapter': 'assura-rc-docker', 'settings': self.settings,
+        return {**super().identity, 'adapter': 'assura-rc-native', 'settings': self.settings,
                 'quantus_version': self.quantus_version,
                 'spice_number_sha256': Asset(package_source('eda/netlists/spice.py').read_bytes(), 'python').sha256,
                 'dspf_adapter_sha256': Asset(package_source('eda/netlists/dspf.py').read_bytes(), 'python').sha256}
@@ -250,7 +249,7 @@ class AssuraRCDocker(AssuraLvsDocker):
                   'assura run.rsf > assura.log 2>&1\n'
                   'grep -q "Schematic and Layout Match" result.cls\n'
                   + self.runtime.module_setup('quantus') + '\n'
-                  'python3 wait_process_tree.py quantus -cmd qrc.cmd > qrc.log 2>&1\n')
+                  + shlex.join([sys.executable, '-I', 'wait_process_tree.py', 'quantus', '-cmd', 'qrc.cmd']) + ' > qrc.log 2>&1\n')
         files = {'candidate.gds': inputs['layout'], 'source.cdl': inputs['netlist'],
                  'run.rsf': Asset(runset.encode(), 'text'), 'qrc.cmd': Asset(qrc.encode(), 'text'),
                  'run.sh': Asset(script.encode(), 'text'),
@@ -286,7 +285,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--pdk', type=Path,
-                        help='Process manifest for Docker checks; deck paths are relative to PDK_ROOT')
+                        help='Process manifest for host checks; deck paths are relative to PDK_ROOT')
     parser.add_argument('--netlist', type=Path)
     parser.add_argument('--compare-deck', type=Path)
     parser.add_argument('--binding-deck', type=Path)
@@ -302,13 +301,13 @@ def main():
             if not all([args.netlist, args.compare_deck, args.binding_deck]):
                 parser.error('LVS requires --netlist, --compare-deck and --binding-deck')
             inputs['netlist'] = Asset(args.netlist.read_bytes(), 'spice')
-            backend = AssuraLvsDocker(runtime=runtime, extract_deck=str(args.deck),
+            backend = AssuraLvsNative(runtime=runtime, extract_deck=str(args.deck),
                                       compare_deck=str(args.compare_deck),
                                       binding_deck=str(args.binding_deck), timeout_seconds=args.timeout)
         else:
             if any([args.netlist, args.compare_deck, args.binding_deck]):
                 parser.error('CDL and comparison decks belong to LVS')
-            backend = AssuraDocker(runtime=runtime, drc_deck=str(args.deck),
+            backend = AssuraNative(runtime=runtime, drc_deck=str(args.deck),
                                    timeout_seconds=args.timeout)
         args.output.mkdir(parents=True, exist_ok=False)
         result = backend.run(Job(args.check, 'check', 'layout.' + args.check,

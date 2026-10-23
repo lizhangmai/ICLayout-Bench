@@ -120,3 +120,22 @@ class NativeTool:
                     reason = reason or 'Declared tool output is missing: ' + name
                     evidence['missing:' + name] = Asset(name.encode(), 'text')
         return ToolResult(code, reason, produced, evidence)
+
+
+class NativeEDATool(NativeTool):
+    """Run a declared EDA module on the evaluator host and record its version."""
+
+    def __init__(self, runtime, module, version_command, timeout_seconds=180):
+        super().__init__(runtime, timeout_seconds, failure_label=module)
+        self.module = module
+        result = self.probe(runtime.module_command(module, version_command), timeout=timeout_seconds)
+        self.version = self._evidence(result.stdout, 'text').content.decode(errors='replace').strip()
+        if result.returncode or not self.version:
+            raise ValueError(f'{module} did not report a complete release identity')
+
+    @property
+    def identity(self):
+        return super().identity | {'module': self.module, 'tool_version': self.version}
+
+    def run(self, command, files, exports, **kwargs):
+        return super().run(self.runtime.module_command(self.module, command), files, exports, **kwargs)

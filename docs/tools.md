@@ -41,9 +41,9 @@ OpenVAF, KLayout and the prepared Python tools below. Its label is
 frozen image identities; each operation retains its own isolation. Harness CLIs
 are installed on the participant host separately.
 
-Case resource loading uses an explicit image, then `ICLAYOUT_BENCH_IMAGE`, then
-the declared external runtime image or the published open image. For experiments
-using commercial tools, select the matching image explicitly with `--image`.
+Open EDA resource loading uses an explicit image, then `ICLAYOUT_BENCH_IMAGE`,
+then the published open image. Commercial evaluators run directly on the
+operator host and do not resolve or inspect a Docker image.
 `scheme.solver_image` or the service's `--solver-image` can choose a distinct
 participant image while trusted evaluator bindings remain separate. Commercial
 images and installed vendor tools follow [Commercial runtimes](#external-commercial-runtimes).
@@ -495,7 +495,7 @@ An area objective alone needs no size limit and may use an empty `hard` list.
 An explicit `bbox_max` remains a validity gate; use it only for a justified
 implementation envelope, following [validity and quality](tasks.md#validity-and-quality).
 
-For [commercial runtimes](#external-commercial-runtimes), `virtuoso-geometry-docker` accepts `runtime`, `check`
+For [commercial runtimes](#external-commercial-runtimes), `virtuoso-geometry-native` accepts `runtime`, `check`
 (`artifact` or `geometry`) and `timeout_seconds`. XStream imports the frozen GDS
 into an isolated OA library; Virtuoso queries hierarchy and arrays and measures
 each non-text shape under its native occurrence transform, without building a
@@ -650,7 +650,10 @@ and backend; Qucsator is not a substitute for that simulator.
 Operator-installed EDA and PDKs can be bound to the shared evaluator without
 entering the public resource cache. The public package includes generic
 commercial tool adapters; it bundles no vendor software or process data.
-These backends require Docker, licensed tools and an explicitly installed PDK.
+Commercial evaluation uses licensed tools and an explicitly installed PDK on
+the trusted operator host. Agent solving uses the declared commercial Docker
+image. The evaluator receives only frozen submissions and declared evaluation
+inputs; it does not run inside or read the writable solver workspace.
 
 ### Runtime manifest
 
@@ -660,14 +663,15 @@ contains `image`, `environment`, `mounts`, optional `modules`, `tool_environment
 read-only mount specifies absolute `source` and `target`, `release`, and
 `identity_paths` relative to its source. Select model, rule and extraction files
 actually used, plus tool identity files. File content, declared releases, tool
-version output and Docker image ID enter evaluator identity. Installation changes
+version output, host execution mode and UID/GID enter evaluator identity.
+The Docker image ID belongs to solver deployment. Installation changes
 in selected paths are rejected between preparation and execution. This does not
 attest every binary or dependency of an installation: operators must keep the
 selected installation immutable during a run and review their identity coverage.
 
 `runtime.control_files` maps relative filenames to fixed native EDA text, such as
-a process rule wrapper or simulator model interface. Both execution transports
-stage these bytes unchanged under `process/` in the tool workspace; job inputs
+a process rule wrapper or simulator model interface. The host evaluator stages these bytes unchanged under `process/` in each
+fresh job directory; job inputs
 cannot replace them. Their content digests enter runtime identity. Backend
 settings that accept an `@filename` reference resolve only this declared table.
 These files belong to the process declaration and require independent author
@@ -702,8 +706,9 @@ For installations managed by Environment Modules, add a `modules` table to the
 process runtime. Keys are command names such as `pvs`, `quantus`, `spectre`, and
 `assura`; each value is a nonempty list of module names. Mount the selected
 modulefiles read-only, include them in that mount's `identity_paths`, and set
-`EDA_ROOT` and `MODULEPATH` to their container paths in `environment`. The image
-must provide `/usr/share/Modules/init/bash`. Evaluator commands load the selected
+`EDA_ROOT` and `MODULEPATH` to the declared installation paths in `environment`.
+Host and container environments provide `/usr/share/Modules/init/bash`.
+Host resource paths and declared targets must be identical. Evaluator commands load the selected
 modules in each tool process. Solver shell commands load modules explicitly.
 Optional `tool_environment.<tool>` tables declare noncredential environment
 settings applied after that tool's modules load. The settings enter runtime
@@ -766,7 +771,8 @@ The case's `distribution` controls delivery and is independent of process
 installation. Owners must classify asset rights before delivery.
 The local service accepts an explicit `--solver-runtime NAME` only when NAME
 matches the case's external process declaration. `--solver-image` selects
-a separate solver image; `--image` and backend profiles select evaluator images. No cached
+the solver image; evaluator backends use the operator host. `--image` selects
+open EDA evaluator images and does not override commercial host execution. No cached
 Agent bundle is required. The process runtime supplies read-only installations
 and minimal tool license access. Provider credentials, reference files and operator
 repositories stay outside the container. Solver mounts cannot shadow trusted
@@ -779,7 +785,7 @@ the operator, including license/network policy and installation immutability.
 
 ### Assura
 
-`assura-drc-docker` runs the operator-provided `drc_deck` relative to
+`assura-drc-native` runs the operator-provided `drc_deck` relative to
 `PDK_ROOT` with the mounted Assura installation. It accepts frozen GDS and task
 inputs, uses the deck's default switches, enables non-45-degree and 0.005 um
 off-grid checks, and applies no black boxes or waivers. A pass requires normal
@@ -789,7 +795,7 @@ are not implied by a default DRC pass. Evidence includes the runset, native log,
 summary and error report. The runtime must provide `assura` on PATH.
 For a host diagnostic with the same runset and parser, use
 `python -m benchmarking.eda.backends.assura --layout FILE --top CELL --deck FILE --output NEW_DIR`.
-`assura-lvs-docker` accepts frozen GDS, task and reference CDL (`spice` format).
+`assura-lvs-native` accepts frozen GDS, task and reference CDL (`spice` format).
 Its `extract_deck`, `compare_deck` and `binding_deck` are relative to `PDK_ROOT`.
 It invokes native Assura extraction and CDL comparison without OA access, rule
 rewrites or tolerance overrides. The CDL must use the selected reader/deck's
@@ -799,11 +805,11 @@ the requested top, and agreement of the native comparison and cell summaries.
 
 The same CLI supports `--check lvs --netlist FILE --compare-deck FILE
 --binding-deck FILE` with `--deck` selecting extraction. Add `--pdk PDK_TOML`
-to run either check in the declared Docker runtime; deck paths then become
-relative installation paths. Both adapters may share the same runtime image.
+to run either check with the declared host modules and resources; deck paths
+then become relative installation paths.
 These are physical observations, not complete electrical qualification.
 
-`assura-rc-docker` uses the same extraction, comparison and binding decks,
+`assura-rc-native` uses the same extraction, comparison and binding decks,
 then runs Quantus on the freshly matched Assura database. It accepts `ports`
 and optional integer `temperature_c` job parameters. `qrc_technology` is a
 PDK-relative technology directory. The native output must already use the
@@ -819,15 +825,15 @@ Runsets, commands, native reports and raw DSPF remain evaluation evidence.
 
 ### PVS
 
-`pvs-docker` selects `check = "drc"`, `"lvs"` or `"rc"`. Deck paths and Quantus
+`pvs-native` selects `check = "drc"`, `"lvs"` or `"rc"`. Deck paths and Quantus
 technology paths are relative to `PDK_ROOT`. `lvs_includes` explicitly adapts
 exact include directives to mounted paths without changing rule logic. DRC
 requires a normal completion and a nonempty executed-rule count; LVS requires a
 complete match without blackboxed cells. RC extraction checks LVS first and
 retains physical instances, resistance and capacitance. A Linux subreaper
-(`python3` in the runtime image) waits for the Quantus command and any orphaned
-workers; nonzero worker exit status is an error. Container timeout still bounds
-the whole process tree. A parent completion message alone is insufficient. Only the extracted
+(launched with the evaluator Python interpreter) waits for the Quantus command
+and any orphaned workers; nonzero worker exit status is an error. The native
+job timeout bounds the whole process tree. A parent completion message alone is insufficient. Only the extracted
 subcircuit port declaration is reordered to match the declared named interface.
 This backend requires identical simple layout/source top names and
 DSPF top-level ports (including SPICE continuations). Unsupported output is an error, not a pass.
@@ -839,7 +845,7 @@ the native logs for diagnosis; it emits no simulation netlist.
 
 ### Calibre
 
-`calibre-docker` selects `check = "drc"`, `"lvs"` or `"rc"` and an installed
+`calibre-native` selects `check = "drc"`, `"lvs"` or `"rc"` and an installed
 `deck` relative to `PDK_ROOT`. Optional `includes` maps exact quoted include
 names to mounted process paths; `source_libraries` supplies process device
 declarations for LVS. The adapter changes run I/O statements while preserving
@@ -907,13 +913,12 @@ extract it correctly, including shared diffusion. The adapter does not inject
 junction formulas or copy geometry from source devices. Optional `ground` names
 the physical parasitic reference.
 
-### Native Calibre
+<a id="native-calibre"></a>
 
-`calibre-native` explicitly selects the same checks and extraction for an
-operator's node-locked host installation. It uses declared module/resource and
+`calibre-native` runs these checks and extraction on the operator's host installation. It uses declared module/resource and
 license bindings with identical host/target paths, copies frozen GDS/CDL into a
 fresh job directory, and enforces process-group timeouts. It is a trusted
-evaluator backend, not a solver runtime or an automatic Docker fallback. It
+evaluator backend, separate from the solver runtime. It
 runs as the operator user with host resources and network; container CPU,
 memory, filesystem and network isolation do not apply. Identity records this
 execution mode, UID/GID, tool release and declared resources. Select this mode
@@ -1005,7 +1010,7 @@ native library definitions and Tcl interface, independent of Virtuoso.
 
 ### Spectre
 
-`spectre-docker` selects a model file and section. Optional `sections` loads
+`spectre-native` selects a model file and section. Optional `sections` loads
 several sections of that file; optional `model_includes` lists additional model
 files relative to `PDK_ROOT` or `@filename` entries in `runtime.control_files`.
 These native model interfaces do not change the extracted DUT. A job's explicit `section` selects one corner of
@@ -1021,13 +1026,15 @@ The backend setting `max_parallel_jobs` defaults to 1; a positive integer opts
 into concurrent independent jobs with isolated tool workspaces. Select it within
 the installation's license and resource capacity. Candidate runs inside one
 calibration job remain sequential.
-Optional `memory_mb` explicitly caps tool container memory (range 256–262144 MB);
-omitting it leaves memory uncapped and records `null` in backend identity. This setting also
-applies to APS and Spectre X.
+All Spectre variants execute on the operator host in fresh job directories.
+Frozen input bytes, process-group timeouts and failure evidence are preserved.
+Host execution and tool versions are recorded without evaluator image identity
+or container resource limits. The retired container `memory_mb` setting is not
+accepted; solver container limits remain separate.
 
 ### Spectre APS
 
-`spectre-aps-docker` explicitly selects licensed APS (`+aps`) with `threads`
+`spectre-aps-native` explicitly selects licensed APS (`+aps`) with `threads`
 set to a positive integer (default 4 threads). Select the count within host and
 license capacity. Optional `aps_preset`
 (`conservative`, `moderate`, or `liberal`) selects the corresponding `++aps`
@@ -1040,10 +1047,10 @@ with the selected engine and options. License failures remain errors.
 
 ### Spectre X
 
-`spectre-x-docker` explicitly selects licensed Spectre X with `+preset` (`cx`,
+`spectre-x-native` explicitly selects licensed Spectre X with `+preset` (`cx`,
 `ax`, `mx`, `lx`, or `vx`) and `+mt` (`threads` is a positive integer, default 4).
 It uses the same inputs, measurements, calibration, and native
-failure checks as `spectre-docker`. Its identity records the selected preset
+failure checks as `spectre-native`. Its identity records the selected preset
 and thread count. Optional `postlayout_preset` selects `+postlpreset` using the
 same preset names, and is also recorded in identity. Characterize source observations and qualify the reference
 under the same selected settings.
@@ -1052,19 +1059,9 @@ honor: `maxstep`, `reltol`, `vabstol`, or `iabstol`. For transient contracts wit
 maximum sample interval, select `maxstep` when the preset would otherwise ignore
 that deck option. These overrides enter the backend identity.
 
-### Native Spectre X
-
-`spectre-x-native` explicitly uses the operator's host Spectre X installation
-with the same inputs, measurements and strict completion checks. The declared
-`spectre` module is selected for both version reporting and execution. Frozen
-deck and DUT bytes are retained in a fresh job directory; process-group timeouts
-and failure evidence apply. Identity records host execution and declared resources,
-with no container CPU, memory, filesystem or network isolation. Do not set a
-container `memory_mb` allocation for this backend. Solver isolation is unchanged;
-this is an independently selected trusted evaluator, never an automatic fallback.
-Its `threads` setting is limited by the evaluator process's host CPU affinity,
-while the Docker transport does not impose a thread-count ceiling. Select physical cores appropriate for the
-host and recharacterize and qualify affected cases when changing that setting.
+The declared `spectre` module is loaded for version reporting and execution.
+`threads` must fit the evaluator process's host CPU affinity. Select physical
+cores within the installation's license capacity. Solver isolation is unchanged.
 
 ### Native extracted circuit interfaces
 

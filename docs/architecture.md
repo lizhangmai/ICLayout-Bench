@@ -60,6 +60,10 @@ A solver receives declared task materials and reviewed resources. Reference
 layouts, author working libraries, qualification evidence, unrelated cases and
 model/website/session credentials remain outside EDA containers. An explicit
 [commercial runtime](tools.md#external-commercial-runtimes) can supply reviewed tool license access.
+Commercial Agents solve inside the declared container. Trusted commercial
+evaluation runs on the operator host in fresh job directories, using declared
+EDA modules, PDKs and license settings. Commercial evaluation does not inspect
+or launch Docker images and does not fall back between execution locations.
 The evaluator uses immutable candidate snapshots separately from writable solver
 state. Derived tool-specific circuit representations retain the authoritative
 circuit semantics; their run hashes record evidence integrity rather than task

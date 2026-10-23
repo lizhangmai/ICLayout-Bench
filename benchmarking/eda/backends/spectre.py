@@ -15,8 +15,7 @@ from benchmarking.evaluation.measurements.frequency import measure_transfer
 from benchmarking.evaluation.measurements.sweep import measure_sweep
 from benchmarking.evaluation.measurements.waveform import measure_waveform
 from benchmarking.evidence.identity import package_source
-from benchmarking.execution.tools.docker import DockerTool
-from benchmarking.execution.tools.native import NativeTool
+from benchmarking.execution.tools.native import NativeEDATool
 from benchmarking.files import Asset, keys
 
 
@@ -319,19 +318,12 @@ class SpectreBackend:
         return JobResult('passed', measurements={name: measurements[name] for name in requested}, evidence=evidence)
 
 
-class SpectreDocker(SpectreBackend):
-    """Classic Spectre using the reviewed evaluator container."""
+class SpectreNative(SpectreBackend):
+    """Classic Spectre on the trusted evaluator host."""
 
-    adapter = 'spectre-docker'
-
-    def __init__(self, *, memory_mb=None, **settings):
-        self.memory_mb = memory_mb
-        super().__init__(**settings)
-
+    adapter = 'spectre-native'
     def _make_tool(self, timeout_seconds):
-        # Spectre compiles model expressions into AHDL shared objects here.
-        return DockerTool(self.runtime.image, ['spectre', '-W'], timeout_seconds,
-                          runtime=self.runtime, memory_mb=self.memory_mb, executable_workspace=True)
+        return NativeEDATool(self.runtime, 'spectre', ['spectre', '-W'], timeout_seconds)
 
 
 class _APSTool:
@@ -355,10 +347,10 @@ class _APSTool:
                              files, exports, **kwargs)
 
 
-class SpectreAPSDocker(SpectreDocker):
+class SpectreAPSNative(SpectreNative):
     """Opt into licensed APS without changing the classic Spectre adapter."""
 
-    adapter = 'spectre-aps-docker'
+    adapter = 'spectre-aps-native'
 
     def __init__(self, *, threads=4, aps_preset=None, postlayout=None, **settings):
         if type(threads) is not int or threads < 1:
@@ -373,7 +365,7 @@ class SpectreAPSDocker(SpectreDocker):
 
     @property
     def identity(self):
-        return {**super().identity, 'adapter': 'spectre-aps-docker', 'threads': self.threads,
+        return {**super().identity, 'adapter': 'spectre-aps-native', 'threads': self.threads,
                 'aps_preset': self.aps_preset, 'postlayout': self.postlayout,
                 'aps_adapter_sha256': Asset(Path(__file__).read_bytes(), 'python').sha256}
 
@@ -399,12 +391,14 @@ class _SpectreXTool:
                              files, exports, **kwargs)
 
 
-class SpectreXBackend(SpectreBackend):
-    """Shared Spectre X controls for independently selected transports."""
+class SpectreXNative(SpectreNative):
+    """Licensed Spectre X on the trusted evaluator host."""
+
+    adapter = 'spectre-x-native'
 
     @property
     def thread_limit(self):
-        raise NotImplementedError("A Spectre X transport must declare its CPU allocation")
+        return len(os.sched_getaffinity(0))
 
     def __init__(self, *, threads=4, preset='ax', postlayout_preset=None, preset_override=(), **settings):
         if type(threads) is not int or threads < 1:
@@ -431,49 +425,3 @@ class SpectreXBackend(SpectreBackend):
                 'postlayout_preset': self.postlayout_preset,
                 'preset_override': self.preset_override,
                 'x_adapter_sha256': Asset(Path(__file__).read_bytes(), 'python').sha256}
-
-
-class SpectreXDocker(SpectreXBackend, SpectreDocker):
-    """Run licensed Spectre X in an isolated evaluator container."""
-
-    adapter = 'spectre-x-docker'
-
-    @property
-    def thread_limit(self):
-        return None
-
-
-class _NativeSpectreTool:
-    def __init__(self, runtime, timeout_seconds, *, version_command=('spectre', '-W')):
-        self.runtime = runtime
-        self.native = NativeTool(runtime, timeout_seconds, failure_label='Spectre')
-        probe = self.native.probe(runtime.module_command('spectre', version_command), timeout=timeout_seconds)
-        self.version = probe.stdout.decode(errors='replace').strip()
-        if probe.returncode or not self.version:
-            raise ValueError('Tool did not report a complete release identity')
-
-    @property
-    def identity(self):
-        return self.native.identity | {'module': 'spectre', 'tool_version': self.version}
-
-    def run(self, command, files, exports):
-        return self.native.run(self.runtime.module_command('spectre', command), files, exports)
-
-
-class SpectreXNative(SpectreXBackend):
-    """Trusted evaluator host execution, independently selected from Docker."""
-
-    tool_type = _NativeSpectreTool
-    adapter = 'spectre-x-native'
-
-    def _make_tool(self, timeout_seconds):
-        return self.tool_type(self.runtime, timeout_seconds)
-
-    @property
-    def thread_limit(self):
-        return len(os.sched_getaffinity(0))
-
-    @property
-    def identity(self):
-        return super().identity | {'adapter': 'spectre-x-native',
-            'native_adapter_sha256': Asset(Path(__file__).read_bytes(), 'python').sha256}

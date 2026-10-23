@@ -1,15 +1,16 @@
-"""Cadence PVS and Quantus container adapter."""
+"""Cadence PVS and Quantus evaluator host adapter."""
 
 import json
 import re
 import shlex
+import sys
 from pathlib import Path
 
 from benchmarking.eda.environment import ExternalRuntime
 from benchmarking.eda.netlists.dspf import bind_extracted_netlist
 from benchmarking.evaluation.contracts import JobResult
 from benchmarking.evidence.identity import package_source
-from benchmarking.execution.tools.docker import DockerTool
+from benchmarking.execution.tools.native import NativeEDATool
 from benchmarking.files import Asset, keys
 
 
@@ -29,7 +30,7 @@ def _lvs_passed(text, top):
                                  'Cells that have been blackboxed')))
 
 
-class PvsDocker:
+class PvsNative:
     def __init__(self, *, runtime, check, drc_deck=None, lvs_deck=None,
                  lvs_includes=None, qrc_technology=None, require_junctions=False,
                  timeout_seconds=300):
@@ -42,11 +43,10 @@ class PvsDocker:
         self.settings = {'drc_deck': drc_deck, 'lvs_deck': lvs_deck,
                          'lvs_includes': lvs_includes or {}, 'qrc_technology': qrc_technology,
                          'require_junctions': require_junctions}
-        self.tool = DockerTool(self.runtime.image, ['pvs', '-version'], timeout_seconds, runtime=self.runtime)
+        self.tool = NativeEDATool(self.runtime, 'pvs', ['pvs', '-version'], timeout_seconds)
         self.quantus_version = None
         if check == 'rc':
-            raw = DockerTool(self.runtime.image, ['quantus', '-version'],
-                             timeout_seconds, runtime=self.runtime).version
+            raw = NativeEDATool(self.runtime, 'quantus', ['quantus', '-version'], timeout_seconds).version
             self.quantus_version = {}
             # Startup diagnostics can contain the current time. Bind the native
             # release/build fields so a new process can verify the same witness.
@@ -58,7 +58,7 @@ class PvsDocker:
 
     @property
     def identity(self):
-        return {'adapter': 'pvs-docker', 'check': self.check, 'settings': self.settings,
+        return {'adapter': 'pvs-native', 'check': self.check, 'settings': self.settings,
                 'quantus_version': self.quantus_version, **self.tool.identity,
                 'adapter_sha256': Asset(Path(__file__).read_bytes(), 'python').sha256,
                 'dspf_adapter_sha256': Asset(package_source('eda/netlists/dspf.py').read_bytes(), 'python').sha256,
@@ -110,7 +110,7 @@ class PvsDocker:
                 if not re.fullmatch(r'[A-Za-z0-9_./-]+', technology):
                     raise ValueError('Quantus technology path must be a simple absolute path')
                 # Keep reduction intermediates until all orphaned workers exit;
-                # the container workspace is discarded after evidence export.
+                # the job directory is discarded after evidence export.
                 qrc = (f'input_db -type pvs -directory_name svdb -run_name {top}\n'
                        f'process_technology -technology_directory {technology} -temperature {temperature}\n'
                        'extract -type rc_coupled\n'
@@ -123,7 +123,7 @@ class PvsDocker:
                 script = (self.runtime.module_setup('pvs') + '\n' + shlex.join(command) + '\n' +
                           f"grep -Eq 'Run Result[[:space:]]*:[[:space:]]*MATCH' {_quote(top+'.lvsrpt.cls')}\n" +
                           self.runtime.module_setup('quantus') + '\n' +
-                          'python3 wait_process_tree.py quantus -cmd qrc.cmd > qrc.log 2>&1\n')
+                          shlex.join([sys.executable, '-I', 'wait_process_tree.py', 'quantus', '-cmd', 'qrc.cmd']) + ' > qrc.log 2>&1\n')
                 files['run.sh'] = Asset(('set -eu\n'+script).encode(), 'text')
                 command = ['bash', 'run.sh']
                 exports.update({'qrc.log': 'text', 'extracted.dspf': 'spice'})

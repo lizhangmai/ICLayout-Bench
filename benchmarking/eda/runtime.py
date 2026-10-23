@@ -79,9 +79,13 @@ def load_case(config, *, image=None, include_agent=True, factories=None):
             selected = backend['settings'].get('runtime')
             if selected is not None and selected != source['runtime']:
                 raise ValueError('Backend runtime differs from the external PDK declaration')
-    image = tool_image(image, external=external.image if external else None)
-    image_id = subprocess.check_output(
-        ["docker", "image", "inspect", "--format", "{{.Id}}", image], text=True).strip()
+    # Commercial evaluation runs on the operator host. Its solver image is
+    # selected and inspected by session deployment, never by evaluator loading.
+    image_id = None
+    if external is None:
+        image = tool_image(image)
+        image_id = subprocess.check_output(
+            ["docker", "image", "inspect", "--format", "{{.Id}}", image], text=True).strip()
     profiles = {}
     diagnostics = cache_root() / "diagnostics" / task.digest
     for _, _, profile, spec in case_resources(config):

@@ -66,8 +66,8 @@ def load_toolchain_spec(config: Path, *, require_declared=False) -> ToolchainSpe
             raise TypeError(f"Backend {name} settings must be a table")
         if 'finfet' in entry['settings'] and entry['type'].startswith('calibre-'):
             raise ValueError('Retired finfet policy: declare native process rules and parameter checks instead')
-        if entry['type'] in {'calibre-docker', 'calibre-native', 'calibre-quantus-native',
-                             'calibre-starrc-native', 'assura-rc-docker', 'pvs-docker', 'icv-native'}:
+        if entry['type'] in {'calibre-native', 'calibre-quantus-native',
+                             'calibre-starrc-native', 'assura-rc-native', 'pvs-native', 'icv-native'}:
             retired = {'mos_models', 'resistor_models', 'bipolar_models', 'mos_junctions'} & entry['settings'].keys()
             if retired:
                 raise ValueError(f"Backend {name} requests retired circuit rewriting settings: "
@@ -84,19 +84,17 @@ def load_toolchain_spec(config: Path, *, require_declared=False) -> ToolchainSpe
 # registry keys and cannot supply module paths.
 _BUILTINS = {
     "ngspice-docker": ("ngspice", "NgspiceDocker"),
-    "assura-drc-docker": ("assura", "AssuraDocker"),
-    "assura-lvs-docker": ("assura", "AssuraLvsDocker"),
-    "assura-rc-docker": ("assura", "AssuraRCDocker"),
-    "pvs-docker": ("pvs", "PvsDocker"),
-    "virtuoso-geometry-docker": ("virtuoso", "VirtuosoGeometryDocker"),
+    "assura-drc-native": ("assura", "AssuraNative"),
+    "assura-lvs-native": ("assura", "AssuraLvsNative"),
+    "assura-rc-native": ("assura", "AssuraRCNative"),
+    "pvs-native": ("pvs", "PvsNative"),
+    "virtuoso-geometry-native": ("virtuoso", "VirtuosoGeometryNative"),
     "customcompiler-geometry-native": ("customcompiler", "CustomCompilerGeometryNative"),
-    "calibre-docker": ("calibre", "CalibreDocker"),
-    "spectre-docker": ("spectre", "SpectreDocker"),
+    "spectre-native": ("spectre", "SpectreNative"),
     "calibre-native": ("calibre", "CalibreNative"),
     "calibre-quantus-native": ("calibre_quantus", "CalibreQuantusNative"),
     "calibre-starrc-native": ("calibre_starrc", "CalibreStarRCNative"),
-    "spectre-aps-docker": ("spectre", "SpectreAPSDocker"),
-    "spectre-x-docker": ("spectre", "SpectreXDocker"),
+    "spectre-aps-native": ("spectre", "SpectreAPSNative"),
     "spectre-x-native": ("spectre", "SpectreXNative"),
     "icv-native": ("synopsys", "ICVNative"),
     "hspice-native": ("synopsys", "HspiceNative"),

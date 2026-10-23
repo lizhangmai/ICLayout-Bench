@@ -12,8 +12,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from benchmarking.eda.backends.pvs import PvsDocker
-from benchmarking.eda.backends.spectre import SpectreDocker
+from benchmarking.eda.backends.pvs import PvsNative
+from benchmarking.eda.backends.spectre import SpectreNative
 from benchmarking.evaluation import Job, parse_evaluation
 from benchmarking.execution.tools import ToolResult
 from benchmarking.files import Asset
@@ -49,17 +49,17 @@ def test_spectre_memory_allocation_is_applied_and_recorded(monkeypatch):
 
 
 def test_native_spectre_keeps_frozen_deck_and_rejects_crash_exit():
-    from benchmarking.eda.backends.spectre import _NativeSpectreTool
     from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.execution.tools.native import NativeEDATool
 
     runtime = ExternalRuntime('native-test', {'image': 'unused', 'environment': {}, 'mounts': []})
     version = [sys.executable, '-c', 'print("licensed-fixture")']
-    tool = _NativeSpectreTool(runtime, 5, version_command=version)
+    tool = NativeEDATool(runtime, 'spectre', version, 5)
     frozen = Asset(b'simulator lang=spectre\n// /workspace/frozen\n', 'spice')
     result = tool.run(['bash', '-c', 'cat deck.scs > observed.scs; exit 139'],
                       {'deck.scs': frozen}, {'observed.scs': 'spice'})
     assert result.files['observed.scs'] == frozen
-    assert result.returncode == 139 and 'Native Spectre' in result.reason
+    assert result.returncode == 139 and 'Native spectre' in result.reason
     assert tool.identity['execution'] == 'operator-native'
     assert 'image_id' not in tool.identity and 'limits' not in tool.identity
 
@@ -68,7 +68,7 @@ def test_aps_is_explicit_preserves_inputs_and_propagates_native_failure(monkeypa
     # Contract: selecting APS must reach the native command and identity, while
     # retaining Spectre's frozen inputs and error semantics. The I/O double
     # cannot establish numerical equivalence or license availability.
-    from benchmarking.eda.backends.spectre import SpectreAPSDocker
+    from benchmarking.eda.backends.spectre import SpectreAPSNative
     from benchmarking.eda.environment import ExternalRuntime
     seen = []
 
@@ -81,14 +81,14 @@ def test_aps_is_explicit_preserves_inputs_and_propagates_native_failure(monkeypa
             return ToolResult(1, 'Native license unavailable', {},
                               {'console': Asset(b'license failed', 'text')})
 
-    monkeypatch.setattr('benchmarking.eda.backends.spectre.DockerTool', Tool)
+    monkeypatch.setattr('benchmarking.eda.backends.spectre.NativeEDATool', Tool)
     monkeypatch.setattr('benchmarking.eda.environment.ExternalRuntime.pdk_file', lambda runtime, name: (None, '/pdk/'+name))
     threads = 16
     runtime = ExternalRuntime('test', {'image': 'test-image', 'environment': {}, 'mounts': []})
     settings = {'runtime': runtime, 'model': 'model', 'section': 'tt',
                 'sections': ['tt', 'res_tt', 'mim_tt'], 'model_includes': ['passive.scs']}
-    backend = SpectreAPSDocker(threads=threads, **settings)
-    classic = SpectreDocker(**settings)
+    backend = SpectreAPSNative(threads=threads, **settings)
+    classic = SpectreNative(**settings)
     assert backend.identity['threads'] == threads
     assert backend.identity['adapter'] != classic.identity['adapter']
     assert backend.identity['adapter_sha256'] == classic.identity['adapter_sha256']
@@ -109,9 +109,9 @@ include "/pdk/passive.scs"
     assert result.evidence['console'].content == b'license failed'
     for invalid in (True, 0, -1):
         with pytest.raises(ValueError, match='positive integer'):
-            SpectreAPSDocker(threads=invalid, **settings)
+            SpectreAPSNative(threads=invalid, **settings)
 
-    optimized = SpectreAPSDocker(threads=threads, aps_preset='moderate',
+    optimized = SpectreAPSNative(threads=threads, aps_preset='moderate',
                                   postlayout='hpa', **settings)
     assert optimized.identity['aps_preset'] == 'moderate'
     assert optimized.identity['postlayout'] == 'hpa'
@@ -126,11 +126,11 @@ include "/pdk/passive.scs"
 '''
     for field, invalid in (('aps_preset', 'fast'), ('postlayout', 'aggressive')):
         with pytest.raises(ValueError, match='(?i)' + field.replace('_', ' ')):
-            SpectreAPSDocker(threads=threads, **settings, **{field: invalid})
+            SpectreAPSNative(threads=threads, **settings, **{field: invalid})
 
 
 def test_spectre_x_preserves_inputs_and_rejects_native_failure(monkeypatch):
-    from benchmarking.eda.backends.spectre import SpectreXDocker, SpectreXNative
+    from benchmarking.eda.backends.spectre import SpectreXNative
     from benchmarking.eda.environment import ExternalRuntime
     seen = []
 
@@ -143,12 +143,12 @@ def test_spectre_x_preserves_inputs_and_rejects_native_failure(monkeypatch):
             return ToolResult(139, 'Tool/container exited with 139', {},
                               {'console': Asset(b'native crash', 'text')})
 
-    monkeypatch.setattr('benchmarking.eda.backends.spectre.DockerTool', Tool)
+    monkeypatch.setattr('benchmarking.eda.backends.spectre.NativeEDATool', Tool)
     monkeypatch.setattr('benchmarking.eda.environment.ExternalRuntime.pdk_file', lambda *args: (None, '/pdk/model'))
     runtime = ExternalRuntime('test', {'image': 'test-image', 'environment': {}, 'mounts': []})
     settings = {'runtime': runtime, 'model': 'model', 'section': 'tt'}
-    backend = SpectreXDocker(threads=16, preset='ax', preset_override=['maxstep'], memory_mb=8192, **settings)
-    assert backend.identity['adapter'] == 'spectre-x-docker'
+    backend = SpectreXNative(threads=16, preset='ax', preset_override=['maxstep'], **settings)
+    assert backend.identity['adapter'] == 'spectre-x-native'
     assert backend.identity['threads'] == 16 and backend.identity['preset'] == 'ax'
     inputs = {'deck': Asset(b'fixture', 'spice'), 'dut': Asset(b'circuit', 'spice')}
     job = Job('probe', 'simulate', 'circuit.simulate', (), (), (), None,
@@ -163,33 +163,22 @@ def test_spectre_x_preserves_inputs_and_rejects_native_failure(monkeypatch):
     assert result.evidence['console'].content == b'native crash'
     for invalid in (True, 0, -1):
         with pytest.raises(ValueError, match='positive integer'):
-            SpectreXDocker(threads=invalid, **settings)
+            SpectreXNative(threads=invalid, **settings)
     with pytest.raises(ValueError, match='Spectre X preset'):
-        SpectreXDocker(preset='moderate', **settings)
+        SpectreXNative(preset='moderate', **settings)
     with pytest.raises(ValueError, match='overridden parameters'):
-        SpectreXDocker(preset_override=['unknown'], **settings)
-    # Host execution uses the evaluator's affinity, independently of the
-    # container allocation. The command and identity must agree on that count.
+        SpectreXNative(preset_override=['unknown'], **settings)
     monkeypatch.setattr('benchmarking.eda.backends.spectre.os.sched_getaffinity',
                         lambda pid: set(range(16)))
-    monkeypatch.setattr(SpectreXNative, 'tool_type', Tool)
-    native = SpectreXNative(threads=16, preset='mx', **settings)
-    result = native.run(job, inputs)
-    assert '+mt=16' in seen.pop()[0]
-    assert native.identity['adapter'] == 'spectre-x-native'
-    assert native.identity['threads'] == 16
-    assert result.status == 'error'
     with pytest.raises(ValueError, match='CPU allocation'):
         SpectreXNative(threads=17, **settings)
-    with pytest.raises(TypeError, match='memory_mb'):
-        SpectreXNative(memory_mb=4096, **settings)
 
 
 def test_spectre_calibration_selects_eligible_setting_and_reuses_frozen_parameters(monkeypatch):
     # The external tool emits constant analytical traces. The exact-target
     # setting is ineligible; the two legal settings tie, requiring lower ID.
     # This protects selection and downstream propagation, not simulator physics.
-    backend = object.__new__(SpectreDocker)
+    backend = object.__new__(SpectreNative)
     backend.runtime = SimpleNamespace(pdk_file=lambda name: (None, '/pdk/model'))
     backend.model, backend.section = 'models', 'tt'
     monkeypatch.setattr('benchmarking.eda.environment.ExternalRuntime.pdk_file', lambda *args: (None, '/pdk/model'))
@@ -304,7 +293,7 @@ END OF REPORT
     class Deck:
         def read_text(self):
             return 'rule deck'
-    backend = object.__new__(PvsDocker)
+    backend = object.__new__(PvsNative)
     backend.runtime = SimpleNamespace(pdk_file=lambda name: (Deck(), '/pdk/deck'))
     backend.check = 'lvs'
     backend.settings = {'lvs_deck': 'lvs', 'lvs_includes': {}}
@@ -338,7 +327,7 @@ def test_spectre_differential_transfer_uses_complex_input_and_log_crossings(monk
         f'"freq" {freq}\n"out" (0 {2*gain})\n"inp" (0 1)\n"inn" (0 -1)\n'
         for freq, gain in [(1, 10), (10, math.sqrt(10)), (1000, .1)]) + 'END\n'
     dc = 'VALUE\n"out" "V" 0.5\n"VDD:p" "I" -0.000002\nEND\n'
-    backend = object.__new__(SpectreDocker)
+    backend = object.__new__(SpectreNative)
     backend.runtime = SimpleNamespace(pdk_file=lambda name: (None, '/pdk/model'))
     backend.model, backend.section = 'models', 'tt'
     monkeypatch.setattr('benchmarking.eda.environment.ExternalRuntime.pdk_file', lambda *args: (None, '/pdk/model'))
@@ -608,14 +597,14 @@ def test_quantus_identity_survives_timestamped_startup_diagnostics(monkeypatch):
     runtime = ExternalRuntime('operator', {'image': 'operator', 'environment': {}, 'mounts': []})
     serial = iter(range(4))
 
-    def tool(image, command, timeout, runtime):
+    def tool(runtime, module, command, timeout):
         version = (f'Runtime warning at time {next(serial)}\nVersion : release\n'
                    'Build Ref. No. : build\nBuild Date : fixed-build-date\n')
         return SimpleNamespace(version=version, identity={'tool_version': 'PVS release'})
 
-    monkeypatch.setattr('benchmarking.eda.backends.pvs.DockerTool', tool)
-    first = PvsDocker(runtime=runtime, check='rc').identity
-    second = PvsDocker(runtime=runtime, check='rc').identity
+    monkeypatch.setattr('benchmarking.eda.backends.pvs.NativeEDATool', tool)
+    first = PvsNative(runtime=runtime, check='rc').identity
+    second = PvsNative(runtime=runtime, check='rc').identity
     assert first == second
 
 
@@ -671,7 +660,7 @@ def test_rejected_dspf_retains_native_diagnostic_evidence(monkeypatch):
                 'qrc.log': Asset(b'Quantus terminated normally', 'text'),
                 'extracted.dspf': Asset(raw.encode(), 'spice')}
     deck = SimpleNamespace(read_text=lambda: 'rule deck')
-    backend = object.__new__(PvsDocker)
+    backend = object.__new__(PvsNative)
     backend.runtime = SimpleNamespace(module_setup=lambda _: '', pdk_file=lambda name: (deck, '/pdk/deck'))
     backend.check = 'rc'
     backend.settings = {'lvs_deck': 'lvs', 'lvs_includes': {}, 'qrc_technology': 'rcx',
@@ -728,7 +717,7 @@ def test_spectre_named_transients_share_run_and_reject_missing_edge():
     psf = 'VALUE\n' + ''.join(
         ''.join(f'"{name}" {values[i]}\n' for name, values in samples.items())
         for i in range(7)) + 'END\n'
-    backend = object.__new__(SpectreDocker)
+    backend = object.__new__(SpectreNative)
     backend.runtime = SimpleNamespace(pdk_file=lambda name: (None, '/pdk/model'))
     backend.model, backend.section = 'models', 'tt'
     runs = []
@@ -1001,9 +990,9 @@ def test_assura_rc_keeps_frozen_inputs_and_requires_native_match(monkeypatch):
     # synthetic reports and DSPF establish fail-closed adaptation, not physics.
     from types import SimpleNamespace
 
-    from benchmarking.eda.backends.assura import AssuraRCDocker
+    from benchmarking.eda.backends.assura import AssuraRCNative
 
-    backend = object.__new__(AssuraRCDocker)
+    backend = object.__new__(AssuraRCNative)
     backend.runtime = SimpleNamespace(module_setup=lambda _: '', pdk_file=lambda name: (None, '/pdk/'+name))
     backend.decks = {'extract_deck': 'extract', 'compare_deck': 'compare', 'binding_deck': 'bind'}
     backend.settings = {'qrc_technology': 'rcx', 'require_junctions': True,

@@ -13,7 +13,6 @@ from benchmarking.eda.netlists.dspf import bind_extracted_netlist
 from benchmarking.eda.netlists.spice import logical_lines, number
 from benchmarking.evaluation.contracts import JobResult
 from benchmarking.evidence.identity import package_source
-from benchmarking.execution.tools.docker import DockerTool
 from benchmarking.execution.tools.native import NativeTool
 from benchmarking.files import Asset, keys
 
@@ -141,22 +140,22 @@ class CalibreBackend:
 
     @staticmethod
     def _layout_controls(top):
-        return {'LAYOUT PATH': '"/workspace/candidate.gds"', 'LAYOUT PRIMARY': '"'+top+'"',
+        return {'LAYOUT PATH': '"candidate.gds"', 'LAYOUT PRIMARY': '"'+top+'"',
                 'LAYOUT SYSTEM': 'GDSII'}
 
     def _lvs_controls(self, top, *, execute_erc=True):
         libraries = [self.runtime.pdk_file(path)[1] for path in self.configuration.lvs.source_libraries]
         query = (' CCI' if self.configuration.connectivity == 'cci' else ' XRC') if self.check == 'rc' else ''
         controls = self._layout_controls(top) | {
-            'SOURCE PATH': ' '.join('"'+path+'"' for path in ['/workspace/source.spice', *libraries]),
+            'SOURCE PATH': ' '.join('"'+path+'"' for path in ['source.spice', *libraries]),
             'SOURCE PRIMARY': '"'+top+'"', 'SOURCE SYSTEM': 'SPICE',
-            'LVS REPORT': '"/workspace/lvs.report"', 'LVS IGNORE PORTS': 'NO',
+            'LVS REPORT': '"lvs.report"', 'LVS IGNORE PORTS': 'NO',
             'LVS CHECK PORT NAMES': 'YES', 'VIRTUAL CONNECT COLON': 'NO',
-            'ERC RESULTS DATABASE': '"/workspace/erc.results"',
-            'ERC SUMMARY REPORT': '"/workspace/erc.summary"'}
+            'ERC RESULTS DATABASE': '"erc.results"',
+            'ERC SUMMARY REPORT': '"erc.summary"'}
         if execute_erc:
             controls['LVS EXECUTE ERC'] = 'YES'
-        controls['MASK SVDB DIRECTORY'] = '"/workspace/svdb" QUERY' + query
+        controls['MASK SVDB DIRECTORY'] = '"svdb" QUERY' + query
         return controls
 
     def _rule_deck(self, controls):
@@ -212,8 +211,8 @@ class CalibreBackend:
         exports = {'calibre.log': 'text'}
         if self.check == 'drc':
             keys(job.parameters, set(), set(), 'Calibre DRC parameters')
-            controls.update({'DRC RESULTS DATABASE': '"/workspace/drc.results" ASCII',
-                             'DRC SUMMARY REPORT': '"/workspace/drc.summary"',
+            controls.update({'DRC RESULTS DATABASE': '"drc.results" ASCII',
+                             'DRC SUMMARY REPORT': '"drc.summary"',
                              'DRC MAXIMUM RESULTS': '1000'})
             command = f'calibre -drc -hier -turbo {self.configuration.drc.threads} control.svrf > calibre.log 2>&1\n'
             exports.update({'drc.summary': 'text', 'drc.results': 'text'})
@@ -223,7 +222,7 @@ class CalibreBackend:
                 raise ValueError('Calibre requires a SPICE source')
             files['source.spice'] = inputs['netlist']
             controls = self._lvs_controls(top)
-            command = ('calibre -lvs -hier -spice '+shlex.quote('/workspace/svdb/'+top+'.sp')+
+            command = ('calibre -lvs -hier -spice '+shlex.quote('svdb/'+top+'.sp')+
                        (' -hcell '+shlex.quote(self.runtime.pdk_file(self.configuration.lvs.hcell_file)[1])
                         if self.configuration.lvs.hcell_file else '')+
                        ' control.svrf > calibre.log 2>&1\n')
@@ -231,7 +230,7 @@ class CalibreBackend:
             if self.configuration.lvs.require_erc_summary:
                 exports['erc.summary'] = 'text'
             if self.check == 'rc':
-                controls['PEX NETLIST'] = '"/workspace/extracted.spice" HSPICE SOURCENAMES SINGLEFILE'
+                controls['PEX NETLIST'] = '"extracted.spice" HSPICE SOURCENAMES SINGLEFILE'
                 controls['PEX EXTRACT FLOATING NETS'] = 'REDUCED'
                 if self.configuration.rc.ground is not None:
                     if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', self.configuration.rc.ground):
@@ -275,26 +274,8 @@ class CalibreBackend:
         return JobResult('passed', outputs={'netlist': Asset(text.encode(), 'spice')}, evidence=evidence)
 
 
-class CalibreDocker(CalibreBackend):
-    """Calibre through the explicitly selected external Docker installation."""
-
-    tool_type = DockerTool
-    adapter = 'calibre-docker'
-
-    def _make_tool(self, timeout_seconds):
-        return self.tool_type(self.runtime.image, ['calibre', '-version'], timeout_seconds,
-                              runtime=self.runtime)
-
-
-def _rewrite_workspace_paths(name, content, root):
-    """Adapt trusted generated Calibre controls; leave frozen inputs byte-exact."""
-    if name in {'control.svrf', 'run.sh'}:
-        return content.replace(b'/workspace/', str(root).encode()+b'/')
-    return content
-
-
 class CalibreNative(CalibreBackend):
-    """Explicit host-licensed evaluator; never selected as a Docker fallback."""
+    """Calibre evaluation through the declared operator host installation."""
 
     adapter = 'calibre-native'
     tool_failure_label = 'Calibre'
@@ -314,5 +295,4 @@ class CalibreNative(CalibreBackend):
                                   'tool_version': self.tool_version}
 
     def _run_tool(self, command, files, exports):
-        return self.tool.run(command, files, exports, file_rewriter=_rewrite_workspace_paths,
-                             failure_label=self.tool_failure_label)
+        return self.tool.run(command, files, exports, failure_label=self.tool_failure_label)

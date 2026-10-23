@@ -9,7 +9,7 @@ from pathlib import Path
 from benchmarking.eda.backends.geometry import validate_constraints
 from benchmarking.eda.environment import ExternalRuntime
 from benchmarking.evaluation.contracts import JobResult, Measurement
-from benchmarking.execution.tools.docker import DockerTool
+from benchmarking.execution.tools.native import NativeEDATool
 from benchmarking.files import Asset, keys
 
 
@@ -52,18 +52,18 @@ def geometry_result(text, constraints):
     return JobResult('passed', measurements=measurements)
 
 
-class VirtuosoGeometryDocker:
+class VirtuosoGeometryNative:
     """Support artifact integrity and layer-selected bounding-box constraints."""
 
     def __init__(self, *, runtime, check, timeout_seconds=180):
         if not isinstance(runtime, ExternalRuntime) or check not in {'artifact', 'geometry'}:
             raise ValueError('Virtuoso geometry requires an external runtime and a supported check')
         self.runtime, self.check = runtime, check
-        self.tool = DockerTool(runtime.image, ['virtuoso', '-W'], timeout_seconds, runtime=runtime)
+        self.tool = NativeEDATool(runtime, 'virtuoso', ['virtuoso', '-W'], timeout_seconds)
 
     @property
     def identity(self):
-        return {'adapter': 'virtuoso-geometry-docker', 'check': self.check, **self.tool.identity,
+        return {'adapter': 'virtuoso-geometry-native', 'check': self.check, **self.tool.identity,
                 'adapter_sha256': Asset(Path(__file__).read_bytes(), 'python').sha256}
 
     def run(self, job, inputs):
@@ -141,7 +141,7 @@ exit()
             command += ['-layerMap', 'layers.map']
         script = ('set -eu\n' + self.runtime.module_setup('virtuoso') + '\nmkdir candidate\n' + shlex.join(command)
                   + '\nvirtuoso -nograph -nocdsinit -restore inspect.il -log virtuoso.log\n')
-        files = {'candidate.gds': inputs['layout'], 'cds.lib': Asset(b'DEFINE candidate /workspace/candidate\n', 'text'),
+        files = {'candidate.gds': inputs['layout'], 'cds.lib': Asset(b'DEFINE candidate ./candidate\n', 'text'),
                  'layers.map': Asset(layer_map.encode(), 'text'),
                  'inspect.il': Asset(skill.encode(), 'text'), 'run.sh': Asset(script.encode(), 'text')}
         result = self.tool.run(['bash', 'run.sh'], files,

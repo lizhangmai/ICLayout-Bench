@@ -22,7 +22,7 @@ def geometry_cases():
     selected = {}
     for path in CASES:
         backend = read_case(path).get('toolchain', {}).get('backends', {}).get('geometry', {})
-        if backend.get('type') in {'virtuoso-geometry-docker', 'customcompiler-geometry-native'}:
+        if backend.get('type') in {'virtuoso-geometry-native', 'customcompiler-geometry-native'}:
             selected.setdefault((backend['type'], backend['settings']['runtime']), path)
     return list(selected.values())
 
@@ -66,10 +66,10 @@ def array_gds(*, geometry=True):
 @pytest.fixture(scope='module', params=geometry_cases(), ids=lambda path: path.parents[3].name)
 def geometry_backend(request):
     from benchmarking.eda.backends.customcompiler import CustomCompilerGeometryNative
-    from benchmarking.eda.backends.virtuoso import VirtuosoGeometryDocker
+    from benchmarking.eda.backends.virtuoso import VirtuosoGeometryNative
 
     spec = read_case(request.param)['toolchain']['backends']['geometry']
-    cls = {'virtuoso-geometry-docker': VirtuosoGeometryDocker,
+    cls = {'virtuoso-geometry-native': VirtuosoGeometryNative,
            'customcompiler-geometry-native': CustomCompilerGeometryNative}[spec['type']]
     return cls(runtime=ExternalRuntime.from_manifest(process_manifest(request.param)), check='geometry')
 

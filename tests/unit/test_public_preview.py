@@ -23,7 +23,8 @@ from helpers.catalog import ROOT as PUBLIC_ROOT
 
 
 @pytest.mark.parametrize('override', [None, 'explicit-image'])
-def test_external_runtime_selects_its_own_image_without_an_open_image_dependency(preview_case, monkeypatch, override):
+@pytest.mark.parametrize('include_agent', [False, True])
+def test_commercial_evaluator_loading_never_accesses_docker(preview_case, monkeypatch, override, include_agent):
     from benchmarking.eda import runtime
 
     monkeypatch.delenv('ICLAYOUT_BENCH_IMAGE', raising=False)
@@ -42,16 +43,14 @@ def test_external_runtime_selects_its_own_image_without_an_open_image_dependency
     config['toolchain'] = {'backends': {'external': {'type': 'fixture', 'settings': {'runtime': 'commercial-fixture'}}},
                           'bindings': {'check': 'external', 'simulate': 'external'}}
     path.write_text(tomli_w.dumps(config))
-    inspected = []
-
     def inspect(command, **kwargs):
-        inspected.append(command[-1])
-        return 'sha256:selected'
+        pytest.fail('Loading a commercial evaluator must not inspect or launch Docker images')
 
     monkeypatch.setattr(runtime.subprocess, 'check_output', inspect)
-    selected = load_case(path, image=override, include_agent=False, factories={'fixture': lambda **settings: object()})
-    assert inspected == [override or 'declared-commercial-image']
+    selected = load_case(path, image=override, include_agent=include_agent,
+                         factories={'fixture': lambda **settings: object()})
     assert selected.external.name == 'commercial-fixture'
+    assert selected.external.image == 'declared-commercial-image'
 
 
 @pytest.fixture

@@ -85,7 +85,7 @@ def test_cadence_geometry_rejects_incomplete_or_invalid_native_evidence(report):
     ('License checkout failed', 'error'),
 ])
 def test_cadence_import_distinguishes_candidate_rejection_from_tool_failure(monkeypatch, report, expected):
-    from benchmarking.eda.backends.virtuoso import VirtuosoGeometryDocker
+    from benchmarking.eda.backends.virtuoso import VirtuosoGeometryNative
     from benchmarking.eda.environment import ExternalRuntime
 
     class Tool:
@@ -96,9 +96,9 @@ def test_cadence_import_distinguishes_candidate_rejection_from_tool_failure(monk
             return SimpleNamespace(returncode=255, reason='Native exit 255', evidence={},
                                    files={'stream.log': Asset(report.encode(), 'text')})
 
-    monkeypatch.setattr('benchmarking.eda.backends.virtuoso.DockerTool', Tool)
+    monkeypatch.setattr('benchmarking.eda.backends.virtuoso.NativeEDATool', Tool)
     runtime = ExternalRuntime('fixture', {'image': 'unused', 'environment': {}, 'mounts': []})
-    backend = VirtuosoGeometryDocker(runtime=runtime, check='artifact')
+    backend = VirtuosoGeometryNative(runtime=runtime, check='artifact')
     task = {'output': {'top_cell': 'dut', 'max_bytes': 1024}}
     job = Job('artifact', 'check', 'layout.artifact', (), (), (), 'artifact', '{}')
     result = backend.run(job, {'layout': Asset(b'candidate', 'gds'),
