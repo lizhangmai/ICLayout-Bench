@@ -34,13 +34,16 @@ def inspect_run(directory, *, include_usage=False):
     preview = result.get('image', {}).get('status') or ('missing' if expected else 'not_applicable')
     if preview == 'complete' and not (root / 'layout.png').is_file():
         preview = 'missing'
-    value = {'recorded_state': state, 'worker_alive': alive,
-             'runner_status': 'running' if alive else 'orphaned' if state in {'running', 'finalizing'} else state,
+    attempt = _read(participant / '.private/recovery.json')
+    lifecycle_phase = attempt.get('phase', state)
+    value = {'recorded_state': state, 'phase': lifecycle_phase, 'worker_alive': alive,
+             'runner_status': ('finalizing' if lifecycle_phase == 'finalizing' else 'running') if alive else 'orphaned' if state in {'running', 'finalizing'} else state,
              'evaluation_status': evaluation_status, 'outcome': evaluation.get('outcome'),
              'score': evaluation.get('score'), 'evidence_status': evidence, 'preview_status': preview,
              'attachment_verification': 'not_performed', 'usage_scope': 'unknown'}
     settlement = _read(participant / 'finalization.json')
     if settlement:
+        value['phase'] = 'evaluating' if alive and settlement.get('closed') else settlement.get('phase', lifecycle_phase)
         value['settlement'] = {key: settlement.get(key) for key in ('phase', 'elapsed_seconds', 'closed', 'executions')}
     if include_usage:
         usage = result.get('model_usage')

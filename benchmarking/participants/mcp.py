@@ -30,7 +30,7 @@ TOOLS = [
     tool("read", "Read a UTF-8 file at a relative workspace path. Unavailable while an execution is running; use poll or cancel first. Use execute with cat for /task and /resources.", {"path": STRING}, ["path"]),
     tool("write", "Write model-authored UTF-8 content to a relative workspace path.",
          {"path": STRING, "content": STRING}, ["path", "content"]),
-    tool("execute", "Run a command in the remote EDA workspace. Returns after wait_seconds (default 10), possibly still running; use poll with execution_id/next_offset for more output, or cancel a failed or stuck command. Only one execution can run at a time; poll or cancel it before another execute, read, write, check or submit. No host execution. In a soft session, an already-started command may finish after the budget; omit seconds for no per-call timeout. At zero remaining time, submit immediately without another optimization round.",
+    tool("execute", "Run a command in the remote EDA workspace. Returns after wait_seconds (default 10), possibly still running; use poll with execution_id/next_offset for more output, or cancel a failed or stuck command. Only one execution can run at a time; poll or cancel it before another execute, read, write, check or submit. No host execution. An already-started command may finish after the solve deadline, within its independent command budget. At zero remaining time, submit immediately without another optimization round.",
          {"command": STRING, "seconds": {"type": "number", "exclusiveMinimum": 0}, "wait_seconds": WAIT}, ["command"]),
     tool("poll", "Read output and state of an existing execution; does not start work. Use next_offset from the previous reply. Available after budget expiry.",
          {"execution_id": STRING, "offset": {"type": "integer", "minimum": 0}, "wait_seconds": WAIT}, ["execution_id"]),
@@ -83,14 +83,14 @@ class Bridge:
             if name == "check" and "process-feedback" not in status.get("capabilities", []):
                 raise ValueError("Service does not advertise process-feedback")
             remaining = status["remaining_seconds"]
-            soft = status.get('budget', {}).get('policy') == 'soft'
-            if soft and remaining <= 0:
+            if remaining <= 0:
                 raise ClientError('budget_exhausted', 'Submit immediately without another optimization round')
-            seconds = args.get("seconds", None if soft else min(remaining, self.command_seconds or remaining))
-            if seconds is not None and (type(seconds) not in (int, float) or not math.isfinite(seconds) or seconds <= 0):
-                raise ValueError("Command seconds must be positive and finite")
-            if not soft:
-                seconds = min(seconds, remaining, self.command_seconds or remaining)
+            command_limit = status.get('budget', {}).get('phase_budgets', {}).get('command_seconds', 3600)
+            command_limit = min(command_limit, self.command_seconds or command_limit)
+            seconds = args.get('seconds', command_limit)
+            if type(seconds) not in (int, float) or not math.isfinite(seconds) or seconds <= 0:
+                raise ValueError('Command seconds must be positive and finite')
+            seconds = min(seconds, command_limit)
         request = {"tool": name, "arguments": args, "mutation": mutation, "key": key}
         if name in {"execute", "check"}:
             request["seconds"] = seconds

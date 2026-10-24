@@ -162,6 +162,8 @@ class SessionControl:
             try:
                 on_complete(code, size, truncated)
             finally:
+                if hasattr(workspace, 'budget'):
+                    workspace.budget.end_operation()
                 with self._lock:
                     self._executions.get(sid, {}).pop(eid, None)
                 self._finish_deferred_close(sid, should_close)

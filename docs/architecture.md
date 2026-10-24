@@ -213,25 +213,39 @@ Closing freezes selection and starts independent evaluation. Status includes
 
 The authoritative budget is `[task].hours`; `limits.wall_seconds` is that value
 in seconds. The service cannot replace it with a participant-selected budget.
-`budget.policy` and `limits.budget_policy` distinguish:
+The frozen `limits.phase_budgets` declares `solve_seconds`, `command_seconds`,
+`settlement_seconds` and `evaluation_seconds`. These are independent finite
+allowances, rather than a session-wide soft/hard switch.
 
-| Policy | At solve expiry |
+| `phase` | Transition and permitted work |
 | --- | --- |
-| `soft` | Finish already-started work; reject new executions/checks/writes; permit final submission, reads, polling, cancellation and close. Submit immediately without another optimization round. |
-| `hard` | Stop solve execution and close selection on the last accepted candidate; no late optimization/submission is granted. |
+| `solving` | Until the original solve deadline; commands/checks/writes may start. |
+| `draining` | An operation started before solve expiry finishes within its original command deadline; no new commands/checks/writes. |
+| `settling` | Final read/submission/close until the later of solve expiry and the last bounded operation end, plus the settlement allowance. |
+| `expired` | Submission window exhausted; close selection and remove the workspace. |
+| `evaluating` | Workspace closed; the frozen accepted candidate is independently judged under the final-evaluation allowance. |
+| `complete`, `error` | Terminal result; an infrastructure failure preserves candidate and diagnostic evidence. |
 
-The bundled HTTP service uses `soft`. Standalone solver configurations are hard
-unless `soft_budget = true` is selected. Clients honor the actual service policy.
-Elapsed time and overrun remain recorded; overrun alone does not zero an otherwise
-completed soft-budget attempt. Reconnection, HTTP backoff, native retries and
-checkpoint downtime consume the same deadline. Final judging grants no solve time.
+Status keeps the coarse `state` for protocol compatibility and exposes `phase`
+separately. `budget` includes phase-specific remaining times. Command defaults are
+3600 seconds, settlement 60 seconds; the final-evaluation allowance is the sum of
+job tool timeouts (300 seconds for a backend without a declared tool timeout),
+plus 60 seconds. Execution requests with null timeout use the command cap;
+positive timeouts are clamped to that cap. Cancellation and polling remain available
+after solve expiry. Native evaluator timeouts are always enabled in sessions.
+Final evaluation records an absolute deadline at phase entry. Observation and
+recovery consume that deadline rather than creating another allowance.
+
+Standalone solver configurations may declare `[phase_budgets]` with
+`command_seconds`, `settlement_seconds` and `evaluation_seconds`; solve duration
+still comes from the task. Without this table the command allowance equals the solve duration and
+the settlement allowance is zero. The former `soft_budget` configuration is rejected. Elapsed time and
+late submissions remain recorded; final judging grants no additional solve time.
 
 CPU, memory and PID limits default to null, meaning no framework quota. The
 local service enforces workspace/file/candidate/log/response bounds and publishes
-`max_command_seconds`. For soft sessions a null execution timeout lets started
-work finish; a positive explicit timeout bounds an exploratory operation. Hard
-sessions cap commands by their remaining allowance. [Tools](tools.md#eda-backend-contract)
-defines the separate evaluator job time-limit policy.
+`max_command_seconds`, matching the independent command cap.
+[Tools](tools.md#eda-backend-contract) defines evaluator job time limits.
 
 Workspace execution, file access and submission are serialized. A busy workspace
 returns `409 conflict`; status, poll and cancel remain usable. New mutations

@@ -205,30 +205,27 @@ def test_finalization_retains_only_participant_accepted_snapshot(tmp_path):
     assert record['receipt'] == receipt and record['submission'] == 'retained'
 
 
-def test_finalization_wait_obeys_deadline_and_retains_accepted_candidate(tmp_path, monkeypatch):
+def test_finalization_command_expiry_retains_accepted_candidate(tmp_path, monkeypatch):
     from types import SimpleNamespace
 
     from benchmarking.participants.attempt.runner import finalize_session
     fixture = InFlightService()
-    fixture.condition = {}
-    fixture.remaining = 1
     receipt = {'submission_id': 'earlier', 'sequence': 1, 'candidate_sha256': 'a' * 64}
-    original_result = fixture.result
-    fixture.result = lambda sid: dict(original_result(sid), submission=receipt, outcome='pass', score={'value': 83, 'method': 'layout', 'maximum': 100, 'reference': 100})
+    old_session = fixture.session
+    fixture.session = lambda sid: dict(old_session(sid), last_submission=receipt,
+        budget={'command_remaining_seconds': 1})
     fixture.poll = lambda sid, eid, offset=0: {'execution_id': eid, 'state': 'running', 'exit_code': None,
                                             'log_base64': '', 'next_offset': offset, 'truncated': False}
     clock = [0]
     def sleep(seconds):
         clock[0] += seconds
-    monkeypatch.setattr('benchmarking.participants.attempt.settlement.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
-    (tmp_path / '.private').mkdir()
-    (tmp_path / '.private/recovery.json').write_text('{"redactions": []}')
-    result = finalize_session(fixture, 'fixture-session', tmp_path)
-    assert clock[0] == 1
-    assert not fixture.submitted
-    assert fixture.closed == ['fixture-session']
-    assert result['submission'] == receipt and result['score']['value'] == 83
-    assert json.loads((tmp_path / 'finalization.json').read_text())['submission'] == 'deadline'
+    monkeypatch.setattr('benchmarking.participants.attempt.settlement.time', SimpleNamespace(
+        monotonic=lambda: clock[0], time=lambda: clock[0], sleep=sleep))
+    with pytest.raises(TimeoutError, match='command deadline'):
+        finalize_session(fixture, 'fixture-session', tmp_path)
+    evidence = json.loads((tmp_path / 'finalization.json').read_text())
+    assert evidence['receipt'] == receipt and evidence['closed']
+    assert fixture.closed == ['fixture-session'] and not fixture.submitted
 
 
 def test_finalization_keeps_primary_error_when_close_also_fails(tmp_path, monkeypatch):
@@ -2331,19 +2328,19 @@ def test_resume_rejects_an_unverified_live_owner_outside_the_selected_cases(tmp_
         live_slots(tmp_path)
 
 
-@pytest.mark.parametrize('policy,expected', [('hard', 120), ('soft', None)])
-def test_command_runner_uses_service_budget_and_retains_last_submission(tmp_path, monkeypatch, policy, expected):
+@pytest.mark.parametrize('budgets,expected', [(None, 120), ({'solve_seconds': 120, 'command_seconds': 300, 'settlement_seconds': 60, 'evaluation_seconds': 600}, 480)])
+def test_command_runner_uses_service_budget_and_retains_last_submission(tmp_path, monkeypatch, budgets, expected):
     from types import SimpleNamespace
 
     from benchmarking.participants import command
 
     calls = []
     created = {'session_id': 'session', 'session_token': 'secret',
-               'remaining_seconds': 120, 'limits': {'budget_policy': policy}}
+               'remaining_seconds': 120, 'limits': {'phase_budgets': budgets} if budgets else {}}
     terminal = {'state': 'complete'}
     client = SimpleNamespace(
         session=lambda sid: {'state': 'active', 'remaining_seconds': 120,
-                             'budget': {'policy': policy}, 'last_submission': {'candidate': 'accepted'}},
+                             'budget': {}, 'last_submission': {'candidate': 'accepted'}},
         close=lambda sid, **kw: calls.append('close'), result=lambda sid: terminal)
     access = SimpleNamespace(endpoint='http://localhost', create=lambda *a, **kw: created)
     monkeypatch.setenv('LAYOUT_BENCH_SESSION', 'unrelated-session')
@@ -2370,7 +2367,7 @@ def test_command_runner_uses_service_budget_and_retains_last_submission(tmp_path
     assert 'secret' not in (output / 'session.json').read_text()
 
 
-def test_soft_evaluation_waits_beyond_default_deadline(monkeypatch):
+def test_evaluation_uses_its_own_declared_budget(monkeypatch):
     from types import SimpleNamespace
 
     from benchmarking.participants.attempt import settlement as lifecycle
@@ -2378,6 +2375,89 @@ def test_soft_evaluation_waits_beyond_default_deadline(monkeypatch):
     clock = iter([0, 1, 601, 602])
     monkeypatch.setattr(lifecycle.time, 'monotonic', lambda: next(clock))
     monkeypatch.setattr(lifecycle.time, 'sleep', lambda _: None)
-    terminal = {'state': 'complete', 'limits': {'budget_policy': 'soft'}}
-    results = iter([{'state': 'evaluating', 'limits': {'budget_policy': 'soft'}}, terminal])
+    terminal = {'state': 'complete', 'limits': {'phase_budgets': {'solve_seconds': 10, 'evaluation_seconds': 7200}}}
+    results = iter([{'state': 'evaluating', 'limits': {'phase_budgets': {'solve_seconds': 10, 'evaluation_seconds': 7200}}}, terminal])
     assert lifecycle.wait_result(SimpleNamespace(result=lambda _: next(results)), 'session') == terminal
+
+
+def test_pending_evaluation_has_bounded_collection_wait(monkeypatch):
+    from types import SimpleNamespace
+
+    from benchmarking.participants.attempt import settlement
+
+    clock = iter([0, 1, 601, 602, 1201])
+    monkeypatch.setattr(settlement.time, "monotonic", lambda: next(clock))
+    monkeypatch.setattr(settlement.time, "sleep", lambda _: None)
+    calls = []
+    def result(sid):
+        calls.append(sid)
+        assert len(calls) < 3, "Collection kept waiting after its timeout"
+        return {"state": "evaluating", "limits": {"phase_budgets": {"solve_seconds": 3600, "evaluation_seconds": 600}}}
+    with pytest.raises(TimeoutError, match="Evaluation remains pending"):
+        settlement.wait_result(SimpleNamespace(result=result), "session")
+
+
+def test_command_deadline_closes_stuck_execution_and_retains_receipt(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from benchmarking.participants.attempt import settlement
+
+    receipt = {"submission_id": "10", "candidate_sha256": "a"*64}
+    clock = iter([0, 0, 0, 601, 602, 603, 604, 605, 606, 607, 608])
+    monkeypatch.setattr(settlement.time, "monotonic", lambda: next(clock))
+    monkeypatch.setattr(settlement.time, "sleep", lambda _: None)
+    closed = []
+    polls = []
+    def poll(*args, **kwargs):
+        polls.append(args)
+        assert len(polls) < 3, "Stuck execution was drained without a bound"
+        return {"log_base64": "", "state": "running", "exit_code": None,
+                "truncated": False, "next_offset": 0}
+    client = SimpleNamespace(session=lambda _: {"state": "active", "remaining_seconds": 0,
+        "budget": {"command_remaining_seconds": 60}, "active_execution_id": "in-flight", "last_submission": receipt},
+        poll=poll, close=lambda sid, **kw: closed.append(sid))
+    with pytest.raises(TimeoutError, match="settlement"):
+        settlement.settle_session(client, "session", tmp_path)
+    record = json.loads((tmp_path/"finalization.json").read_text())
+    assert closed == ["session"] and record["closed"]
+    assert record["receipt"] == receipt and record["error"]["error"] == "TimeoutError"
+
+
+def test_settlement_respects_independent_command_allowance(tmp_path, monkeypatch):
+    from benchmarking.participants.attempt import settlement
+
+    fixture = InFlightService()
+    original_session = fixture.session
+    fixture.session = lambda sid: dict(original_session(sid), budget={"command_remaining_seconds": 1200})
+    (tmp_path/"session.json").write_text(json.dumps({"limits": {"phase_budgets": {"solve_seconds": 10, "command_seconds": 1200}}}))
+    clock = {"now": 0}
+    monkeypatch.setattr(settlement.time, "monotonic", lambda: clock["now"])
+    original_poll = fixture.poll
+    def poll(*args, **kwargs):
+        clock["now"] = 700
+        return original_poll(*args, **kwargs)
+    fixture.poll = poll
+    settlement.settle_session(fixture, "fixture-session", tmp_path)
+    record = json.loads((tmp_path/"finalization.json").read_text())
+    assert record["closed"] and record["error"] is None
+
+
+def test_resume_after_solve_expiry_drains_existing_command_without_model_call(tmp_path, monkeypatch):
+    monkeypatch.setattr('benchmarking.participants.harnesses.registry.cli_version', lambda *a: 'fixture')
+    fixture = InFlightService()
+    create = fixture.create
+    def created(*args, **kwargs):
+        value = create(*args, **kwargs)
+        fixture.remaining = 0
+        return value
+    fixture.create = created
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
+    def launch(*args, **kwargs):
+        raise AssertionError('No model may launch after solve expiry')
+    monkeypatch.setattr('benchmarking.participants.harnesses.registry.prepare', launch)
+    selected = ParticipantSelection({'model': 'fixture', 'effort_resolved': 'low'}, {}, {})
+    result, error = run_participant(fixture, {'harness': 'command', 'task': 'fixture'}, tmp_path, selected)
+    assert error == 'harness_timeout' and result['state'] == 'complete'
+    evidence = json.loads((tmp_path/'finalization.json').read_text())
+    assert evidence['executions']['in-flight']['state'] == 'complete'
+    assert evidence['closed'] and not fixture.submitted

@@ -104,11 +104,11 @@ def run_participant(access, row, output, selection: ParticipantSelection):
             attempt.mark_unavailable()
             save(output / "failure.json", failure("unknown", "runner", state.error))
         return exports.collect_result(client, sid, output), state.error
-    if status["remaining_seconds"] <= 0:
-        client.close(sid, key="runner-close")
-        return exports.collect_result(client, sid, output), "harness_timeout"
     if state.phase == "finalizing":
         return finalize_session(client, sid, output), state.error
+    if status["remaining_seconds"] <= 0:
+        attempt.begin_finalization("harness_timeout")
+        return finalize_session(client, sid, output), "harness_timeout"
     continuation_prompt = CONTINUE_PROMPT
     if state.launches:
         if not settings_policy["resume_session"]:

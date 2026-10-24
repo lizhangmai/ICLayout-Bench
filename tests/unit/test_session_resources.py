@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from benchmarking.execution.budgets import PhaseBudgets
 from benchmarking.execution.workspace.environment import (
     _agent_environment,
     resource_environment,
@@ -38,7 +39,7 @@ def test_staged_task_combines_resources_without_changing_static_identity(tmp_pat
                                     {'source': '/host/secret', 'target': '/license', 'release': '1', 'credential': True}])
     info = resource_preflight(resources, runtime if kind == 'external' else None)
     config = SimpleNamespace(harness=SimpleNamespace(capabilities=[], identity=dict), files={},
-                             wall_seconds=120, soft_budget=False)
+                             wall_seconds=120, phase_budgets=PhaseBudgets(120, settlement_seconds=0))
     stage_inputs(tmp_path, task, config, resources, 'test', info)
     published = json.loads((tmp_path / 'protocol/task.json').read_text())
     expected = {key: original[key] for key in ('inputs', 'netlist_subcircuit', 'output', 'constraints', 'hours')
@@ -53,7 +54,7 @@ def test_staged_task_combines_resources_without_changing_static_identity(tmp_pat
     assert not any(value in json.dumps(published) for value in ('/host/', '/license'))
     harness = json.loads((tmp_path / 'protocol/harness.json').read_text())
     assert 'instructions' not in harness
-    assert harness['budget'] == {'policy': 'hard', 'wall_seconds': 120}
+    assert harness['budget'] == {'phase_budgets': config.phase_budgets.identity()}
     assert harness['helpers'] == {'submit': {'command': ['python', '-I', '/protocol/submit.py']}}
 
 
@@ -66,11 +67,11 @@ def test_harness_helpers_describe_only_available_commands(tmp_path, executable_c
     from benchmarking.tasks.contract import load_task
 
     harness = HarnessSpec(capabilities=('process-feedback', 'benchmark-feedback'))
-    config = SimpleNamespace(harness=harness, files={}, wall_seconds=3600, soft_budget=True)
+    config = SimpleNamespace(harness=harness, files={}, wall_seconds=3600, phase_budgets=PhaseBudgets(3600))
     stage_inputs(tmp_path, load_task(executable_case), config, {}, 'original problem', {},
                  feedback=object() if feedback else None)
     metadata = json.loads((tmp_path / 'protocol/harness.json').read_text())
-    assert metadata['budget'] == {'policy': 'soft', 'wall_seconds': 3600}
+    assert metadata['budget'] == {'phase_budgets': config.phase_budgets.identity()}
     assert ('process_check' in metadata['helpers']) == feedback
     for helper in metadata['helpers'].values():
         assert (tmp_path / helper['command'][-1].removeprefix('/')).is_file()
@@ -89,7 +90,7 @@ def test_solver_mounts_remain_readable_under_a_private_umask(tmp_path, executabl
     root.mkdir(mode=0o700)
     harness = SimpleNamespace(capabilities=[], identity=dict)
     config = SimpleNamespace(harness=harness, files={'nested/run.py': Asset(b'# fixture', 'python')},
-                             wall_seconds=120, soft_budget=False)
+                             wall_seconds=120, phase_budgets=PhaseBudgets(120, settlement_seconds=0))
     old = os.umask(0o077)
     try:
         stage_inputs(root, load_task(executable_case), config,

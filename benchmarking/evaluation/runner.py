@@ -23,8 +23,10 @@ from benchmarking.evaluation.scoring import score_layout
 from benchmarking.evidence.identity import EVALUATION_SOURCE_FILES, package_source
 from benchmarking.execution.tools.budget import (
     current_tool_cancellation,
+    current_tool_deadline,
     tool_cancellation,
     tool_cancelled,
+    tool_deadline,
     tool_time_limits,
 )
 from benchmarking.execution.tools.diagnostics import native_failure
@@ -72,12 +74,16 @@ def _execute_jobs(jobs, assets, backends, results, timings, limit_tools):
     if any(type(value) is not int or value < 1 for value in capacities.values()):
         raise ValueError('Backend concurrency must be a positive integer')
     cancellation = current_tool_cancellation()
+    deadline = current_tool_deadline()
 
     def execute(job):
         started = time.monotonic()
         try:
-            with tool_time_limits(limit_tools), tool_cancellation(cancellation):
-                if tool_cancelled():
+            with tool_time_limits(limit_tools), tool_cancellation(cancellation), tool_deadline(deadline):
+                if deadline is not None and time.monotonic() >= deadline:
+                    result = JobResult('error', 'Evaluation phase deadline expired',
+                                       evidence={'execution_error': Asset(b'Phase deadline expired before job launch', 'text')})
+                elif tool_cancelled():
                     result = JobResult('error', 'Evaluation cancelled',
                                        evidence={'execution_error': Asset(b'Check cancelled', 'text')})
                 else:

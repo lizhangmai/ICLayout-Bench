@@ -58,11 +58,13 @@ def test_tool_environment_names_remain_supported(tmp_path):
     }
 
 
-def test_soft_budget_is_an_explicit_standalone_configuration(tmp_path):
+def test_phase_budgets_are_explicit_and_reject_shared_soft_switch(tmp_path):
+    path = _config(tmp_path, '[phase_budgets]\ncommand_seconds = 20\nsettlement_seconds = 3\nevaluation_seconds = 40')
+    budgets = load_run_config(path).phase_budgets
+    assert budgets.solve_seconds == 10 and budgets.command_seconds == 20
+    assert budgets.settlement_seconds == 3 and budgets.evaluation_seconds == 40
     path = _config(tmp_path, 'soft_budget = true')
-    assert load_run_config(path).soft_budget is True
-    path.write_text(path.read_text().replace('soft_budget = true', 'soft_budget = "true"'))
-    with pytest.raises(ValueError, match='boolean'):
+    with pytest.raises(ValueError, match='soft_budget'):
         load_run_config(path)
 
 

@@ -23,6 +23,7 @@ EVALUATION_SOURCE_FILES = (
 
 
 SESSION_SOURCE_FILES = (
+    'execution/budgets.py',
     'execution/workspace/__init__.py',
     'execution/tools/__init__.py',
     'execution/workspace/config.py',

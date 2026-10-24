@@ -23,7 +23,7 @@ from benchmarking.results.usage import UsageEvidence, summarize_usage
 
 
 def collect_result(client, sid, output):
-    result = wait_result(client, sid)
+    result = wait_result(client, sid, output)
     if not (output / "analysis" / "manifest.json").exists():
         if (output / "analysis").exists():
             (output / "analysis").rename(output / ("partial-analysis-" + uuid.uuid4().hex))

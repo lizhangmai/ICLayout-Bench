@@ -5,6 +5,7 @@ import json
 import time
 
 from benchmarking.client import ClientError
+from benchmarking.execution.budgets import PhaseBudgets
 from benchmarking.files import atomic_write
 
 ERRORS = (OSError, ValueError, RuntimeError, ClientError)
@@ -28,45 +29,48 @@ def settle_session(client, sid, output):
     """
     journal = output / "finalization.json"
     record = json.loads(journal.read_text()) if journal.exists() else {"executions": {}, "errors": []}
-    record.update(phase="waiting", error=None, close_error=None, closed=False)
+    record.update(phase="draining", error=None, close_error=None, closed=False)
     start = time.monotonic()
+    session_path = output / "session.json"
+    limits = json.loads(session_path.read_text()).get("limits", {}) if session_path.exists() else {}
+    budgets = PhaseBudgets.from_limits(limits)
 
     def persist():
         record["elapsed_seconds"] = round(time.monotonic() - start, 3)
         atomic_write(journal, (json.dumps(record, indent=2, allow_nan=False) + "\n").encode())
 
-    deadline = None
-
     def idle():
-        nonlocal deadline
         while True:
             status = client.session(sid)
-            if status["state"] != "active":
+            record['receipt'] = status.get('last_submission')
+            if status['state'] != 'active':
                 return status
-            deadline = min(deadline or float("inf"), time.monotonic() + status["remaining_seconds"])
-            remaining = deadline - time.monotonic()
-            soft = status.get('budget', {}).get('policy') == 'soft'
-            if remaining <= 0 and not soft:
-                record["submission"] = "deadline"
-                return dict(status, remaining_seconds=0)
-            eid = status.get("active_execution_id")
+            eid = status.get('active_execution_id')
             if not eid:
                 return status
-            execution = record["executions"].setdefault(eid, {"next_offset": 0})
-            record["phase"] = "waiting"
+            remaining = status.get('budget', {}).get('command_remaining_seconds', budgets.command_seconds)
+            # Freeze an absolute expiry in the journal: explicit collection may
+            # resume after transport loss but never reissues the command budget.
+            if 'drain_deadline_epoch' not in record:
+                record['drain_deadline_epoch'] = time.time() + remaining
+            deadline = time.monotonic() + max(0, record['drain_deadline_epoch']-time.time())
+            execution = record['executions'].setdefault(eid, {'next_offset': 0})
+            record['phase'] = 'draining'
             persist()
-            while soft or time.monotonic() < deadline:
-                polled = client.poll(sid, eid, offset=execution["next_offset"])
-                raw = base64.b64decode(polled["log_base64"], validate=True)
+            while time.monotonic() < deadline:
+                polled = client.poll(sid, eid, offset=execution['next_offset'])
+                raw = base64.b64decode(polled['log_base64'], validate=True)
                 if raw:
-                    with (output / f"finalization-{eid}.log").open("ab") as stream:
+                    with (output / f'finalization-{eid}.log').open('ab') as stream:
                         stream.write(raw)
-                execution.update({key: polled[key] for key in ("state", "exit_code", "truncated", "next_offset")})
+                execution.update({key: polled[key] for key in ('state', 'exit_code', 'truncated', 'next_offset')})
                 persist()
-                if polled["state"] != "running" and not raw:
+                if polled['state'] != 'running' and not raw:
                     break
                 if not raw:
-                    time.sleep(.5 if soft else min(.5, max(0, deadline - time.monotonic())))
+                    time.sleep(min(.5, max(0, deadline-time.monotonic())))
+            else:
+                raise TimeoutError('Session settlement: active command deadline expired; execution evidence retained')
 
     primary = None
     persist()
@@ -81,7 +85,7 @@ def settle_session(client, sid, output):
         record["errors"].append(record["error"])
         raise
     finally:
-        record["phase"] = "closing"
+        record["phase"] = "settling"
         persist()
         try:
             client.close(sid, key="runner-close")
@@ -97,18 +101,30 @@ def settle_session(client, sid, output):
 
 
 def participant_timeout(created, status):
-    """Use the service budget without reserving an arbitrary shutdown margin."""
-    return None if created['limits'].get('budget_policy') == 'soft' else max(0, status['remaining_seconds'])
+    """The model may observe draining/settlement, but cannot outlive those phases."""
+    if 'phase_budgets' not in created['limits']:
+        return max(0, status['remaining_seconds'])
+    budgets = PhaseBudgets.from_limits(created['limits'])
+    return max(0, status['remaining_seconds']) + budgets.command_seconds + budgets.settlement_seconds
 
 
-def wait_result(client, sid):
-    """Wait for terminal evaluation, including completion of soft-budget work."""
-    deadline = time.monotonic() + 600
-    while deadline is None or time.monotonic() < deadline:
+def wait_result(client, sid, output=None):
+    """Observe the service's fixed final-evaluation deadline, not the solve budget."""
+    journal = output / 'collection.json' if output is not None else None
+    record = json.loads(journal.read_text()) if journal is not None and journal.exists() else {}
+    deadline = (time.monotonic() + max(0, record['evaluation_deadline_epoch']-time.time())
+                if 'evaluation_deadline_epoch' in record else None)
+    while True:
         result = client.result(sid)
-        if result.get('limits', {}).get('budget_policy') == 'soft':
-            deadline = None
         if result['state'] in {'complete', 'error'}:
             return result
+        budgets = PhaseBudgets.from_limits(result.get('limits', {}))
+        if deadline is None:
+            remaining = result.get('budget', {}).get('evaluation_remaining_seconds', budgets.evaluation_seconds)
+            deadline = time.monotonic() + remaining
+            if journal is not None:
+                record['evaluation_deadline_epoch'] = time.time() + remaining
+                atomic_write(journal, (json.dumps(record, indent=2) + '\n').encode())
+        if time.monotonic() >= deadline:
+            raise TimeoutError('Evaluation remains pending; session ID retained in session.json')
         time.sleep(.5)
-    raise TimeoutError('Evaluation remains pending; session ID retained in session.json')

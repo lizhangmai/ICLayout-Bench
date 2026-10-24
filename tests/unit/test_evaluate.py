@@ -537,6 +537,61 @@ def test_tool_error_is_not_a_circuit_failure(tmp_path, inputs, bindings):
     assert report["jobs"]["lvs"]["status"] == "passed"
 
 
+@pytest.mark.parametrize('extracted,execution_error,status', [
+    (b'.subckt layout IN OUT\n.ends\n', False, 'failed'),
+    (b'* Top level circuit layout\n.end\n', False, 'failed'),
+    (b'.subckt layout IN OUT\nR1 IN OUT 1000\n.ends\n', False, 'error'),
+    (b'.subckt layout IN OUT\n.ends\n', True, 'error'),
+])
+def test_empty_candidate_lvs_rejection_and_tool_failure_have_distinct_scores(
+        tmp_path, monkeypatch, inputs, bindings, extracted, execution_error, status):
+    """Device-free extraction is conclusive; unavailable comparison/execution is not."""
+    from types import SimpleNamespace
+
+    import tomli_w
+
+    from benchmarking.eda.backends.magic_checks import MagicPhysicalDocker
+    from benchmarking.evidence.bundles import publish_bundle
+
+    class Tool:
+        identity: ClassVar[dict] = {'tool': 'synthetic native boundary'}
+
+        def __init__(self, image, probe, timeout):
+            self.magic = probe[0] == 'magic'
+
+        def run(self, *args, **kwargs):
+            files = {'complete.txt': Asset(b'complete\n', 'text')}
+            evidence = {'console': Asset(b'Native tool completed\n', 'text')}
+            reason = ''
+            if self.magic:
+                files['extracted.spice'] = Asset(extracted, 'spice')
+                if execution_error:
+                    reason = 'Container execution unavailable'
+                    evidence['execution_error'] = Asset(reason.encode(), 'text')
+            else:
+                reason = 'Declared tool output is missing: comparison.json'
+            return SimpleNamespace(reason=reason, returncode=0, files=files, evidence=evidence)
+
+    monkeypatch.setattr('benchmarking.eda.backends.magic_checks.DockerTool', Tool)
+    support = tmp_path / 'support'
+    publish_bundle({'tech.tech': Asset(b'', 'text'), 'setup.tcl': Asset(b'', 'tcl')}, {}, support)
+    bindings['layout.lvs'] = MagicPhysicalDocker(
+        image='unused', check='lvs', support=str(support), technology='tech.tech',
+        tech_name='test', style='test', setup='setup.tcl')
+    data = tomllib.loads(PLAN.decode())
+    lvs = next(job for job in data['jobs'] if job['id'] == 'lvs')
+    lvs.update(operation='layout.lvs', inputs={'layout': 'candidate', 'netlist': 'input:netlist'},
+               parameters={'top_cell': 'layout', 'subcircuit': 'source'})
+    report = evaluate(tmp_path, inputs, bindings, tomli_w.dumps(data).encode())
+
+    assert report['jobs']['lvs']['status'] == status
+    assert report['jobs']['lvs']['evidence']['extracted.spice']['sha256'] == hashlib.sha256(extracted).hexdigest()
+    assert report['physical_valid'] is (False if status == 'failed' else None)
+    assert report['task_success'] is (False if status == 'failed' else None)
+    assert report['score']['value'] == (0 if status == 'failed' else None)
+    assert report['jobs']['parasitics']['status'] == 'blocked'
+
+
 @pytest.mark.parametrize("status", ["failed", "error"])
 def test_unusable_candidate_extraction_rejects_layout_with_zero_score(
         tmp_path, inputs, bindings, status):

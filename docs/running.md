@@ -279,12 +279,20 @@ service CLI cannot override it. Each repetition receives its own budget; a
 continuation keeps the original deadline. Model calls, provider retries, HTTP
 waits, EDA work and downtime all consume that budget.
 
-The bundled HTTP service uses a soft budget. At expiry, an operation already
-started may finish; new commands, checks and file writes are rejected. Submit the
-best candidate and close without another optimization round. Late submission and
-overrun are recorded. Independent final judging follows solve closure. A remote
-service can advertise a hard policy; the client obeys its published limits. The
-[protocol lifecycle](architecture.md#lifecycle-and-budgets) defines both policies.
+The HTTP service freezes four independent phase budgets when creating a session:
+
+| Phase | Budget and allowed work |
+| --- | --- |
+| `solving` | The case's solve deadline; new commands, checks and writes are allowed. |
+| `draining` | Only an already-started command/check continues, to its original command deadline. Commands default to a 3600-second cap; an explicit shorter timeout is honored. |
+| `settling` | 60 seconds after solve expiry or the last command's bounded end, whichever is later, for reading, final submission and close. No new optimization work. |
+| `evaluating` | Independent final judging, bounded by the sum of declared evaluator job timeouts plus 60 seconds of orchestration allowance. |
+
+Polling, retries and reconnection never renew these deadlines. A command started
+before solve expiry may finish within its own budget. Tool timeouts remain enabled
+for feedback and final judging. Late submission and elapsed overrun are recorded.
+The service retains the last accepted candidate when the workspace closes.
+[Lifecycle and budgets](architecture.md#lifecycle-and-budgets) defines the protocol.
 
 Use `check` when `process-feedback` is advertised. It evaluates the current GDS
 with the final plan and returns physical/electrical diagnostics without a score.
@@ -796,8 +804,14 @@ Operator-controlled evaluations apply their separately frozen replacement policy
 
 After a participant stops, the runner drains already-started service executions,
 then closes while retaining the last participant-accepted snapshot. It never
-submits mutable workspace output or replaces an explicit submission. Soft sessions permit
-draining after expiry; hard sessions stop waiting at the original deadline. Cleanup never launches or replays an execution.
+submits mutable workspace output or replaces an explicit submission. Draining uses
+the active command's remaining budget and persists its absolute expiry in the
+finalization journal. Final collection follows the service's evaluation deadline,
+independently of solve time. Repeated polls do not reset either allowance.
+When draining times out, the runner still requests close, preserving the accepted
+receipt and execution journal. A pending final evaluation raises a collection
+error and retains the session for explicit recovery; it does not invent a verdict
+or score. Cleanup never launches or replays an execution.
 `finalization.json` records execution offsets, submission outcome and independent
 settlement/close errors; drained logs use `finalization-<execution-id>.log`.
 

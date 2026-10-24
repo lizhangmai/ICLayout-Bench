@@ -249,13 +249,18 @@ sum is not evaluation wall time. Resource preparation precedes that interval.
 
 #### Evaluation time limits and cancellation
 
-Participant checks, final judging, standalone evaluation, characterization and
-qualification let started EDA jobs finish without per-job time limits by default.
-Reports record `tool_time_limits = false`. Backend `timeout_seconds` settings
-remain in identity and apply when a caller explicitly chooses bounded evaluation
-with `run_evaluation(..., limit_tools=True)`. Startup/version probes retain their
-own bounded timeouts. Solve-budget behavior is separately defined in the
-[session protocol](architecture.md#lifecycle-and-budgets).
+Session feedback and final judging always enforce declared backend
+`timeout_seconds` and record `tool_time_limits = true`. Feedback also inherits
+the active command deadline; final judging inherits its independent evaluation
+deadline. Nested tool calls and parallel jobs consume the same phase deadline.
+A job that has not started when that deadline expires returns an evaluator error.
+Tool failure and timeout evidence remains available with the accepted candidate.
+
+Standalone evaluation, characterization and qualification let started EDA jobs
+finish without per-job limits by default (`tool_time_limits = false`). Callers
+can select `run_evaluation(..., limit_tools=True)` for bounded diagnostics.
+Startup/version probes retain their own bounded timeouts. Phase budgets are
+specified by the [session protocol](architecture.md#lifecycle-and-budgets).
 
 Cancelling a process check propagates to native/container jobs and their parallel
 workers. Cancelled jobs retain diagnostics and cannot publish successful
@@ -416,8 +421,11 @@ LVS extracts the candidate independently, invokes Netgen against the trusted
 source, and reads its JSON comparisons. Matching exit status alone is
 insufficient: the top comparison must contain devices, pins and net counts must
 match, and no hierarchy, element or property mismatch may remain. Missing or
-malformed reports are errors. Native logs, scripts and comparison evidence are
-retained. The image pins Netgen 1.5.323 in the public Dockerfile.
+malformed reports are errors. A completed candidate extraction containing no
+devices, or a completed empty/black-box top comparison, fails LVS and scores zero;
+it does not require a usable Netgen comparison to establish rejection. Native
+logs, scripts and comparison evidence are retained. The image pins Netgen 1.5.323
+in the public Dockerfile.
 
 PDK-specific unit conventions and any reviewed technology transformations belong
 to the task resource manifest. They are included in the support digest; the

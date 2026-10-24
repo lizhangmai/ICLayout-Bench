@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 
 _LIMIT_TOOLS = ContextVar('limit_eda_tools', default=True)
+_DEADLINE = ContextVar('eda_phase_deadline', default=None)
 _CANCELLATION = ContextVar('cancel_eda_tools', default=None)
 
 
@@ -56,6 +57,26 @@ def tool_time_limits(enabled):
         _LIMIT_TOOLS.reset(token)
 
 
+def current_tool_deadline():
+    return _DEADLINE.get()
+
+
+@contextmanager
+def tool_deadline(deadline):
+    previous = current_tool_deadline()
+    token = _DEADLINE.set(min(previous, deadline) if previous is not None and deadline is not None
+                          else previous if deadline is None else deadline)
+    try:
+        yield
+    finally:
+        _DEADLINE.reset(token)
+
+
 def tool_timeout(seconds):
     """Probes remain bounded; evaluation callers may let started jobs finish."""
-    return seconds if _LIMIT_TOOLS.get() else None
+    value = seconds if _LIMIT_TOOLS.get() else None
+    deadline = current_tool_deadline()
+    if deadline is not None:
+        remaining = max(0, deadline-time.monotonic())
+        return remaining if value is None else min(value, remaining)
+    return value

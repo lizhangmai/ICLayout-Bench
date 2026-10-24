@@ -42,7 +42,7 @@ def run_command(access, task_id, frozen, output, *, creation_key):
         finally:
             atomic_write(output / 'harness.json', json_bytes({'condition': frozen['condition'],
                                                             'error': error, 'exit_code': exit_code}))
-    result = wait_result(client, sid)
+    result = wait_result(client, sid, output)
     export_session_result(result, output / 'analysis')
     export_observation(client, sid, output / 'observation',
                        participant_files=[p for p in output.iterdir() if p.is_file() and p.name != 'session.json'])

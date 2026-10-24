@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from benchmarking.eda.backends.magic import _tcl_word
+from benchmarking.eda.netlists.spice import logical_lines, tokens
 from benchmarking.evaluation.contracts import Job, JobResult
 from benchmarking.evidence.bundles import load_bundle
 from benchmarking.execution.tools.docker import DockerTool
@@ -41,9 +42,7 @@ def netgen_verdict(records, top, subcircuit):
         counts = [sum(count for _, count in side) for side in record['devices']]
         if counts[0] != counts[1]:
             return False
-    if not all(sum(count for _, count in side) > 0 for side in tops[0]['devices']):
-        raise ValueError("Empty or black-box top comparison")
-    return True
+    return all(sum(count for _, count in side) > 0 for side in tops[0]['devices'])
 
 
 class MagicPhysicalDocker:
@@ -140,6 +139,9 @@ class MagicPhysicalDocker:
                 return JobResult('passed' if count == 0 else 'failed',
                                  '' if count == 0 else f'Magic reported {count} DRC violations', evidence=evidence)
             subcircuit = params['subcircuit']
+            cards = (tokens(line) for line in logical_lines(result.files['extracted.spice'].content))
+            if not any(words and not words[0].startswith('.') for words in cards):
+                return JobResult('failed', 'Extracted candidate contains no circuit devices', evidence=evidence)
             netgen_script = ('if {[catch {\n'
                              f'lvs [list extracted.spice {_tcl_word(top)}] '
                              f'[list source.spice {_tcl_word(subcircuit)}] '

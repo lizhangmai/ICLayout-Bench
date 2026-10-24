@@ -208,7 +208,7 @@ def test_local_service_restart_restores_workspace_budget_and_accepted_candidate(
             thread.join(timeout=2)
 
 
-def test_soft_budget_drains_work_reminds_and_accepts_final_submission(host):
+def test_phase_budgets_drain_work_and_accept_final_submission(host):
     service, _ = host
     client, sid = create(host)
     execution = client.execute(sid, 'sleep .5; mkdir -p output; printf final > output/final.gds', None, key='work')
@@ -216,10 +216,12 @@ def test_soft_budget_drains_work_reminds_and_accepts_final_submission(host):
     # changing task hours, or waiting through a real multi-hour solve budget.
     with service.controller.lock:
         service.controller.state.runs[sid]['deadline_epoch'] = time.time() - 1
+        service.controller.session_control.workspace(sid).budget.solve_deadline = time.monotonic()-1
     status = client.session(sid)
     assert status['remaining_seconds'] == 0
-    assert status['budget']['policy'] == 'soft'
-    assert 'submit immediately' in status['budget']['message']
+    assert status['phase'] in {'draining', 'settling'}
+    assert status['budget']['command_remaining_seconds'] <= 3600
+    assert 'do not start another optimization round' in status['budget']['message']
     for action in ('execute', 'write', 'check'):
         with pytest.raises(ClientError) as caught:
             if action == 'execute':

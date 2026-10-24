@@ -186,7 +186,8 @@ class Client:
         status = self.session(session_id)
         if "process-feedback" not in status.get("capabilities", []):
             raise ValueError("Service does not advertise process-feedback")
-        seconds = (None if status.get('budget', {}).get('policy') == 'soft' else status["remaining_seconds"]) if timeout_seconds is None else timeout_seconds
+        seconds = (status.get('budget', {}).get('phase_budgets', {}).get('command_seconds', 3600)
+                   if timeout_seconds is None else timeout_seconds)
         return self.execute(session_id, "python -I /protocol/process_check.py", seconds, key=key)
 
     def submit(self, session_id, path, *, key):

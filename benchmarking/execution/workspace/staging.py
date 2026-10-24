@@ -31,8 +31,7 @@ def stage_inputs(root, task, config, resources, message, resource_info, *, infer
                if name in protocol_files}
     protocol_files['harness.json'] = Asset(json.dumps({
         **config.harness.identity(),
-        'budget': {'policy': 'soft' if config.soft_budget else 'hard',
-                   'wall_seconds': config.wall_seconds},
+        'budget': {'phase_budgets': config.phase_budgets.identity()},
         'helpers': helpers,
     }, sort_keys=True).encode(), 'json')
     groups = {"agent": config.files, "resources": resources, "protocol": protocol_files}

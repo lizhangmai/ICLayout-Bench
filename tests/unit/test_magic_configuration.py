@@ -76,8 +76,13 @@ def test_netgen_completed_mismatches_do_not_pass(change, expected):
 
 
 @pytest.mark.parametrize('records', [[], [{}], [
-    {'name': ['layout', 'source'], 'pins': [[], []], 'nets': [0, 0], 'devices': [[], []]},
+    {'name': ['other', 'source'], 'pins': [['IN'], ['IN']], 'nets': [1, 1], 'devices': [[['nmos', 1]], [['nmos', 1]]]},
 ]])
-def test_netgen_absent_or_empty_comparison_is_an_error(records):
+def test_netgen_absent_top_comparison_is_an_error(records):
     with pytest.raises(ValueError):
         netgen_verdict(records, 'layout', 'source')
+
+
+def test_netgen_completed_empty_comparison_rejects_candidate():
+    record = {'name': ['layout', 'source'], 'pins': [[], []], 'nets': [0, 0], 'devices': [[], []]}
+    assert netgen_verdict([record], 'layout', 'source') is False

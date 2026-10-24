@@ -3,6 +3,8 @@
 import math
 from datetime import UTC, datetime
 
+from benchmarking.execution.budgets import PhaseBudgets
+
 
 def utc(epoch):
     return datetime.fromtimestamp(epoch, UTC).isoformat().replace('+00:00', 'Z')
@@ -19,7 +21,7 @@ def fields(body, expected):
         raise ValueError('Unexpected request fields')
 
 
-def session_limits(task, seconds=None):
+def session_limits(task, seconds=None, *, backends=None):
     if task.hours is not None:
         if seconds is not None and not math.isclose(seconds, task.wall_seconds):
             raise ValueError("Service budget cannot override task hours")
@@ -28,7 +30,9 @@ def session_limits(task, seconds=None):
         raise ValueError("Task must explicitly declare hours before serving a solve")
     if not math.isfinite(seconds) or seconds <= 0:
         raise ValueError('Session budget must be positive and finite')
-    return {'wall_seconds': seconds, 'budget_policy': 'soft', 'cpus': None, 'memory_mb': None, 'pids': None, 'workspace_mb': 2048,
+    budgets = (PhaseBudgets.for_evaluation(seconds, task.evaluation, backends)
+               if backends is not None else PhaseBudgets(seconds))
+    return {'wall_seconds': seconds, 'phase_budgets': budgets.identity(), 'cpus': None, 'memory_mb': None, 'pids': None, 'workspace_mb': 2048,
                            'max_file_bytes': 4*1024*1024, 'max_response_bytes': 8*1024*1024,
-                           'max_candidate_bytes': task.output.max_bytes, 'max_command_seconds': seconds,
+                           'max_candidate_bytes': task.output.max_bytes, 'max_command_seconds': budgets.command_seconds,
                            'max_log_bytes': 4*1024*1024, 'opinion_requests': 0}

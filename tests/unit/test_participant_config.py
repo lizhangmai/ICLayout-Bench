@@ -461,7 +461,7 @@ class BridgeTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             client = Mock()
-            client.session.return_value = {'remaining_seconds': 1, 'budget': {'policy': 'soft'}}
+            client.session.return_value = {'remaining_seconds': 1, 'budget': {'phase': 'settling'}}
             client.execute.return_value = {'execution_id': 'e'}
             client.poll.return_value = {'log_base64': '', 'next_offset': 0,
                 'state': 'running', 'exit_code': None, 'truncated': False}
@@ -475,8 +475,8 @@ class BridgeTests(unittest.TestCase):
                 bridge = Bridge(client, 's', Path(directory) / 'tools.jsonl')
                 result = bridge.call('execute', {'command': 'native tool'})
                 assert result['state'] == 'running' and result['execution_id'] == 'e'
-                assert client.execute.call_args.args[2] is None
-                client.session.return_value = {'remaining_seconds': 0, 'budget': {'policy': 'soft'}}
+                assert client.execute.call_args.args[2] == 3600
+                client.session.return_value = {'remaining_seconds': 0, 'budget': {'phase': 'settling'}}
                 result = bridge.call('poll', {'execution_id': 'e', 'offset': result['next_offset'], 'wait_seconds': 0})
                 assert result['state'] == 'running'
                 client.cancel.return_value = {'execution_id': 'e', 'state': 'running'}
@@ -484,11 +484,11 @@ class BridgeTests(unittest.TestCase):
                 assert client.cancel.call_args.args == ('s', 'e')
                 assert client.execute.call_count == 1
 
-    def test_soft_budget_reply_reminds_and_stops_another_optimization_round(self):
+    def test_settlement_reply_stops_another_optimization_round(self):
         with tempfile.TemporaryDirectory() as directory:
             client = Mock()
-            active = {'remaining_seconds': 1, 'budget': {'policy': 'soft', 'remaining_seconds': 1}}
-            expired = {'remaining_seconds': 0, 'budget': {'policy': 'soft', 'remaining_seconds': 0,
+            active = {'remaining_seconds': 1, 'budget': {'phase': 'settling', 'remaining_seconds': 1}}
+            expired = {'remaining_seconds': 0, 'budget': {'phase': 'settling', 'remaining_seconds': 0,
                 'message': 'Submit immediately without another optimization round'}}
             client.session.side_effect = [active, expired]
             client.execute.return_value = {'execution_id': 'e'}
@@ -496,7 +496,7 @@ class BridgeTests(unittest.TestCase):
                 'state': 'complete', 'exit_code': 0, 'truncated': False}
             bridge = Bridge(client, 'session', Path(directory) / 'tools.jsonl')
             result = bridge.call('execute', {'command': 'already started'})
-            assert client.execute.call_args.args[2] is None
+            assert client.execute.call_args.args[2] == 3600
             assert result['budget'] == expired['budget']
             client.session.side_effect = None
             client.session.return_value = expired
@@ -512,7 +512,7 @@ class BridgeTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             client = Mock()
-            client.session.return_value = {'remaining_seconds': .1, 'budget': {'policy': 'soft'}}
+            client.session.return_value = {'remaining_seconds': .1, 'budget': {'phase': 'settling'}}
             client.execute.side_effect = ClientError('budget_exhausted', 'expired', status=409)
             bridge = Bridge(client, 'session', Path(directory) / 'tools.jsonl')
             result = dispatch(bridge, {'id': 1, 'method': 'tools/call',
@@ -563,7 +563,7 @@ class BridgeTests(unittest.TestCase):
                 self.assertEqual(client.execute.call_args.args[2], expected)
             client.session.return_value = {"remaining_seconds": 25}
             bridge.call("execute", {"command": "eda"})
-            self.assertEqual(client.execute.call_args.args[2], 25)
+            self.assertEqual(client.execute.call_args.args[2], 700)
             for seconds in (0, -1, True, float("inf"), float("nan")):
                 with self.assertRaises(ValueError):
                     bridge.call("execute", {"command": "eda", "seconds": seconds})
@@ -598,9 +598,9 @@ def test_new_agent_calls_after_transport_loss_use_new_keys_and_current_allowance
     bridge = Bridge(client, 's', log)
     client.session.return_value = {'remaining_seconds': 20}
     bridge.call('execute', {'command': 'different'})
-    assert client.execute.call_args.args == ('s', 'different', 20)
+    assert client.execute.call_args.args == ('s', 'different', 3600)
     bridge.call('execute', {'command': 'increment'})
-    assert client.execute.call_args.args == ('s', 'increment', 20)
+    assert client.execute.call_args.args == ('s', 'increment', 3600)
     keys = [call.kwargs['key'] for call in client.execute.call_args_list]
     assert len(set(keys)) == 3
     assert client.execute.call_args_list[0] == first

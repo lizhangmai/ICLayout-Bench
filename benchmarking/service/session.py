@@ -21,6 +21,7 @@ from benchmarking.execution.inference import (
     USAGE_FIELDS,
     validate_harness_wire,
 )
+from benchmarking.execution.tools.budget import tool_deadline
 from benchmarking.execution.workspace.environment import task_message
 from benchmarking.files import Asset, ReadOnlyMount, atomic_write
 
@@ -73,7 +74,7 @@ def run_session(task, config, resources, backends, destination: Path, *, session
                                               "execution/harness.py")},
               "usage": {field: None for field in USAGE_FIELDS},
               "phase": "running", "outcome": None, "task_success": None, "evaluation": None,
-              "budget_policy": "soft" if config.soft_budget else "hard"}
+              "phase_budgets": config.phase_budgets.identity()}
     if (task.evaluation.scoring is not None
             and task.evaluation.scoring.method == "layout"):
         # Keep evaluator or infrastructure failures visibly pending for a
@@ -111,7 +112,7 @@ def run_session(task, config, resources, backends, destination: Path, *, session
             feedback_root,
             task_sha256=task.digest,
             task_witnessed=task.witnessed,
-            limit_tools=not config.soft_budget,
+            limit_tools=True,
         )
         raw = (feedback_root / "report.json").read_bytes()
         participant_report = {
@@ -165,10 +166,14 @@ def run_session(task, config, resources, backends, destination: Path, *, session
     if result.candidate is not None:
         started = time.monotonic()
         try:
-            evaluated = run_evaluation(task.evaluation,
+            report.update(phase="evaluating", evaluation_started_epoch=time.time(),
+                          evaluation_deadline_epoch=time.time()+config.phase_budgets.evaluation_seconds)
+            save()
+            with tool_deadline(time.monotonic()+config.phase_budgets.evaluation_seconds):
+                evaluated = run_evaluation(task.evaluation,
                                        {**task.evaluation_inputs(), "candidate": result.candidate},
                                        backends, destination / "evaluation", task_sha256=task.digest,
-                                       task_witnessed=task.witnessed, limit_tools=not config.soft_budget)
+                                       task_witnessed=task.witnessed, limit_tools=True)
             report.update(evaluation={"path": "evaluation/report.json",
                                      "sha256": Asset((destination/"evaluation/report.json").read_bytes(), "json").sha256},
                           outcome=evaluated["outcome"], task_success=evaluated["task_success"])

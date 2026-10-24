@@ -22,13 +22,28 @@ def status(data, workspace, events, now):
             completed += 1
             evaluation_seconds += event.get('data', {}).get('elapsed_seconds', 0.0)
     remaining = max(0, data['deadline_epoch'] - now)
-    budget = {'policy': data['limits'].get('budget_policy', 'hard'),
-              'remaining_seconds': remaining,
-              'overrun_seconds': max(0, now - data['deadline_epoch']) if state == 'active' else
-                  max(0, data.get('report', {}).get('elapsed_seconds', 0) - data['limits']['wall_seconds']),
-              'message': 'Solve budget exhausted. Finish the operation already in progress and submit immediately; do not start another optimization round.' if remaining == 0 else
-                  f'{remaining:.1f} seconds remain in the solve budget.'}
-    return {'session_id': data['session_id'], 'state': state, 'created_at': data['created_at'], 'budget': budget,
+    if state in {'complete', 'error'}:
+        phase = state
+    elif workspace is not None and not workspace.active:
+        phase = 'evaluating'
+    elif data.get('closing'):
+        phase = 'draining' if any(x['state']=='running' for x in data['executions'].values()) else 'settling'
+    else:
+        phase = (workspace.budget.phase if workspace is not None and hasattr(workspace, 'budget')
+                 else 'solving' if remaining else 'settling')
+    budget = (workspace.budget.snapshot() if workspace is not None and hasattr(workspace, 'budget')
+              else {'phase': phase, 'phase_budgets': data['limits'].get('phase_budgets', {})})
+    if state in {'complete', 'error'}:
+        remaining = 0
+        budget = {'phase_budgets': data['limits'].get('phase_budgets', {}),
+                  'solve_remaining_seconds': 0, 'command_remaining_seconds': 0,
+                  'settlement_remaining_seconds': 0, 'evaluation_remaining_seconds': 0}
+    budget.update(phase=phase, remaining_seconds=remaining,
+                  overrun_seconds=(max(0, now-data['deadline_epoch']) if state == 'active' else
+                      max(0, data.get('report', {}).get('elapsed_seconds', 0)-data['limits'].get('wall_seconds', 0))),
+                  message=(f'Session {phase}.' if state in {'complete', 'error'} else 'Solve budget exhausted. Only finish existing work, submit or close; do not start another optimization round.'
+                           if remaining == 0 else f'{remaining:.1f} seconds remain in the solve budget.'))
+    return {'session_id': data['session_id'], 'state': state, 'phase': phase, 'created_at': data['created_at'], 'budget': budget,
                 'deadline': data['deadline'], 'remaining_seconds': max(0, data['deadline_epoch']-now)
                 if state == 'active' else 0,
                 'active_execution_id': next((k for k, v in data['executions'].items() if v['state']=='running'), None),
@@ -61,6 +76,7 @@ def result(data, status, judged=None):
                 'limits': data['limits'], 'evaluation_mode': 'self_run',
                 'provenance': {'candidate': 'server_observed' if status['last_submission'] else 'unknown',
                                 'interaction': 'server_observed', 'condition': 'participant_reported', 'usage': 'unknown'},
+                'phase': status.get('phase'), 'budget': status.get('budget'),
                 'usage': dict.fromkeys(USAGE_FIELDS), 'diagnostics': status['diagnostics'], 'submission': status['last_submission'], 'outcome': verdict,
                 'task_success': report.get('task_success'), 'score': report.get('score'), 'metrics': metrics,
                 'failure_category': ('service_failure' if data.get('interrupted') or report.get('termination') == 'infrastructure_error'

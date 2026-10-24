@@ -202,10 +202,10 @@ class DockerSession:
                 reader = threading.Thread(target=console.drain, args=(process.stdout,), daemon=True)
                 reader.start()
 
-                workspace = SessionWorkspace(cid, root, reader_env, deadline, soft_budget=config.soft_budget)
+                workspace = SessionWorkspace(cid, root, reader_env, deadline, budgets=config.phase_budgets)
                 if on_ready is not None:
                     # Docker attach may not have completed the start yet.
-                    while process.poll() is None and (config.soft_budget or time.monotonic() < deadline):
+                    while process.poll() is None and (time.monotonic() < deadline):
                         running = subprocess.check_output([
                             "docker", "inspect", "--format", "{{.State.Running}}", cid], text=True).strip()
                         if running == "true":
@@ -227,8 +227,7 @@ class DockerSession:
                 while process.poll() is None:
                     if console.failed.is_set() or (recorder and recorder.error):
                         raise RecordingError("Session evidence is incomplete")
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0 and not config.soft_budget:
+                    if workspace.budget.phase == 'expired':
                         termination = "budget_exhausted"
                         reason = "Wall-clock limit reached"
                         break
@@ -237,7 +236,7 @@ class DockerSession:
                     except TimeoutError:
                         continue
                     with connection:
-                        connection.settimeout(1 if config.soft_budget else max(.001, min(1, deadline - time.monotonic())))
+                        connection.settimeout(1)
                         receipt = {"accepted": False, "reason": "Invalid submission request"}
                         try:
                             request = connection.makefile("rb").readline(opinions.MAX_BYTES + 257)

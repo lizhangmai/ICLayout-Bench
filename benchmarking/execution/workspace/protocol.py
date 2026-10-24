@@ -8,7 +8,11 @@ from concurrent.futures import ThreadPoolExecutor
 from benchmarking.evidence.journal import RecordingError
 from benchmarking.execution._scripts import benchmark_feedback as opinions
 from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY
-from benchmarking.execution.tools.budget import tool_cancellation, tool_time_limits
+from benchmarking.execution.tools.budget import (
+    tool_cancellation,
+    tool_deadline,
+    tool_time_limits,
+)
 from benchmarking.files import Asset, read_file
 
 
@@ -56,8 +60,9 @@ class SessionProtocol:
                 self.feedback_cancellation.set()
             self.feedback_worker.shutdown(wait=True)
 
-    def _feedback(self, candidate, sequence, cancellation):
-        with tool_time_limits(not self.config.soft_budget), tool_cancellation(cancellation):
+    def _feedback(self, candidate, sequence, cancellation, deadline):
+        with tool_time_limits(True), tool_cancellation(cancellation), tool_deadline(
+                deadline):
             return self.feedback(candidate, sequence)
 
     def check(self, disconnected=None):
@@ -66,24 +71,28 @@ class SessionProtocol:
         requested_at = time.monotonic()
         self.record('process_feedback.request', sequence=sequence, request={'action': 'process_check'})
         entry = {'sequence': sequence, 'accepted': False, 'candidate': None, 'tool_identity': None, 'elapsed_seconds': 0.0, 'outcome': 'denied', 'physical_valid': None, 'specs_pass': None, 'task_success': None, 'report': None, 'report_id': None, 'error': None}
+        owns_operation = False
         try:
             remaining = self.deadline - requested_at
-            if remaining <= 0:
+            if remaining <= 0 and self.workspace.budget.operation_deadline is None:
                 entry['error'] = 'budget_exhausted'
                 return {'accepted': False, 'sequence': sequence, 'feedback': entry}
+            if self.workspace.budget.operation_deadline is None:
+                self.workspace.budget.begin_operation()
+                owns_operation = True
+            operation_deadline = self.workspace.budget.operation_deadline
             frozen = self.snapshot_candidate(remaining)
             entry['candidate'] = self.recorder.archive(frozen) if self.recorder else frozen.identity()
-            remaining = self.deadline - time.monotonic()
-            if remaining <= 0 and not self.config.soft_budget:
-                raise TimeoutError('Process feedback snapshot missed the deadline')
+            if time.monotonic() >= operation_deadline:
+                raise TimeoutError('Process feedback snapshot missed the command deadline')
             cancellation = self.feedback_cancellation = threading.Event()
-            pending = self.feedback_worker.submit(self._feedback, frozen, sequence, cancellation)
+            pending = self.feedback_worker.submit(self._feedback, frozen, sequence, cancellation, operation_deadline)
             while True:
                 if disconnected is not None and disconnected():
                     cancellation.set()
-                if not self.config.soft_budget and time.monotonic() >= self.deadline:
+                if time.monotonic() >= operation_deadline:
                     cancellation.set()
-                    raise TimeoutError('Process feedback exceeded the session deadline')
+                    raise TimeoutError('Process feedback exceeded its command deadline')
                 try:
                     result = pending.result(timeout=.1)
                     break
@@ -104,7 +113,9 @@ class SessionProtocol:
         except Exception as error:  # noqa: BLE001 -- feedback failures are durable diagnostics
             entry.update(accepted=True, outcome='error', error=f'{type(error).__name__}: {error}'[:1024])
         finally:
-            if time.monotonic() >= self.deadline and not self.config.soft_budget:
+            if owns_operation:
+                self.workspace.budget.end_operation()
+            if self.workspace.budget.phase == 'expired':
                 self.expired = True
             entry['elapsed_seconds'] = time.monotonic() - requested_at
             self.process_feedback.append(entry)
@@ -151,11 +162,10 @@ class SessionProtocol:
             frozen = self.snapshot_candidate(remaining)
             archived = self.recorder.archive(frozen) if self.recorder else None
             accepted_at = time.monotonic()
-            if accepted_at >= self.deadline and not self.config.soft_budget:
-                raise ValueError('Submission snapshot missed the deadline')
+            if self.workspace.budget.phase == 'expired':
+                raise ValueError('Submission settlement deadline passed')
             receipt = {'accepted': True, 'sequence': len(self.submissions) + 1, 'elapsed_seconds': accepted_at - self.started, **frozen.identity()}
-            if self.config.soft_budget:
-                receipt['after_budget'] = accepted_at >= self.deadline
+            receipt['after_budget'] = accepted_at >= self.deadline
             if key is not None:
                 receipt['idempotency_key'] = key
             # Persist acceptance before publishing the candidate or replay receipt.

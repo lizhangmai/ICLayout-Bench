@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from benchmarking.evaluation.contracts import number
+from benchmarking.execution.budgets import PhaseBudgets
 from benchmarking.execution.harness import HarnessSpec, prepare_harness
 from benchmarking.files import Asset, keys, read_file, relative, text
 
@@ -28,7 +29,12 @@ class RunConfig:
     environment: dict[str, str]
     source: Asset
     harness: HarnessSpec = field(default_factory=HarnessSpec)
-    soft_budget: bool = False
+    budgets: PhaseBudgets | None = None
+
+    @property
+    def phase_budgets(self):
+        return self.budgets or PhaseBudgets(self.wall_seconds, command_seconds=self.wall_seconds,
+                                           settlement_seconds=0)
 
 
 def load_run_config(path: Path) -> RunConfig:
@@ -36,13 +42,11 @@ def load_run_config(path: Path) -> RunConfig:
     source = Asset(read_file(path.parent, path.name), "toml")
     data = tomllib.loads(source.content.decode())
     keys(data, {"id", "image", "wall_seconds", "workspace_mb"},
-         {"files", "environment", "command", "harness", "soft_budget", "memory_mb", "cpus", "pids"},
+         {"files", "environment", "command", "harness", "phase_budgets", "memory_mb", "cpus", "pids"},
          "run configuration")
     for name in ("id", "image"):
         text(data[name], name)
     harness = prepare_harness(data)
-    if type(data.get('soft_budget', False)) is not bool:
-        raise ValueError('soft_budget must be a boolean')
     files = {}
     if not isinstance(data.get("command"), list) or not data["command"]:
         raise ValueError("command must be a nonempty argument list")
@@ -77,4 +81,5 @@ def load_run_config(path: Path) -> RunConfig:
     return RunConfig(data["id"], data["image"], tuple(data["command"]), number(data["wall_seconds"]),
                      data.get("memory_mb"), number(data["cpus"]) if "cpus" in data else None,
                      data.get("pids"), data["workspace_mb"],
-                     files, environment, source, harness, data.get('soft_budget', False))
+                     files, environment, source, harness, PhaseBudgets(solve_seconds=number(data['wall_seconds']), **data['phase_budgets'])
+                     if 'phase_budgets' in data else None)

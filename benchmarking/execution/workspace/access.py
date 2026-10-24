@@ -8,27 +8,28 @@ import selectors
 import subprocess
 import time
 
+from benchmarking.execution.budgets import PhaseBudgets, SessionBudget
 from benchmarking.files import relative
 
 
 class SessionWorkspace:
     """Host-side access to a running session; lifetime remains owned by DockerSession."""
 
-    def __init__(self, cid, root, reader_env, deadline, *, soft_budget=False):
+    def __init__(self, cid, root, reader_env, deadline, *, budgets=None):
         self.cid, self.control_socket = cid, root / "protocol/control.sock"
         self.reader_env, self.deadline = reader_env, deadline
         self.active = True
-        self.soft_budget = soft_budget
+        self.budget = SessionBudget(budgets or PhaseBudgets(3600, settlement_seconds=0), deadline)
 
     def remaining(self):
         remaining = self.deadline - time.monotonic()
-        if not self.active or (remaining <= 0 and not self.soft_budget):
+        if not self.active or self.budget.phase == 'expired':
             raise TimeoutError("Session deadline has passed")
         return max(0, remaining)
 
     def access_timeout(self):
         self.remaining()  # Closed workspaces remain inaccessible.
-        return None if self.soft_budget else self.remaining()
+        return 30  # File/control I/O has its own bounded transport allowance.
 
     def reader(self):
         return ["docker", "exec", "-i", *self.reader_env,
@@ -53,15 +54,19 @@ class SessionWorkspace:
             raise ValueError("Workspace file rejected or unavailable")
 
     def execute(self, execution_id, command, timeout):
-        if not self.soft_budget:
-            timeout = min(timeout, self.remaining())
+        timeout = self.budget.begin_operation(timeout)
         # Preserve declared PDK environment only for model commands, not file readers.
-        return subprocess.Popen(["docker", "exec", "-i", self.cid, "/usr/bin/python3", "-I",
-                                 "/protocol/workspace.py", "exec", execution_id, 'none' if timeout is None else str(timeout)],
-                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        try:
+            return subprocess.Popen(["docker", "exec", "-i", self.cid, "/usr/bin/python3", "-I",
+                                     "/protocol/workspace.py", "exec", execution_id, str(timeout)],
+                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        except Exception:
+            self.budget.end_operation()
+            raise
 
     def cancel(self, execution_id):
-        self.remaining()
+        if not self.active:
+            return
         if not execution_id.isalnum():
             raise ValueError("Invalid execution ID")
         # The protocol mount is read-only to the solver. Publishing from the
@@ -75,7 +80,7 @@ class SessionWorkspace:
                 "s.connect('/protocol/control.sock'); s.sendall(sys.stdin.buffer.read()+b'\\n'); "
                 "sys.stdout.buffer.write(s.makefile('rb').readline(1048576))")
         response = subprocess.run([*self.reader(), "-c", code], input=json.dumps(action).encode(),
-                                  capture_output=True, timeout=self.access_timeout(), check=True)
+                                  capture_output=True, timeout=30 if action == {'action': 'close'} else self.access_timeout(), check=True)
         return json.loads(response.stdout)
 
     def checkpoint(self, destination, limit, *, previous=None):

@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 
 from benchmarking.evidence.identity import evaluation_identity
+from benchmarking.execution.budgets import PhaseBudgets
 from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
 from benchmarking.execution.leases import BatchLease
 from benchmarking.execution.workspace.config import RunConfig
@@ -48,7 +49,7 @@ class SessionController:
         self.image, self.token, self.revision = image, token, revision
         self.evaluator_identity = evaluation_identity(task, backends)
         self.lock = threading.RLock()
-        self.limits = session_limits(task, seconds)
+        self.limits = session_limits(task, seconds, backends=backends)
         self.session_control = session_control if session_control is not None else SessionControl()
         try:
             self.state = ServiceState(self.root, task, recoverable=recoverable)
@@ -196,8 +197,20 @@ class SessionController:
         raise APIError(404, 'not_found', 'Route not found')
 
     def _status(self, data):
-        return views.status(data, self.session_control.workspace(data['session_id']),
-                            self.state.run_events(data['session_id'], partial=True), time.time())
+        workspace = self.session_control.workspace(data['session_id'])
+        result = views.status(data, workspace,
+                              self.state.run_events(data['session_id'], partial=True), time.time())
+        if result['phase'] == 'evaluating':
+            # Read the engine's persisted evaluation epoch; it is set once at
+            # actual phase entry, not on first poll or on recovery.
+            path = self.root/data['session_id']/'run/run.json'
+            if path.is_file():
+                import json
+                report = json.loads(path.read_bytes())
+                deadline = report.get('evaluation_deadline_epoch')
+                if deadline is not None:
+                    result['budget']['evaluation_remaining_seconds'] = max(0, deadline-time.time())
+        return result
 
     def _result(self, data):
         judged = (self.state.archive(data['session_id']).evaluation_report()
@@ -269,7 +282,7 @@ class SessionController:
                            self.limits['memory_mb'], self.limits['cpus'], self.limits['pids'],
                            self.limits['workspace_mb'], {}, {}, Asset(json_bytes(cond), 'json'),
                            HarnessSpec(id=cond['harness_id'], version=cond['harness_version'],
-                                       capabilities=(PROCESS_FEEDBACK_CAPABILITY,)), soft_budget=True)
+                                       capabilities=(PROCESS_FEEDBACK_CAPABILITY,)), budgets=PhaseBudgets.from_limits(self.limits))
         def ready(workspace, recorder, session):
             now = time.time()
             if resume is not None:
@@ -373,6 +386,7 @@ class SessionController:
             raise ValueError('Invalid command')
         if timeout is not None and (type(timeout) not in (int,float) or not math.isfinite(timeout) or timeout<=0):
             raise ValueError('Invalid timeout')
+        timeout = min(timeout or self.limits['max_command_seconds'], self.limits['max_command_seconds'])
         eid = uuid.uuid4().hex
         def started():
             data['executions'][eid] = {
