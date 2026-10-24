@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 
+from benchmarking.eda.layout_derivation import validate_layout_derivation
 from benchmarking.evaluation.contracts import Job, JobResult
 from benchmarking.evidence.bundles import load_bundle
 from benchmarking.evidence.identity import package_source
@@ -122,11 +123,13 @@ class KLayoutDocker:
         return {"adapter": "klayout-docker", "check": self.check, **self.tool.identity,
                 "adapter_sha256": Asset(Path(__file__).read_bytes(), "python").sha256,
                 "runner_sha256": self.runner.sha256, "settings": self.settings,
+                "layout_derivation_sha256": Asset(package_source("eda/layout_derivation.py").read_bytes(), "python").sha256,
                 "support_sha256": self.support.manifest.sha256 if self.support else None}
 
     def run(self, job: Job, inputs: dict[str, Asset]) -> JobResult:
         required = {"layout", "netlist"} if self.check == "lvs" else {"layout"}
-        keys(inputs, required, {"task"}, "KLayout check inputs")
+        keys(inputs, required, {"task"} | ({"original", "binding"} if self.check == "lvs" else set()), "KLayout check inputs")
+        derivation = validate_layout_derivation(inputs)
         if job.gate not in {None, self.check}:
             raise ValueError("KLayout check does not implement the declared gate")
         allowed_outputs = {"database": "klayout-lvs", "binding": "json"}
@@ -175,7 +178,7 @@ class KLayoutDocker:
             exports["extracted.spice"] = "spice"
             exports["layer-map.json"] = "json"
         result = self.tool.run(["python", "run.py"], files, exports)
-        evidence = {**(self.support.evidence() if self.support else {}), **result.evidence,
+        evidence = {**(self.support.evidence() if self.support else {}), **result.evidence, **derivation,
                     **result.files, "runner": self.runner, "configuration": config}
         if result.returncode != 0 or result.reason:
             return JobResult("error", result.reason or "KLayout runner did not complete", evidence=evidence)

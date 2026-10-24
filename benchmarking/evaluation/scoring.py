@@ -43,9 +43,6 @@ def _job_state(plan: EvaluationPlan, jobs: Mapping[str, Any],
     del physical_valid
     if _FAILED in gate_statuses:
         return 0.0
-    if any(status in _UNKNOWN for status in gate_statuses):
-        return None
-
     # Every declared job belongs to the frozen evaluation contract.  A
     # completed rejection is a known-invalid candidate; an error or a blocked
     # dependent is an evaluator state and cannot be converted into a score.
@@ -53,6 +50,8 @@ def _job_state(plan: EvaluationPlan, jobs: Mapping[str, Any],
     if any(_report_status(jobs.get(job.id)) == _FAILED
            for job in plan.jobs if job.id not in baseline_jobs):
         return 0.0
+    if any(status in _UNKNOWN for status in gate_statuses):
+        return None
     if any(status in _UNKNOWN or status is None for status in statuses):
         return None
     if any(status != "passed" for status in statuses):

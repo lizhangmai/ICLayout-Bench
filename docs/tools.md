@@ -552,6 +552,83 @@ those of the pinned native reader. This is an input adapter, with no rule
 waivers or new device models. Candidate scoring simulates only GDS-derived PEX. Other source dialects require
 an explicitly validated adaptation.
 
+### Fixed passive macros
+
+`fixed-macros-docker` checks immutable layout cells before a separate native
+LVS and extraction. A `layout.fixed_macros` check consumes `layout` (candidate
+GDS), `task` (JSON), `library` (trusted GDS) and `specification` (trusted JSON),
+and exports `layout = "gds"` and `binding = "json"`. Settings are `image` and
+`timeout_seconds`. Use a check without a gate; the downstream LVS gate and
+extractor require its successful outputs. DRC always checks the original GDS.
+
+The specification contains a nonempty `macros` list. Each entry names a `cell`,
+its original `translation_dbu`, nonnegative `clearance_dbu`, `abstract` boolean,
+`contact_layers` and `ports`. Exactly one physical instance of each cell is
+required. Flattened per-layer polygons and texts must equal the library, and
+the cells must retain their relative placement and ground context. Only a
+shared translation, grid-preserving quarter turn or reflection is accepted.
+Each contact rule maps a drawing `body` layer to its contacting `contacts`
+layers, using `[layer, datatype]` pairs. Candidate geometry on those layers
+must not enter the protected macro body outside exposed terminal landings.
+
+A port declares `name`, drawing `layer`, `text_layers`, `box_dbu` and `extract`.
+Its landing is the intersection of existing macro metal with the box; the
+adapter never inserts missing metal. Abstracted macro bodies are removed from
+the extraction copy, retaining these existing landings and their declared
+native-tool labels. Fixture-only ports use `extract = false` and allow no
+free-circuit attachment. Context cells use `abstract = false` and remain in
+the extraction copy. All non-macro candidate devices and wiring are retained.
+
+KLayout LVS and SG13G2 HBT RC jobs can consume this derived `layout` together
+with `original = "candidate"` and the verifier's `binding`. They check both
+GDS digests and the top cell before native processing, retaining the proof as
+evidence. Do not bypass native LVS of the exposed terminals. Simulation must
+combine the extracted free circuit with the declared fixed-macro models;
+source active devices and reference wiring cannot supplement candidate PEX.
+Authors must establish model/geometry correspondence, ordered terminals,
+ground context, frequency coverage and approximation limits, then validate
+negative geometry/connection controls and candidate-dependent performance.
+This boundary does not establish full-wave accuracy of inherited models.
+
+### Candidate uniform transmission lines
+
+`rlc-line-docker` implements `layout.rf_line` with a trusted process bundle
+(`support`, `profile`), `image` and `timeout_seconds`. It consumes the prior
+macro-cut `layout` and `binding`, the untouched candidate as `original`, `task`
+and a trusted JSON `specification`. It exports `layout` (GDS), `binding` (JSON)
+and `netlist` (SPICE). Native DRC checks the original; native LVS and extraction
+check the resulting layout and retain its candidate and parent-proof digests.
+
+The specification declares `cell`, `subcircuit`, `signal_layer`, `ground_layer`,
+`landing_um`, `window_um`, `guard_um`, `ground_anchor`, three ordered `ports` and all
+`conductor_layers`. Exactly one instance must contain a uniform rectangular
+strip at local origin and the complete prescribed return plane. Quarter turns
+and reflections preserve the grid. The process fixes width, return geometry,
+optional regular ground perforations and permitted length range. Extra
+conductors, branches, labels or altered cross-sections inside the modeled cell
+are rejected. Surrounding conductors may enter the isolation region only
+through the declared end access areas. Existing terminal metal, vias, return
+wiring and all free circuit geometry remain subject to native physical checks.
+`ground_anchor` names a separately verified fixed cell and a local `point_um`
+inside its return metal. The drawn return plane must share one continuous
+polygon on `ground_layer` with this transformed anchor. Net labels cannot
+replace that physical connection. This interface requires same-layer return
+wiring; multilayer return routes need a separately validated model boundary.
+
+The model uses positive series DC resistance and inductance, parallel RL skin
+branches and shunt capacitance in a finite pi ladder. Values scale with the
+measured candidate length. The process must document its calibration source,
+independent accuracy checks and approximation limits. Reusing a calibrated
+cross-section permits routine RLC post-simulation without running a full-wave
+solver for every candidate. It does not establish accuracy for new widths,
+bends, return planes or neighboring conductors. Authors must validate physical
+length controls, invalid geometry and disconnected return paths separately.
+KPEX accepts the resulting SPICE as optional `model`, with its line proof in
+`derivation`. It checks the model digest against that proof, retains the model
+as evidence and appends its subcircuit definitions to the extracted candidate
+circuit. Other supplied circuit models are rejected. The simulation fixture and
+its other inputs remain identical between source and post-layout evaluation.
+
 ### HBT core simulation support
 
 The HBT model profile (Dataset: `tasks/ihp-sg13g2/pdk.toml`) prepares the pinned
@@ -563,6 +640,12 @@ HBT extraction with Magic distributed interconnect R/C. Its `klayout_support`
 and `magic_support` settings use separately reviewed bundles; declare their
 profiles through `support_profiles` in the [resource manifest](tools.md#agent-pdk-resources). Physical LVS remains a
 separate gate against the maintained circuit, including the named interface.
+For the fixed `npn13G2` emitter, the native extractor reports bounding-box X/Y
+dimensions as `we`/`le`. The adapter accepts the complete 70 × 900 nm pair in
+either axis order, preserving native `Nx` and terminal connections and passing
+only the fixed symbol's behavioral parameters to simulation. Other dimensions
+remain errors. Native LVS still checks the source's declared geometry; this
+serialization rule does not alter its comparison options or the PDK deck.
 
 The `kpex-cc-docker` backend provides nominal 2.5D coupling capacitance.
 Its `support` bundle and JSON `profile` declare the process name, bundled native
@@ -574,6 +657,10 @@ The process profile and support manifest enter backend identity. Tool settings
 also include `image` and `timeout_seconds`.
 
 Jobs consume candidate GDS, its native LVS database and a content binding.
+When a prior fixed-macro job emits an extraction copy, optional `original` and
+`derivation` inputs must be supplied together. Their content proof binds the
+original submission, cut GDS and top cell; the independent native LVS binding
+still binds that cut GDS to its candidate database. Both proofs enter evidence.
 The backend independently extracts annotated geometry, compares it against a
 reference exported from that candidate database, and consumes the persisted
 native LVS verdict. It preserves the process's device and terminal-equivalence
@@ -644,6 +731,14 @@ alongside ngspice. Qucs-S parses/netlists `.sch` files headlessly with
 
 The image does not provide Xyce. A task requiring Xyce needs a compatible runtime
 and backend; Qucsator is not a substitute for that simulator.
+
+The pinned ngspice build applies a one-line `xfer` DC Jacobian correction:
+the derivative equals the real transfer value at the first table frequency,
+matching the model's existing DC output equation. Without this derivative,
+even a linear negative feedback circuit can fail its operating-point solve.
+The image smoke check compares `xfer` with an equivalent VCVS against an
+analytical DC solution. This correction does not add S-parameter thermal noise
+or transient support; those analyses require an appropriate passive model.
 
 ## External commercial runtimes
 
@@ -950,6 +1045,9 @@ followed by StarRC. It selects `deck`, `technology_env`, and resource paths
 `grid`, `mapping`, `command_template`, `query_template`, and `hcell_file` within
 the declared technology mount. Both `calibre` and `starrc` module profiles are
 required. Optional `cores` (1–8) runs the vendor's manual distributed workers.
+StarRC may reduce the worker count when fewer partitions are needed. Acceptance
+requires successful worker exits, normal extraction completion and zero reported
+errors; completion-message counts need not equal the requested worker count.
 The vendor command policy is retained; run-specific file paths, top name,
 temperature, node reporting and worker count are bound explicitly.
 Optional `extraction_mode = "RC"` fills an existing template extraction setting;

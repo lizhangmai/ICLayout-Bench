@@ -12,7 +12,6 @@ from benchmarking.evaluation.runner import run_evaluation
 from benchmarking.evaluation.scoring import recompute_score
 
 pytestmark = pytest.mark.unit
-pytest_plugins = ["test_evaluate"]
 
 
 def test_missing_unbounded_metric_measurement_is_not_a_numeric_score(
@@ -30,6 +29,31 @@ aggregation = "min"
     assert report["metrics"]["diagnostic"]["status"] == "error"
     assert report["outcome"] == "error"
     assert report["score"]["value"] is None
+
+
+@pytest.mark.parametrize("status,expected", [("failed", 0), ("error", None)])
+def test_model_rejection_precedes_blocked_native_checks(tmp_path, inputs, bindings, status, expected):
+    from benchmarking.evaluation.contracts import JobResult
+    from benchmarking.files import Asset
+
+    class ModelVerifier:
+        identity: ClassVar[dict] = {"adapter": "synthetic-model-verifier"}
+
+        def run(self, job, assets):
+            return JobResult(status, "physical model boundary rejected" if status == "failed" else "tool unavailable",
+                             evidence={"native": Asset(b"independent geometry verdict", "text")})
+
+    data = reference_plan()
+    data["jobs"].append({"id": "model", "stage": "check", "operation": "model_check",
+                         "inputs": {"layout": "candidate"}})
+    native = next(j for j in data["jobs"] if j["id"] == "lvs")
+    native["requires"] = [*native.get("requires", []), "model"]
+    plan = parse_evaluation(json.dumps(data).encode(), file_format="json")
+    report = run_evaluation(plan, inputs, {**bindings, "model_check": ModelVerifier()}, tmp_path / status)
+    assert report["jobs"]["lvs"]["status"] == "blocked"
+    assert report["score"]["value"] == expected
+    assert report["outcome"] == status
+    assert report["score"] == recompute_score(plan, report)
 
 
 def test_area_metric_must_use_the_candidate_constraint_check():

@@ -11,6 +11,7 @@ from benchmarking.eda.backends.hbt.merge import merge_hbt_netlists
 from benchmarking.eda.backends.hbt.netlist import _HBT_MODELS, _canonical_net
 from benchmarking.eda.backends.klayout import KLayoutDocker
 from benchmarking.eda.backends.magic import MagicRCDocker
+from benchmarking.eda.layout_derivation import validate_layout_derivation
 from benchmarking.evaluation.contracts import Job, JobResult
 from benchmarking.evidence.identity import package_source
 from benchmarking.files import Asset, keys, text
@@ -113,6 +114,7 @@ class SG13G2HBTRCDocker:
                 for name in ("netlist", "connectivity", "passives", "matching", "merge", "backend")
             },
             "runner_sha256": self.runner.sha256,
+            "layout_derivation_sha256": Asset(package_source("eda/layout_derivation.py").read_bytes(), "python").sha256,
             "klayout": self.klayout.identity,
             "magic": self.magic.identity,
             "parasitics": "candidate_hbt_geometry_plus_distributed_rc",
@@ -130,8 +132,10 @@ class SG13G2HBTRCDocker:
         }
 
     def run(self, job: Job, inputs: dict[str, Asset]) -> JobResult:
-        if job.stage != "extract" or set(inputs) - {"layout", "task"} or "layout" not in inputs:
+        if job.stage != "extract" or set(inputs) - {"layout", "task", "original", "binding"} or "layout" not in inputs:
             raise ValueError("SG13G2 HBT extraction requires layout and optional task inputs")
+        derivation = validate_layout_derivation(inputs)
+        inputs = {key: asset for key, asset in inputs.items() if key in {"layout", "task"}}
         if inputs["layout"].format != "gds" or dict(job.outputs) != {"netlist": "spice"}:
             raise ValueError("SG13G2 HBT extraction requires GDS and a SPICE netlist output")
         keys(job.parameters, {"ports"}, {"top_cell"}, "SG13G2 HBT extraction parameters")
@@ -168,7 +172,7 @@ class SG13G2HBTRCDocker:
             {"result.json": "json", "tool.log": "text", "complete.txt": "text",
              "extracted.spice": "spice"},
         )
-        evidence = {**self.klayout.support.evidence(), **extraction.evidence,
+        evidence = {**self.klayout.support.evidence(), **extraction.evidence, **derivation,
                     **{f"klayout:{name}": asset for name, asset in extraction.files.items()},
                     "klayout_runner": self.runner, "klayout_configuration": config}
         if extraction.reason or extraction.returncode != 0:

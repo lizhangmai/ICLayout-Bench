@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+pytest_plugins = ["test_evaluate"]
+
 
 @pytest.fixture
 def native_tmp_path():

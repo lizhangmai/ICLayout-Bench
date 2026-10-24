@@ -427,6 +427,16 @@ def test_fixed_geometry_rejects_wrong_emitter_width():
         merge_hbt_netlists(_klayout(we='71n'), _magic(), PORTS, _magic())
 
 
+def test_rotated_native_fixed_emitter_keeps_model_multiplicity_and_connections():
+    original, _ = merge_hbt_netlists(_klayout(), _magic(), PORTS, _magic())
+    rotated = _klayout().replace(b"we=70n le=900n", b"we=900n le=70n")
+    actual, _ = merge_hbt_netlists(rotated, _magic(), PORTS, _magic())
+    assert actual == original
+    for invalid in (b"we=900n le=71n", b"we=900n le=900n"):
+        with pytest.raises(ValueError, match="drawn geometry"):
+            merge_hbt_netlists(_klayout().replace(b"we=70n le=900n", invalid), _magic(), PORTS, _magic())
+
+
 def _split_internal_contacts(*, local_card="", anchor_card="", topology_reordered=False):
     """Two HBTs share one native node but have separate Magic contacts."""
     ports = "OUT0 IN0 OUT1 IN1 GND"

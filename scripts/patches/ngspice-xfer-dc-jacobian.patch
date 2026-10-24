@@ -1,0 +1,9 @@
+--- a/src/xspice/icm/analog/xfer/cfunc.mod
++++ b/src/xspice/icm/analog/xfer/cfunc.mod
+@@ -293,5 +293,6 @@
+             }
+         }
+         OUTPUT(out) = table->s[0].real * INPUT(in);
++        PARTIAL(out, in) = table->s[0].real;
+     }
+ }

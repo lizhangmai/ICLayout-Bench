@@ -250,6 +250,9 @@ def parse_spice_netlist(raw: bytes | str, *, strict_devices: bool = False) -> Pa
 
 
 def _parameter_items(device: SpiceDevice) -> tuple[str, ...]:
+    values = {key.casefold(): value for key, value in device.parameters}
+    if len(values) != len(device.parameters):
+        raise ValueError(f"Duplicate {device.model} parameter on {device.name}")
     if device.model in {"ptap1", "ntap1"}:
         if len({key.casefold() for key, _ in device.parameters}) != len(device.parameters):
             raise ValueError(f"Duplicate {device.model} parameter on {device.name}")
@@ -265,12 +268,22 @@ def _parameter_items(device: SpiceDevice) -> tuple[str, ...]:
             raise ValueError(f"{device.model} requires a finite positive resistance")
         return (f"R={resistance:.12g}",)
     allowed = _PARAMETER_NAMES[device.model]
+    geometry = _HBT_FIXED_GEOMETRY.get(device.model, {})
+    if (device.model == "npn13g2" and {"we", "le"} <= values.keys()
+            and _same_spice_value(values["we"], geometry["le"])
+            and _same_spice_value(values["le"], geometry["we"])):
+        # The pinned native CustomBJTExtractor writes emitter bbox X/Y as
+        # WE/LE. A quarter turn swaps those annotations while preserving the
+        # fixed 70 x 900 nm npn13G2 emitter and its native Nx. Accept only
+        # this complete pair, never an arbitrary width or length. The compact
+        # model's interface remains Nx; no native geometry is rewritten.
+        geometry = {"we": geometry["le"], "le": geometry["we"]}
     output = []
     seen = set()
     for key, value in device.parameters:
         lower = key.casefold()
-        if device.model in _HBT_MODELS and lower in _HBT_FIXED_GEOMETRY.get(device.model, {}):
-            expected = _HBT_FIXED_GEOMETRY[device.model][lower]
+        if device.model in _HBT_MODELS and lower in geometry:
+            expected = geometry[lower]
             if not _same_spice_value(value, expected):
                 raise ValueError(f"Unsupported {device.model} drawn geometry {key}={value}; expected {expected}")
             # KLayout's native writer includes these values for LVS.  The

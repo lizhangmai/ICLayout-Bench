@@ -6,6 +6,10 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from benchmarking.eda.layout_derivation import (
+    validate_derived_model,
+    validate_layout_derivation,
+)
 from benchmarking.eda.netlists.dspf import bind_ports
 from benchmarking.eda.netlists.spice import logical_lines, tokens
 from benchmarking.evaluation.contracts import Job, JobResult
@@ -86,11 +90,15 @@ class KpexCCDocker:
         return {"adapter": "kpex-cc-docker", **self.tool.identity,
                 "adapter_sha256": Asset(Path(__file__).read_bytes(), "python").sha256,
                 "runner_sha256": self.runner.sha256, "mode": "CC",
+                "layout_derivation_sha256": Asset(package_source("eda/layout_derivation.py").read_bytes(), "python").sha256,
                 "blackbox_devices": True, "process": self.process,
                 "support_sha256": self.support.manifest.sha256}
 
     def run(self, job: Job, inputs: dict[str, Asset]) -> JobResult:
-        keys(inputs, {"layout", "database", "binding"}, {"task"}, "KPEX inputs")
+        keys(inputs, {"layout", "database", "binding"}, {"task", "original", "derivation", "model"}, "KPEX inputs")
+        derivation = validate_layout_derivation({**{key: value for key, value in inputs.items()
+                                                    if key in {"layout", "task", "original"}},
+            **({"binding": inputs["derivation"]} if "derivation" in inputs else {})})
         if (job.stage != "extract" or dict(job.outputs) != {"netlist": "spice"}
                 or inputs["layout"].format != "gds" or inputs["database"].format != "klayout-lvs"
                 or inputs["binding"].format != "json"):
@@ -108,7 +116,8 @@ class KpexCCDocker:
         if (not isinstance(ports, list) or not ports or any(not isinstance(p, str) or not p for p in ports)
                 or len({p.casefold() for p in ports}) != len(ports) or params["substrate"] not in ports):
             raise ValueError("KPEX requires unique ports and a declared substrate port")
-        evidence = {"binding": inputs["binding"], "runner": self.runner}
+        evidence = {"binding": inputs["binding"], "runner": self.runner, **derivation,
+            **validate_derived_model(inputs.get("derivation"), inputs.get("model"))}
         try:
             validate_binding(inputs["layout"], inputs["database"], json.loads(inputs["binding"].content), top)
         except (ValueError, TypeError, KeyError) as error:
@@ -154,4 +163,6 @@ class KpexCCDocker:
                 raise ValueError("KPEX emitted duplicate physical device names")
         except (ValueError, TypeError, KeyError) as error:
             return JobResult("error", f"Invalid KPEX result: {error}", evidence=evidence)
+        if "model" in inputs:
+            netlist = Asset(netlist.content + b"\n" + inputs["model"].content, "spice")
         return JobResult("passed", outputs={"netlist": netlist}, evidence=evidence)

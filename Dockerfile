@@ -32,21 +32,25 @@ CMD ["bash"]
 FROM common AS ngspice-build
 ARG NGSPICE_COMMIT=86c78150b77ceea8488707565b3be2d2f4e7fbb9
 ARG NGSPICE_SHA256=dcc8f263bae8f3eb0717f36a6bf3b424f0531a33b9e51ce88aec0437694f0ad9
+COPY scripts/patches/ngspice-xfer-dc-jacobian.patch /tmp/ngspice-xfer-dc-jacobian.patch
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        build-essential autoconf automake libtool bison flex libreadline-dev libsuitesparse-dev \
+        build-essential autoconf automake libtool bison flex libreadline-dev libsuitesparse-dev patch \
     && curl --fail --show-error --silent --location --retry 3 \
         "https://codeload.github.com/imr/ngspice/tar.gz/$NGSPICE_COMMIT" \
         --output /tmp/ngspice.tar.gz \
     && echo "$NGSPICE_SHA256  /tmp/ngspice.tar.gz" | sha256sum --check \
     && tar -xzf /tmp/ngspice.tar.gz -C /tmp \
     && cd "/tmp/ngspice-$NGSPICE_COMMIT" \
+    && patch -p1 < /tmp/ngspice-xfer-dc-jacobian.patch \
     && ./autogen.sh \
     && ./configure --prefix=/opt/ngspice --with-x=no --enable-xspice --enable-osdi \
         --enable-klu --with-readline=yes \
     && make -j4 \
     && make install \
-    && install -D COPYING /opt/ngspice/share/doc/COPYING
+    && install -D COPYING /opt/ngspice/share/doc/COPYING \
+    && install -D /tmp/ngspice-xfer-dc-jacobian.patch \
+        /opt/ngspice/share/doc/ngspice-xfer-dc-jacobian.patch
 
 FROM common AS qucsator-build
 ARG QUCSATOR_COMMIT=e995f9acc71a8c7319286944e4a1692318b9dd80
