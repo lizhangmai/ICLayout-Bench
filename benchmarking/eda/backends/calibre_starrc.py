@@ -131,7 +131,7 @@ class CalibreStarRCNative(CalibreNative):
             log = result.files['starrc.log'].content.decode(errors='replace')
             counts = re.findall(r'Warnings:\s*\d+\s+Errors:\s*(\d+)', log)
             if (not counts or any(int(count) for count in counts)
-                    or len(re.findall(r'^Done\s+Elp=', log, re.MULTILINE)) != self.star_options['cores']):
+                    or not re.search(r'^Done\s+Elp=', log, re.MULTILINE)):
                 raise ValueError('StarRC error summary is missing or reports errors')
             adapted = bind_extracted_netlist(result.files['extracted.dspf'].content.decode(), top,
                                  job.parameters['ports'], require_junctions=self.configuration.rc.require_junctions,

@@ -24,8 +24,9 @@ def native_probe(self, command, **kwargs):
     return SimpleNamespace(returncode=0, stdout=b'Calibre native release\n')
 
 
+@pytest.mark.parametrize('cores', [1, 2])
 @pytest.mark.parametrize('failure', ['', 'lvs', 'junctions', 'ports', 'completion', 'summary', 'exit'])
-def test_starrc_requires_complete_candidate_extraction(native_tmp_path, monkeypatch, failure):
+def test_starrc_requires_complete_candidate_extraction(native_tmp_path, monkeypatch, failure, cores):
     pdk = native_tmp_path / 'pdk'
     technology = pdk / 'technology'
     technology.mkdir(parents=True)
@@ -44,7 +45,7 @@ def test_starrc_requires_complete_candidate_extraction(native_tmp_path, monkeypa
     monkeypatch.setattr(NativeTool, 'probe', native_probe)
     backend = CalibreStarRCNative(runtime=runtime, deck='lvs.rules', technology_env='STAR_ROOT',
         grid='grid', mapping='mapping', hcell_file='hcell', command_template='command', query_template='query',
-        extraction_mode='RC', device_pin_file='pins')
+        extraction_mode='RC', device_pin_file='pins', cores=cores)
     assert backend.version == [('test', 'fixed')]
     report = '''OVERALL COMPARISON RESULTS
 CELL SUMMARY
@@ -68,6 +69,9 @@ M0 OUT IN GND GND nmodel L=2e-6 W=3e-6 AS=1e-12 AD=2e-12 PS=3e-6 PD=4e-6
     if failure == 'ports':
         circuit = circuit.replace('TOP OUT GND IN', 'TOP OTHER GND IN')
     log = 'Warnings: 0    Errors: 0\nDone          Elp=00:00:01 Cpu=00:00:01\n'
+    if cores == 2:
+        log += ("WARNING: NUM_CORES is larger than the required partitions, and is reduced from '2' to '1'. (SX-0203)\n"
+                'WARNING: Number of jobs already reached the NUM_CORES value 1, terminating current process. (SX-1120)\n')
     if failure == 'completion':
         log = log.split('Done')[0]
     if failure == 'summary':
