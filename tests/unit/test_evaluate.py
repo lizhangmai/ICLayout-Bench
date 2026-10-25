@@ -408,7 +408,7 @@ def test_empty_candidate_lvs_rejection_and_tool_failure_have_distinct_scores(
 
 
 @pytest.mark.parametrize("status", ["failed", "error"])
-def test_unusable_candidate_extraction_rejects_layout_with_zero_score(
+def test_extractor_explicitly_distinguishes_rejection_from_evaluator_error(
         tmp_path, inputs, bindings, status):
     reason = "Extracted netlist introduced a resistive connection between distinct ports"
 
@@ -419,14 +419,72 @@ def test_unusable_candidate_extraction_rejects_layout_with_zero_score(
     bindings["extract"] = RejectedExtractor()
     report = evaluate(tmp_path, inputs, bindings)
     assert report["physical_valid"] is True
-    assert report["jobs"]["parasitics"]["status"] == "failed"
+    assert report["jobs"]["parasitics"]["status"] == status
     assert report["jobs"]["parasitics"]["reason"] == reason
     assert report["jobs"]["parasitics"]["evidence"]["console"]["sha256"] == hashlib.sha256(reason.encode()).hexdigest()
     assert report["jobs"]["nominal"]["status"] == "blocked"
     assert report["jobs"]["slow"]["status"] == "blocked"
-    assert report["outcome"] == "failed"
-    assert report["task_success"] is False
-    assert report["score"]["value"] == 0
+    assert report["outcome"] == status
+    assert report["task_success"] is (False if status == "failed" else None)
+    assert report["score"]["value"] == (0 if status == "failed" else None)
+
+
+@pytest.mark.parametrize("problem,expected", [
+    ("event", 0), ("mixed", 0), ("missing", None), ("ambiguous", None),
+    ("model", None), ("crash", None), ("timeout", None),
+])
+def test_ngspice_event_rejection_scores_zero_but_execution_and_report_faults_do_not(
+        tmp_path, inputs, bindings, monkeypatch, problem, expected):
+    """Replay the PTAT missing-crossing pattern through the real adapter and scorer."""
+    from benchmarking.eda.backends import ngspice
+    from benchmarking.execution.tools import ToolResult
+
+    event_log = (b"No. of Data Rows : 100001\n"
+                 b"Error: measure delay when(WHEN): out of interval\n"
+                 b" meas tran delay when error=1m fall=last failed!\n")
+
+    class Tool:
+        def __init__(self, *args):
+            self.identity = {"image_id": "test"}
+
+        def run(self, command, files, exports, **kwargs):
+            slow = b"load=2" in files["parameters.spice"].content
+            log, console, reason, code = event_log, b"", "", 0
+            if slow and problem != "mixed":
+                log = b"delay = 3.0\n"
+            elif problem in {"missing", "ambiguous"}:
+                log = b"No. of Data Rows : 100001\n"
+                if problem == "ambiguous":
+                    log += b"delay = 1\ndelay = 2\n"
+            elif problem == "model":
+                log += b"Error: unknown model type\n"
+            elif problem == "crash":
+                console = b"Fatal error (signal SIGSEGV) - crash handler invoked\n"
+            elif problem == "timeout" or slow and problem == "mixed":
+                reason, code = "Tool exceeded its fixed time limit", None
+            evidence = {"console": Asset(console, "text")}
+            if reason:
+                evidence["execution_error"] = Asset(reason.encode(), "text")
+            return ToolResult(code, reason, {"ngspice.log": Asset(log, "text")}, evidence)
+
+    monkeypatch.setattr(ngspice, "DockerTool", Tool)
+    bindings["response"] = ngspice.NgspiceDocker(image="unused")
+    data = tomllib.loads(PLAN.decode())
+    inputs["input:deck"] = Asset(b"* Required transient event\n", "spice")
+    for job in data["jobs"]:
+        if job["stage"] == "simulate":
+            job["parameters"] = {"measurements": {"delay": "s"}, "values": job["parameters"]}
+            job["inputs"]["deck"] = "input:deck"
+    for source in data["pre_layout"]["jobs"].values():
+        source["parameters"] = {"measurements": {"delay": "s"}, "values": source["parameters"]}
+        source["inputs"]["deck"] = "input:deck"
+        source["input_sha256"]["deck"] = inputs["input:deck"].sha256
+    plan = parse_evaluation(json.dumps(data).encode(), file_format="json")
+    report = run_evaluation(plan, inputs, bindings, tmp_path / "report")
+    assert report["score"]["value"] == expected
+    assert report["outcome"] == ("failed" if expected == 0 else "error")
+    assert report["task_success"] is (False if expected == 0 else None)
+    assert report["jobs"]["nominal"]["evidence"]["log"]["sha256"]
 
 
 @pytest.mark.parametrize("evidence_name", ["execution_error", "cleanup_error", "magic:execution_error"])

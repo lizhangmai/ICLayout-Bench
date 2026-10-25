@@ -11,16 +11,22 @@ from benchmarking.eda.netlists.spice import logical_lines
 from benchmarking.eda.netlists.spice import number as spice_number
 
 
+class ExtractionRejected(ValueError):
+    """A readable native circuit violates a prescribed extraction requirement."""
+
+
 def bind_ports(text, top, ports, *, case_insensitive=False):
     """Reorder an existing named interface without adding or removing ports."""
     lines = logical_lines(text)
     matches = [line for line in lines
                if re.match(r'(?i)^\s*\.subckt\s+' + re.escape(top) + r'\s+', line.text)]
     canonical = str.upper if case_insensitive else str
-    if (len(matches) != 1 or not ports or len(ports) != len({canonical(p) for p in ports})
+    if not ports or len(ports) != len({canonical(p) for p in ports}):
+        raise ValueError('Extraction requires a unique declared interface')
+    if (len(matches) != 1
             or len(matches[0].text.split()[2:]) != len(ports)
             or {canonical(p) for p in matches[0].text.split()[2:]} != {canonical(p) for p in ports}):
-        raise ValueError('Extracted top-level ports differ from the declared interface')
+        raise ExtractionRejected('Extracted top-level ports differ from the declared interface')
     # Preserve every device card byte-for-byte, including continuations,
     # annotations and parameters unknown to this interface reader.
     physical = text.splitlines(keepends=True)
@@ -35,11 +41,11 @@ def _positive_parameters(tail, required, *, nonnegative=()):
     params = {name.lower(): value for name, value in
               re.findall(r'\b(\w+)=([^\s]+)', tail)}
     if not set(required) <= params.keys():
-        raise ValueError('Extracted device is missing required geometry')
+        raise ExtractionRejected('Extracted device is missing required geometry')
     for name in required:
         value = spice_number(params[name])
         if not math.isfinite(value) or value < 0 or (name not in nonnegative and value == 0):
-            raise ValueError('Invalid extracted device geometry')
+            raise ExtractionRejected('Invalid extracted device geometry')
 
 
 def bind_extracted_netlist(text, top, ports, *, require_junctions=False,
@@ -85,9 +91,9 @@ def bind_extracted_netlist(text, top, ports, *, require_junctions=False,
                 has_device = True
             else:
                 if not math.isfinite(value) or value < 0:
-                    raise ValueError('Invalid extracted interconnect resistance')
+                    raise ExtractionRejected('Invalid extracted interconnect resistance')
                 if re.search(r'(?i)\b(?:segr|segw|segl|effw|effl)\s*=', ' '.join(fields[4:])):
                     raise ValueError('Numeric process resistor lost its model; enable model-preserving extraction')
     if not has_device or not {'R', 'C'} <= kinds:
-        raise ValueError('Native extraction lacks physical devices or RC elements')
+        raise ExtractionRejected('Native extraction lacks physical devices or RC elements')
     return bind_ports(text, top, ports, case_insensitive=case_insensitive_ports)

@@ -23,7 +23,7 @@ def native_probe(self, command, **kwargs):
 
 
 @pytest.mark.parametrize('failure,within_pdk', [
-    (failure, False) for failure in ('', 'lvs', 'junctions', 'completion', 'exit', 'stuck-exit',
+    (failure, False) for failure in ('', 'lvs', 'junctions', 'syntax', 'completion', 'exit', 'stuck-exit',
                                    'stuck-no-console', 'bad-exit-report', 'missing-exit-report',
                                    'recreated-log-grace')
 ] + [('', True)])
@@ -67,6 +67,8 @@ M0 OUT IN GND GND nmodel L=2e-6 W=3e-6 AS=1e-12 AD=2e-12 PS=3e-6 PD=4e-6
         report = report.replace('CORRECT', 'INCORRECT')
     if failure == 'junctions':
         circuit = circuit.replace(' AS=1e-12', '')
+    if failure == 'syntax':
+        circuit = '+ orphan continuation\n' + circuit
     captured = {}
     native_execute = backend.tool.run
     if failure == 'recreated-log-grace':
@@ -119,7 +121,8 @@ M0 OUT IN GND GND nmodel L=2e-6 W=3e-6 AS=1e-12 AD=2e-12 PS=3e-6 PD=4e-6
     assert 'QUERY CCI' in captured['control.svrf'].content.decode()
     assert 'PEX NETLIST' not in captured['control.svrf'].content.decode()
     if failure:
-        assert result.status == 'error' and not result.outputs
+        assert result.status == ('failed' if failure in {'lvs', 'junctions'} else 'error')
+        assert not result.outputs
         assert 'qrc.log' in result.evidence
         if failure in {'stuck-exit', 'stuck-no-console', 'recreated-log-grace'}:
             assert 'process tree did not exit' in result.reason

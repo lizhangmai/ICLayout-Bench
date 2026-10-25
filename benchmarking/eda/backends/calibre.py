@@ -9,7 +9,7 @@ from pathlib import Path
 
 from benchmarking.eda.backends.calibre_config import CalibreConfiguration
 from benchmarking.eda.environment import ExternalRuntime
-from benchmarking.eda.netlists.dspf import bind_extracted_netlist
+from benchmarking.eda.netlists.dspf import ExtractionRejected, bind_extracted_netlist
 from benchmarking.eda.netlists.spice import logical_lines, number
 from benchmarking.evaluation.contracts import JobResult
 from benchmarking.evidence.identity import package_source
@@ -254,14 +254,16 @@ class CalibreBackend:
                 return JobResult('failed' if any(counts) else 'passed',
                                  f'{counts} DRC results' if any(counts) else '', evidence=evidence)
             if not lvs_summary(result.files['lvs.report'].content.decode(), top):
-                return JobResult('failed' if self.check == 'lvs' else 'error',
-                                 'Calibre LVS mismatch', evidence=evidence)
+                return JobResult('failed', 'Calibre LVS mismatch', evidence=evidence)
             if self.check == 'lvs':
                 return JobResult('passed', evidence=evidence)
             for name in ('pdb.log', 'fmt.log'):
                 counts = re.findall(r'xRC Errors\s*=\s*(\d+)', result.files[name].content.decode())
                 if counts != ['0']:
                     raise ValueError('Incomplete or erroneous native xRC '+name)
+        except (ValueError, KeyError) as error:
+            return JobResult('error', str(error), evidence=evidence)
+        try:
             raw_netlist = result.files['extracted.spice'].content.decode()
             if self.configuration.rc.mos_parameters:
                 validate_mos_parameters(raw_netlist, self.configuration.rc.mos_parameters)
@@ -269,6 +271,8 @@ class CalibreBackend:
                               job.parameters['ports'], require_junctions=self.configuration.rc.require_junctions,
                               subcircuit_mos_models=self.configuration.rc.subcircuit_mos_models,
                               case_insensitive_ports=self.configuration.rc.case_insensitive_ports)
+        except ExtractionRejected as error:
+            return JobResult('failed', str(error), evidence=evidence)
         except (ValueError, KeyError) as error:
             return JobResult('error', str(error), evidence=evidence)
         return JobResult('passed', outputs={'netlist': Asset(text.encode(), 'spice')}, evidence=evidence)

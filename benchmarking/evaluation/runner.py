@@ -40,8 +40,6 @@ def _validate_result(job: Job, result: JobResult) -> None:
         raise TypeError("Backend must return JobResult")
     if result.status not in {"passed", "failed", "error"}:
         raise ValueError("Unknown backend status")
-    if result.status == "failed" and job.stage not in {"check", "extract"}:
-        raise ValueError("Only a completed check or extraction may return failed")
     if result.status != "passed" and not result.reason:
         raise ValueError("A rejected check or tool error needs a reason")
     for measurement in result.measurements.values():
@@ -95,16 +93,6 @@ def _execute_jobs(jobs, assets, backends, results, timings, limit_tools):
                                              'console', 'virtuoso.log', 'spectre.log', 'calibre.log', 'log'})
                 if problem:
                     result = replace(result, failure=problem)
-            # Extractability is a candidate acceptance requirement. A returned
-            # unusable extraction, with retained tool diagnostics, rejects that
-            # candidate just like a completed DRC/LVS rejection. Infrastructure
-            # failures and unexpected adapter exceptions remain evaluator errors.
-            if (job.stage == "extract" and any(ref == "candidate" for _, ref in job.inputs)
-                    and result.status == "error"
-                    and result.failure is None
-                    and not any(name.endswith(("execution_error", "cleanup_error"))
-                                for name in result.evidence)):
-                result = replace(result, status="failed")
             return result
         except Exception as error:  # noqa: BLE001 -- retain independent diagnostics
             return JobResult('error', f'{type(error).__name__}: {error}')

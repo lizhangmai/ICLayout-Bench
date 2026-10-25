@@ -138,8 +138,11 @@ justify any functional limit separately from its quality target in `problem.md`.
 Classify each measurement before setting thresholds or developing the reference:
 validity gate, scored quality, or diagnostic evidence. Keep the required stimuli,
 corners and measurements when removing a quality target from the gates; use their
-source-paired values to measure degradation. Missing or unusable measurements
-remain evaluation errors. A low finite score by itself does not fail qualification.
+source-paired values to measure degradation. A completed analysis that explicitly
+establishes the absence of a required measurement event rejects the candidate;
+an unexplained missing scalar or unusable report remains an evaluation error.
+Authors must validate that the declared event is required for valid solutions.
+A low finite score by itself does not fail qualification.
 
 Negative controls follow the same distinction. Invalid artifacts, connectivity
 faults and loss of required function must be rejected. A valid but slower, less
@@ -400,7 +403,7 @@ task_success = physical_valid ∧ all declared requirements pass ∧ required po
 | --- | --- |
 | `passed` | The step completed and met its requirements |
 | `failed` | A check, prescribed candidate extraction or measurement did not meet an acceptance requirement |
-| `error` | A crash, timeout or invalid/missing measurement prevented a result |
+| `error` | An execution, configuration or report-integrity problem prevented a valid judgment |
 | `blocked` | A prerequisite did not pass |
 
 Reports store `physical_valid`, `specs_pass` and `task_success` separately.
@@ -409,12 +412,20 @@ physical-only and characterization runs. DRC/LVS success establishes physical
 validity within the selected rules; task success additionally requires the
 specified geometry and electrical behavior. Neither is full manufacturing signoff.
 
-A trusted backend's unusable result from a prescribed extraction directly
-consuming the candidate is a `failed` acceptance step and scores zero, even when
-its native diagnostic describes an extraction error. The diagnostic evidence is
-retained without rewriting its contents. Infrastructure execution/cleanup failures
-and unexpected adapter exceptions remain `error`; blocked downstream simulation
-does not turn a known extraction rejection into an unknown score.
+Trusted backends explicitly distinguish completed candidate rejections (`failed`)
+from inability to judge (`error`). A readable native extraction that violates the
+prescribed interface or physical completeness requirements is a rejection. A
+completed simulation that explicitly reports no required response event is also
+a rejection. Both score zero, even when the native diagnostic uses the word
+"error". Retain those diagnostics without rewriting their contents.
+
+Crashes, infrastructure execution/cleanup failures, invalid task configuration,
+malformed reports, unexplained missing/ambiguous measurements and unexpected
+adapter exceptions remain `error`. The runner does not convert extraction errors
+to rejections by excluding recognized infrastructure diagnostics. A blocked
+dependent or unrelated evaluator error does not turn an established rejection
+into an unknown score. These statuses describe grading evidence, not proof of
+causal responsibility; confirmed task or evaluator defects require operator review.
 
 For the command and output paths, see [standalone evaluation](running.md#standalone-evaluation).
 For witness verification, see [qualification](#qualification).

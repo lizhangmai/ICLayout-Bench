@@ -12,6 +12,7 @@ from benchmarking.eda.backends.hbt.netlist import _HBT_MODELS, _canonical_net
 from benchmarking.eda.backends.klayout import KLayoutDocker
 from benchmarking.eda.backends.magic import MagicRCDocker
 from benchmarking.eda.layout_derivation import validate_layout_derivation
+from benchmarking.eda.netlists.dspf import ExtractionRejected
 from benchmarking.evaluation.contracts import Job, JobResult
 from benchmarking.evidence.identity import package_source
 from benchmarking.files import Asset, keys, text
@@ -33,7 +34,7 @@ class _HBTMagicRCDocker(MagicRCDocker):
                 "diagnostic_review_sha256": Asset(Path(__file__).read_bytes(), "python").sha256,
                 "diagnostic_policy": "native HBT contacts require subsequent composite graph validation"}
 
-    def _check_diagnostics(self, log: str, files: dict[str, Asset]) -> tuple[str, dict[str, Asset]]:
+    def _check_diagnostics(self, log: str, files: dict[str, Asset]) -> tuple[str, str, dict[str, Asset]]:
         pattern = re.compile(
             r"Missing (gate|source|drain|substrate) connection of device at "
             r"\((-?\d+) (-?\d+)\) on net (.+)", re.IGNORECASE)
@@ -42,7 +43,7 @@ class _HBTMagicRCDocker(MagicRCDocker):
             if re.search(r"missing\s+\w+\s+connection", line, re.IGNORECASE):
                 match = pattern.fullmatch(line)
                 if match is None:
-                    return "Unrecognized Magic HBT terminal diagnostic", {}
+                    return "error", "Unrecognized Magic HBT terminal diagnostic", {}
                 diagnostics.append(match)
         if not diagnostics:
             return super()._check_diagnostics(log, files)
@@ -63,25 +64,27 @@ class _HBTMagicRCDocker(MagicRCDocker):
                 coordinate = (int(x), int(y))
                 matches = devices.get(coordinate, [])
                 if len(matches) != 1:
-                    raise ValueError(f"Missing or ambiguous native device at {coordinate}")
+                    raise ExtractionRejected(f"Missing or ambiguous native device at {coordinate}")
                 fields = matches[0]
                 if fields[1] != "msubckt" or fields[2].casefold() not in _HBT_MODELS:
-                    raise ValueError(f"Diagnostic does not identify a supported HBT at {coordinate}")
+                    raise ExtractionRejected(f"Diagnostic does not identify a supported HBT at {coordinate}")
                 terminals = fields[7:]
                 while terminals and "=" in terminals[0]:
                     terminals = terminals[1:]
                 if len(terminals) != 10 or terminals[positions[terminal.casefold()]] != net:
-                    raise ValueError(f"Diagnostic terminal differs from the native HBT at {coordinate}")
+                    raise ExtractionRejected(f"Diagnostic terminal differs from the native HBT at {coordinate}")
                 reviewed.append({"diagnostic": match.group(), "model": fields[2],
                                  "coordinate": list(coordinate), "terminal": terminal, "net": net})
+        except ExtractionRejected as error:
+            return "failed", f"Unverified Magic HBT terminal diagnostic: {error}", {}
         except (KeyError, IndexError, ValueError, UnicodeError) as error:
-            return f"Unverified Magic HBT terminal diagnostic: {error}", {}
+            return "error", f"Invalid Magic HBT terminal diagnostic: {error}", {}
         remaining = "\n".join(line for line in log.splitlines() if not pattern.fullmatch(line))
-        error, evidence = super()._check_diagnostics(remaining, files)
+        status, reason, evidence = super()._check_diagnostics(remaining, files)
         evidence["terminal_diagnostic_review"] = Asset(json.dumps({
             "status": "requires_composite_mapping", "diagnostics": reviewed,
         }, indent=2).encode(), "json")
-        return error, evidence
+        return status, reason, evidence
 
 
 class SG13G2HBTRCDocker:
@@ -182,12 +185,14 @@ class SG13G2HBTRCDocker:
         except (KeyError, ValueError, TypeError) as error:
             return JobResult("error", f"Invalid KLayout extraction result: {error}", evidence=evidence)
         if verdict.get("status") != "passed":
-            return JobResult("error", verdict.get("reason") or "KLayout extraction did not pass", evidence=evidence)
+            status = "failed" if verdict.get("status") == "failed" else "error"
+            return JobResult(status, verdict.get("reason") or "KLayout extraction did not pass", evidence=evidence)
 
         magic_result = self.magic.run(job, inputs)
         evidence.update({f"magic:{name}": asset for name, asset in magic_result.evidence.items()})
         if magic_result.status != "passed":
-            return JobResult("error", magic_result.reason or "Magic extraction failed", evidence=evidence)
+            return JobResult(magic_result.status, magic_result.reason or "Magic extraction failed",
+                             evidence=evidence, failure=magic_result.failure)
         try:
             klayout_raw = extraction.files["extracted.spice"].content
             magic_raw = magic_result.outputs["netlist"].content
@@ -198,7 +203,8 @@ class SG13G2HBTRCDocker:
             evidence["klayout_native_netlist"] = Asset(klayout_raw, "spice") if "klayout_raw" in locals() else Asset(b"", "spice")
             if "magic_raw" in locals():
                 evidence["magic_rc_netlist"] = Asset(magic_raw, "spice")
-            return JobResult("error", f"Unsafe HBT extractor mapping: {error}", evidence=evidence)
+            status = "failed" if isinstance(error, ExtractionRejected) else "error"
+            return JobResult(status, f"Unsafe HBT extractor mapping: {error}", evidence=evidence)
         merged_asset = Asset(merged.encode(), "spice")
         evidence.update({"klayout_native_netlist": Asset(klayout_raw, "spice"),
                          "magic_rc_netlist": Asset(magic_raw, "spice"),

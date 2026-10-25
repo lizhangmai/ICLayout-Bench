@@ -330,6 +330,11 @@ point. The declared testbench selects analyses and measurements:
 | `exports` | Name declared output artifacts. |
 
 Exit 0 still requires a complete set of finite measurements.
+After normal execution with analysis data, an explicit ngspice WHEN/TRIG/TARG
+"out of interval" verdict for a declared measurement, accompanied by its failed
+measurement command, is a candidate rejection (`failed`). Missing or ambiguous
+scalars alone, invalid values, model/execution errors and crashes remain `error`.
+Execution and report failures are checked before accepting a measurement verdict.
 
 For high-impedance cores with low-ohmic extracted wiring, trusted ngspice backend
 settings may select `resistor_formulation = "branch"` (default: `"conductance"`).
@@ -360,8 +365,10 @@ not permit writes to the submitted GDS: preprocessing and import still operate
 on isolated copies. The default remains `true`. Optional positive integer `grid_subdivision` (default 1)
 refines the internal Magic grid before import, using `scalegrid 1 N`, so labels
 and devices share the same resolution during resistance extraction. Ambiguous
-styles, missing gate connections and orphaned-node substitutions are extraction
-errors even if Magic writes a netlist. Optional `label_layers` is a
+styles are configuration errors. Missing gate connections and orphaned-node
+substitutions reject an unusable candidate extraction even if Magic writes a
+netlist. Native interface validation reports explicit `passed`/`failed` verdicts;
+tool crashes and missing/malformed interface reports remain `error`. Optional `label_layers` is a
 nonempty list of GDS layer/datatype pairs that may contain electrical text;
 text on other layers is removed from the extraction copy without removing any
 geometry. `case_insensitive_ports=true` aliases case variants to unique internal

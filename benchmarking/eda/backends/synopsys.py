@@ -6,7 +6,7 @@ import re
 import shlex
 from pathlib import Path
 
-from benchmarking.eda.netlists.dspf import bind_ports
+from benchmarking.eda.netlists.dspf import ExtractionRejected, bind_ports
 from benchmarking.eda.netlists.spice import number
 from benchmarking.evaluation.contracts import JobResult, Measurement
 from benchmarking.evidence.identity import package_source
@@ -70,7 +70,7 @@ def starrc_netlist(text, top, ports):
     rows = text.splitlines()
     headers = [i for i, row in enumerate(rows) if row.lower().startswith('.subckt ')]
     if len(headers) != 1 or rows[headers[0]].split()[1].lower() != top.lower():
-        raise ValueError('StarRC must extract exactly the declared top')
+        raise ExtractionRejected('StarRC must extract exactly the declared top')
     if len({p.lower() for p in ports}) != len(ports) or any(
             not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_!]*', p) for p in ports):
         raise ValueError('Invalid StarRC interface')
@@ -91,15 +91,15 @@ def starrc_netlist(text, top, ports):
                 raise ValueError('Unsupported StarRC three-terminal MOS')
             params = dict(p.lower().split('=', 1) for p in fields[5:])
             if not {'w', 'l', 'nfin', 'adej', 'asej', 'pdej', 'psej'} <= params.keys():
-                raise ValueError('StarRC device geometry is incomplete')
+                raise ExtractionRejected('StarRC device geometry is incomplete')
             if any(not math.isfinite(number(v)) or number(v) <= 0 for v in params.values()):
-                raise ValueError('Invalid extracted device property')
+                raise ExtractionRejected('Invalid extracted device property')
             nodes.update(p.lower() for p in fields[1:4])
             mos += 1
         else:
             raise ValueError('Unexpected StarRC circuit element')
     if not mos or not resistors or not capacitors:
-        raise ValueError('StarRC extraction lacks physical devices or RC elements')
+        raise ExtractionRejected('StarRC extraction lacks physical devices or RC elements')
     return bind_ports(native, top, ports, case_insensitive=True)
 
 
@@ -200,7 +200,7 @@ class ICVNative:
                 return JobResult('failed' if count else 'passed',
                                  f'{count} DRC violations' if count else '', evidence=evidence)
             if not icv_lvs_summary(result.files[top + '.LVS_ERRORS'].content.decode(), top, self.lvs_checks):
-                return JobResult('failed' if self.check == 'lvs' else 'error', 'ICV LVS mismatch', evidence=evidence)
+                return JobResult('failed', 'ICV LVS mismatch', evidence=evidence)
             if self.check == 'lvs':
                 return JobResult('passed', evidence=evidence)
             console = result.evidence['console'].content
@@ -208,8 +208,13 @@ class ICVNative:
             if (not counts or any(errors != b'0' for _, errors in counts)
                     or not re.search(rb'^Done\s+Elp=', console, re.MULTILINE)):
                 raise ValueError('StarRC did not report clean completion')
+        except (ValueError, KeyError) as error:
+            return JobResult('error', str(error), evidence=evidence)
+        try:
             adapted = starrc_netlist(result.files['extracted.dspf'].content.decode(), top,
                                  job.parameters['ports'])
+        except ExtractionRejected as error:
+            return JobResult('failed', str(error), evidence=evidence)
         except (ValueError, KeyError) as error:
             return JobResult('error', str(error), evidence=evidence)
         return JobResult('passed', outputs={'netlist': Asset(adapted.encode(), 'spice')}, evidence=evidence)

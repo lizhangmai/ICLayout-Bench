@@ -118,6 +118,44 @@ def test_simulator_exit_success_without_measurement_is_an_error(tmp_path, backen
     assert job["evidence"]["log"]["bytes"] > 0
 
 
+@pytest.mark.parametrize("measurement,expected", [
+    ("when v(out)=0.5 rise=1", "passed"),
+    ("when v(out)=2 rise=1", "failed"),
+    ("trig v(in) val=0.5 rise=1 targ v(out) val=2 rise=1", "failed"),
+    ("trig v(in) val=2 rise=1 targ v(out) val=0.5 rise=1", "failed"),
+    ("when v(absent)=0.5 rise=1", "error"),
+])
+def test_required_transient_event_distinguishes_absent_response_from_bad_testbench(
+        tmp_path, backends, measurement, expected):
+    plan = parse_evaluation(b'''
+mode = "characterization"
+[[jobs]]
+id = "step"
+stage = "simulate"
+operation = "circuit.simulate"
+inputs = {deck = "input:deck"}
+parameters = {measurements = {delay = "s"}}
+[[metrics]]
+id = "delay"
+category = "performance"
+observations = ["step:delay"]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+''')
+    deck = Asset(("* Required response control\n"
+                  "Vdrive in 0 PULSE(0 1 1n 1p 1p 1m 2m)\n"
+                  "R1 in out 1k\nC1 out 0 1n\n"
+                  ".control\ntran 10n 10u\n"
+                  f"meas tran delay {measurement}\nquit\n.endc\n.end\n").encode(), "spice")
+    report = run_evaluation(plan, {"input:deck": deck}, backends, tmp_path / "event")
+    assert report["outcome"] == expected, report["jobs"]
+    assert report["jobs"]["step"]["status"] == expected
+    if expected == "passed":
+        assert report["jobs"]["step"]["measurements"]["delay"]["value"] == pytest.approx(
+            math.log(2) * 1e3 * 1e-9 + 1e-9, rel=0.002)
+
+
 
 def test_branch_resistors_preserve_picoampere_kcl(tmp_path):
     """A metal segment must not erase a high-impedance node's conductance.

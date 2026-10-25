@@ -122,9 +122,9 @@ def test_tap_geometry_does_not_synthesize_model_resistance():
 
 @pytest.mark.parametrize('variant,expected', [
     ('verified_hbt', 'passed'),
-    ('plain_magic', 'error'),
-    ('wrong_coordinate', 'error'),
-    ('lost_wire', 'error'),
+    ('plain_magic', 'failed'),
+    ('wrong_coordinate', 'failed'),
+    ('lost_wire', 'failed'),
 ])
 def test_hbt_terminal_diagnostics_require_native_provenance_and_complete_mapping(
         tmp_path, monkeypatch, variant, expected):
@@ -179,6 +179,7 @@ R3 e_local GND 3
                     'preparation-check.json': Asset(b'{}', 'json')})
             assert command == ['python', 'magic_netlist.py']
             files = {'extracted.spice': Asset(final, 'spice'),
+                     'interface-check.json': Asset(b'{"status":"passed"}', 'json'),
                      'topology.spice': Asset(topology, 'spice'),
                      'extraction.ext': Asset(device.encode(), 'magic-ext')}
             return SimpleNamespace(reason='', returncode=0,

@@ -7,6 +7,7 @@ from pathlib import Path
 from benchmarking.evaluation.contracts import Job, JobResult, number
 from benchmarking.evidence.bundles import load_bundle
 from benchmarking.evidence.identity import package_source
+from benchmarking.execution.tools.diagnostics import native_failure
 from benchmarking.execution.tools.docker import DockerTool
 from benchmarking.files import Asset, keys, relative, text
 
@@ -77,7 +78,7 @@ class MagicCapacitanceDocker:
                     "same_conductor_ports": "rejected"}
                    if self.wire_resistance else {})}
 
-    def _check_diagnostics(self, log: str, files: dict[str, Asset]) -> tuple[str, dict[str, Asset]]:
+    def _check_diagnostics(self, log: str, files: dict[str, Asset]) -> tuple[str, str, dict[str, Asset]]:
         """Reject unreliable extraction; composite adapters may review native evidence."""
         # CIFrdcl.c reports an overwritten FIXED_BBOX through CalmaReadError.
         # Flat standard-cell ID regions can set this non-electrical abutment
@@ -88,10 +89,15 @@ class MagicCapacitanceDocker:
             r'Warning:  Cell [^\n]+ boundary was redefined\.\s*$',
             '', log, flags=re.MULTILINE,
         )
+        rejected = [line for line in log.splitlines()
+                    if re.search(r"missing gate connection|orphaned node", line, re.IGNORECASE)]
+        remaining = "\n".join(line for line in log.splitlines() if line not in rejected)
         if re.search(r"\berrors?\b|unrecognized|unknown layer|unmapped|not found|couldn't|cannot|"
-                     r"missing gate connection|orphaned node|extraction style .* ambiguous", log, re.IGNORECASE):
-            return "Magic reported an extraction or input error", {}
-        return "", {}
+                     r"extraction style .* ambiguous", remaining, re.IGNORECASE):
+            return "error", "Magic reported an extraction or input error", {}
+        if rejected:
+            return "failed", "Magic reported an unusable candidate extraction", {}
+        return "passed", "", {}
 
     def run(self, job: Job, inputs: dict[str, Asset]) -> JobResult:
         if job.stage != "extract" or set(inputs) - {"layout", "task"} or "layout" not in inputs:
@@ -122,15 +128,17 @@ class MagicCapacitanceDocker:
         for index, port in enumerate(ports, 1):
             arg = _tcl_word(aliases.get(port, port))
             port_commands.extend([f'if {{[port {arg} index] eq ""}} {{port {arg} make {index}}} else {{port {arg} index {index}}}',
-                                  f'if {{[port {arg} index] ne "{index}"}} {{error "Missing or ambiguous port"}}'])
+                                  f'if {{[port {arg} index] ne "{index}"}} {{reject_candidate "Missing or ambiguous port"}}'])
         prepare_layout = bool(aliases) or self.wire_resistance or self.label_layers is not None
         script = "\n".join([
+            ('proc reject_candidate {message} {set f [open extraction-rejection.txt w]; '
+             'puts $f $message; close $f; error $message}'),
             "if {[catch {", "drc off", f"tech load {_tcl_word('/workspace/support/' + self.technology)}",
             f'if {{[tech name] ne {_tcl_word(self.tech_name)}}} {{error "Wrong technology"}}',
             *([f"scalegrid 1 {self.grid_subdivision}"] if self.grid_subdivision != 1 else []),
             f"gds readonly {'true' if self.gds_readonly else 'false'}",
             "gds read extraction.gds" if prepare_layout else "gds read candidate.gds",
-            f'if {{[cellname list exists {_tcl_word(top)}] eq "0"}} {{error "Missing top cell"}}',
+            f'if {{[cellname list exists {_tcl_word(top)}] eq "0"}} {{reject_candidate "Missing top cell"}}',
             f"load {_tcl_word(top)}", "select top cell", "expand",
             *port_commands, f"extract style {_tcl_word(self.style)}", "extract warn all", "extract all",
             *(["ext2spice default", "ext2spice format ngspice", "ext2spice scale off",
@@ -187,12 +195,26 @@ class MagicCapacitanceDocker:
             if name in result.files:
                 evidence[name] = result.files[name]
         log = result.evidence.get("console", Asset(b"", "text")).content.decode(errors="replace")
-        if result.reason or result.returncode != 0:
-            return JobResult("error", result.reason or "Magic did not complete", evidence=evidence)
-        diagnostic_error, diagnostic_evidence = self._check_diagnostics(log, result.files)
+        failure = native_failure([log.encode()])
+        if (result.returncode != 0 or failure
+                or any(name.endswith(("execution_error", "cleanup_error")) for name in result.evidence)):
+            return JobResult("error", result.reason or "Magic did not complete", evidence=evidence, failure=failure)
+        status, diagnostic_reason, diagnostic_evidence = self._check_diagnostics(log, result.files)
         evidence.update(diagnostic_evidence)
-        if diagnostic_error:
-            return JobResult("error", diagnostic_error, evidence=evidence)
+        if status == "error":
+            return JobResult(status, diagnostic_reason, evidence=evidence)
+        try:
+            verdict = json.loads(result.files["interface-check.json"].content)
+            if verdict["status"] == "failed" and isinstance(verdict["reason"], str) and verdict["reason"]:
+                return JobResult("failed", verdict["reason"], evidence=evidence)
+            if verdict["status"] != "passed":
+                raise ValueError("Unknown interface verdict")
+        except (KeyError, ValueError, TypeError) as error:
+            return JobResult("error", f"Invalid Magic interface report: {error}", evidence=evidence)
+        if result.reason:
+            return JobResult("error", result.reason or "Magic did not complete", evidence=evidence)
+        if status == "failed":
+            return JobResult(status, diagnostic_reason, evidence=evidence)
         return JobResult("passed", outputs={"netlist": result.files["extracted.spice"]}, evidence=evidence)
 
 

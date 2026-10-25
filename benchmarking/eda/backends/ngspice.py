@@ -12,6 +12,7 @@ from benchmarking.evaluation.contracts import (
     number,
 )
 from benchmarking.evidence.bundles import load_bundle
+from benchmarking.execution.tools.diagnostics import native_failure
 from benchmarking.execution.tools.docker import DockerTool
 from benchmarking.files import Asset, keys, relative
 
@@ -150,12 +151,38 @@ class NgspiceDocker:
             evidence["log"] = result.files["ngspice.log"]
         if result.reason or result.returncode != 0:
             return JobResult("error", result.reason or "ngspice did not complete", evidence=evidence)
-        measurements = {}
         log = result.files["ngspice.log"].content.decode("utf-8", errors="replace")
-        # Failed .measure may coexist with exit code 0. Require each finite scalar.
+        console = result.evidence.get("console", Asset(b"", "text")).content
+        failure = native_failure([log.encode(), console])
+        if failure:
+            return JobResult("error", "ngspice reported a native execution failure",
+                             evidence=evidence, failure=failure)
+        # ngspice reports an absent WHEN/TRIG/TARG event as an Error even when
+        # the analysis completes. Only this explicit native verdict rejects a
+        # required response; missing/ambiguous scalars alone prove no rejection.
+        event_pattern = re.compile(
+            r"^\s*Error:\s+measure\s+(\w+)\s+(?:when\(WHEN\)|trig\((?:TRIG|TARG)\)|targ\(TARG\))"
+            r"\s*:\s*out of interval\s*$", re.MULTILINE | re.IGNORECASE)
+        failed_events = {m[1].casefold() for m in event_pattern.finditer(log)
+                         if m[1].casefold() in {name.casefold() for name in units}
+                         and re.search(rf"^\s*meas(?:ure)?\s+(?:tran|ac|dc)\s+{re.escape(m[1])}\b"
+                                       r"[^\n]*\bfailed!\s*$", log,
+                                       re.MULTILINE | re.IGNORECASE)}
+        remaining = event_pattern.sub(lambda m: "" if m[1].casefold() in failed_events else m[0], log)
+        combined = remaining + "\n" + console.decode("utf-8", errors="replace")
+        if re.search(r"^\s*(?:fatal|error)\b|simulation interrupted|timestep too small|unknown model type",
+                     combined, flags=re.MULTILINE | re.IGNORECASE):
+            return JobResult("error", "ngspice reported an execution or model error", evidence=evidence)
+        measurements, rejected = {}, []
         for name, unit in units.items():
             matches = re.findall(rf"^\s*{re.escape(name)}\s*=\s*(\S+)", log,
                                  flags=re.MULTILINE | re.IGNORECASE)
+            if (not matches and name.casefold() in failed_events
+                    and re.search(r"No\. of Data Rows\s*:\s*[1-9]\d*", log)):
+                rejected.append(name)
+                continue
+            if name.casefold() in failed_events:
+                return JobResult("error", f"Contradictory ngspice measurement: {name}", evidence=evidence)
             if len(matches) != 1:
                 return JobResult("error", f"Missing/ambiguous ngspice measurement: {name}", evidence=evidence)
             try:
@@ -163,9 +190,8 @@ class NgspiceDocker:
             except ValueError:
                 return JobResult("error", f"Invalid ngspice measurement: {name}", evidence=evidence)
             measurements[name] = Measurement(value, unit)
-        combined = log + "\n" + result.evidence["console"].content.decode("utf-8", errors="replace")
-        if re.search(r"^\s*(?:fatal|error)\b|simulation interrupted|timestep too small|unknown model type",
-                     combined, flags=re.MULTILINE | re.IGNORECASE):
-            return JobResult("error", "ngspice reported an execution or model error", evidence=evidence)
+        if rejected:
+            return JobResult("failed", "Required ngspice measurement event did not occur: " + ", ".join(rejected),
+                             evidence=evidence)
         return JobResult("passed", measurements=measurements,
                          outputs={name: result.files[path] for name, path in exports.items()}, evidence=evidence)

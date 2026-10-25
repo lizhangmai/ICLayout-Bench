@@ -263,7 +263,7 @@ Cwire OUT VSS 1e-15
     adapted = bind_extracted_netlist(circuit, 'TOP', ['OUT', 'Vcm', 'VSS'], case_insensitive_ports=True)
     assert adapted.splitlines()[0] == '.SUBCKT TOP OUT Vcm VSS'
     assert adapted.splitlines()[1:] == circuit.splitlines()[1:]
-    with pytest.raises(ValueError, match='ports differ'):
+    with pytest.raises(ValueError, match='unique declared interface'):
         bind_extracted_netlist(circuit, 'TOP', ['VCM', 'Vcm', 'VSS'], case_insensitive_ports=True)
 
 

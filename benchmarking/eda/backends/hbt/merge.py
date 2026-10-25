@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from benchmarking.eda.backends.hbt.matching import build_merge_plan
 from benchmarking.eda.backends.hbt.netlist import netlist_text, parse_spice_netlist
+from benchmarking.eda.netlists.dspf import ExtractionRejected
 
 
 def merge_hbt_netlists(klayout_raw: bytes | str, magic_raw: bytes | str,
@@ -16,7 +17,10 @@ def merge_hbt_netlists(klayout_raw: bytes | str, magic_raw: bytes | str,
     if not magic_topology_raw:
         raise ValueError("Magic pre-RC topology evidence is required for HBT mapping")
     topology = parse_spice_netlist(magic_topology_raw, strict_devices=False)
-    plan = build_merge_plan(klayout, magic, ports, topology)
+    try:
+        plan = build_merge_plan(klayout, magic, ports, topology)
+    except ValueError as error:
+        raise ExtractionRejected(str(error)) from error
     lines = netlist_text(magic_raw).splitlines()
     for line, replacement in plan.replacements:
         lines[line] = replacement

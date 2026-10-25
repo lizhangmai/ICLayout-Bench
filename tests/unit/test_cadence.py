@@ -681,7 +681,7 @@ parameters.ports=["a","b"]
         'layout': Asset(b'not interpreted by fake tool', 'gds'),
         'task': Asset(b'{"output":{"top_cell":"demo"},"netlist_subcircuit":"demo"}', 'json'),
         'netlist': Asset(b'.subckt demo a b\n.ends', 'spice')})
-    assert result.status == 'error'
+    assert result.status == 'failed'
     assert 'missing required geometry' in result.reason
     assert not result.outputs
     assert result.evidence == evidence

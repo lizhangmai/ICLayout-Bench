@@ -25,7 +25,7 @@ def native_probe(self, command, **kwargs):
 
 
 @pytest.mark.parametrize('failure,cores', [
-    (failure, 1) for failure in ('', 'lvs', 'junctions', 'ports', 'completion', 'summary', 'exit')
+    (failure, 1) for failure in ('', 'lvs', 'junctions', 'ports', 'syntax', 'completion', 'summary', 'exit')
 ] + [('', 2), ('summary', 2)])
 def test_starrc_requires_complete_candidate_extraction(native_tmp_path, monkeypatch, failure, cores):
     pdk = native_tmp_path / 'pdk'
@@ -69,6 +69,8 @@ M0 OUT IN GND GND nmodel L=2e-6 W=3e-6 AS=1e-12 AD=2e-12 PS=3e-6 PD=4e-6
         circuit = circuit.replace(' AS=1e-12', '')
     if failure == 'ports':
         circuit = circuit.replace('TOP OUT GND IN', 'TOP OTHER GND IN')
+    if failure == 'syntax':
+        circuit = '+ orphan continuation\n' + circuit
     log = 'Warnings: 0    Errors: 0\nDone          Elp=00:00:01 Cpu=00:00:01\n'
     if cores == 2:
         log += ("WARNING: NUM_CORES is larger than the required partitions, and is reduced from '2' to '1'. (SX-0203)\n"
@@ -101,7 +103,8 @@ M0 OUT IN GND GND nmodel L=2e-6 W=3e-6 AS=1e-12 AD=2e-12 PS=3e-6 PD=4e-6
     assert f'CALIBRE_OPTIONAL_DEVICE_PIN_FILE: {technology}/pins' in captured['star.cmd'].content.decode()
     assert backend.identity['execution'] == 'operator-native'
     if failure:
-        assert result.status == 'error' and not result.outputs
+        assert result.status == ('failed' if failure in {'lvs', 'junctions', 'ports'} else 'error')
+        assert not result.outputs
         assert result.evidence['extracted.dspf'].content.decode() == circuit
     else:
         assert result.status == 'passed'

@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 from benchmarking.eda.backends.calibre import CalibreNative, lvs_summary
-from benchmarking.eda.netlists.dspf import bind_extracted_netlist
+from benchmarking.eda.netlists.dspf import ExtractionRejected, bind_extracted_netlist
 from benchmarking.evaluation.contracts import JobResult
 from benchmarking.evidence.identity import package_source
 from benchmarking.files import Asset, keys
@@ -163,13 +163,18 @@ class CalibreQuantusNative(CalibreNative):
             return _execution_error(result.reason or 'Calibre/Quantus did not complete', evidence)
         try:
             if not lvs_summary(result.files['lvs.report'].content.decode(), top):
-                raise ValueError('Calibre LVS mismatch before Quantus extraction')
+                return JobResult('failed', 'Calibre LVS mismatch before Quantus extraction', evidence=evidence)
             if 'Quantus terminated normally' not in result.files['qrc.log'].content.decode(errors='replace'):
                 raise ValueError('Quantus did not finish normally')
+        except (ValueError, KeyError) as error:
+            return JobResult('error', str(error), evidence=evidence)
+        try:
             adapted = bind_extracted_netlist(result.files['extracted.dspf'].content.decode(), top,
                                  job.parameters['ports'], require_junctions=self.configuration.rc.require_junctions,
                                  subcircuit_mos_models=self.configuration.rc.subcircuit_mos_models,
                                  case_insensitive_ports=self.configuration.rc.case_insensitive_ports)
+        except ExtractionRejected as error:
+            return JobResult('failed', str(error), evidence=evidence)
         except (ValueError, KeyError) as error:
             return JobResult('error', str(error), evidence=evidence)
         return JobResult('passed', outputs={'netlist': Asset(adapted.encode(), 'spice')}, evidence=evidence)

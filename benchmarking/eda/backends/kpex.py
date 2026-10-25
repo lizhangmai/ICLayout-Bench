@@ -135,7 +135,8 @@ class KpexCCDocker:
         try:
             verdict = json.loads(result.files["result.json"].content)
             if verdict["status"] != "passed":
-                raise ValueError(verdict["reason"])
+                status = "failed" if verdict["status"] == "failed" else "error"
+                return JobResult(status, verdict["reason"], evidence=evidence)
             netlist = result.files["extracted.spice"]
             if bind_ports(netlist.content.decode(), top, ports) != netlist.content.decode():
                 raise ValueError("KPEX output interface differs from candidate")

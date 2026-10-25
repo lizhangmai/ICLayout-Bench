@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from benchmarking.eda.environment import ExternalRuntime
-from benchmarking.eda.netlists.dspf import bind_extracted_netlist
+from benchmarking.eda.netlists.dspf import ExtractionRejected, bind_extracted_netlist
 from benchmarking.evaluation.contracts import JobResult
 from benchmarking.evidence.identity import package_source
 from benchmarking.execution.tools.native import NativeEDATool
@@ -265,12 +265,17 @@ class AssuraRCNative(AssuraLvsNative):
             reports = [result.files[name].content.decode(errors='replace')
                        for name in ['assura.log', 'result.sum', 'result.cls', 'result.csm']]
             if not lvs_summary(*reports, top)['match']:
-                raise ValueError('Assura LVS mismatch before RC extraction')
+                return JobResult('failed', 'Assura LVS mismatch before RC extraction', evidence=evidence)
             if 'Quantus terminated normally' not in result.files['qrc.log'].content.decode(errors='replace'):
                 raise ValueError('Quantus did not finish normally')
+        except (ValueError, KeyError) as exc:
+            return JobResult('error', str(exc), evidence=evidence)
+        try:
             settings = {k: v for k, v in self.settings.items() if k != 'qrc_technology'}
             text = bind_extracted_netlist(result.files['extracted.dspf'].content.decode(), top,
                               job.parameters['ports'], **settings)
+        except ExtractionRejected as exc:
+            return JobResult('failed', str(exc), evidence=evidence)
         except (ValueError, KeyError) as exc:
             return JobResult('error', str(exc), evidence=evidence)
         return JobResult('passed', outputs={'netlist': Asset(text.encode(), 'spice')}, evidence=evidence)

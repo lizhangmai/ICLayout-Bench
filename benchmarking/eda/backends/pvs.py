@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from benchmarking.eda.environment import ExternalRuntime
-from benchmarking.eda.netlists.dspf import bind_extracted_netlist
+from benchmarking.eda.netlists.dspf import ExtractionRejected, bind_extracted_netlist
 from benchmarking.evaluation.contracts import JobResult
 from benchmarking.evidence.identity import package_source
 from benchmarking.execution.tools.native import NativeEDATool
@@ -144,7 +144,7 @@ class PvsNative:
         report = result.files[f'{top}.lvsrpt.cls'].content.decode(errors='replace')
         if not _lvs_passed(report, top):
             verdicts = re.findall(r'Run Result\s*:\s*(\S+)', report)
-            status = ('failed' if self.check == 'lvs' and verdicts == ['MISMATCH']
+            status = ('failed' if verdicts == ['MISMATCH']
                       and 'END OF REPORT' in report else 'error')
             return JobResult(status, 'PVS did not establish a complete non-blackboxed match', evidence=evidence)
         if self.check == 'lvs':
@@ -154,6 +154,8 @@ class PvsNative:
         try:
             text = bind_extracted_netlist(result.files['extracted.dspf'].content.decode(), top,
                               job.parameters['ports'], require_junctions=self.settings['require_junctions'])
-        except ValueError as error:
-            return JobResult('error', f'Native extracted circuit is unusable: {error}', evidence=evidence)
+        except ExtractionRejected as error:
+            return JobResult('failed', str(error), evidence=evidence)
+        except (ValueError, KeyError) as error:
+            return JobResult('error', str(error), evidence=evidence)
         return JobResult('passed', outputs={'netlist': Asset(text.encode(), 'spice')}, evidence=evidence)

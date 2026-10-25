@@ -19,9 +19,10 @@ def test_malformed_preprocessing_settings_fail_before_bundle_or_docker_access(se
 
 
 @pytest.mark.parametrize('log,status', [
-    ('Warning: Orphaned node "internal" arbitrarily attached to "internal.t1"', 'error'),
+    ('Warning: Orphaned node "internal" arbitrarily attached to "internal.t1"', 'failed'),
     ('Error while reading cell "error_amplifier": Unknown layer/datatype', 'error'),
     ('2 errors found during extraction', 'error'),
+    ('Warning: Orphaned node "internal" arbitrarily attached to "internal.t1"\nUnknown layer/datatype', 'error'),
     ('Reading "error_amplifier".\nExtracting error_amplifier into error_amplifier.ext:', 'passed'),
     (('Error while reading cell "dut" (byte position 123): '
       'Warning:  Cell dut boundary was redefined.\n'), 'passed'),
@@ -42,7 +43,8 @@ def test_extraction_diagnostics_distinguish_cell_names_from_errors(tmp_path, mon
 
         def run(self, *args, **kwargs):
             return SimpleNamespace(reason='', returncode=0,
-                                   files={'extracted.spice': Asset(b'.subckt dut P\n.ends\n', 'spice')},
+                                   files={'extracted.spice': Asset(b'.subckt dut P\n.ends\n', 'spice'),
+                                          'interface-check.json': Asset(b'{"status":"passed"}', 'json')},
                                    evidence={'console': Asset(log.encode(), 'text')})
 
     monkeypatch.setattr('benchmarking.eda.backends.magic.DockerTool', Tool)
@@ -54,6 +56,47 @@ def test_extraction_diagnostics_distinguish_cell_names_from_errors(tmp_path, mon
     result = backend.run(job, {'layout': Asset(b'unused by mock tool', 'gds')})
     assert result.status == status
     assert bool(result.outputs) == (status == 'passed')
+
+
+@pytest.mark.parametrize('problem,expected', [
+    ('rejection', 'failed'), ('missing', 'error'), ('malformed', 'error'),
+    ('crash', 'error'), ('cleanup', 'error'), ('exit', 'error'),
+])
+def test_magic_requires_explicit_rejection_and_successful_execution(tmp_path, monkeypatch, problem, expected):
+    import json
+
+    from benchmarking.evaluation import Job
+    from benchmarking.evidence.bundles import publish_bundle
+    from benchmarking.execution.tools import ToolResult
+    from benchmarking.files import Asset
+
+    class Tool:
+        def __init__(self, *args):
+            pass
+
+        def run(self, *args, **kwargs):
+            report = b'{"status":"failed","reason":"Extracted circuit is empty"}'
+            files = {'interface-check.json': Asset(b'{broken' if problem == 'malformed' else report, 'json')}
+            if problem == 'missing':
+                files.clear()
+            evidence = {'console': Asset(
+                b'Fatal error (signal SIGSEGV) - crash handler invoked\n' if problem == 'crash' else b'', 'text')}
+            if problem == 'cleanup':
+                evidence['cleanup_error'] = Asset(b'Container cleanup failed', 'text')
+            return ToolResult(1 if problem == 'exit' else 0,
+                              'Declared tool output is missing: extracted.spice', files, evidence)
+
+    monkeypatch.setattr('benchmarking.eda.backends.magic.DockerTool', Tool)
+    publish_bundle({'tech.tech': Asset(b'', 'text')}, {}, tmp_path / 'support')
+    backend = MagicCapacitanceDocker(image='unused', support=str(tmp_path / 'support'),
+                                    technology='tech.tech', tech_name='test', style='test')
+    job = Job('extract', 'extract', 'extract', (), (('netlist', 'spice'),), (), None,
+              json.dumps({'top_cell': 'dut', 'ports': ['P']}))
+    result = backend.run(job, {'layout': Asset(b'frozen candidate', 'gds')})
+    assert result.status == expected
+    assert not result.outputs
+    assert result.evidence['console'].content == (b'Fatal error (signal SIGSEGV) - crash handler invoked\n'
+                                                  if problem == 'crash' else b'')
 
 
 # Netgen exits successfully for completed mismatches. Its documented JSON

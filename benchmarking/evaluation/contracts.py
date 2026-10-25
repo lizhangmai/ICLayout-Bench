@@ -125,7 +125,7 @@ class Measurement:
 
 @dataclass
 class JobResult:
-    status: str  # passed, failed (check/extraction rejection), or error (no valid result)
+    status: str  # passed, failed (candidate rejection), or error (no valid result)
     reason: str = ""
     measurements: dict[str, Measurement] = field(default_factory=dict)
     outputs: dict[str, Asset] = field(default_factory=dict)
@@ -137,9 +137,10 @@ class Backend(Protocol):
     """A trusted tool adapter. It must not read the solver's mutable workspace.
 
     run receives only immutable declared inputs and fresh parameters. Return
-    failed for a completed check or extraction rejecting the artifact. Returned
-    unusable candidate extractions are acceptance failures; infrastructure failures
-    and unexpected adapter exceptions remain errors. Evidence is archived as bytes.
+    failed for a completed check, prescribed extraction or measurement rejecting
+    the candidate. Return error when execution, configuration or report integrity
+    prevents a valid judgment. The runner preserves this distinction; it does not
+    infer rejection from missing infrastructure diagnostics. Evidence is archived as bytes.
     A backend may use a container, subprocess, remote worker or native library.
     Reentrant backends may advertise max_parallel_jobs; other backends run serially.
     """
