@@ -112,11 +112,14 @@ checkout require a clean build tree.
 Follow [test conventions](tests/AGENTS.md)
 before adding regressions.
 
-Keep one owner for each tested behavior. `test_catalogs.py` checks catalog
-ownership, declared candidate/qualified status, simulator interfaces and isolated
-materialization in one traversal of every declared case. Run it on the complete
-development catalog as well as selected delivery snapshots; passing these checks
-does not establish reference qualification. `test_evaluate.py` owns execution and
+Keep one owner for each tested behavior. `test_task_sources.py` checks synthetic
+Dataset indexes, core ordering and isolated source materialization without an
+external Dataset. `tests/integration/test_catalogs.py` separately checks declared
+files, simulator interfaces, isolated inputs and native table loading against an
+explicit delivery snapshot. These checks do not establish reference qualification.
+Problem wording, numeric disclosures and engineering estimates belong to Dataset
+author review; framework tests do not parse prose with publication-specific regexes.
+`test_evaluate.py` owns execution and
 verdicts; `test_scoring.py` owns score arithmetic and baseline semantics.
 `test_hbt_extraction.py` owns HBT conversion, correspondence and extraction
 diagnostics; `test_run_config.py` owns runtime and harness configuration.
@@ -126,8 +129,12 @@ representative success and failure for the public behavior. Related assertions
 should reuse one workflow, such as materializing a frozen task and refusing to
 overwrite it. Do not maintain unused Agent implementations just to test those
 implementations. Test counts include parameter expansion and are not a target.
+Shared plans, backend doubles and result builders belong in `tests/helpers/`;
+fixtures belong in the nearest `conftest.py`. Do not import test modules from
+other tests or register test modules as fixture plugins.
 
-`test_participant_runner.py` owns shared recovery and settlement workflows;
+`test_participant_runner.py` owns shared recovery and settlement workflows, with
+decision tables for bounded waits and representative subprocess continuations;
 `test_harness_adapters.py` owns native event classification and persisted-history
 binding. Exercise shared stopping rules with one representative harness and keep
 each adapter's native success, binding and format-specific failure checks. Expand
@@ -137,7 +144,7 @@ The offline suite prioritizes the following contracts:
 
 | Area | Retained scope |
 | --- | --- |
-| Published tasks | Every catalog case, declared files, solver isolation, SPICE interfaces and resource bindings |
+| Tasks and Datasets | Synthetic loading, core selection, declared inputs and solver isolation; real delivery snapshots are checked separately |
 | Evaluation and scoring | Candidate-derived evidence, validity and failure precedence, unknown versus zero, source pairing, normalization, per-metric caps and the 0–100 score contract |
 | Extraction | Representative DRC/geometry failures, HBT device correspondence, passive identity and retained RC paths |
 | Participation | Scoped credentials, frozen conditions, budgets, durable recovery, retry idempotence and concurrency |
@@ -162,6 +169,20 @@ ICLAYOUT_BENCH_TEST_IMAGE=docker.io/lizhangmai/iclayout-bench-tools:latest \
   uv run --locked pytest tests/test_http.py
 ```
 
+The regular HTTP suite uses a small checkpoint round trip. Near-capacity
+checkpoint acceptance writes and verifies roughly the full workspace allocation
+(normally 2 GiB); run it explicitly when changing checkpoint capacity or transport:
+
+```bash
+ICLAYOUT_BENCH_DATASET=/path/to/dataset \
+ICLAYOUT_BENCH_TEST_IMAGE=docker.io/lizhangmai/iclayout-bench-tools:latest \
+  uv run --locked pytest -m acceptance_capacity
+```
+
+The manual evaluator workflow exposes the same check through its
+`checkpoint_capacity` input. Capacity acceptance is separate from ordinary HTTP
+protocol regression and does not establish EDA correctness.
+
 `ICLAYOUT_BENCH_DATASET` must identify a Dataset directory for the catalog and
 HTTP tests. Download a published snapshot if needed:
 
@@ -175,7 +196,7 @@ run the catalog checks against an explicit local Dataset directory:
 
 ```bash
 ICLAYOUT_BENCH_DATASET=/path/to/dataset \
-  uv run --locked pytest tests/unit/test_catalogs.py
+  uv run --locked pytest tests/integration/test_catalogs.py
 ```
 
 The checks use the actual Datasets reader for corpus membership,

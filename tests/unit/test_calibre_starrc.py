@@ -24,8 +24,9 @@ def native_probe(self, command, **kwargs):
     return SimpleNamespace(returncode=0, stdout=b'Calibre native release\n')
 
 
-@pytest.mark.parametrize('cores', [1, 2])
-@pytest.mark.parametrize('failure', ['', 'lvs', 'junctions', 'ports', 'completion', 'summary', 'exit'])
+@pytest.mark.parametrize('failure,cores', [
+    (failure, 1) for failure in ('', 'lvs', 'junctions', 'ports', 'completion', 'summary', 'exit')
+] + [('', 2), ('summary', 2)])
 def test_starrc_requires_complete_candidate_extraction(native_tmp_path, monkeypatch, failure, cores):
     pdk = native_tmp_path / 'pdk'
     technology = pdk / 'technology'

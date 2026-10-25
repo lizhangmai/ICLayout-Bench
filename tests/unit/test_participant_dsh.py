@@ -109,7 +109,7 @@ def test_dsh_decompresses_all_frames_before_trace_redaction(tmp_path):
 
 
 def test_dsh_terminal_cleanup_retains_complete_decompressed_records(tmp_path):
-    from test_participant_runner import terminal_files
+    from helpers.participant import terminal_files
 
     from benchmarking.participants.attempt.storage import CaseRecord
     from benchmarking.participants.attempt.worker import finish_case

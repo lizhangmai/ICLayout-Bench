@@ -30,7 +30,7 @@ def test_slow_checkpoint_keeps_status_and_cancel_available(tmp_path, executable_
             pass
         def checkpoint(self, destination, limit, *, previous=None):
             started.set()
-            assert release.wait(3)
+            assert release.wait(30), 'Checkpoint was never released'
             destination.write_bytes(b'committed workspace')
             sha = hashlib.sha256(b'committed workspace').hexdigest()
             return {'unchanged': False, 'sha256': sha, 'workspace_digest': sha}
@@ -52,9 +52,11 @@ def test_slow_checkpoint_keeps_status_and_cancel_available(tmp_path, executable_
     with ThreadPoolExecutor(max_workers=2) as pool:
         writing = pool.submit(service.handle, 'POST', '/sessions/session/files', {}, 'scoped', body, 'write')
         try:
-            assert started.wait(1)
+            assert started.wait(10), 'Checkpoint did not start'
             reading = pool.submit(service.handle, 'GET', '/sessions/session', {}, 'scoped', None, None)
-            code, status = reading.result(timeout=.3)
+            # The read must finish while the checkpoint remains blocked. The
+            # timeout only bounds a deadlock; elapsed time is not the assertion.
+            code, status = reading.result(timeout=10)
             assert code == 200 and status['checkpoint']['state'] == 'running'
             service.handle('POST', '/sessions/session/executions/command/cancel', {}, 'scoped', {}, 'cancel')
             with pytest.raises(APIError) as busy:

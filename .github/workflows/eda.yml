@@ -10,6 +10,11 @@ on:
         description: Dataset Git commit
         required: true
         type: string
+      checkpoint_capacity:
+        description: Also verify checkpoints near the full workspace allocation
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: read
 jobs:
@@ -33,8 +38,11 @@ jobs:
           DATASET_REVISION: ${{ inputs.revision }}
         run: |
           export ICLAYOUT_BENCH_DATASET="$(uv run --locked python -c 'import os; from huggingface_hub import snapshot_download; print(snapshot_download(repo_id=os.environ["DATASET_REPO"], repo_type="dataset", revision=os.environ["DATASET_REVISION"]))')"
-          uv run --locked pytest tests/unit/test_catalogs.py
+          uv run --locked pytest tests/integration/test_catalogs.py
           uv run --locked --group eda pytest tests/unit/test_hbt_extraction.py
           uv run --locked pytest -m acceptance_container
           uv run --locked pytest tests/test_http.py
+          if [ "${{ inputs.checkpoint_capacity }}" = "true" ]; then
+            uv run --locked pytest -m acceptance_capacity
+          fi
           uv run --locked --group eda pytest tests/integration/test_public_references.py -k 'cell_6t or NAND2_X1'

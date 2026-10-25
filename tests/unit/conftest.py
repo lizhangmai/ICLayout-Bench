@@ -5,6 +5,9 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from helpers.evaluation import Checks, Extractor, Simulator
+
+from benchmarking.files import Asset
 
 
 @pytest.fixture
@@ -78,3 +81,14 @@ settings = {{}}
 "layout.artifact" = "fixture"
 ''')
     return circuit_case
+
+
+@pytest.fixture
+def bindings():
+    return {"check": Checks(), "extract": Extractor(), "response": Simulator()}
+
+
+@pytest.fixture
+def inputs():
+    return {"candidate": Asset(b"synthetic-layout", "gds"), "input:netlist": Asset(b"schematic", "spice"),
+            "input:unlisted_reference": Asset(b"reference must not be consumed", "gds")}

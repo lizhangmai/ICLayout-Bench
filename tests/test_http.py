@@ -11,6 +11,7 @@ import threading
 import time
 
 import pytest
+from helpers.http import CONDITION, checkpoint_roundtrip, complete, create
 
 from benchmarking.client import Client, ClientError
 from benchmarking.eda.images import DEFAULT_IMAGE
@@ -20,76 +21,10 @@ from benchmarking.tasks.dataset import load_dataset
 
 DATASET = os.environ.get('ICLAYOUT_BENCH_DATASET')
 CASE = os.environ.get('ICLAYOUT_BENCH_CASE', 'freepdk45.nangate45-pdk.NAND2_X1')
-CONDITION = {'harness_kind': 'agent', 'harness_id': 'protocol-test', 'harness_version': '1',
-                 'model': 'none', 'prompt_sha256': None, 'configuration_sha256': None}
 
 
-@pytest.fixture
-def host(tmp_path):
-    dataset = load_dataset(DATASET)
-    runtime = load_case(dataset.case(CASE), image=os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', DEFAULT_IMAGE))
-    service = LocalService(tmp_path/'store', runtime.task, runtime.agent_resources(), runtime.backends,
-                           os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE',DEFAULT_IMAGE), 'operator-test')
-    server = serve(service)
-    thread = threading.Thread(target=server.serve_forever,daemon=True)
-    thread.start()
-    endpoint = f'http://127.0.0.1:{server.server_port}'
-    yield service, endpoint
-    server.shutdown()
-    server.server_close()
-    thread.join()
-    service.shutdown()
-
-
-def create(host):
-    service, endpoint = host
-    response = Client(endpoint,'operator-test',timeout=50).create(service.controller.task.id,CONDITION,key='create')
-    return Client(endpoint,response['session_token']),response['session_id']
-
-
-def complete(client,sid,eid, *, seconds=30):
-    deadline = time.monotonic()+seconds
-    while time.monotonic()<deadline:
-        result = client.poll(sid,eid)
-        if result['state'] != 'running':
-            return result
-        time.sleep(.05)
-    pytest.fail('Execution did not finish')
-
-
-def test_checkpoint_near_workspace_capacity_preserves_all_bytes(host):
-    import base64
-
-    service, _ = host
-    client, sid = create(host)
-    limits = service.controller.limits
-    mib = 1024*1024
-    blocks = limits['workspace_mb']-4
-    command = (
-        "python -I - <<'PY'\nimport hashlib,random\n"
-        f"block=random.Random(0).randbytes({mib})\n"
-        "digest=hashlib.sha256()\n"
-        "with open('large.log','wb') as stream:\n"
-        f" for _ in range({blocks}):\n  stream.write(block);digest.update(block)\n"
-        "print(digest.hexdigest())\nPY"
-    )
-    try:
-        started = client.execute(sid, command, 60, key='large-workspace')
-        result = complete(client, sid, started['execution_id'], seconds=limits['checkpoint']['total_seconds']+90)
-        assert result['exit_code'] == 0
-        expected = base64.b64decode(result['log_base64']).decode().strip()
-        manifest = json.loads((service.controller.root/sid/'.private/checkpoint.json').read_text())
-        assert manifest['metrics']['workspace_bytes'] == blocks*mib
-        import tarfile
-        with (tarfile.open(service.controller.root/sid/'.private'/manifest['archive']) as archive,
-              archive.extractfile('large.log') as stream):
-            assert hashlib.file_digest(stream, 'sha256').hexdigest() == expected
-        unchanged = client.execute(sid, 'true', 10, key='unchanged-workspace')
-        assert complete(client, sid, unchanged['execution_id'], seconds=limits['checkpoint']['total_seconds']+30)['exit_code'] == 0
-        latest = json.loads((service.controller.root/sid/'.private/checkpoint.json').read_text())
-        assert latest['archive'] == manifest['archive']
-    finally:
-        client.close(sid, key='close-large-workspace')
+def test_checkpoint_preserves_bytes_and_reuses_unchanged_archive(host):
+    checkpoint_roundtrip(host, blocks=2)
 
 
 @pytest.mark.parametrize('accepted', [False, True])

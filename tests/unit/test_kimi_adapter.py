@@ -242,7 +242,7 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
     import zipfile
     from unittest.mock import patch
 
-    from test_participant_runner import ServiceFixture
+    from helpers.participant import ServiceFixture
 
     from benchmarking.participants.attempt.runner import run_participant
 
@@ -334,7 +334,7 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
 
 
 def test_terminal_cleanup_keeps_kimi_native_records(tmp_path):
-    from test_participant_runner import terminal_files
+    from helpers.participant import terminal_files
 
     from benchmarking.participants.attempt.storage import CaseRecord
     from benchmarking.participants.attempt.worker import finish_case

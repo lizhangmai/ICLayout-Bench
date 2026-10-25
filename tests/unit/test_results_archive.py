@@ -105,7 +105,7 @@ def test_import_is_independent_idempotent_and_preserves_unknowns(tmp_path):
 def test_participant_usage_survives_terminal_cleanup_archive_comparison_and_csv(tmp_path):
     import csv
 
-    from test_participant_runner import terminal_files
+    from helpers.participant import terminal_files
 
     from benchmarking.participants.attempt.storage import CaseRecord
     from benchmarking.participants.attempt.worker import finish_case

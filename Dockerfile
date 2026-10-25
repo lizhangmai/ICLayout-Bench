@@ -84,8 +84,8 @@ USER ubuntu
 
 FROM common AS magic-build
 # MAGIC_VERSION is an upstream make variable containing only major.minor.
-ARG MAGIC_RELEASE=8.3.678
-ARG MAGIC_SHA256=3f47b68d3ca2c0ef1cdf18916581a5ac3a529ecc83c6ad0d7cd8e1800d2c3614
+ARG MAGIC_RELEASE=8.3.685
+ARG MAGIC_SHA256=9c25516265babfee641cea785e79e1c0083aabd57b06d511c0d07e2de76f1112
 COPY scripts/patches/magic-stable-device-order.patch /tmp/magic-stable-device-order.patch
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \

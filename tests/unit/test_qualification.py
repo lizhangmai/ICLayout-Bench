@@ -5,7 +5,7 @@ import tomllib
 from types import SimpleNamespace
 
 import pytest
-from test_evaluate import PLAN
+from helpers.evaluation import PLAN
 
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.evaluation.qualification import audit, run, verify
@@ -66,7 +66,7 @@ def test_explicit_requirements_are_audited_separately_from_weights():
 
 @pytest.mark.parametrize("failure", [None, "drc", "tool"])
 def test_retained_evaluation_survives_success_gate_failure_and_tool_error(tmp_path, failure):
-    from test_evaluate import Checks, Extractor, Simulator
+    from helpers.evaluation import Checks, Extractor, Simulator
 
     data = tomllib.loads(PLAN.decode())
     plan = parse_evaluation(json.dumps(data).encode(), file_format='json')

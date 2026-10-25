@@ -372,7 +372,7 @@ def test_private_refreshed_credentials_survive_reentry_and_redact_all_traces(tmp
 
 @pytest.mark.parametrize('harness,prefix', [('codex', 'codex'), ('claude-code', 'claude')])
 def test_terminal_cleanup_preserves_native_reasoning_and_logs(tmp_path, harness, prefix):
-    from test_participant_runner import terminal_files
+    from helpers.participant import terminal_files
 
     from benchmarking.participants.attempt.storage import CaseRecord
     from benchmarking.participants.attempt.worker import finish_case

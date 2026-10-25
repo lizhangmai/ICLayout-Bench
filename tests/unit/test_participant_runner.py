@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from helpers.harness import codex_tool_reply, native_session
+from helpers.participant import InFlightService, ServiceFixture, terminal_files
 
 from benchmarking.client import ClientError
 from benchmarking.participants.attempt.runner import run_participant
@@ -16,7 +17,6 @@ from benchmarking.participants.harnesses.contracts import (
     LaunchContext,
     ParticipantSelection,
 )
-from benchmarking.protocol import PROTOCOL, USAGE_FIELDS
 
 pytestmark = pytest.mark.unit
 
@@ -45,48 +45,6 @@ def write_dataset(root, names):
 def case_run(root, task):
     directory, = (root / task).iterdir()
     return directory
-
-
-class ServiceFixture:
-    endpoint = 'http://127.0.0.1:8765'
-
-    def __init__(self):
-        self.remaining = 120
-        self.active = True
-        self.closed = []
-        self.condition = None
-
-    def create(self, task, condition, *, key):
-        self.condition = condition
-        return {'session_id': 'fixture-session', 'session_token': 'scoped-fixture-token',
-                'limits': {'wall_seconds': self.remaining, 'max_command_seconds': self.remaining},
-                'task': {'problem': '# Fixture problem\n',
-                         'description': {'hours': self.remaining / 3600, 'output': {'path': '/workspace/output/final.gds'}}}}
-
-    def session(self, sid):
-        return {'state': 'active' if self.active else 'complete', 'remaining_seconds': self.remaining}
-
-    def submit(self, *args, **kwargs):
-        raise ClientError('invalid_request', 'No candidate', status=400)
-
-    def close(self, sid, *, key):
-        self.closed.append(sid)
-        self.active = False
-
-    def observations(self, sid, *, offset=0):
-        return {'session_id': sid, 'provenance': 'server_observed', 'available': True,
-                'events': [], 'next_offset': 0, 'has_more': False}
-
-    def result(self, sid):
-        return {
-            'protocol': PROTOCOL, 'state': 'complete', 'session_id': sid,
-            'task_id': 'fixture', 'task_sha256': '0' * 64,
-            'condition': self.condition, 'submission': None,
-            'outcome': 'no_submission', 'task_success': False, 'failure_reason': None,
-            'score': None, 'metrics': {}, 'usage': dict.fromkeys(USAGE_FIELDS),
-            'tool_identity': {}, 'limits': {}, 'provenance': {},
-            'evaluation_mode': 'self_run',
-        }
 
 
 @pytest.mark.parametrize('collect_only', [False, True])
@@ -134,40 +92,6 @@ def test_initial_prompt_contains_problem_verbatim_without_serializing_the_task_p
     result, error = run_participant(fixture, {'harness': 'command', 'task': 'fixture'}, tmp_path, selection)
     assert error is None and result['outcome'] == 'no_submission'
     assert len(prompts) == 1
-
-
-def terminal_files(output, outcome='no_submission'):
-    (output / 'analysis').mkdir(parents=True, exist_ok=True)
-    result = ServiceFixture().result('fixture-session')
-    result['outcome'] = outcome
-    (output / 'analysis/result.json').write_text(json.dumps(result))
-    return {'outcome': outcome, 'result': 'analysis/result.json'}
-
-
-class InFlightService(ServiceFixture):
-    """A protocol execution survives the participant; enforce the real service guard."""
-    def __init__(self, *, race=False, conflict=False):
-        super().__init__()
-        self.busy = not race
-        self.race, self.conflict = race, conflict
-        self.submitted = []
-
-    def session(self, sid):
-        return dict(super().session(sid), active_execution_id='in-flight' if self.busy else None)
-
-    def poll(self, sid, eid, *, offset=0):
-        import base64
-        assert eid == 'in-flight'
-        if self.conflict:
-            raise ClientError('conflict', 'Execution status conflict', status=409)
-        self.busy = False
-        raw = b'execution finished scoped-fixture-token\n' if offset == 0 else b''
-        return {'execution_id': eid, 'state': 'complete', 'exit_code': 0,
-                'log_base64': base64.b64encode(raw).decode(), 'next_offset': offset + len(raw), 'truncated': False}
-
-    def submit(self, sid, path, *, key):
-        self.submitted.append((path, key))
-        raise AssertionError("Session settlement must never submit workspace output")
 
 
 @pytest.mark.parametrize('harness', ['codex', 'claude-code', 'command'])
@@ -503,93 +427,110 @@ if __name__ == '__main__':
     unittest.main()
 
 
-@pytest.mark.parametrize('harness,stop', [
-    *[('codex', stop) for stop in ('success', 'limit', 'deadline', 'insufficient_budget', 'pending_tool', 'pending_after_wait',
-                                 'missing_thread', 'authentication', 'retry_after', 'service_error', 'disabled')],
-    ('claude-code', 'success'),
-    ('codex', 'reconnect_then_capacity'),
-    ('codex', 'rotated_credentials'),
-    ('claude-code', 'rotated_credentials'),
-    ('codex', 'rate_limit_success'),
-    ('codex', 'delivered_tool'),
-    ('codex', 'undelivered_tool'),
-    ('claude-code', 'rate_limit_success'),
-    *[(harness, stop) for harness in ('codex', 'claude-code', 'zcode')
-      for stop in ('active_execution', 'active_after_wait')],
-    *[('zcode', stop) for stop in ('success', 'limit', 'deadline', 'insufficient_budget', 'pending_tool',
-                                 'pending_after_wait', 'missing_thread', 'retry_after', 'rate_limit_success')],
+@pytest.mark.parametrize('kind', ['capacity', 'network'])
+@pytest.mark.parametrize('scenario,expected', [
+    ('ready', 'waiting'), ('limit', 'limit_reached'), ('disabled', 'limit_reached'),
+    ('closed', 'deadline'), ('expired', 'deadline'), ('missing_native', 'native_session_missing'),
+    ('retry_after', 'retry_after_exceeds_cap'), ('insufficient_budget', 'deadline'),
 ])
-def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, monkeypatch, harness, stop):
-    """Run real child processes emitting native events; only the service/provider boundaries are fixtures."""
+def test_resume_policy_bounds_waiting_without_changing_session(monkeypatch, kind, scenario, expected):
+    from benchmarking.participants.attempt import recovery
+
+    settings = recovery.policy({kind + '_resumes': 0 if scenario == 'disabled' else 2})
+    monkeypatch.setattr(recovery, kind + '_delay', lambda settings, count: 30)
+    status = {'state': 'complete' if scenario == 'closed' else 'active',
+              'remaining_seconds': 0 if scenario == 'expired' else 20 if scenario == 'insufficient_budget' else 1000}
+    problem = {'retry_after': 400} if scenario == 'retry_after' else {}
+    native_id = None if scenario == 'missing_native' else 'original-native-thread'
+    before = copy.deepcopy((settings, status, problem))
+    decision = getattr(recovery, 'plan_' + kind + '_resume')(
+        settings, 2 if scenario == 'limit' else 0, problem, status, native_id)
+    assert decision.outcome == expected
+    assert (settings, status, problem) == before
+    if scenario == 'ready':
+        assert decision.native_id == native_id and decision.delay_seconds == 30
+
+
+@pytest.mark.parametrize('kind,harness,scenario', [
+    *[('capacity', harness, 'success') for harness in ('codex', 'claude-code', 'zcode')],
+    ('network', 'claude-code', 'success'),
+    *[('capacity', 'codex', scenario) for scenario in (
+        'limit', 'active_execution', 'active_after_wait', 'pending_tool', 'pending_after_wait',
+        'delivered_tool', 'undelivered_tool', 'authentication', 'service_error', 'rotated_credentials')],
+    *[('network', 'codex', scenario) for scenario in (
+        'success', 'limit', 'active_execution', 'active_after_wait', 'pending_tool', 'pending_after_wait',
+        'authentication', 'quota', 'mixed_failure', 'successful_exit', 'disabled', 'resume_disabled', 'deadline')],
+])
+def test_native_continuation_preserves_session_budget_and_evidence(tmp_path, monkeypatch, kind, harness, scenario):
+    """Shared recovery runs real child processes; adapters own native error variants."""
     import sys
     from types import SimpleNamespace
 
+    from benchmarking.execution.process import execute as actual_execute
     from benchmarking.participants.attempt.recovery import DISABLED
     from benchmarking.participants.attempt.runner import CONTINUE_PROMPT, run_one
 
-    reconnect_then_capacity = stop == 'reconnect_then_capacity'
-    rotated_credentials = stop == 'rotated_credentials'
-    rate_limited = stop == 'rate_limit_success'
-    active_execution = stop in {'active_execution', 'active_after_wait'}
-    active_after_wait = stop == 'active_after_wait'
-    delivery = stop if stop in {'delivered_tool', 'undelivered_tool'} else None
-    unresolved_request = stop == 'pending_tool'
-    unresolved_after_wait = stop == 'pending_after_wait'
-    if delivery or unresolved_request or unresolved_after_wait:
-        stop = 'success'
-    if rate_limited:
-        stop = 'success'
-    if reconnect_then_capacity or rotated_credentials or active_execution:
-        stop = 'success'
-
-    fixture = InFlightService() if active_execution else ServiceFixture()
-    if active_after_wait:
+    active_execution = scenario in {'active_execution', 'active_after_wait'}
+    delivery = scenario if scenario in {'delivered_tool', 'undelivered_tool'} else None
+    stop = 'success' if active_execution or delivery or scenario in {
+        'pending_tool', 'pending_after_wait', 'rotated_credentials'} else scenario
+    fixture = InFlightService() if active_execution or (kind == 'network' and stop == 'limit') else ServiceFixture()
+    if scenario == 'active_after_wait' or stop == 'limit':
         fixture.busy = False
-    fixture.remaining = 20 if stop == 'insufficient_budget' else 1000
+    fixture.remaining = 1000
     output = tmp_path / 'participant'
-    selected = {'harness': harness, 'model': 'fixture-model', 'effort_resolved': 'xhigh', 'effort_requested': 'xhigh'}
-    row = {'name': 'trial', 'harness': harness, 'task': 'fixture',
-           'recovery': DISABLED | {'resume_session': stop in {'limit', 'service_error'}, 'capacity_resumes': 2, 'capacity_backoff_seconds': 30,
-                                   'capacity_max_backoff_seconds': 300}}
-    if stop == 'success':
-        del row['recovery']  # Capacity continuation must work without opting in.
-    elif stop == 'disabled':
-        row['recovery']['capacity_resumes'] = 0
+    selected = {'harness': harness, 'model': 'fixture-model', 'effort_resolved': 'high', 'effort_requested': 'high'}
+    row = {'name': 'trial', 'harness': harness, 'task': 'fixture'}
+    if stop != 'success':
+        row['recovery'] = {kind + '_resumes': 2}
+        if kind == 'capacity':
+            row['recovery'] |= DISABLED | {'resume_session': stop in {'limit', 'service_error'}}
+    if stop == 'disabled':
+        row['recovery'][kind + '_resumes'] = 0
+    if stop == 'resume_disabled':
+        row['recovery']['resume_session'] = False
     launches, prompts, delays, timeouts = [], [], [], []
     clock = [0]
-    native_id = 'sess_original-native-thread' if harness == 'zcode' else 'original-native-thread'
-    capacity = {'type': 'turn.failed', 'error': {'message': 'Selected model is at capacity. Please try a different model.'}}
-    if harness == 'claude-code':
-        capacity = {'type': 'error', 'error': {'type': 'overloaded_error'}}
-    if rate_limited:
-        capacity = ({'type': 'turn.failed', 'error': {'code': 'rate_limit_exceeded'}} if harness == 'codex' else
-                    {'type': 'assistant', 'error': 'rate_limit', 'message': {'content': [
-                        {'type': 'text', 'text': 'API Error: Request rejected (429) fixture rate limit'}]}})
-    if stop == 'retry_after':
-        capacity['error']['retry_after'] = 400
-    if harness == 'zcode':
-        detail = {'code': '1313' if rate_limited else '1312', 'attribution': {'source': 'provider'}}
-        if stop == 'retry_after':
-            detail['retry_after'] = 400
-        capacity = {'type': 'turn.failed', 'payload': {'error': detail}}
+    manually_recovered = [False]
+
+    def pending_tool():
+        (output / 'tools.jsonl').write_text(json.dumps({'tool': 'execute', 'mutation': True,
+            'key': 'unanswered', 'arguments': {'command': 'native tool'}}) + '\n')
 
     def launch(context):
-        condition, env = context.selection.condition, context.selection.environment
-        nonlocal native_id
-        assert fixture.active
-        assert condition == selected
+        env = context.selection.environment
+        assert fixture.active and context.selection.condition == selected
         if harness == 'zcode':
             env['ZCODE_DATA_BASE_DIR'] = str(output / '.private/native-home')
         launches.append(dict(env))
-        if active_execution and len(launches) > 1:
-            assert fixture.busy, 'Native continuation must not drain the existing execution'
+        native_id = ('sess_' if harness == 'zcode' else '') + env['ICLAYOUT_BENCH_NATIVE_ID']
+        native_session(output, harness, native_id)
+        if len(launches) > 1 and (active_execution or manually_recovered[0]):
+            assert fixture.busy, 'Continuation must not drain the existing execution'
             assert not (output / 'finalization.json').exists()
-        if harness == 'claude-code':
-            native_id = env['ICLAYOUT_BENCH_NATIVE_ID']
-        if stop != 'missing_thread':
-            native_session(output, harness, native_id)
-        events = [] if stop == 'missing_thread' else [{'type': 'thread.started', 'thread_id': native_id}]
-        if len(launches) == 1 or stop == 'limit':
+        failing = not manually_recovered[0] and (len(launches) == 1 or stop == 'limit')
+        events = [{'type': 'thread.started', 'thread_id': native_id}]
+        if failing:
+            if kind == 'network':
+                event = {'type': 'turn.failed', 'error': {'code': 'connection_error'}}
+            else:
+                event = {
+                    'codex': {'type': 'turn.failed', 'error': {'code': 'server_is_overloaded'}},
+                    'claude-code': {'type': 'error', 'error': {'type': 'overloaded_error'}},
+                    'zcode': {'type': 'turn.failed', 'payload': {'error': {
+                        'code': '1312', 'attribution': {'source': 'provider'}}}},
+                }[harness]
+            events.append(event)
+        elif stop in {'authentication', 'quota'}:
+            events.append({'type': 'turn.failed', 'error': {
+                'code': 'invalid_api_key' if stop == 'authentication' else 'insufficient_quota'}})
+        else:
+            events.append({'type': 'turn.completed'})
+        if stop == 'mixed_failure':
+            events.append({'type': 'error', 'error': {'code': 'unrecognized_failure'}})
+        if len(launches) == 1:
+            if scenario == 'pending_tool':
+                pending_tool()
             if delivery:
                 arguments = {'command': 'fixture-command', 'wait_seconds': 10}
                 result = {'execution_id': 'fixture-execution', 'state': 'running', 'next_offset': 0}
@@ -599,35 +540,18 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
                 native = codex_tool_reply(native_id, 'execute', arguments, result)
                 if delivery == 'undelivered_tool':
                     native.pop()
-                path = next((output / '.private/native-home/sessions').rglob('*.jsonl'))
-                with path.open('a') as stream:
+                history = next((output / '.private/native-home/sessions').rglob('*.jsonl'))
+                with history.open('a') as stream:
                     stream.write(''.join(json.dumps(event) + '\n' for event in native))
-            if reconnect_then_capacity:
-                events.extend([{'type': 'turn.started'},
-                               {'type': 'error', 'message': 'Reconnecting... 2/5 (request timed out)'},
-                               {'type': 'error', 'message': 'Reconnecting... waiting for network (Connection failed: error sending request)'},
-                               {'type': 'error', 'message': 'Selected model is at capacity. Please try a different model.'}])
-            events.append(capacity)
-            exit_code = 1
-            if unresolved_request:
-                (output / 'tools.jsonl').write_text(json.dumps({'tool': 'execute', 'mutation': True,
-                    'key': 'unanswered', 'arguments': {'command': 'native tool'}}) + '\n')
-        elif stop == 'authentication':
-            events.append({'type': 'error', 'error': {'code': 'invalid_api_key'}})
-            exit_code = 1
-        else:
-            events.append({'type': 'turn.completed'})
-            exit_code = 0
-        raw = '\n'.join(json.dumps(e) for e in events)
         rotate = ''
-        if rotated_credentials:
+        if scenario == 'rotated_credentials':
             secret = f'rotated-native-secret-{len(launches)}'
-            credential = output / '.private/native-home' / ('auth.json' if harness == 'codex' else '.credentials.json')
+            credential = output / '.private/native-home/auth.json'
             rotate = f'Path({str(credential)!r}).write_text({json.dumps({"access_token": secret})!r}); print({secret!r}); '
+        exit_code = 0 if stop == 'successful_exit' else int(failing or stop in {'authentication', 'quota'})
+        raw = '\n'.join(json.dumps(event) for event in events)
         return [sys.executable, '-c',
-                f'import sys; from pathlib import Path; {rotate}Path("prompt.txt").write_text(sys.stdin.read()); print({raw!r}); sys.exit({exit_code})']
-
-    from benchmarking.execution.process import execute as actual_execute
+                f'import sys; from pathlib import Path; {rotate}print({raw!r}); sys.exit({exit_code})']
 
     def execute(*args, **kwargs):
         prompts.append(kwargs['prompt'])
@@ -640,9 +564,8 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
         fixture.remaining = 0 if stop == 'deadline' else fixture.remaining - seconds
         if active_execution:
             fixture.busy = True
-        if unresolved_after_wait:
-            (output / 'tools.jsonl').write_text(json.dumps({'tool': 'execute', 'mutation': True,
-                'key': 'unanswered', 'arguments': {'command': 'native tool'}}) + '\n')
+        if scenario == 'pending_after_wait':
+            pending_tool()
 
     original_session = fixture.session
     service_error = []
@@ -657,149 +580,7 @@ def test_capacity_continuation_keeps_original_session_and_evidence(tmp_path, mon
     monkeypatch.setattr('benchmarking.participants.attempt.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
     monkeypatch.setattr('benchmarking.participants.harnesses.registry.prepare', launch)
     monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', execute)
-    monkeypatch.setattr('benchmarking.participants.attempt.recovery.capacity_delay', lambda settings, attempt: min(300, 30 * 2 ** attempt))
-    monkeypatch.setattr('benchmarking.participants.attempt.runner.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
-    with patch.object(fixture, 'create', wraps=fixture.create) as create:
-        summary = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
-    assert create.call_count == 1
-    assert fixture.closed == ([] if stop == 'service_error' else ['fixture-session'])
-    if active_execution:
-        finalization = json.loads((output / 'finalization.json').read_text())
-        assert finalization['executions']['in-flight']['state'] == 'complete'
-        assert not fixture.submitted
-    if rotated_credentials:
-        for path in (output / 'observation').rglob('*'):
-            if path.is_file():
-                assert b'rotated-native-secret-1' not in path.read_bytes()
-                assert b'rotated-native-secret-2' not in path.read_bytes()
-        assert b'rotated-native-secret-1' in (output / 'launch-1-harness.jsonl').read_bytes()
-    assert summary['state'] == ('suspended' if stop == 'service_error' else 'finished')
-    assert summary['session_id'] == 'fixture-session'
-    if stop == 'success':
-        frozen = json.loads((output / 'conditions.json').read_text())
-        assert frozen['recovery']['capacity_resumes'] == 5
-    if stop == 'disabled':
-        assert len(launches) == 1
-        assert not delays
-        assert summary['failure']['category'] == 'provider_overloaded'
-        assert summary['harness_error'] == 'cli_exit_1'
-        assert 'capacity_recovery' not in summary
-        return
-    assert len(launches) == (3 if stop == 'limit' else 2 if stop in {'success', 'authentication'} else 1)
-    for env in launches[1:]:
-        assert env['ICLAYOUT_BENCH_RESUME_ID'] == native_id
-        home = {'codex': 'CODEX_HOME', 'claude-code': 'CLAUDE_CONFIG_DIR', 'zcode': 'ZCODE_DATA_BASE_DIR'}[harness]
-        assert env[home] == launches[0][home]
-        assert env['ICLAYOUT_BENCH_SESSION'] == launches[0]['ICLAYOUT_BENCH_SESSION']
-    assert all(prompt == CONTINUE_PROMPT for prompt in prompts[1:])
-    assert 'Check status' in CONTINUE_PROMPT and 'original deadline' in CONTINUE_PROMPT.lower()
-    assert all(ord(c) < 128 for c in CONTINUE_PROMPT)
-    recovery = json.loads((output / 'harness-summary.json').read_text())['capacity_recovery']
-    assert json.loads((output / 'harness-summary.json').read_text())['elapsed_seconds'] == sum(delays)
-    assert timeouts == ([1000, 970, 910] if stop == 'limit' else [1000, 970] if stop in {'success', 'authentication'}
-                        else [20] if stop == 'insufficient_budget' else [1000])
-    assert recovery['outcome'] == {'success': 'recovered', 'limit': 'limit_reached', 'deadline': 'deadline', 'insufficient_budget': 'deadline',
-                                   'missing_thread': 'native_session_missing',
-                                   'authentication': 'stopped_on_other_error', 'retry_after': 'retry_after_exceeds_cap',
-                                   'service_error': 'stopped_on_other_error'}[stop]
-    assert len(recovery['interruptions']) == (3 if stop == 'limit' else 1)
-    assert all(entry.get('status') for entry in recovery['interruptions'])
-    assert (output / 'launch-1-harness.jsonl').exists() == (len(launches) > 1)
-    if stop == 'success':
-        assert summary['harness_error'] is None
-        assert summary['failure']['category'] == 'task_failure'  # No submission, independently of recovery.
-        assert delays == [30]
-    else:
-        assert summary['failure']['category'] == {'authentication': 'authentication', 'service_error': 'network_transient'}.get(stop, 'provider_overloaded')
-    if stop in {'missing_thread', 'retry_after', 'service_error', 'insufficient_budget'}:
-        assert not delays
-
-
-@pytest.mark.parametrize('harness,stop', [
-    *[('codex', stop) for stop in ('success', 'limit', 'deadline', 'pending_tool', 'pending_after_wait',
-                                 'missing_native', 'disabled', 'resume_disabled', 'authentication',
-                                 'quota', 'mixed_failure', 'successful_exit')],
-    ('claude-code', 'success'), ('claude-code', 'limit'),
-    *[(harness, stop) for harness in ('codex', 'claude-code')
-      for stop in ('active_execution', 'active_after_wait')],
-])
-def test_network_continuation_preserves_session_and_can_resume_after_exhaustion(tmp_path, monkeypatch, harness, stop):
-    """Native disconnection must continue the saved solve, never create a new one."""
-    import sys
-    from types import SimpleNamespace
-
-    from benchmarking.participants.attempt.runner import CONTINUE_PROMPT, run_one
-
-    active_execution = stop in {'active_execution', 'active_after_wait'}
-    active_after_wait = stop == 'active_after_wait'
-    unresolved_request = stop == 'pending_tool'
-    unresolved_after_wait = stop == 'pending_after_wait'
-    if active_execution or unresolved_request or unresolved_after_wait:
-        stop = 'success'
-    fixture = InFlightService() if active_execution or stop == 'limit' else ServiceFixture()
-    if active_after_wait or stop == 'limit':
-        fixture.busy = False
-    fixture.remaining = 1000
-    selected = {'harness': harness, 'model': 'fixture-model', 'effort_resolved': 'high', 'effort_requested': 'high'}
-    row = {'name': 'trial', 'harness': harness, 'task': 'fixture'}
-    if stop != 'success':
-        row['recovery'] = {'network_resumes': 2}
-    if stop == 'disabled':
-        row['recovery']['network_resumes'] = 0
-    if stop == 'resume_disabled':
-        row['recovery']['resume_session'] = False
-    output = tmp_path / 'participant'
-    launches, delays, timeouts = [], [], []
-    clock = [0]
-    manually_recovered = [False]
-
-    def launch(context):
-        env = context.selection.environment
-        launches.append(dict(env))
-        if stop != 'missing_native':
-            native_session(output, harness, env['ICLAYOUT_BENCH_NATIVE_ID'])
-        if len(launches) > 1:
-            assert context.prompt == CONTINUE_PROMPT
-        if len(launches) > 1 and (active_execution or manually_recovered[0]):
-            assert fixture.busy, 'Native continuation must not drain the existing execution'
-            assert not (output / 'finalization.json').exists()
-        failing = not manually_recovered[0] and (len(launches) == 1 or stop == 'limit')
-        events = [{'type': 'thread.started', 'thread_id': env['ICLAYOUT_BENCH_NATIVE_ID']}]
-        code = 'connection_error' if failing else {'authentication': 'invalid_api_key', 'quota': 'insufficient_quota'}.get(stop)
-        if code:
-            events.append({'type': 'turn.failed', 'error': {'code': code}})
-        else:
-            events.append({'type': 'turn.completed'})
-        if stop == 'mixed_failure':
-            events.append({'type': 'error', 'error': {'code': 'unrecognized_failure'}})
-        if unresolved_request and len(launches) == 1:
-            (output / 'tools.jsonl').write_text(json.dumps({'tool': 'execute', 'mutation': True,
-                'key': 'unanswered', 'arguments': {'command': 'native tool'}}) + '\n')
-        raw = '\n'.join(json.dumps(e) for e in events)
-        exit_code = 0 if stop == 'successful_exit' else int(bool(code))
-        return [sys.executable, '-c', f'import sys; print({raw!r}); sys.exit({exit_code})']
-
-    from benchmarking.execution.process import execute as actual_execute
-
-    def execute(*args, **kwargs):
-        timeouts.append(kwargs['timeout'])
-        return actual_execute(*args, **kwargs)
-
-    def sleep(seconds):
-        delays.append(seconds)
-        clock[0] += seconds
-        fixture.remaining = 0 if stop == 'deadline' else fixture.remaining - seconds
-        if active_execution:
-            fixture.busy = True
-        if unresolved_after_wait:
-            (output / 'tools.jsonl').write_text(json.dumps({'tool': 'execute', 'mutation': True,
-                'key': 'unanswered', 'arguments': {'command': 'native tool'}}) + '\n')
-
-    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
-    monkeypatch.setattr('benchmarking.participants.attempt.runner.subprocess.check_output', lambda *a, **kw: 'fixture-cli')
-    monkeypatch.setattr('benchmarking.participants.harnesses.registry.prepare', launch)
-    monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', execute)
-    monkeypatch.setattr('benchmarking.participants.attempt.recovery.network_delay', lambda settings, n: min(300, 30 * 2 ** n))
+    monkeypatch.setattr('benchmarking.participants.attempt.recovery.' + kind + '_delay', lambda settings, count: min(300, 30 * 2 ** count))
     monkeypatch.setattr('benchmarking.participants.attempt.runner.time', SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep))
     with patch.object(fixture, 'create', wraps=fixture.create) as create:
         summary = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
@@ -808,42 +589,49 @@ def test_network_continuation_preserves_session_and_can_resume_after_exhaustion(
         assert len(launches) == (3 if stop == 'limit' else 2 if stop in {'success', 'authentication', 'quota'} else 1)
         for env in launches:
             assert env['ICLAYOUT_BENCH_SESSION'] == 'fixture-session'
-            transport = json.loads(env['ICLAYOUT_BENCH_RECOVERY'])
-            assert transport['http_attempts'] == 3
         for env in launches[1:]:
-            assert env['ICLAYOUT_BENCH_RESUME_ID'] == launches[0]['ICLAYOUT_BENCH_NATIVE_ID']
+            native_id = ('sess_' if harness == 'zcode' else '') + launches[0]['ICLAYOUT_BENCH_NATIVE_ID']
+            assert env['ICLAYOUT_BENCH_RESUME_ID'] == native_id
             assert env['ICLAYOUT_BENCH_TOKEN'] == launches[0]['ICLAYOUT_BENCH_TOKEN']
+            home = {'codex': 'CODEX_HOME', 'claude-code': 'CLAUDE_CONFIG_DIR', 'zcode': 'ZCODE_DATA_BASE_DIR'}[harness]
+            assert env[home] == launches[0][home]
+        assert all(prompt == CONTINUE_PROMPT for prompt in prompts[1:])
         assert timeouts == ([1000, 970, 910] if stop == 'limit' else [1000, 970] if len(launches) == 2 else [1000])
+        key = kind + '_recovery'
         if stop in {'disabled', 'resume_disabled', 'mixed_failure', 'successful_exit'}:
-            assert 'network_recovery' not in summary
-            assert not delays
+            assert key not in summary and not delays
         else:
-            recovery = summary['network_recovery']
-            assert recovery['outcome'] == {'success': 'recovered', 'limit': 'limit_reached',
-                                          'deadline': 'deadline', 'missing_native': 'native_session_missing',
-                                          'authentication': 'stopped_on_other_error', 'quota': 'stopped_on_other_error'}[stop]
-        if stop in {'success', 'resume_disabled'}:
-            assert summary['state'] == 'finished'
-            assert fixture.closed == ['fixture-session']
-        else:
-            assert summary['state'] == 'suspended'
-            assert not fixture.closed
+            recovery = summary[key]
+            assert recovery['outcome'] == {
+                'success': 'recovered', 'limit': 'limit_reached', 'deadline': 'deadline',
+                'authentication': 'stopped_on_other_error', 'quota': 'stopped_on_other_error',
+                'service_error': 'stopped_on_other_error'}[stop]
+            assert len(recovery['interruptions']) == (3 if stop == 'limit' else 1)
+            assert all(entry.get('status') for entry in recovery['interruptions'])
+        suspended = stop == 'service_error' or (kind == 'network' and stop not in {'success', 'resume_disabled'})
+        assert summary['state'] == ('suspended' if suspended else 'finished')
+        assert fixture.closed == ([] if suspended else ['fixture-session'])
+        assert (output / 'launch-1-harness.jsonl').exists() == (len(launches) > 1)
+        if active_execution:
+            assert json.loads((output / 'finalization.json').read_text())['executions']['in-flight']['state'] == 'complete'
+            assert not fixture.submitted
         if stop == 'success':
-            assert summary['harness_error'] is None
-            assert delays == [30]
-            assert (output / 'launch-1-harness.jsonl').exists()
-        if stop == 'limit':
-            assert delays == [30, 60]
-            assert summary['network_recovery']['resumes'] == 2
+            assert summary['harness_error'] is None and delays == [30]
+            assert summary['failure']['category'] == 'task_failure'
+        if scenario == 'rotated_credentials':
+            for path in (output / 'observation').rglob('*'):
+                if path.is_file():
+                    assert b'rotated-native-secret-1' not in path.read_bytes()
+                    assert b'rotated-native-secret-2' not in path.read_bytes()
+            assert b'rotated-native-secret-1' in (output / 'launch-1-harness.jsonl').read_bytes()
+        if kind == 'network' and stop == 'limit':
+            assert delays == [30, 60] and summary[key]['resumes'] == 2
             assert (output / '.private/recovery.json').is_file()
             manually_recovered[0] = True
-            fixture.remaining = 30
-            fixture.busy = True
+            fixture.remaining, fixture.busy = 30, True
             resumed = run_one(fixture, row, output, ParticipantSelection(selected, {}, {}))
-            assert create.call_count == 1
-            assert resumed['state'] == 'finished'
-            assert resumed['network_recovery']['outcome'] == 'recovered'
-            assert timeouts[-1] == 30
+            assert create.call_count == 1 and resumed['state'] == 'finished'
+            assert resumed[key]['outcome'] == 'recovered' and timeouts[-1] == 30
 
 
 def test_local_capacity_recovery_exports_both_launches_before_removing_runtime(tmp_path, monkeypatch):

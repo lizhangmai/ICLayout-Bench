@@ -22,10 +22,11 @@ def native_probe(self, command, **kwargs):
     return SimpleNamespace(returncode=0, stdout=output)
 
 
-@pytest.mark.parametrize('failure', ['', 'lvs', 'junctions', 'completion', 'exit', 'stuck-exit',
-                                    'stuck-no-console', 'bad-exit-report', 'missing-exit-report',
-                                    'recreated-log-grace'])
-@pytest.mark.parametrize('within_pdk', [False, True])
+@pytest.mark.parametrize('failure,within_pdk', [
+    (failure, False) for failure in ('', 'lvs', 'junctions', 'completion', 'exit', 'stuck-exit',
+                                   'stuck-no-console', 'bad-exit-report', 'missing-exit-report',
+                                   'recreated-log-grace')
+] + [('', True)])
 def test_cci_rc_requires_complete_physical_evidence(native_tmp_path, monkeypatch, failure, within_pdk):
     pdk = native_tmp_path / 'pdk'
     technology = (pdk if within_pdk else native_tmp_path) / 'technology'

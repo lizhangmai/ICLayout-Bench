@@ -5,7 +5,7 @@ import tomllib
 from typing import ClassVar
 
 import pytest
-from test_evaluate import PLAN, evaluate
+from helpers.evaluation import PLAN, evaluate
 
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.evaluation.runner import run_evaluation
