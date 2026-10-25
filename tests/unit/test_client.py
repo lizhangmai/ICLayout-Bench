@@ -70,6 +70,23 @@ def test_error_retains_service_status(monkeypatch):
     assert not failure.value.retryable
 
 
+def test_checkpoint_failure_retains_session_scope_without_stopping_dispatch(monkeypatch):
+    from benchmarking.participants.harnesses.events import classify
+
+    client = Client('http://127.0.0.1:8000', 'secret')
+    def transport(*args, **kwargs):
+        raise HTTPError('http://127.0.0.1', 500, 'Checkpoint failed', {}, io.BytesIO(
+            b'{"protocol":"layout-http","error":{"code":"checkpoint_timeout",'
+            b'"message":"Workspace checkpoint failed","scope":"session","retryable":false}}'))
+    monkeypatch.setattr(client._opener, 'open', transport)
+    with pytest.raises(ClientError) as caught:
+        client.submit('session', 'output.gds', key='submission')
+    problem = classify(caught.value)
+    assert problem['category'] == 'service_failure'
+    assert problem['scope'] == 'session'
+    assert not problem['stop_dispatch']
+
+
 def test_experiment_default_retry_replays_lost_execution_response_once(monkeypatch):
     """Transport loss after commit must not execute a side effect twice."""
     from helpers.service import Simulator

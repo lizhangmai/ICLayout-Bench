@@ -5,6 +5,7 @@ import base64
 import hashlib
 import http.client
 import json
+import math
 import os
 import re
 import sys
@@ -31,10 +32,11 @@ def _reject_constant(value):
 class ClientError(Exception):
     """A structured service error or a locally rejected response."""
 
-    def __init__(self, code, message, *, status=None, retryable=False, retry_after=None):
+    def __init__(self, code, message, *, status=None, retryable=False, retry_after=None, scope=None):
         super().__init__(message)
         self.code, self.status, self.retryable = code, status, retryable
         self.retry_after = retry_after
+        self.scope = scope if scope in {'session', 'provider', 'endpoint', 'runtime'} else None
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -136,7 +138,8 @@ class Client:
                 detail = {}
             raise ClientError(detail.get("code", "invalid_response"),
                               str(detail.get("message", "Service request failed")), status=status,
-                              retryable=detail.get("retryable") is True, retry_after=retry_after)
+                              retryable=detail.get("retryable") is True, retry_after=retry_after,
+                              scope=detail.get('scope'))
         return result
 
     def create(self, task_id, condition, *, key):
@@ -159,8 +162,22 @@ class Client:
         return content
 
     def write(self, session_id, path, content, *, key):
-        return self.session(session_id, "files", {
+        response = self.session(session_id, "files", {
             "path": path, "content_base64": base64.b64encode(content).decode("ascii")}, key=key)
+        if not response.get('pending'):
+            return response
+        timeout = response.get('timeout_seconds')
+        if type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 3600:
+            raise ClientError('invalid_response', 'Invalid workspace checkpoint budget')
+        deadline = time.monotonic() + timeout + self.timeout
+        while time.monotonic() < deadline:
+            observed = self.session(session_id, f'requests/files/{_identifier(key)}')
+            if observed.get('known'):
+                return observed['response']
+            if not observed.get('pending'):
+                raise ClientError('transport_error', 'File delivery unknown; replay the original key', retryable=True)
+            time.sleep(.1)
+        raise ClientError('transport_error', 'Workspace checkpoint response timed out', retryable=True)
 
     def execute(self, session_id, command, timeout_seconds, *, key):
         return self.session(session_id, "executions", {

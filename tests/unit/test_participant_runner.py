@@ -89,6 +89,21 @@ class ServiceFixture:
         }
 
 
+@pytest.mark.parametrize('collect_only', [False, True])
+def test_checkpoint_failure_retains_case_recovery_until_explicit_collection(tmp_path, monkeypatch, collect_only):
+    from benchmarking.participants.attempt.runner import run_one
+
+    result = {'state': 'error', 'session_id': 'session', 'failure_category': 'service_failure',
+              'failure_reason': 'checkpoint_timeout', 'failure_scope': 'session', 'submission': None,
+              'outcome': 'error', 'score': None, 'task_success': None, 'evaluation_mode': 'self_run'}
+    for name in ('run_participant', 'recover_participant'):
+        monkeypatch.setattr('benchmarking.participants.attempt.runner.'+name, lambda *a: (result, None))
+    summary = run_one(None, {'name': 'condition'}, tmp_path, ParticipantSelection({}, {}, {}), collect_only=collect_only)
+    assert summary['state'] == ('finished' if collect_only else 'suspended')
+    assert summary['score'] is None
+    assert summary['failure']['scope'] == 'session' and not summary['failure']['stop_dispatch']
+
+
 def test_initial_prompt_contains_problem_verbatim_without_serializing_the_task_plan(tmp_path, monkeypatch):
     problem = '# Layout task\n\nPreserve the declared circuit.\n中文要求。\n'
     fixture = ServiceFixture()
@@ -295,7 +310,7 @@ def test_unrelated_finalization_conflict_retains_original_harness_failure(tmp_pa
     assert not fixture.submitted
     assert fixture.closed == ['fixture-session']
     if len(tasks) > 1:
-        assert json.loads((case_run(output, 'untouched') / 'result.json').read_text())['state'] == 'blocked'
+        assert json.loads((case_run(output, 'untouched') / 'result.json').read_text())['state'] == 'finished'
 
 
 class LifecycleTests(unittest.TestCase):
@@ -1937,7 +1952,8 @@ def test_slow_resource_provisioning_has_separate_startup_and_solve_budgets(tmp_p
         service.shutdown()
 
 
-def test_default_case_storage_retains_blocked_dispatch_without_batch_summary(tmp_path, monkeypatch):
+@pytest.mark.parametrize('scope,expected_launches', [('provider', 1), ('session', 2), ('endpoint', 1), ('runtime', 1)])
+def test_default_case_storage_retains_blocked_dispatch_without_batch_summary(tmp_path, monkeypatch, scope, expected_launches):
     """A provider failure must leave the unstarted case visibly blocked in its own directory."""
     from benchmarking.run import main
     config = tmp_path / 'trial.toml'
@@ -1947,13 +1963,16 @@ def test_default_case_storage_retains_blocked_dispatch_without_batch_summary(tmp
     monkeypatch.setenv("ICLAYOUT_BENCH_TOKEN", "fixture-token")
     monkeypatch.setattr('benchmarking.participants.batch.plan.harness_version', lambda _: ('1.2.3', 'codex 1.2.3'))
     monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({}, {}, {}))
-    result = {'outcome': 'error', 'failure': {'category': 'quota_exhausted', 'stop_dispatch': True}}
+    result = {'outcome': 'error', 'failure': {
+        'category': 'quota_exhausted' if scope == 'provider' else 'service_failure',
+        'scope': scope, 'stop_dispatch': True}}
     with patch('benchmarking.participants.attempt.runner.run_one', side_effect=lambda a, r, out, s: terminal_files(out, 'error') | result) as launch:
         assert main(['--config', str(config), '--endpoint', 'https://fixture']) == 1
-        assert launch.call_count == 1
+        assert launch.call_count == expected_launches
     root = tmp_path / 'results/trial'
     assert {p.name for p in root.iterdir() if not p.name.startswith(".")} == {'first', 'second'}
-    assert json.loads((case_run(root, 'second') / 'result.json').read_text())['state'] == 'blocked'
+    second = json.loads((case_run(root, 'second') / 'result.json').read_text())
+    assert second['state'] == ('blocked' if expected_launches == 1 else 'finished')
     assert not (case_run(root, 'second') / '.runtime').exists()
 
 

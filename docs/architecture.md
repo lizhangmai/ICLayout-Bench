@@ -257,6 +257,8 @@ checkpoints and native continuation without command replay.
 
 Identifiers below are opaque. POST bodies have exactly the stated fields.
 Creation returns 201, execution/close return 202 and other successes return 200.
+Recoverable file writes return 202 until the matching workspace checkpoint commits;
+non-recoverable writes retain the immediate 200 response.
 All responses include the common `protocol` field.
 
 | Method and route | Request | Response fields |
@@ -264,13 +266,13 @@ All responses include the common `protocol` field.
 | `POST /sessions` | `task_id`, `condition` | Creation fields described above. |
 | `GET /sessions/{sid}` | None | Session status. |
 | `GET /sessions/{sid}/file?path=...` | Relative workspace path | `path`, `content_base64`, `sha256`, `size_bytes`. |
-| `POST /sessions/{sid}/files` | `path`, `content_base64` | `path`, `sha256`, `size_bytes`. |
+| `POST /sessions/{sid}/files` | `path`, `content_base64` | `pending`, `timeout_seconds` while checkpointing; otherwise `path`, `sha256`, `size_bytes`. |
 | `POST /sessions/{sid}/executions` | `command`, `timeout_seconds` | `execution_id`, `state`. |
 | `GET /sessions/{sid}/executions/{eid}?offset=N` | Nonnegative byte offset | `execution_id`, `state`, `exit_code`, `log_base64`, `next_offset`, `truncated`. |
 | `POST /sessions/{sid}/executions/{eid}/cancel` | `{}` | `execution_id`, `state`. |
 | `POST /sessions/{sid}/submissions` | `path` | Immutable candidate receipt. |
 | `GET /sessions/{sid}/submissions/{id}` | None | Candidate receipt. |
-| `GET /sessions/{sid}/requests/{operation}/{key}` | `operation` is `files`, `executions` or `submissions` | `known`, original `response` or null. |
+| `GET /sessions/{sid}/requests/{operation}/{key}` | `operation` is `files`, `executions` or `submissions` | `known`, `pending`, original committed `response` or null. |
 | `POST /sessions/{sid}/close` | `{}` | `session_id`, `state`, `last_submission`. |
 | `GET /sessions/{sid}/result` | None | Independent result described below. |
 | `GET /sessions/{sid}/reports/{id}?offset=N` | Nonnegative character offset | `content`, `next_offset`, `has_more`. |
@@ -280,6 +282,14 @@ Executions use `running`, `complete`, `cancelled`, `timed_out` or `error`.
 A nonzero shell exit can still be a completed execution; it is not the task
 verdict. Decode base64 before joining bounded log slices. Poll until terminal and
 drained; `truncated` means data beyond the retained log limit was discarded.
+For recoverable sessions, completion includes the workspace checkpoint: an exited
+command stays `running` while that commit is pending. Status exposes `checkpoint`
+with its state and elapsed/size metrics. Status, log polling and cancellation do
+not wait on checkpoint I/O. Workspace mutations remain serialized until commit.
+`Client.write` follows a pending write's original key through the request-status
+route and returns only the committed response. Replaying that POST with the same
+key/body never writes twice; changed bodies conflict. Checkpoint failures reject
+success replay while retaining the previous valid recovery point.
 
 The local service advertises `process-feedback`. It does not implement optional
 snapshot `diagnostics` or `opinions`; absent optional operations return `404` and
@@ -382,7 +392,7 @@ analysis and retention.
 Errors use this envelope:
 
 ```json
-{"protocol":"layout-http","error":{"code":"invalid_request","message":"...","retryable":false}}
+{"protocol":"layout-http","error":{"code":"checkpoint_timeout","message":"...","retryable":false,"scope":"session"}}
 ```
 
 | HTTP status | Typical local meaning |
@@ -401,6 +411,13 @@ Only transport loss and explicitly retryable responses authorize configured HTTP
 retry. The runner supplies its [retry policy](running.md#recovery-settings);
 mutations retain identical keys and bodies. Infrastructure, harness and candidate
 failures remain separate facts in the exported result.
+
+Error scope identifies the affected resource: `session`, `provider`, `endpoint`
+or `runtime`. A `checkpoint_timeout` or `checkpoint_failed` normally isolates one
+session; known shared storage errors use `runtime`. A failed checkpoint blocks new
+workspace writes and submissions, while diagnostic reads, cancellation and close
+remain available. Accepted candidate bytes remain authoritative for final judging;
+a session with no accepted candidate retains an infrastructure error and no score.
 
 ## Shared execution and evidence interfaces
 

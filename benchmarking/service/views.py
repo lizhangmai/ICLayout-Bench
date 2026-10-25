@@ -5,10 +5,11 @@ from benchmarking.protocol import USAGE_FIELDS
 
 
 def status(data, workspace, events, now):
-    if data.get('interrupted'):
+    if 'report' in data:
+        state = 'error' if (data['report']['outcome'] == 'error' or
+                            data.get('interrupted') and not data['submissions']) else 'complete'
+    elif data.get('interrupted') and not data.get('closing'):
         state = 'error'
-    elif 'report' in data:
-        state = 'error' if data['report']['outcome'] == 'error' else 'complete'
     elif data.get('closing') or workspace is not None and not workspace.active:
         state = 'evaluating'
     else:
@@ -57,7 +58,8 @@ def status(data, workspace, events, now):
 def result(data, status, judged=None):
     report = data.get('report', {})
     verdict = {'passed':'pass', 'failed':'fail', 'no_submission':'no_submission', 'error':'error'}.get(report.get('outcome'))
-    if data.get('interrupted'):
+    recovery_failed = data.get('interrupted') and not (report and status['last_submission'])
+    if recovery_failed:
         verdict = 'error'
     metrics = {}
     failure_reason = report.get('evaluation_error')
@@ -78,12 +80,15 @@ def result(data, status, judged=None):
                                 'interaction': 'server_observed', 'condition': 'participant_reported', 'usage': 'unknown'},
                 'phase': status.get('phase'), 'budget': status.get('budget'),
                 'usage': dict.fromkeys(USAGE_FIELDS), 'diagnostics': status['diagnostics'], 'submission': status['last_submission'], 'outcome': verdict,
-                'task_success': report.get('task_success'), 'score': report.get('score'), 'metrics': metrics,
-                'failure_category': ('service_failure' if data.get('interrupted') or report.get('termination') == 'infrastructure_error'
+                'task_success': None if recovery_failed else report.get('task_success'),
+                'score': None if recovery_failed else report.get('score'), 'metrics': metrics,
+                'failure_category': ('service_failure' if recovery_failed or report.get('termination') == 'infrastructure_error'
                                      else 'license_unavailable' if verdict == 'error' and any(
                                          item['category'] == 'license_unavailable' for item in tool_failures.values())
                                      else 'evaluation_tool_error' if verdict == 'error' and (report.get('evaluation_error') or
                                          judged is not None and any(j['status'] == 'error' for j in judged.get('jobs', {}).values()))
                                      else 'unknown' if verdict == 'error' else None),
-                'failure_reason': data.get('startup_failure', 'service_interrupted') if data.get('interrupted') else failure_reason,
+                'failure_scope': (data.get('checkpoint_failure') or {}).get('scope', 'session'),
+                'failure_reason': (data.get('checkpoint_failure') or {}).get('code', data.get('startup_failure', 'service_interrupted'))
+                if recovery_failed else failure_reason,
                 'tool_failures': tool_failures, 'evidence': []}

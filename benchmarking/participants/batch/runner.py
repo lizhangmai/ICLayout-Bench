@@ -153,6 +153,19 @@ def slot_name(row, task, repetition, case_paths):
     return name if row["repetitions"] == 1 else str(Path(name) / f"repetition-{repetition}")
 
 
+def dispatch_block(issue, row, endpoint):
+    """Identify the shared resource that failed; a local session owns no batch block."""
+    if not issue.get('stop_dispatch') or issue.get('scope') == 'session':
+        return None
+    scope = issue.get('scope') or ('endpoint' if issue.get('category') == 'service_failure' else 'provider')
+    if scope == 'runtime':
+        return ('runtime',)
+    if scope == 'endpoint':
+        return ('endpoint', endpoint) if endpoint else None
+    return ('provider', row['harness'], row.get('harness_home') or
+            (row.get('resolved') or {}).get('provider'))
+
+
 def execute_batch(options, row, selection, output, lease, blocked=None, *, coordinator, active, lease_stack):
     print(f"Experiment outputs: {output}", flush=True)
     summaries = []
@@ -194,7 +207,9 @@ def execute_batch(options, row, selection, output, lease, blocked=None, *, coord
                               f"outcome={previous.get('outcome')} result={stored.manifest}", flush=True)
                         for issue in (previous.get('failure') or {}, (previous.get('finalization_error') or {}).get('failure') or {}):
                             if issue.get('stop_dispatch'):
-                                blocked.add('service' if issue['category'] == 'service_failure' else provider)
+                                target = dispatch_block(issue, slot_row, options.endpoint)
+                                if target is not None:
+                                    blocked.add(target)
                         continue
                     if lease[task] is None:
                         first = output / slot_name(row, task, 1, options.case_paths)
@@ -204,7 +219,9 @@ def execute_batch(options, row, selection, output, lease, blocked=None, *, coord
                             slots.append((task, repetition))
                             deferred += 1
                             continue
-                    if provider in blocked or 'service' in blocked:
+                    if any(target in blocked for target in (
+                            ('runtime',), ('endpoint', options.endpoint),
+                            dispatch_block({'stop_dispatch': True, 'scope': 'provider'}, row, options.endpoint))):
                         summary = {'name': row['name'], 'task': task, 'repetition': repetition,
                                    'directory': name, **selection.condition, 'state': 'blocked',
                                    'outcome': None, 'score': None}
@@ -238,7 +255,9 @@ def execute_batch(options, row, selection, output, lease, blocked=None, *, coord
                         source_provider = (recorded['harness'], (recorded.get('resolved') or {}).get('provider'), recorded['model'])
                         for issue in (problem, (summary.get('finalization_error') or {}).get('failure') or {}):
                             if issue.get('stop_dispatch'):
-                                blocked.add('service' if issue['category'] == 'service_failure' else source_provider)
+                                target = dispatch_block(issue, recorded, options.endpoint)
+                                if target is not None:
+                                    blocked.add(target)
                         if source_provider != provider:
                             continue
                         if recovery['capacity_resumes']:

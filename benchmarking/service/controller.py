@@ -11,6 +11,10 @@ from pathlib import Path
 
 from benchmarking.evidence.identity import evaluation_identity
 from benchmarking.execution.budgets import PhaseBudgets
+from benchmarking.execution.checkpoints import (
+    DEFAULT_CHECKPOINT_POLICY,
+    checkpoint_failure,
+)
 from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
 from benchmarking.execution.leases import BatchLease
 from benchmarking.execution.workspace.config import RunConfig
@@ -26,6 +30,7 @@ from benchmarking.protocol import (
     json_bytes,
 )
 from benchmarking.service import views
+from benchmarking.service.checkpoints import CheckpointJobs
 from benchmarking.service.contracts import APIError, fields, session_limits, utc
 from benchmarking.service.state import ServiceState
 from benchmarking.service.supervisor import SessionControl
@@ -49,10 +54,12 @@ class SessionController:
         self.image, self.token, self.revision = image, token, revision
         self.evaluator_identity = evaluation_identity(task, backends)
         self.lock = threading.RLock()
+        self.pending_writes = {}
         self.limits = session_limits(task, seconds, backends=backends)
         self.session_control = session_control if session_control is not None else SessionControl()
         try:
             self.state = ServiceState(self.root, task, recoverable=recoverable)
+            self.checkpoints = CheckpointJobs(self.state, self.lock, self._checkpoint_finished)
             self.session_control.reap_abandoned(self.state.abandoned_containers)
             for sid, checkpoint in self.state.resumptions.items():
                 self._start_session(self.state.runs[sid], resume=checkpoint)
@@ -65,7 +72,7 @@ class SessionController:
         """Authenticate and replay creation while holding the runtime lock."""
         with self.lock:
             if not secrets.compare_digest(token, self.token):
-                raise APIError(401, 'unauthorized', 'Invalid access token')
+                raise APIError(401, 'unauthorized', 'Invalid access token', scope='endpoint')
             fields(body, ('task_id', 'condition'))
             for data in self.state.runs.values():
                 if data['creation_key'] == key:
@@ -101,33 +108,75 @@ class SessionController:
         """Replay, execute and persist a mutation as one locked operation."""
         with self.lock:
             data = self._session(sid, token)
-            self._checkpoint_available(data)
+            if operation not in {'close', 'cancel'}:
+                self._checkpoint_available(data)
             namespace = (operation or '') if target is None else f'{operation}/{target}'
             cached = data['requests'].get(namespace + ':' + key)
             if cached:
                 if cached['body'] != body:
                     raise APIError(409, 'conflict', 'Idempotency key conflict')
                 return cached['status'], cached['response']
+            if operation == 'files' and self.checkpoints.busy(sid):
+                pending = self.pending_writes.get(sid)
+                if pending and pending['key'] == key:
+                    if pending['body'] != body:
+                        raise APIError(409, 'conflict', 'Idempotency key conflict')
+                    return 202, self._pending_write_response()
+            if data.get('checkpoint_error') and operation in {'close', 'cancel'}:
+                fields(body, ())
+                result = self._close(data) if operation == 'close' else self._cancel(data, target)
+                self.state.remember_request(data, namespace, key, body, 202 if operation == 'close' else 200,
+                                            result | {'protocol': PROTOCOL})
+                self.state.save(data)
+                return (202 if operation == 'close' else 200), result | {'protocol': PROTOCOL}
+            if self.checkpoints.busy(sid) and operation not in {'close', 'cancel'}:
+                raise APIError(409, 'conflict', 'Workspace checkpoint in progress')
             self._active(data, allow_expired=operation in {'close', 'cancel', 'submissions'})
             status, result = self._mutate(data, operation, body, key, target)
             result['protocol'] = PROTOCOL
+            if operation == 'files' and self.state.recoverable:
+                def commit(record):
+                    self.state.remember_request(record, namespace, key, body, status, result)
+                self.pending_writes[sid] = {'key': key, 'body': body}
+                self.checkpoints.start(data, self.session_control.workspace(sid), commit)
+                return 202, self._pending_write_response()
             self.state.remember_request(data, namespace, key, body, status, result)
             detail = {k: v for k, v in result.items() if k != 'protocol'}
             if operation == 'executions':
                 detail.update(command=body['command'], timeout_seconds=body['timeout_seconds'])
             self._observe(data, namespace, detail)
-            if operation == 'files':
-                self._checkpoint(data)
             return status, result
+
+    @staticmethod
+    def _pending_write_response():
+        return {'protocol': PROTOCOL, 'pending': True,
+                'timeout_seconds': DEFAULT_CHECKPOINT_POLICY.total_seconds}
+
+    def _checkpoint_finished(self, sid):
+        with self.lock:
+            data = self.state.runs[sid]
+            checkpoint = self.checkpoints.status(sid)
+            self._observe(data, 'checkpoint.completed' if not data.get('checkpoint_error') else 'checkpoint.failed',
+                          checkpoint | ({'failure': data['checkpoint_failure']} if data.get('checkpoint_failure') else {}))
+            pending = self.pending_writes.pop(sid, None)
+            if pending and not data.get('checkpoint_error'):
+                cached = data['requests']['files:' + pending['key']]
+                self._observe(data, 'files', {k: v for k, v in cached['response'].items() if k != 'protocol'})
+            if data.get('closing'):
+                self.session_control.close_session(sid, self._status(data)['active_execution_id'])
 
     def _read(self, data, operation, target, offset):
         sid = data['session_id']
         if operation == 'status':
             return self._status(data)
         if operation == 'request':
+            self._checkpoint_available(data)
             namespace, key = target
             cached = data['requests'].get(namespace + ':' + key)
-            return {'known': cached is not None, 'response': cached['response'] if cached else None}
+            pending = self.pending_writes.get(sid)
+            return {'known': cached is not None, 'response': cached['response'] if cached else None,
+                    'pending': bool(namespace == 'files' and pending and pending['key'] == key
+                                    and self.checkpoints.busy(sid))}
         if operation == 'result':
             return self._result(data)
         if operation == 'report':
@@ -168,7 +217,12 @@ class SessionController:
                 return {k: execution[k] for k in ('execution_id', 'state', 'exit_code', 'truncated')} | {
                     'log_base64': base64.b64encode(content).decode(), 'next_offset': offset + len(content)}
         if operation == 'file':
-            self._active(data, idle=True, allow_expired=True)
+            if data.get('checkpoint_error'):
+                workspace = self.session_control.workspace(sid)
+                if workspace is None or not workspace.active:
+                    raise APIError(410, 'session_closed', 'Session workspace closed')
+            else:
+                self._active(data, idle=True, allow_expired=True)
             return self._read_file(data, relative(target, 'file path'))
         raise APIError(404, 'not_found', 'Route not found')
 
@@ -200,6 +254,11 @@ class SessionController:
         workspace = self.session_control.workspace(data['session_id'])
         result = views.status(data, workspace,
                               self.state.run_events(data['session_id'], partial=True), time.time())
+        checkpoint = self.checkpoints.status(data['session_id'])
+        if checkpoint:
+            result['checkpoint'] = checkpoint
+        if data.get('checkpoint_failure'):
+            result['recovery_failure'] = dict(data['checkpoint_failure'])
         if result['phase'] == 'evaluating':
             # Read the engine's persisted evaluation epoch; it is set once at
             # actual phase entry, not on first poll or on recovery.
@@ -224,15 +283,17 @@ class SessionController:
     @staticmethod
     def _checkpoint_available(data):
         if data.get('checkpoint_error'):
-            raise APIError(500, 'infrastructure_error', 'Workspace checkpoint failed; restart from retained recovery material')
+            failure = data.get('checkpoint_failure') or {'code': 'checkpoint_failed', 'scope': 'session'}
+            raise APIError(500, failure['code'], 'Workspace checkpoint failed; restart from retained recovery material',
+                           scope=failure['scope'])
 
     def _checkpoint(self, data):
         try:
             self.state.checkpoint(data, self.session_control.workspace(data['session_id']))
-        except Exception:
+        except Exception as error:
             # Do not return successful cached mutations after their filesystem
             # checkpoint failed. The previous committed checkpoint stays intact.
-            data.update(interrupted=True, checkpoint_error=True)
+            data.update(interrupted=True, checkpoint_error=True, checkpoint_failure=checkpoint_failure(error))
             self.state.save(data)
             raise
 
@@ -253,7 +314,7 @@ class SessionController:
         _ = self.task.problem  # Validate the author input before allocating a session.
         cond = condition(body['condition'])
         if len(self.state.runs) >= 100 or any(self._status(d)['state'] not in ('complete','error') for d in self.state.runs.values()):
-            raise APIError(503, 'unavailable', 'Local service capacity reached')
+            raise APIError(503, 'unavailable', 'Local service capacity reached', scope='endpoint')
         sid = uuid.uuid4().hex
         (self.root/sid).mkdir(mode=0o700)
         data = {'session_id': sid, 'token': secrets.token_urlsafe(32), 'creation_key': key, 'creation_body': body,
@@ -352,7 +413,8 @@ class SessionController:
     def _close(self, data):
         active = self._status(data)['active_execution_id']
         data['closing'] = True
-        self.session_control.close_session(data['session_id'], active)
+        if not self.checkpoints.busy(data['session_id']):
+            self.session_control.close_session(data['session_id'], active)
         return {k:self._status(data)[k] for k in ('session_id','state','last_submission')}
 
     def _cancel(self, data, eid):
@@ -400,19 +462,23 @@ class SessionController:
 
         def completed(code, size, truncated):
             with self.lock:
-                data['executions'][eid].update(
-                    state={124: 'timed_out', 125: 'cancelled', 126: 'error',
-                           137: 'error'}.get(code, 'complete'),
-                    exit_code=code, log_size=size, truncated=truncated,
-                )
-                self._observe(data, 'execution.completed', dict(data['executions'][eid]))
-                self.state.save(data)
-                try:
-                    self._checkpoint(data)
-                except Exception:
-                    data['executions'][eid].update(state='error', exit_code=None)
+                def commit(record):
+                    record['executions'][eid].update(
+                        state={124: 'timed_out', 125: 'cancelled', 126: 'error',
+                               137: 'error'}.get(code, 'complete'),
+                        exit_code=code, log_size=size, truncated=truncated)
+                if self.state.recoverable:
+                    done = self.checkpoints.start(data, self.session_control.workspace(sid), commit)
+                else:
+                    commit(data)
                     self.state.save(data)
-                    raise
+                    done = None
+            if done is not None:
+                done.wait()
+            with self.lock:
+                if data.get('checkpoint_error'):
+                    data['executions'][eid].update(state='error', exit_code=None)
+                self._observe(data, 'execution.completed', dict(data['executions'][eid]))
 
         self.session_control.start_execution(
             sid, eid, command, timeout,
@@ -429,6 +495,7 @@ class SessionController:
                 'sha256': hashlib.sha256(raw).hexdigest(), 'size_bytes': len(raw)}
 
     def shutdown(self):
+        self.checkpoints.join()
         for sid, handle in self.session_control.active_handles():
             workspace = handle.workspace
             if workspace is not None and workspace.active:

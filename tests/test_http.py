@@ -47,14 +47,90 @@ def create(host):
     return Client(endpoint,response['session_token']),response['session_id']
 
 
-def complete(client,sid,eid):
-    deadline = time.monotonic()+30
+def complete(client,sid,eid, *, seconds=30):
+    deadline = time.monotonic()+seconds
     while time.monotonic()<deadline:
         result = client.poll(sid,eid)
         if result['state'] != 'running':
             return result
         time.sleep(.05)
     pytest.fail('Execution did not finish')
+
+
+def test_checkpoint_near_workspace_capacity_preserves_all_bytes(host):
+    import base64
+
+    service, _ = host
+    client, sid = create(host)
+    limits = service.controller.limits
+    mib = 1024*1024
+    blocks = limits['workspace_mb']-4
+    command = (
+        "python -I - <<'PY'\nimport hashlib,random\n"
+        f"block=random.Random(0).randbytes({mib})\n"
+        "digest=hashlib.sha256()\n"
+        "with open('large.log','wb') as stream:\n"
+        f" for _ in range({blocks}):\n  stream.write(block);digest.update(block)\n"
+        "print(digest.hexdigest())\nPY"
+    )
+    try:
+        started = client.execute(sid, command, 60, key='large-workspace')
+        result = complete(client, sid, started['execution_id'], seconds=limits['checkpoint']['total_seconds']+90)
+        assert result['exit_code'] == 0
+        expected = base64.b64decode(result['log_base64']).decode().strip()
+        manifest = json.loads((service.controller.root/sid/'.private/checkpoint.json').read_text())
+        assert manifest['metrics']['workspace_bytes'] == blocks*mib
+        import tarfile
+        with (tarfile.open(service.controller.root/sid/'.private'/manifest['archive']) as archive,
+              archive.extractfile('large.log') as stream):
+            assert hashlib.file_digest(stream, 'sha256').hexdigest() == expected
+        unchanged = client.execute(sid, 'true', 10, key='unchanged-workspace')
+        assert complete(client, sid, unchanged['execution_id'], seconds=limits['checkpoint']['total_seconds']+30)['exit_code'] == 0
+        latest = json.loads((service.controller.root/sid/'.private/checkpoint.json').read_text())
+        assert latest['archive'] == manifest['archive']
+    finally:
+        client.close(sid, key='close-large-workspace')
+
+
+@pytest.mark.parametrize('accepted', [False, True])
+def test_checkpoint_failure_allows_diagnostics_and_closure(host, monkeypatch, accepted):
+    import subprocess
+
+    service, _ = host
+    client, sid = create(host)
+    path = service.controller.task.output.path
+    client.write(sid, 'diagnostic.txt', b'retained work', key='diagnostic')
+    if accepted:
+        client.write(sid, path, b'synthetic invalid candidate', key='candidate')
+        receipt = client.submit(sid, path, key='accepted')
+    def fail_checkpoint(*args, **kwargs):
+        raise subprocess.TimeoutExpired(['checkpoint'], 300)
+    monkeypatch.setattr(service.controller.state, 'checkpoint', fail_checkpoint)
+    execution = client.execute(sid, 'true', 10, key='checkpoint-failure')
+    assert complete(client, sid, execution['execution_id'])['state'] == 'error'
+    status = client.session(sid)
+    assert status['recovery_failure']['code'] == 'checkpoint_timeout'
+    assert status['recovery_failure']['scope'] == 'session'
+    assert client.read(sid, 'diagnostic.txt') == b'retained work'
+    with pytest.raises(ClientError) as denied:
+        client.write(sid, 'uncommitted.txt', b'new work', key='denied')
+    assert denied.value.code == 'checkpoint_timeout' and denied.value.scope == 'session'
+    client.close(sid, key='close-after-failure')
+    deadline = time.monotonic()+60
+    while time.monotonic() < deadline:
+        result = client.result(sid)
+        if result['state'] in {'complete', 'error'}:
+            break
+        time.sleep(.1)
+    else:
+        pytest.fail('Failed checkpoint prevented controlled finalization')
+    if accepted:
+        assert result['submission']['candidate_sha256'] == receipt['candidate_sha256']
+        assert result['state'] == 'complete' and result['outcome'] == 'fail'
+        assert result['failure_category'] != 'service_failure'
+    else:
+        assert result['state'] == 'error' and result['score'] is None
+        assert result['failure_category'] == 'service_failure'
 
 
 def test_session_task_matches_unified_container_protocol(host):

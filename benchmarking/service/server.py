@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from benchmarking.execution.checkpoints import checkpoint_failure
 from benchmarking.files import EvidenceError, append_event
 from benchmarking.protocol import PROTOCOL, json_bytes
 from benchmarking.service.application import LocalService
@@ -71,12 +72,12 @@ class Handler(BaseHTTPRequestHandler):
         except APIError as error:
             status, result = error.status, {
                 'error': {'code': error.code, 'message': str(error),
-                          'retryable': error.status == 503},
+                          'retryable': error.status == 503, 'scope': error.scope},
             }
         except EvidenceError:
             status, result = 500, {
                 'error': {'code': 'infrastructure_error',
-                          'message': 'Service evidence is invalid', 'retryable': False},
+                          'message': 'Service evidence is invalid', 'retryable': False, 'scope': 'session'},
             }
         except (ValueError, TypeError, KeyError):
             status, result = 400, {
@@ -89,17 +90,20 @@ class Handler(BaseHTTPRequestHandler):
                                 for frame in traceback.extract_tb(error.__traceback__)[-12:]]
             status, result = 500, {
                 'error': {'code': 'infrastructure_error',
-                          'message': 'Service operation failed', 'retryable': False},
+                          'message': 'Service operation failed', 'retryable': False,
+                          'scope': checkpoint_failure(error)['scope']},
             }
         audit = getattr(self.server, 'audit', None)
         if audit is not None:
             code = (result.get('error') or {}).get('code')
             safe_codes = {'too_large', 'unauthorized', 'not_found', 'session_closed', 'conflict',
-                          'infrastructure_error', 'invalid_request', 'budget_exhausted', 'unavailable'}
+                          'infrastructure_error', 'invalid_request', 'budget_exhausted', 'unavailable',
+                          'checkpoint_timeout', 'checkpoint_failed'}
             try:
                 event = append_event(audit, 'http_request', method=self.command, operation=operation(self.path),
                                      status=status, elapsed_seconds=time.monotonic() - started,
                                      error_code=code if code in safe_codes else 'unknown' if code else None,
+                                     error_scope=(result.get('error') or {}).get('scope'),
                                      exception_type=exception_type, exception_frames=exception_frames)
             except OSError:
                 event = {'event': 'http_audit_unavailable', 'status': status}

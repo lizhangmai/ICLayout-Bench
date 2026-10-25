@@ -1,6 +1,7 @@
 """Small synthetic checks for the engine's live-session supervisor."""
 
 import threading
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -146,6 +147,9 @@ def test_command_log_is_bounded_and_close_waits_for_command_drain(tmp_path):
     output = BlockingOutput([b'first', b'-extra'])
     process = FakeProcess(output)
     workspace = FakeWorkspace(process)
+    from benchmarking.execution.budgets import PhaseBudgets, SessionBudget
+    workspace.budget = SessionBudget(PhaseBudgets(60), time.monotonic()+60)
+    workspace.budget.begin_operation(10)
     command_completed = threading.Event()
     order = []
     closing = {}
@@ -167,15 +171,19 @@ def test_command_log_is_bounded_and_close_waits_for_command_drain(tmp_path):
     path = tmp_path / 'bounded.log'
     state = {}
 
+    def completed(code, size, truncated):
+        # Publishing command completion must release its budget before a caller
+        # can begin another operation; late cleanup must not clear a new budget.
+        workspace.budget.begin_operation(5)
+        order.append(('complete', code, size, truncated))
+        command_completed.set()
+
     control.start_execution(
         'commands', 'exec', 'sleep fixture', 10, path, 5,
         should_close=lambda: closing.get('value', False),
         on_started=lambda: state.update(started=True),
         on_progress=lambda size, truncated: state.update(size=size, truncated=truncated),
-        on_complete=lambda code, size, truncated: (
-            order.append(('complete', code, size, truncated)),
-            command_completed.set(),
-        ),
+        on_complete=completed,
     )
     assert state['started']
     assert output.started.wait(1)

@@ -1,5 +1,6 @@
 """Trusted helpers for operating an existing session container (not a new runtime)."""
 
+import gzip
 import hashlib
 import json
 import os
@@ -13,7 +14,7 @@ import uuid
 from pathlib import Path
 
 
-def workspace_archive(output, mode, limit):
+def workspace_archive(output, mode, limit, *, compression_level=1):
     """Traverse the same bounded tree for its identity and its recovery archive."""
     total = 0
 
@@ -26,27 +27,47 @@ def workspace_archive(output, mode, limit):
             raise ValueError('Workspace checkpoint exceeds allocation')
         return member
 
-    with tarfile.open(fileobj=output, mode=mode, dereference=False) as archive:
+    compressed = gzip.GzipFile(fileobj=output, mode='wb', compresslevel=compression_level, mtime=0) if mode == 'w|gz' else None
+    with tarfile.open(fileobj=compressed or output, mode='w|', dereference=False) as archive:
         for entry in sorted(Path('/workspace').iterdir()):
             archive.add(entry, arcname=entry.name, filter=regular)
+    if compressed is not None:
+        compressed.close()
+    return total
 
 
-def checkpoint(limit, previous=None):
+def checkpoint(limit, previous=None, compression_level=1):
     """Reuse unchanged content while committing fresh HTTP completion metadata."""
     digest = hashlib.sha256()
 
-    class Sink:
+    class Progress:
+        def __init__(self, stage, output=None):
+            self.stage, self.output, self.bytes, self.last = stage, output, 0, 0
+
         def write(self, content):
-            digest.update(content)
+            if self.stage == 'scan':
+                digest.update(content)
+            if self.output is not None:
+                self.output.write(content)
+            self.bytes += len(content)
+            if time.monotonic()-self.last >= 1:
+                self.last = time.monotonic()
+                print(json.dumps({'stage': self.stage, 'bytes': self.bytes}), file=sys.stderr, flush=True)
             return len(content)
 
-    workspace_archive(Sink(), 'w|', limit)
+        def flush(self):
+            if self.output is not None:
+                self.output.flush()
+
+    workspace_bytes = workspace_archive(Progress('scan'), 'w|', limit)
     identity = digest.hexdigest()
     unchanged = identity == previous
-    sys.stdout.buffer.write((json.dumps({'workspace_digest': identity, 'unchanged': unchanged}) + '\n').encode())
+    sys.stdout.buffer.write((json.dumps({'workspace_digest': identity, 'unchanged': unchanged,
+                                      'workspace_bytes': workspace_bytes}) + '\n').encode())
     sys.stdout.buffer.flush()
     if not unchanged:
-        workspace_archive(sys.stdout.buffer, 'w|gz', limit)
+        workspace_archive(Progress('archive', sys.stdout.buffer), 'w|gz', limit,
+                          compression_level=compression_level)
 
 
 def restore(limit):
@@ -147,7 +168,8 @@ if __name__ == '__main__':
         elif action == 'exec':
             raise SystemExit(execute(path, None if sys.argv[3] == 'none' else float(sys.argv[3])))
         elif action == 'checkpoint':
-            checkpoint(int(path), sys.argv[3] if len(sys.argv) > 3 else None)
+            checkpoint(int(path), (sys.argv[3] or None) if len(sys.argv) > 3 else None,
+                       int(sys.argv[4]) if len(sys.argv) > 4 else 1)
         elif action == 'restore':
             restore(int(path))
         else:

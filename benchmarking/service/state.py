@@ -29,7 +29,7 @@ class ServiceState:
     def checkpoint(self, data, workspace):
         """Commit workspace bytes and the matching HTTP state before acknowledgment."""
         if not self.recoverable:
-            return
+            return {}
         root = self.root / data['session_id'] / '.private'
         root.mkdir(mode=0o700, exist_ok=True)
         manifest = root / 'checkpoint.json'
@@ -44,11 +44,13 @@ class ServiceState:
             raise
         name = previous['archive'] if result['unchanged'] else archive.name
         digest = previous['sha256'] if result['unchanged'] else result['sha256']
-        atomic_write(manifest, json_bytes({'archive': name, 'sha256': digest,
+        metrics = {k: v for k, v in result.items() if k not in {'workspace_digest', 'sha256'}}
+        atomic_write(manifest, json_bytes({'archive': name, 'sha256': digest, 'metrics': metrics,
                                          'workspace_digest': result['workspace_digest'], 'state': data}))
         if previous is not None and previous['archive'] != name:
             (root / previous['archive']).unlink(missing_ok=True)
             sync_directory(root)
+        return metrics
 
     def _checkpoint(self, sid):
         root = self.root / sid / '.private'

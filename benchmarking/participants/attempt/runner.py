@@ -265,11 +265,14 @@ def run_one(access, row, output, selection, *, collect_only=False):
     problem_path = output / "failure.json"
     problem = json.loads(problem_path.read_text()) if problem_path.exists() else None
     if result.get("state") == "error":
-        problem = failure(result.get("failure_category") or "service_failure", "evaluation_service", result.get("failure_reason"))
+        problem = failure(result.get("failure_category") or "service_failure", "evaluation_service",
+                          result.get("failure_reason"), scope=result.get('failure_scope'))
     elif problem is None and result.get("task_success") is False:
         problem = failure("task_failure", "independent_evaluator", result.get("outcome"))
+    retain_recovery = (not collect_only and result.get('failure_reason') in {'checkpoint_timeout', 'checkpoint_failed'}
+                       and result.get('submission') is None)
     summary = {"name": row["name"], **condition, "failure": problem,
-            "state": "suspended" if result.get("state") == "active" else "finished", "session_id": result["session_id"],
+            "state": "suspended" if result.get("state") == "active" or retain_recovery else "finished", "session_id": result["session_id"],
             "outcome": result.get("outcome"), "score": (result.get("score") or {}).get("value"),
             "task_success": result.get("task_success"), "evaluation_mode": evaluation_mode(result),
             "harness_error": error, **({"result": "analysis/result.json"} if result.get("state") != "active" else {})}

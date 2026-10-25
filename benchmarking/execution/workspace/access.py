@@ -9,6 +9,7 @@ import subprocess
 import time
 
 from benchmarking.execution.budgets import PhaseBudgets, SessionBudget
+from benchmarking.execution.checkpoints import DEFAULT_CHECKPOINT_POLICY
 from benchmarking.files import relative
 
 
@@ -19,6 +20,7 @@ class SessionWorkspace:
         self.cid, self.control_socket = cid, root / "protocol/control.sock"
         self.reader_env, self.deadline = reader_env, deadline
         self.active = True
+        self.checkpoint_policy = DEFAULT_CHECKPOINT_POLICY
         self.budget = SessionBudget(budgets or PhaseBudgets(3600, settlement_seconds=0), deadline)
 
     def remaining(self):
@@ -85,34 +87,58 @@ class SessionWorkspace:
 
     def checkpoint(self, destination, limit, *, previous=None):
         """Hash the stream once; unchanged workspaces produce no archive write."""
-        timeout = self.access_timeout()
-        deadline = None if timeout is None else time.monotonic() + timeout
-        command = [*self.reader(), '/protocol/workspace.py', 'checkpoint', str(limit)]
-        if previous is not None:
-            command.append(previous)
-        header, errors = bytearray(), bytearray()
+        self.remaining()
+        policy = self.checkpoint_policy
+        timeout = policy.total_seconds
+        started = last_progress = time.monotonic()
+        deadline = started + timeout
+        command = [*self.reader(), '/protocol/workspace.py', 'checkpoint', str(limit),
+                   previous or '', str(policy.compression_level)]
+        header, errors, progress_buffer = bytearray(), bytearray(), bytearray()
         metadata, stream, size = None, None, 0
+        stage, progress_size = 'scan', -1
         digest = hashlib.sha256()
+        def expired():
+            error = subprocess.TimeoutExpired(command, timeout)
+            error.stage, error.elapsed_seconds, error.archive_bytes = stage, round(time.monotonic()-started, 3), size
+            return error
         with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as process:
             try:
                 with selectors.DefaultSelector() as selector:
                     selector.register(process.stdout, selectors.EVENT_READ, 'output')
                     selector.register(process.stderr, selectors.EVENT_READ, 'error')
                     while selector.get_map():
-                        remaining = None if deadline is None else deadline - time.monotonic()
-                        if remaining is not None and remaining <= 0:
-                            raise subprocess.TimeoutExpired(command, timeout)
+                        remaining = min(deadline, last_progress+policy.idle_seconds) - time.monotonic()
+                        if remaining <= 0:
+                            raise expired()
                         ready = selector.select(remaining)
                         if not ready:
-                            raise subprocess.TimeoutExpired(command, timeout)
+                            raise expired()
                         for key, _ in ready:
                             content = os.read(key.fileobj.fileno(), 1024 * 1024)
                             if not content:
                                 selector.unregister(key.fileobj)
                                 continue
                             if key.data == 'error':
-                                errors.extend(content[:max(0, 65536-len(errors))])
+                                progress_buffer.extend(content)
+                                if len(progress_buffer) > 65536:
+                                    raise ValueError('Checkpoint diagnostic record exceeds limit')
+                                while b'\n' in progress_buffer:
+                                    line, _, rest = progress_buffer.partition(b'\n')
+                                    progress_buffer[:] = rest
+                                    try:
+                                        update = json.loads(line)
+                                    except (ValueError, UnicodeDecodeError):
+                                        update = {}
+                                    if (update.get('stage') in {'scan', 'archive', 'complete'}
+                                            and type(update.get('bytes')) is int and update['bytes'] >= 0):
+                                        if update['stage'] != stage or update['bytes'] > progress_size:
+                                            last_progress = time.monotonic()
+                                            stage, progress_size = update['stage'], update['bytes']
+                                    else:
+                                        errors.extend(line[:max(0, 65536-len(errors))])
                                 continue
+                            last_progress = time.monotonic()
                             if metadata is None:
                                 header.extend(content)
                                 if b'\n' not in header:
@@ -123,6 +149,7 @@ class SessionWorkspace:
                                 if len(line) > 4096:
                                     raise ValueError('Invalid checkpoint header')
                                 metadata = json.loads(line)
+                                stage = 'archive'
                                 if (not re.fullmatch('[0-9a-f]{64}', metadata.get('workspace_digest', ''))
                                         or type(metadata.get('unchanged')) is not bool
                                         or (metadata['unchanged'] and metadata['workspace_digest'] != previous)):
@@ -137,7 +164,7 @@ class SessionWorkspace:
                                     raise ValueError('Workspace checkpoint exceeds allocation')
                                 stream.write(content)
                                 digest.update(content)
-                    remaining = None if deadline is None else max(0, deadline-time.monotonic())
+                    remaining = max(0, deadline-time.monotonic())
                     process.wait(timeout=remaining)
                 if process.returncode:
                     raise subprocess.CalledProcessError(process.returncode, command, stderr=bytes(errors))
@@ -146,7 +173,8 @@ class SessionWorkspace:
                 if stream is not None:
                     stream.flush()
                     os.fsync(stream.fileno())
-                return metadata | {'sha256': digest.hexdigest() if stream is not None else None}
+                return metadata | {'sha256': digest.hexdigest() if stream is not None else None,
+                                   'archive_bytes': size, 'elapsed_seconds': round(time.monotonic()-started, 3)}
             except BaseException:
                 process.kill()
                 process.wait()

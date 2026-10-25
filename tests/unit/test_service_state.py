@@ -12,6 +12,81 @@ from benchmarking.service.state import ServiceState
 pytestmark = pytest.mark.unit
 
 
+def test_slow_checkpoint_keeps_status_and_cancel_available(tmp_path, executable_case):
+    import base64
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+
+    from benchmarking.service.application import LocalService
+    from benchmarking.service.contracts import APIError
+    from benchmarking.service.supervisor import SessionControl
+    from benchmarking.tasks.contract import load_task
+
+    started, release = threading.Event(), threading.Event()
+    class Workspace:
+        active = True
+        def write(self, *args):
+            pass
+        def checkpoint(self, destination, limit, *, previous=None):
+            started.set()
+            assert release.wait(3)
+            destination.write_bytes(b'committed workspace')
+            sha = hashlib.sha256(b'committed workspace').hexdigest()
+            return {'unchanged': False, 'sha256': sha, 'workspace_digest': sha}
+    class Control(SessionControl):
+        def workspace(self, sid):
+            return Workspace()
+        def cancel_execution(self, sid, eid):
+            pass
+
+    service = LocalService(tmp_path, load_task(executable_case), {}, {}, 'unused', 'operator',
+                           seconds=60, session_control=Control())
+    (tmp_path / 'session').mkdir()
+    data = {'session_id': 'session', 'token': 'scoped', 'deadline_epoch': time.time() + 60,
+            'retained_epoch': time.time() + 600, 'created_at': 'start', 'deadline': 'deadline',
+            'requests': {}, 'executions': {'command': {'state': 'complete'}},
+            'submissions': {}, 'limits': service.controller.limits}
+    service.controller.state.register(data)
+    body = {'path': 'saved.py', 'content_base64': base64.b64encode(b'content').decode()}
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        writing = pool.submit(service.handle, 'POST', '/sessions/session/files', {}, 'scoped', body, 'write')
+        try:
+            assert started.wait(1)
+            reading = pool.submit(service.handle, 'GET', '/sessions/session', {}, 'scoped', None, None)
+            code, status = reading.result(timeout=.3)
+            assert code == 200 and status['checkpoint']['state'] == 'running'
+            service.handle('POST', '/sessions/session/executions/command/cancel', {}, 'scoped', {}, 'cancel')
+            with pytest.raises(APIError) as busy:
+                service.handle('POST', '/sessions/session/files', {}, 'scoped', body, 'other-write')
+            assert busy.value.status == 409
+            assert 'files:write' not in data['requests']
+        finally:
+            release.set()
+            writing.result(timeout=2)
+            service.shutdown()
+
+
+@pytest.mark.parametrize('accepted', [False, True])
+def test_checkpoint_failure_keeps_accepted_candidate_evaluation_authoritative(accepted):
+    from benchmarking.service import views
+
+    receipt = {'sequence': 1, 'candidate_sha256': 'a'*64, 'size_bytes': 7}
+    score = {'method': 'layout', 'maximum': 100, 'reference': 100, 'value': 75} if accepted else None
+    data = {'session_id': 'session', 'task_id': 'task', 'task_sha256': 'a'*64, 'condition': {},
+            'tool_identity': {}, 'deadline_epoch': 100, 'created_at': 'start', 'deadline': 'deadline',
+            'submissions': {'1': receipt} if accepted else {}, 'executions': {}, 'limits': {},
+            'interrupted': True, 'checkpoint_error': True,
+            'checkpoint_failure': {'code': 'checkpoint_timeout', 'scope': 'session'},
+            'report': {'outcome': 'passed' if accepted else 'no_submission', 'score': score}}
+    status = views.status(data, None, [], 101)
+    result = views.result(data, status)
+    assert result['state'] == ('complete' if accepted else 'error')
+    assert result['outcome'] == ('pass' if accepted else 'error')
+    assert result['score'] == score
+    assert result['failure_category'] == (None if accepted else 'service_failure')
+
+
 @pytest.mark.parametrize('damage', [None, 'archive', 'task', 'deadline'])
 def test_checkpoint_restores_committed_state_without_replaying_commands(tmp_path, damage):
     task = SimpleNamespace(digest='frozen-task', output=SimpleNamespace(path='output/final.gds'))
@@ -85,11 +160,13 @@ def test_failed_checkpoint_blocks_successful_mutation_replay(tmp_path, executabl
     service.controller.state.register(data)
     body = {'path': 'saved.py', 'content_base64': base64.b64encode(b'content').decode()}
     try:
-        with pytest.raises(OSError, match='disk full'):
-            service.handle('POST', '/sessions/session/files', {}, 'scoped', body, 'write')
+        status, response = service.handle('POST', '/sessions/session/files', {}, 'scoped', body, 'write')
+        assert status == 202 and response['pending']
+        service.controller.checkpoints.join()
         with pytest.raises(APIError) as caught:
             service.handle('POST', '/sessions/session/files', {}, 'scoped', body, 'write')
-        assert caught.value.code == 'infrastructure_error'
+        assert caught.value.code == 'checkpoint_failed'
+        assert caught.value.scope == 'session'
         assert data['interrupted'] and data['checkpoint_error']
     finally:
         service.shutdown()

@@ -669,6 +669,24 @@ Changes after the checkpoint are rolled back; interrupted executions become
 errors and are never automatically replayed. `/tmp` and live processes are
 transient. Unchanged workspaces reuse the committed archive.
 
+Checkpoint scanning and compression have an independent 300-second total budget
+and a 60-second no-progress budget, declared in `limits.checkpoint`. Recovery
+archives use gzip level 1. The complete writable workspace, including generated
+logs, remains recoverable; inputs and resources mounted elsewhere are not copied.
+These waits consume elapsed time and never renew the original solve deadline.
+
+Command completion remains `running` until its checkpoint commits. Recoverable
+file writes return a pending receipt; `Client.write` waits for its durable result
+through the request-status route. Status and cancellation stay available while
+checkpoint I/O runs; new workspace mutations return a busy conflict. A checkpoint
+failure retains the previous archive and exposes a structured recovery failure.
+Read-only diagnostics, cancellation and controlled closure remain available;
+already accepted candidates can still finish independent evaluation.
+A case without an accepted candidate remains suspended with its recovery files
+even after controlled service closure. Inspect or replace that attempt; explicit
+`--collect-only` can commit its terminal infrastructure-error export. A closed
+session is not made resumable by retaining its diagnostic checkpoint.
+
 Sessions without checkpoints cannot gain them retroactively. External solver
 runtimes with writable mounts or network side effects do not support workspace
 recovery. A remote service must retain its own session state across participant
@@ -816,8 +834,13 @@ or score. Cleanup never launches or replays an execution.
 settlement/close errors; drained logs use `finalization-<execution-id>.log`.
 
 Harness interruption, settlement failure and evaluator verdict remain separate.
-Authentication/quota failures stop later slots for the same harness/provider/model;
-service failures stop subsequent dispatch. Error or incomplete observations remain
+Failures carry a `scope`: `session` isolates one case, `provider` blocks tasks using
+the same native profile/provider, `endpoint` blocks the shared remote endpoint,
+and `runtime` blocks the affected local runtime. A local checkpoint timeout is
+session-scoped and does not stop other cases. Known shared storage failures such
+as a full or read-only results filesystem stop runtime dispatch. Legacy unscoped
+service failures block a shared remote endpoint; independently hosted local cases
+remain isolated. Error or incomplete observations remain
 unknown in analysis. Preserve original evidence when repairing an environment;
 [Results](#results-and-analysis) defines terminal retention and usage across attempts.
 

@@ -23,7 +23,7 @@ class LocalService:
         if parts[:1] != ['sessions']:
             raise APIError(404, 'not_found', 'Route not found')
         if not token:
-            raise APIError(401, 'unauthorized', 'Bearer token required')
+            raise APIError(401, 'unauthorized', 'Bearer token required', scope='endpoint')
         if method == 'POST':
             identifier(key)
             json_bytes(body)

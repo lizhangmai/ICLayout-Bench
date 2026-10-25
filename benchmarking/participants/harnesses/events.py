@@ -8,10 +8,13 @@ from pathlib import Path
 from benchmarking.client import ClientError
 
 
-def failure(category, source, code=None):
-    return {"category": category, "source": source, "code": code,
+def failure(category, source, code=None, *, scope=None):
+    scope = scope or ('endpoint' if category == 'service_failure' else 'provider'
+                      if category in {'quota_exhausted', 'authentication', 'harness_configuration'} else 'session')
+    return {"category": category, "source": source, "code": code, "scope": scope,
             "retryable": category in {"network_transient", "rate_limit", "provider_overloaded"},
-            "stop_dispatch": category in {"quota_exhausted", "authentication", "service_failure", "harness_configuration"}}
+            "stop_dispatch": scope != 'session' and category in {
+                "quota_exhausted", "authentication", "service_failure", "harness_configuration"}}
 
 
 def classify(error):
@@ -20,8 +23,9 @@ def classify(error):
     if isinstance(error, ClientError):
         category = {"transport_error": "network_transient", "unauthorized": "authentication",
                     "budget_exhausted": "budget_exhausted", "unavailable": "service_failure",
-                    "infrastructure_error": "service_failure"}.get(error.code, "unknown")
-        return failure(category, "http", error.code)
+                    "infrastructure_error": "service_failure", "checkpoint_timeout": "service_failure",
+                    "checkpoint_failed": "service_failure"}.get(error.code, "unknown")
+        return failure(category, "http", error.code, scope=error.scope)
     return failure("unknown", "runner", type(error).__name__)
 
 

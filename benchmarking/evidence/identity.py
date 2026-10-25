@@ -24,11 +24,13 @@ EVALUATION_SOURCE_FILES = (
 
 SESSION_SOURCE_FILES = (
     'execution/budgets.py',
+    'execution/checkpoints.py',
     'execution/workspace/__init__.py',
     'execution/tools/__init__.py',
     'execution/workspace/config.py',
     'service/session.py',
     'service/supervisor.py',
+    'service/checkpoints.py',
     'execution/process.py',
     'evidence/journal.py',
     'execution/workspace/docker.py',
