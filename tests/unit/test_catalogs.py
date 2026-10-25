@@ -122,8 +122,8 @@ def _subckt_ports(raw, name):
     return None
 
 
-def _dut_argument_lists(raw, name):
-    """Find authoritative DUT subcircuit calls in a SPICE or Spectre deck."""
+def _direct_dut_argument_lists(raw, name):
+    """Find direct DUT subcircuit calls in a SPICE or Spectre scope."""
     calls = []
     for line in _logical_lines(raw):
         if line.startswith(("*", ";", "//")):
@@ -143,6 +143,47 @@ def _dut_argument_lists(raw, name):
     return calls
 
 
+def _dut_argument_lists(raw, name, includes=None):
+    """Follow reachable SPICE wrappers in explicitly bound include files."""
+    includes = includes or {}
+    top, definitions = [], {}
+
+    def read(source, scope, active=()):
+        scopes = [scope]
+        for line in _logical_lines(source):
+            fields = shlex.split(line)
+            if not fields:
+                continue
+            keyword = fields[0].lower()
+            if keyword in {'.include', 'include'} and len(fields) > 1:
+                path = fields[1]
+                if path in includes and path not in active:
+                    read(includes[path], scopes[-1], (*active, path))
+            elif keyword == '.subckt':
+                body = []
+                definitions[fields[1].lower()] = (fields[2:], body)
+                scopes.append(body)
+            elif keyword == '.ends':
+                scopes.pop()
+            else:
+                scopes[-1].append(line)
+
+    def visit(scope, active=()):
+        source = '\n'.join(scope).encode()
+        calls = _direct_dut_argument_lists(source, name)
+        for wrapper, (ports, body) in definitions.items():
+            if wrapper == name.lower() or wrapper in active:
+                continue
+            instances = _direct_dut_argument_lists(source, wrapper)
+            if instances:
+                assert all(len(args) == len(ports) for args in instances), f'Wrapper {wrapper} port count differs'
+                calls.extend(visit(body, (*active, wrapper)))
+        return calls
+
+    read(raw, top)
+    return visit(top)
+
+
 @pytest.mark.parametrize("instance", [
     "XDUT a\n+ b example",
     "DUT (a \\\n b) example",
@@ -153,6 +194,24 @@ def test_catalog_dut_ports_cover_simulator_dialects(instance):
            "XOTHER wrong other\n" + instance + "\n").encode()
     assert _dut_argument_lists(raw, "example") == [["a", "b"]]
     assert _dut_argument_lists(raw, "missing") == []
+
+
+@pytest.mark.parametrize('deck,expected', [
+    ('.include models.spice\nXTOP a b outer\n', [['P', 'N']]),
+    ('.include models.spice\nXTOP a b unrelated\n', []),
+    ('.include unavailable.spice\nXTOP a b outer\n', []),
+])
+def test_catalog_dut_ports_follow_only_included_reachable_wrappers(deck, expected):
+    models = (b'.subckt outer A B\nXINNER A B inner\n.ends outer\n'
+              b'.subckt inner P N\nXCORE P N example\n.ends inner\n')
+    assert _dut_argument_lists(deck.encode(), 'example', {'models.spice': models}) == expected
+
+
+def test_catalog_dut_ports_reject_wrong_wrapper_interface():
+    models = b'.subckt outer A B\nXCORE A B example\n.ends outer\n'
+    with pytest.raises(AssertionError, match='outer'):
+        _dut_argument_lists(b'.include models.spice\nXTOP a outer\n', 'example',
+                            {'models.spice': models})
 
 
 def _check_published_budget(description, hours, context=None):
@@ -317,7 +376,9 @@ def _check_case_plan(config, data, task):
         if job.stage != "simulate":
             continue
         deck = inputs[dict(job.inputs)["deck"]]
-        calls = _dut_argument_lists(deck.content, task.netlist_subcircuit)
+        includes = {f'{role}.spice': inputs[ref].content for role, ref in job.inputs
+                    if ref.startswith('input:') and inputs[ref].format == 'spice'}
+        calls = _dut_argument_lists(deck.content, task.netlist_subcircuit, includes)
         assert calls and all(len(call) == len(ports) for call in calls), (config, job.id)
         circuit_roles = [role for role, ref in job.inputs if ref.startswith("job:")]
         if circuit_roles:
@@ -326,7 +387,12 @@ def _check_case_plan(config, data, task):
             assert any(f"{role}.spice" in included for role in circuit_roles), (config, job.id)
     for item in task.inputs:
         declared = _subckt_ports(item.content, task.netlist_subcircuit)
-        if item.role == "simulation" or declared is not None:
+        if item.role == "simulation":
+            # SPICE formal port names are local to the model. The simulator
+            # representation is called positionally. Physical LVS checks the
+            # named interface; author validation covers source/PEX equivalence.
+            assert declared is not None and len(declared) == len(ports), (config, item.role)
+        elif declared is not None:
             assert declared == ports, (config, item.role)
     for backend in data["toolchain"]["backends"].values():
         for setting, profile in backend.get("support_profiles", {}).items():
