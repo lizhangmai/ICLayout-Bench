@@ -144,6 +144,56 @@ def test_finalization_retains_only_participant_accepted_snapshot(tmp_path):
     assert record['receipt'] == receipt and record['submission'] == 'retained'
 
 
+@pytest.mark.parametrize('state', ['evaluating', 'complete', 'error'])
+@pytest.mark.parametrize('close_race', [False, True])
+def test_finalization_collects_a_session_closed_by_the_service(tmp_path, monkeypatch, state, close_race):
+    from benchmarking.participants.attempt.runner import finalize_session
+
+    fixture = InFlightService(race=True)
+    fixture.condition = {}
+    receipt = {'submission_id': 'accepted', 'sequence': 21, 'candidate_sha256': 'a' * 64}
+    observed = {'state': 'active' if close_race else state}
+    monkeypatch.setattr(fixture, 'session', lambda _: {
+        'state': observed['state'], 'remaining_seconds': 0,
+        'active_execution_id': None, 'last_submission': receipt,
+    })
+
+    def close(*args, **kwargs):
+        observed['state'] = state
+        raise ClientError('session_closed', 'Session closed', status=410)
+
+    monkeypatch.setattr(fixture, 'close', close)
+    original_result = fixture.result
+    monkeypatch.setattr(fixture, 'result', lambda sid: dict(original_result(sid), submission=receipt))
+    (tmp_path / '.private').mkdir()
+    (tmp_path / '.private/recovery.json').write_text('{"redactions": []}')
+    (tmp_path / 'harness-summary.json').write_text(json.dumps({
+        'finalization_error': {'error': 'ClientError', 'failure': {'code': 'session_closed'}},
+    }))
+
+    result = finalize_session(fixture, 'fixture-session', tmp_path)
+
+    assert result['submission'] == receipt and result['state'] == 'complete'
+    assert (tmp_path / 'observation/manifest.json').is_file()
+    record = json.loads((tmp_path / 'finalization.json').read_text())
+    assert record['closed'] and record['receipt'] == receipt and record['close_error'] is None
+    assert 'finalization_error' not in json.loads((tmp_path / 'harness-summary.json').read_text())
+    assert not fixture.submitted
+
+
+def test_finalization_does_not_hide_session_closed_without_a_closed_state(tmp_path, monkeypatch):
+    from benchmarking.participants.attempt.settlement import settle_session
+
+    fixture = InFlightService(race=True)
+    def close(*args, **kwargs):
+        raise ClientError('session_closed', 'Workspace is unavailable', status=410)
+    monkeypatch.setattr(fixture, 'close', close)
+    with pytest.raises(ClientError, match='Workspace is unavailable'):
+        settle_session(fixture, 'fixture-session', tmp_path)
+    record = json.loads((tmp_path / 'finalization.json').read_text())
+    assert not record['closed'] and record['close_error']['code'] == 'session_closed'
+
+
 def test_finalization_command_expiry_retains_accepted_candidate(tmp_path, monkeypatch):
     from types import SimpleNamespace
 

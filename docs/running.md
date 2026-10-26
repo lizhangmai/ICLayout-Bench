@@ -279,18 +279,21 @@ service CLI cannot override it. Each repetition receives its own budget; a
 continuation keeps the original deadline. Model calls, provider retries, HTTP
 waits, EDA work and downtime all consume that budget.
 
-The HTTP service freezes four independent phase budgets when creating a session:
+The HTTP service freezes the solve, command and settlement budgets when creating
+a session. Independent final judging has no automatic time limit:
 
 | Phase | Budget and allowed work |
 | --- | --- |
 | `solving` | The case's solve deadline; new commands, checks and writes are allowed. |
 | `draining` | Only an already-started command/check continues, to its original command deadline. Commands default to a 3600-second cap; an explicit shorter timeout is honored. |
 | `settling` | 60 seconds after solve expiry or the last command's bounded end, whichever is later, for reading, final submission and close. No new optimization work. |
-| `evaluating` | Independent final judging, bounded by the sum of declared evaluator job timeouts plus 60 seconds of orchestration allowance. |
+| `evaluating` | Independent final judging; no automatic EDA or collection deadline. |
 
-Polling, retries and reconnection never renew these deadlines. A command started
-before solve expiry may finish within its own budget. Tool timeouts remain enabled
-for feedback and final judging. Late submission and elapsed overrun are recorded.
+Polling, retries and reconnection never renew the solve, command or settlement
+deadlines. A command started before solve expiry may finish within its own budget.
+Feedback and final judging do not impose individual backend timeouts. Feedback
+retains the enclosing command deadline; final judging waits for EDA completion.
+Late submission and elapsed overrun are recorded.
 The service retains the last accepted candidate when the workspace closes.
 [Lifecycle and budgets](architecture.md#lifecycle-and-budgets) defines the protocol.
 
@@ -423,6 +426,31 @@ and exposes only the evaluation MCP and explicitly declared scheme servers;
 personal hooks, plugins, skills and unrelated MCP servers are excluded.
 Deleting a completed attempt's private runtime does not remove the managed login.
 
+Configure Kimi's native transient-failure retry limit in the selected home's
+`config.toml`:
+
+```toml
+[loop_control]
+max_attempts_per_step = 10
+```
+
+This is the total number of attempts per native step, including the initial
+attempt: `10` permits up to nine retries. The default is `10`; an explicit value
+must be a positive integer. Kimi applies the same limit to transient connection
+errors, timeouts, rate limits and provider overload within the running CLI.
+Bench passes only this `loop_control` field into the isolated configuration and
+records it as `native_max_attempts_per_step` in resolved/frozen conditions.
+Inherited `KIMI_*` environment overrides are removed; changing the profile's
+native attempt limit cannot silently change an existing continuation.
+
+This native limit is independent of the experiment TOML's
+`[recovery].network_resumes` and `capacity_resumes`. Those settings count
+additional CLI launches after a failed process exits, excluding the first
+launch. For example, native `max_attempts_per_step = 10` and framework
+`capacity_resumes = 5` allow Kimi's own per-step retries first, then up to five
+same-session CLI continuations after eligible terminal failures. Successful
+native retries consume no framework continuation count.
+
 Same-session continuation is enabled by default for remote services and
 checkpointed local sessions; see [Recovery](#failure-recovery). Kimi session state,
 wire records and diagnostic logs are retained under `native/kimi/` and in the
@@ -433,7 +461,7 @@ excluded, and known initial/refreshed credentials are redacted.
 
 Select `harness = "zcode"`, an explicit `harness_home`, a `provider/model`
 reference and an effort declared by that model. The selected directory contains
-`config.json` with API connections only. For example:
+`config.json` with connection settings. API authentication is the default:
 
 ```json
 {
@@ -460,7 +488,52 @@ Messages, Chat Completions and Responses. Supply the API root rather than the
 final operation URL. `apiKeyEnv` is an adapter-resolved environment reference;
 its value comes from the existing process/dotenv entry point. Native inline
 `options.apiKey` is also supported in a protected profile. Choose one credential
-source. No account login or default-home credential import is performed.
+source. No default-home credential import is performed.
+
+For a native BigModel or Z.AI Individual Coding Plan subscription, use ZCode
+0.17 or newer and Node.js on the host. Create a separate profile and log in there:
+
+```bash
+ZCODE_DATA_BASE_DIR=/absolute/path/to/subscription \
+  zcode login bigmodel --no-browser
+```
+
+Use `zcode login zai --no-browser` for Z.AI. Complete the browser authorization;
+the native CLI writes its encrypted credentials under the profile's
+`.zcode/v2/`. Then save the following as the profile's top-level `config.json`:
+
+```json
+{
+  "auth_method": "subscription",
+  "provider": {
+    "account:bigmodel-individual-coding-plan": {
+      "kind": "anthropic",
+      "options": {"baseURL": "https://open.bigmodel.cn/api/anthropic"},
+      "models": {
+        "GLM-5.3": {"reasoning": {"levels": ["high"], "defaultLevel": "high"}}
+      }
+    }
+  }
+}
+```
+
+Select `model = "account:bigmodel-individual-coding-plan/GLM-5.3"` and this
+`harness_home` in the experiment TOML. Z.AI uses
+`account:zai-individual-coding-plan` and `https://api.z.ai/api/anthropic`.
+Subscription profiles accept these official endpoints without API key overrides
+and require native OAuth authentication for the selected account. Team plans
+and manual Coding Plan keys are not OAuth subscription profiles; manual keys
+can use the API configuration above.
+
+Bench retains the native managed credential directory and its locking/atomic
+refresh behavior across cases. Personal model selection, runtime configuration,
+conversations and tools remain isolated per attempt. The login's native cipher
+context is preserved when isolating the process home; an existing
+`ZCODE_CREDENTIAL_SECRET`, if used to log in, must remain available through the
+selected process/environment-file entry point. Account or credential-directory
+changes are rejected during continuation. Dry-run reads local credentials but
+does not log in, refresh tokens, call a model or start a service. Known initial
+and refreshed credential values are redacted from exported traces.
 
 An optional `network` object in the selected profile accepts native `httpProxy`
 and `noProxy` strings. Use an HTTP(S) proxy URL without credentials, for example
@@ -485,7 +558,8 @@ credential redaction. Same-session continuation follows [Recovery](#failure-reco
 Native invocation state lives inside the run's `.runtime/`. Codex, Claude and DSH
 reuse authentication during continuation. With explicit `harness_home`, refreshed
 credentials can be written back when the selected source credentials have not
-changed. Kimi uses its shared managed login; ZCode uses the selected API profile.
+changed. Kimi uses its shared managed login; ZCode uses the selected API profile
+or shared native OAuth store for subscription authentication.
 API environment values remain runtime-only.
 
 Stop experiments using a profile before logging in again or switching accounts.
@@ -704,8 +778,10 @@ solve through `--resume`.
 HTTP transport retries apply to every experiment harness. The runner makes three
 total attempts by default, retrying transport loss and explicitly retryable HTTP
 503 responses with the same mutation key/body. A generic `Client` outside the
-runner defaults to one attempt. Provider SDK retries remain native to each CLI.
-Automatic continuation begins only after the failed native process has stopped;
+runner defaults to one attempt. Native model/provider retries happen inside
+each CLI invocation and do not increment `network_resumes` or `capacity_resumes`.
+Kimi's native per-step limit is configured in its selected home; see
+[Kimi Code](#kimi-code). Automatic continuation begins only after the failed native process has stopped;
 it does not replay individual model requests or tool operations.
 
 Network continuation requires recognized transient connection failures and
@@ -740,10 +816,10 @@ own fields; unsupported capabilities are rejected before dispatch.
 | `backoff_seconds` | 1 | 0–60 seconds, initial HTTP retry delay. |
 | `max_backoff_seconds` | 8 | 0–60 seconds, HTTP delay cap. |
 | `resume_session` | By harness | Boolean; disabling it also disables network continuation and local checkpoints. |
-| `network_resumes` | 5 or 0 by harness | 0–10 additional launches. |
+| `network_resumes` | 5 or 0 by harness | 0–10 additional CLI launches after eligible network-failure exits; excludes the initial launch and native retries. |
 | `network_backoff_seconds` | 30 | 0–3600 seconds. |
 | `network_max_backoff_seconds` | 300 | 0–3600 seconds, at least the initial network delay. |
-| `capacity_resumes` | 5 or 0 by harness | 0–10 additional launches shared by overload/rate-limit failures. |
+| `capacity_resumes` | 5 or 0 by harness | 0–10 additional CLI launches after eligible overload/rate-limit exits; excludes the initial launch and native retries. |
 | `capacity_backoff_seconds` | 30 | 0–3600 seconds. |
 | `capacity_max_backoff_seconds` | 300 | 0–3600 seconds, at least the initial capacity delay. |
 | `capacity_cooldown_seconds` | 300 | 0–3600 seconds; zero disables the dispatch pause. |
@@ -832,6 +908,11 @@ error and retains the session for explicit recovery; it does not invent a verdic
 or score. Cleanup never launches or replays an execution.
 `finalization.json` records execution offsets, submission outcome and independent
 settlement/close errors; drained logs use `finalization-<execution-id>.log`.
+
+If the service has already entered evaluation or a terminal state, the runner
+collects that result without closing the workspace again. A `session_closed`
+response during close is accepted only after a status read confirms that
+transition; other close failures retain their recovery evidence.
 
 Harness interruption, settlement failure and evaluator verdict remain separate.
 Failures carry a `scope`: `session` isolates one case, `provider` blocks tasks using
@@ -937,6 +1018,12 @@ facts. Preserve the recorded score and evaluation mode when importing or
 transferring results. A completed physical/functional rejection can score zero;
 an unavailable measurement or infrastructure error remains unknown. The
 [task contract](tasks.md#evaluation) owns these rules.
+
+`evaluation.termination` retains the service's solve termination reason. A
+`budget_exhausted` or `agent_error` termination gives the run a zero score even
+when its accepted candidate passes independent evaluation. The candidate quality
+score remains in `evaluation/report.json`; exports and imports preserve both
+scores and validate their relationship using the recorded termination.
 
 <a id="model-speed-and-cost"></a>
 

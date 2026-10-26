@@ -48,12 +48,13 @@ def test_no_active_command_enters_only_submission_grace():
     assert clock.phase == 'expired'
 
 
-def test_evaluation_budget_comes_from_tools_not_solve_duration():
+def test_evaluation_has_no_automatic_budget_from_tool_or_solve_limits():
     backend = SimpleNamespace(tool=SimpleNamespace(timeout_seconds=12))
     plan = SimpleNamespace(jobs=[SimpleNamespace(operation='check'), SimpleNamespace(operation='check')])
     first = PhaseBudgets.for_evaluation(10, plan, {'check': backend})
     second = PhaseBudgets.for_evaluation(1000, plan, {'check': backend})
-    assert first.evaluation_seconds == second.evaluation_seconds == 84
+    assert first.evaluation_seconds is second.evaluation_seconds is None
+    assert PhaseBudgets(10).evaluation_seconds is None
     assert replace(first, settlement_seconds=1).command_seconds == first.command_seconds
 
 
@@ -95,6 +96,28 @@ def test_collection_restart_does_not_renew_evaluation_budget(tmp_path, monkeypat
     with pytest.raises(TimeoutError):
         settlement.wait_result(client, 'session', tmp_path)
     assert now[0] == 101
+
+
+@pytest.mark.parametrize('retained_deadline', [False, True])
+def test_collection_waits_for_unlimited_evaluation_after_old_deadline(tmp_path, monkeypatch, retained_deadline):
+    import json
+
+    from benchmarking.participants.attempt import settlement
+
+    journal = tmp_path / 'collection.json'
+    if retained_deadline:
+        journal.write_text(json.dumps({'evaluation_deadline_epoch': 1}))
+    now = [10000]
+    monkeypatch.setattr(settlement.time, 'time', lambda: now[0])
+    monkeypatch.setattr(settlement.time, 'monotonic', lambda: now[0])
+    monkeypatch.setattr(settlement.time, 'sleep', lambda _: now.__setitem__(0, now[0] + 10000))
+    pending = {'state': 'evaluating', 'budget': {'evaluation_remaining_seconds': None},
+               'limits': {'phase_budgets': {'solve_seconds': 10, 'evaluation_seconds': None}}}
+    terminal = {'state': 'complete'}
+    responses = iter([pending, pending, terminal])
+    client = SimpleNamespace(result=lambda _: next(responses))
+    assert settlement.wait_result(client, 'session', tmp_path) == terminal
+    assert json.loads(journal.read_text())['evaluation_deadline_epoch'] is None
 
 
 def test_evaluation_deadline_bounds_real_native_process():

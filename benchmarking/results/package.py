@@ -169,6 +169,8 @@ def export_run(root, evidence: ParticipantEvidence, result):
         raise ValueError('Service evaluation is not terminal')
     result['evaluation'] = copy.deepcopy(evidence.evaluation)
     if evidence.final is not None:
+        if evidence.final.termination is not None:
+            result['evaluation']['termination'] = evidence.final.termination
         if evidence.final.candidate is not None:
             put(root, 'final.gds', evidence.final.candidate, files)
             result['top_cell'] = evidence.final.top_cell

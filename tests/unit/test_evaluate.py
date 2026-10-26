@@ -92,6 +92,57 @@ def test_evaluation_and_qualification_allow_native_jobs_to_finish_by_default(
     assert evaluate_at('independent')['task_success'] is True
 
 
+@pytest.mark.parametrize('phase', ['feedback', 'final'])
+def test_session_evaluation_allows_native_jobs_to_finish(tmp_path, inputs, bindings, phase):
+    from types import SimpleNamespace
+
+    from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.execution.budgets import PhaseBudgets
+    from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
+    from benchmarking.execution.tools.native import NativeTool
+    from benchmarking.execution.workspace import SessionResult
+    from benchmarking.execution.workspace.config import RunConfig
+    from benchmarking.service.session import run_session
+
+    tool = NativeTool(ExternalRuntime('test', {'image': 'unused', 'environment': {}, 'mounts': []}),
+                      timeout_seconds=.02)
+    original = bindings['response'].run
+
+    def simulate(job, assets):
+        result = tool.run([sys.executable, '-c', 'import time; time.sleep(.1); print("complete")'], {}, {})
+        if result.reason:
+            return JobResult('error', result.reason, evidence=result.evidence)
+        return original(job, assets)
+
+    bindings['response'].run = simulate
+    bindings['response'].max_parallel_jobs = 2
+    task = SimpleNamespace(hours=None, problem='Synthetic session timeout regression',
+                           evaluation=parse_evaluation(PLAN), digest='fixture', witnessed=True,
+                           evaluation_inputs=lambda: {**inputs, 'task': Asset(b'{}', 'json')},
+                           input_assets=lambda: {'netlist': inputs['input:netlist']})
+    config = RunConfig('fixture', 'unused', ('fixture',), 10, None, None, None, 16, {}, {},
+                       Asset(b'fixture', 'text'),
+                       HarnessSpec(capabilities=(PROCESS_FEEDBACK_CAPABILITY,)),
+                       PhaseBudgets(10))
+    feedback_reports = []
+
+    class Session:
+        def run(self, task, config, resources, message, *, feedback, **kwargs):
+            if phase == 'feedback':
+                feedback_reports.append(feedback(inputs['candidate'], 1)['report'])
+            return SessionResult('completed', '', 0, 0, [],
+                                 inputs['candidate'] if phase == 'final' else None,
+                                 Asset(b'', 'text'), False, {})
+
+    run_session(task, config, {}, bindings, tmp_path / 'session', session=Session())
+    report = (feedback_reports[0] if phase == 'feedback' else
+              json.loads((tmp_path / 'session/evaluation/report.json').read_text()))
+    assert report['task_success'] is True, {
+        name: result['reason'] for name, result in report['jobs'].items()
+        if result['status'] == 'error'}
+    assert report['tool_time_limits'] is False
+
+
 def test_check_cancellation_reaches_parallel_native_jobs_and_does_not_leak(tmp_path, inputs, bindings):
     import time
     from concurrent.futures import ThreadPoolExecutor
@@ -225,6 +276,41 @@ def test_export_preserves_non_utf8_native_logs_without_changing_score(tmp_path, 
     assert 'evaluation/' + ref['path'] in files
     assert exported['score'] == report['score']
     assert archive.report == report
+
+
+@pytest.mark.parametrize('termination', ['budget_exhausted', 'agent_error'])
+def test_export_preserves_termination_score_and_candidate_quality(tmp_path, inputs, bindings, termination):
+    from benchmarking.evidence.archive import RunArchive
+    from benchmarking.results.package import (
+        ParticipantEvidence,
+        TraceEvidence,
+        export_run,
+    )
+
+    report = evaluate(tmp_path, inputs, bindings)
+    run = tmp_path / 'run'
+    run.mkdir()
+    (tmp_path / 'report').rename(run / 'evaluation')
+    raw = (run / 'evaluation/report.json').read_bytes()
+    zero = {'method': 'layout', 'value': 0.0, 'maximum': 100, 'reference': 100,
+            'components': {'G': 0.0, 'E': None, 'Q': None}}
+    (run / 'run.json').write_text(json.dumps({
+        'termination': termination, 'outcome': 'passed', 'score': zero,
+        'evaluation': dict(Asset(raw, 'json').identity(), path='evaluation/report.json'),
+    }))
+    service = {'state': 'complete', 'score': zero, 'outcome': 'pass'}
+    archive = RunArchive(run)
+    final = archive.final_evidence(service)
+    result = {'files': []}
+    export_run(tmp_path / 'portable', ParticipantEvidence(service, final, TraceEvidence(b'', ''), None, ()), result)
+
+    assert result['evaluation']['score'] == zero
+    assert result['evaluation']['termination'] == termination
+    exported = json.loads((tmp_path / 'portable/evaluation/report.json').read_text())
+    assert exported['score'] == report['score'] and exported['score']['value'] > 0
+    assert 'termination' not in service
+    with pytest.raises(ValueError, match='Service score differs'):
+        archive.final_evidence(dict(service, score=report['score']))
 
 
 def test_attaching_invalid_evidence_leaves_terminal_result_and_files_unchanged(tmp_path, inputs, bindings, monkeypatch):

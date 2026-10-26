@@ -72,7 +72,7 @@ def settle_session(client, sid, output):
             else:
                 raise TimeoutError('Session settlement: active command deadline expired; execution evidence retained')
 
-    primary = None
+    primary, status = None, None
     persist()
     try:
         status = idle()
@@ -88,7 +88,20 @@ def settle_session(client, sid, output):
         record["phase"] = "settling"
         persist()
         try:
-            client.close(sid, key="runner-close")
+            closed_states = {"evaluating", "complete", "error"}
+            if status is None or status["state"] not in closed_states:
+                try:
+                    client.close(sid, key="runner-close")
+                except ClientError as exc:
+                    if exc.status != 410 or exc.code != "session_closed":
+                        raise
+                    # The service can expire the workspace between our status
+                    # read and close. Confirm that transition before collecting.
+                    status = client.session(sid)
+                    if status["state"] not in closed_states:
+                        raise
+                    record["receipt"] = status.get("last_submission")
+                    record["submission"] = "retained" if record["receipt"] else "none"
             record.update(closed=True, phase="closed")
         except ERRORS as exc:
             record["close_error"] = error_detail(exc)
@@ -109,22 +122,31 @@ def participant_timeout(created, status):
 
 
 def wait_result(client, sid, output=None):
-    """Observe the service's fixed final-evaluation deadline, not the solve budget."""
+    """Wait for independent evaluation; honor only an explicitly bounded service."""
     journal = output / 'collection.json' if output is not None else None
     record = json.loads(journal.read_text()) if journal is not None and journal.exists() else {}
-    deadline = (time.monotonic() + max(0, record['evaluation_deadline_epoch']-time.time())
-                if 'evaluation_deadline_epoch' in record else None)
+    retained_deadline = record.get('evaluation_deadline_epoch')
+    deadline = (time.monotonic() + max(0, retained_deadline-time.time())
+                if retained_deadline is not None else None)
     while True:
         result = client.result(sid)
         if result['state'] in {'complete', 'error'}:
             return result
         budgets = PhaseBudgets.from_limits(result.get('limits', {}))
-        if deadline is None:
-            remaining = result.get('budget', {}).get('evaluation_remaining_seconds', budgets.evaluation_seconds)
+        remaining = result.get('budget', {}).get('evaluation_remaining_seconds', budgets.evaluation_seconds)
+        if remaining is None:
+            deadline = None
+            # A saved deadline from an older collection attempt must not cut off
+            # a service that now explicitly permits its EDA jobs to finish.
+            if journal is not None and ('evaluation_deadline_epoch' not in record
+                                        or record['evaluation_deadline_epoch'] is not None):
+                record['evaluation_deadline_epoch'] = None
+                atomic_write(journal, (json.dumps(record, indent=2) + '\n').encode())
+        elif deadline is None:
             deadline = time.monotonic() + remaining
             if journal is not None:
                 record['evaluation_deadline_epoch'] = time.time() + remaining
                 atomic_write(journal, (json.dumps(record, indent=2) + '\n').encode())
-        if time.monotonic() >= deadline:
+        if deadline is not None and time.monotonic() >= deadline:
             raise TimeoutError('Evaluation remains pending; session ID retained in session.json')
         time.sleep(.5)

@@ -1,6 +1,7 @@
 """Observed Kimi Code contracts at worker, recovery and export seams."""
 
 import json
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -58,6 +59,58 @@ def context(tmp_path, selected):
     mcp = work / 'mcp.json'
     mcp.write_text('{"mcpServers":{"layout":{"command":"fixture"}}}')
     return LaunchContext(selected, mcp, work, tmp_path, work / 'bridge.py', 'task')
+
+
+@pytest.mark.parametrize('configured,expected', [(None, 10), (1, 1), (17, 17)])
+def test_native_attempt_limit_reaches_isolated_cli_without_environment_overrides(tmp_path, kimi_config, configured, expected):
+    home, config = kimi_config
+    if configured is not None:
+        config['loop_control'] = {'max_attempts_per_step': configured, 'max_steps_per_turn': 1}
+    selected = selection(home, config)
+    original = (home / 'config.toml').read_bytes()
+    selected.environment.update(KIMI_LOOP_MAX_ATTEMPTS_PER_STEP='999', KIMI_LOOP_MAX_RETRIES_PER_STEP='999')
+    selected = ParticipantSelection(**json.loads(json.dumps(selected.launch_payload())))
+    adapters.prepare(context(tmp_path / 'participant', selected))
+    native_home = Path(selected.environment['KIMI_CODE_HOME'])
+    generated = tomllib.loads((native_home / 'config.toml').read_text())
+    assert generated['loop_control'] == {'max_attempts_per_step': expected}
+    assert selected.condition['native_max_attempts_per_step'] == expected
+    assert not any(key.startswith('KIMI_LOOP_') for key in selected.environment)
+    assert (home / 'config.toml').read_bytes() == original
+
+
+@pytest.mark.parametrize('value', [0, True, '10'])
+def test_invalid_native_attempt_limit_is_rejected_before_launch(kimi_config, value):
+    home, config = kimi_config
+    config['loop_control'] = {'max_attempts_per_step': value}
+    with pytest.raises(ValueError, match='max_attempts_per_step.*positive integer'):
+        selection(home, config)
+
+
+def test_changed_native_attempt_limit_cannot_resume_frozen_conditions(tmp_path, kimi_config, monkeypatch):
+    from helpers.participant import ServiceFixture
+
+    from benchmarking.participants.attempt.recovery import policy
+    from benchmarking.participants.attempt.state import ParticipantAttempt
+
+    monkeypatch.setattr('benchmarking.participants.harnesses.registry.cli_version', lambda *a: 'kimi 2.3.1')
+    home, config = kimi_config
+    config['loop_control'] = {'max_attempts_per_step': 3}
+    selected = selection(home, config)
+    output = tmp_path / 'participant'
+    output.mkdir()
+    row = {'harness': 'kimi-code', 'task': 'fixture'}
+    recovery = policy({'capacity_resumes': 2}, harness='kimi-code')
+    service = ServiceFixture()
+    attempt = ParticipantAttempt.open(service, row, output, selected.condition, selected.environment, '', recovery)
+    assert attempt.conditions['selection']['native_max_attempts_per_step'] == 3
+    assert attempt.conditions['recovery']['capacity_resumes'] == 2
+    original = (output / 'conditions.json').read_bytes()
+    config['loop_control']['max_attempts_per_step'] = 7
+    changed = selection(home, config)
+    with pytest.raises(ValueError, match='Cannot resume changed participant conditions'):
+        ParticipantAttempt.open(service, row, output, changed.condition, changed.environment, '', recovery)
+    assert (output / 'conditions.json').read_bytes() == original
 
 
 def native_session(output, *, session='session_fixture', model='fixture/k3', effort='high'):
@@ -124,8 +177,12 @@ def test_kimi_terminal_errors_use_its_native_protocol(tmp_path, line, category):
 
 
 def test_assistant_text_and_recovered_native_errors_do_not_trigger_capacity_resume(tmp_path):
-    (tmp_path / 'harness.jsonl').write_text(json.dumps({'role': 'assistant', 'content':
-        'error: failed to run prompt: provider.overloaded: fixture overload'}))
+    events = [{'role': 'meta', 'type': 'turn.step.retrying', 'failed_attempt': 1,
+               'next_attempt': 2, 'max_attempts': 3, 'delay_ms': 500,
+               'error_name': 'APIProviderRateLimitError', 'status_code': 429},
+              {'role': 'assistant', 'content':
+               'error: failed to run prompt: provider.overloaded: fixture overload'}]
+    (tmp_path / 'harness.jsonl').write_text(''.join(json.dumps(event) + '\n' for event in events))
     (tmp_path / 'harness.stderr').write_text('error: failed to run prompt: provider.overloaded: fixture overload\n')
     assert adapters.harness_failure('kimi-code', tmp_path, exit_code=0) is None
     assert adapters.harness_failure('kimi-code', tmp_path, exit_code=1)['category'] == 'provider_overloaded'
@@ -247,6 +304,7 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
     from benchmarking.participants.attempt.runner import run_participant
 
     home, config = kimi_config
+    config['loop_control'] = {'max_attempts_per_step': 3}
     selected = selection(home, config)
     service = ServiceFixture()
     service.remaining = 1000
@@ -299,6 +357,11 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
     with patch.object(service, 'create', wraps=service.create) as create:
         result, error = run_participant(service, row, output, selected)
         assert create.call_count == 1
+        frozen = json.loads((output / 'conditions.json').read_text())
+        assert frozen['selection']['native_max_attempts_per_step'] == 3
+        assert frozen['recovery']['capacity_resumes'] == 5
+        native_config = tomllib.loads((Path(selected.environment['KIMI_CODE_HOME']) / 'config.toml').read_text())
+        assert native_config['loop_control']['max_attempts_per_step'] == 3
         summary = json.loads((output / 'harness-summary.json').read_text())
         for argv in launches[1:]:
             assert argv[argv.index('--session') + 1] == 'session_fixture'

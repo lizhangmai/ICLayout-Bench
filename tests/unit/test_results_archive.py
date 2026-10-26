@@ -79,6 +79,31 @@ def change(path, operation):
     path.write_text(json.dumps(raw))
 
 
+@pytest.mark.parametrize('termination', ['budget_exhausted', 'agent_error'])
+def test_import_preserves_zero_run_score_and_nonzero_candidate_quality(tmp_path, termination):
+    source = result(tmp_path / 'source', score=0)
+    zero = {'method': 'layout', 'value': 0.0, 'maximum': 100, 'reference': 100,
+            'components': {'G': 0.0, 'E': None, 'Q': None}}
+    candidate_score = {'method': 'layout', 'value': 80, 'maximum': 100, 'reference': 100}
+    def terminated(raw):
+        raw['evaluation'].update(termination=termination, score=zero)
+        raw['files'].append('evaluation/report.json')
+    change(source, terminated)
+    (source.parent / 'evaluation').mkdir()
+    (source.parent / 'evaluation/report.json').write_text(json.dumps({'score': candidate_score}))
+
+    store = ResultStore(tmp_path / 'archive')
+    imported = store.import_result(source)
+    detail = store.detail(imported['run_id'])
+    assert detail['evaluation']['score'] == 0
+    artifact = next(item for item in detail['artifacts'] if item['name'] == 'evaluation/report.json')
+    assert json.loads(store.artifact(artifact['sha256']).read_bytes())['score'] == candidate_score
+
+    change(source, lambda raw: raw['evaluation'].update(score=candidate_score))
+    with pytest.raises(ValueError, match='Evaluation report and service score disagree'):
+        store.import_result(source)
+
+
 def test_import_is_independent_idempotent_and_preserves_unknowns(tmp_path):
     store = ResultStore(tmp_path / "archive")
     source = result(tmp_path / "source")

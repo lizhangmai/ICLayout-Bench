@@ -42,6 +42,12 @@ def _credential_path(oauth):
 def resolve(model, effort, env, *, home=None):
     home = Path(env.get("KIMI_CODE_HOME", str(Path.home() / ".kimi-code")))
     config = tomllib.loads((home / "config.toml").read_text())
+    loop_control = config.get("loop_control", {})
+    if not isinstance(loop_control, dict):
+        raise TypeError("Kimi Code loop_control must be a table")
+    max_attempts = loop_control.get("max_attempts_per_step", 10)
+    if type(max_attempts) is not int or max_attempts < 1:
+        raise ValueError("Kimi Code max_attempts_per_step must be a positive integer including the initial attempt")
     model = model or config.get("default_model")
     entry = copy.deepcopy(config.get("models", {}).get(model))
     if not entry:
@@ -70,12 +76,14 @@ def resolve(model, effort, env, *, home=None):
     if connection.get('api_key_env') in env:
         credential_fields.append({'api_key': env[connection['api_key_env']]})
     settings = {"credential_fields": credential_fields, "config": {"default_model": model, "providers": {provider: connection},
-                           "models": {model: entry}}, "credentials": credentials,
+                           "models": {model: entry},
+                           "loop_control": {"max_attempts_per_step": max_attempts}}, "credentials": credentials,
                 "credential_home": str(home.resolve())}
     condition = {"harness": "kimi-code", "model": model, "provider": provider,
             "effort_requested": effort, "effort_resolved": resolved,
             "effort_source": "experiment" if effort else "kimi configuration",
-            "provider_effective_effort": None}
+            "provider_effective_effort": None,
+            "native_max_attempts_per_step": max_attempts}
     return ParticipantSelection(condition, env, settings)
 
 

@@ -80,6 +80,7 @@ def result(data, status, judged=None):
                                 'interaction': 'server_observed', 'condition': 'participant_reported', 'usage': 'unknown'},
                 'phase': status.get('phase'), 'budget': status.get('budget'),
                 'usage': dict.fromkeys(USAGE_FIELDS), 'diagnostics': status['diagnostics'], 'submission': status['last_submission'], 'outcome': verdict,
+                'termination': report.get('termination'),
                 'task_success': None if recovery_failed else report.get('task_success'),
                 'score': None if recovery_failed else report.get('score'), 'metrics': metrics,
                 'failure_category': ('service_failure' if recovery_failed or report.get('termination') == 'infrastructure_error'

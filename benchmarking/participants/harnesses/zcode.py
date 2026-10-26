@@ -1,4 +1,4 @@
-"""ZCode API connections and isolated native print-mode launches."""
+"""ZCode API/OAuth connections and isolated native print-mode launches."""
 
 import copy
 import json
@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from benchmarking.files import text, write_json
+from benchmarking.participants.harnesses import zcode_subscription
 from benchmarking.participants.harnesses.contracts import (
     HarnessMetadata,
     LaunchContext,
@@ -51,8 +52,11 @@ def resolve(model, effort, env, *, home=None):
         home = (Path(env[METADATA.home_environment]) / '.zcode/cli'
                 if env.get(METADATA.home_environment) else Path.home() / '.zcode/cli')
     config = json.loads((home / METADATA.configuration_file).read_text())
-    if not isinstance(config, dict) or set(config) - {'model', 'provider', 'network'}:
+    if not isinstance(config, dict) or set(config) - {'model', 'provider', 'network', 'auth_method'}:
         raise ValueError('ZCode experiment home accepts model connections only')
+    auth_method = config.get('auth_method', 'api')
+    if auth_method not in {'api', 'subscription'}:
+        raise ValueError('ZCode auth_method must be api or subscription')
     network = config.get('network', {})
     if (not isinstance(network, dict) or set(network) - {'httpProxy', 'noProxy'}
             or any(not isinstance(value, str) or not value.strip() for value in network.values())):
@@ -68,7 +72,8 @@ def resolve(model, effort, env, *, home=None):
     if not isinstance(target, str) or '/' not in target:
         raise ValueError('ZCode model must use the configured provider/model reference')
     provider, model_id = target.split('/', 1)
-    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]*', provider) or not model_id.strip():
+    if (not model_id.strip() or (auth_method == 'api'
+            and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]*', provider))):
         raise ValueError('Invalid ZCode provider/model reference')
     providers = config.get('provider', {})
     if not isinstance(providers, dict) or not providers:
@@ -101,8 +106,12 @@ def resolve(model, effort, env, *, home=None):
             or any(not isinstance(level, str) or not level.strip() for level in levels)
             or resolved is None or resolved not in levels):
         raise ValueError('ZCode effort must be explicitly supported by the selected model')
-    ref = options.get('apiKeyEnv')
-    if ref is not None:
+    auth, fields = None, {}
+    ref = options.get('apiKeyEnv') if auth_method == 'api' else None
+    if auth_method == 'subscription':
+        auth, fields = zcode_subscription.resolve(home, provider, kind, options, env)
+        key = None
+    elif ref is not None:
         if not isinstance(ref, str) or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', ref):
             raise ValueError('ZCode apiKeyEnv must name an environment variable')
         if options.get('apiKey'):
@@ -110,7 +119,7 @@ def resolve(model, effort, env, *, home=None):
         key = env.get(ref)
     else:
         key = options.get('apiKey')
-    if not isinstance(key, str) or not key.strip():
+    if auth_method == 'api' and (not isinstance(key, str) or not key.strip()):
         raise ValueError('ZCode experiment home needs configured API authentication')
     env = env.copy()
     for name in list(env):
@@ -119,11 +128,12 @@ def resolve(model, effort, env, *, home=None):
     if ref:
         env[ref] = key
     env[METADATA.home_environment] = str(home.resolve())
-    connection = {'providerId': provider, 'config': {'group': 'standard-personal',
-                  'access': {'type': 'api-key', 'apiKey': key},
-                  'api': {'type': WIRE_APIS[kind], 'baseUrl': endpoint},
-                  'personalModelIds': [model_id], 'modelOrder': [model_id]}}
-    condition = {'harness': 'zcode', 'provider': provider, 'model': target, 'auth_method': 'api',
+    if auth_method == 'api':
+        connection = {'providerId': provider, 'config': {'group': 'standard-personal',
+                      'access': {'type': 'api-key', 'apiKey': key},
+                      'api': {'type': WIRE_APIS[kind], 'baseUrl': endpoint},
+                      'personalModelIds': [model_id], 'modelOrder': [model_id]}}
+    condition = {'harness': 'zcode', 'provider': provider, 'model': target, 'auth_method': auth_method,
                  'wire_api': WIRE_APIS[kind], 'base_url': endpoint,
                  'effort_requested': effort, 'effort_resolved': resolved,
                  'effort_source': 'experiment' if effort else 'zcode configuration',
@@ -133,11 +143,17 @@ def resolve(model, effort, env, *, home=None):
     if network:
         condition['network'] = copy.deepcopy(network)
     settings = {'provider_config': {'schemaVersion': 1, 'config': {
-        'providerOrder': [provider], 'providerConfigRules': {'providerRules': [connection]},
+        # Native account providers belong to ZCode's built-in catalog. Defining
+        # them as personal providers invalidates the config and silently falls
+        # back to the CLI's default model/effort (observed with ZCode 0.17).
+        'providerOrder': [provider],
+        'providerConfigRules': {'providerRules': [connection] if auth_method == 'api' else []},
         'modelConfigRules': {'providerModelRules': [], 'manualProviderModelRules': []},
         'defaultModelSelection': {'providerId': provider, 'modelId': model_id,
                                  'options': {'reasoningLevel': resolved}}}}}
     settings['network'] = copy.deepcopy(network)
+    if auth is not None:
+        settings.update(subscription=auth, credential_fields=fields)
     return ParticipantSelection(condition, env, settings)
 
 
@@ -150,8 +166,12 @@ def prepare(context: LaunchContext) -> list[str]:
     home.mkdir(mode=0o700, exist_ok=True)
     native.mkdir(mode=0o700, exist_ok=True)
     cli.mkdir(mode=0o700, exist_ok=True)
-    (native / 'v2').mkdir(mode=0o700, exist_ok=True)
-    personal = native / 'v2/provider_config.json'
+    if 'subscription' in context.selection.settings:
+        zcode_subscription.prepare(home.parent, context.selection.settings['subscription'], env)
+        personal = home.parent / 'zcode-provider-config.json'
+    else:
+        (native / 'v2').mkdir(mode=0o700, exist_ok=True)
+        personal = native / 'v2/provider_config.json'
     servers = json.loads(context.mcp.read_text())['mcpServers']
     timeout = int(env['ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS']) * 1000
     config = {'network': context.selection.settings['network'],
@@ -180,6 +200,8 @@ def prepare(context: LaunchContext) -> list[str]:
 
 def credential_redactions(output):
     path = Path(output) / '.private/native-home/.zcode/v2/provider_config.json'
+    if (Path(output) / '.private/zcode-subscription.json').exists():
+        return zcode_subscription.redactions(output)
     return credential_values(json.loads(path.read_text())) if path.is_file() else set()
 
 
@@ -189,6 +211,8 @@ def native_traces(output):
 
 
 def provider_code(attribution, fallback):
+    if attribution.get('reason') == 'auth_failed' and attribution.get('statusCode') in {401, 403}:
+        return 'authentication_error'
     code = attribution.get('providerErrorCode') or fallback
     # Explicit policy throttling shares the bounded capacity recovery budget.
     # Preserve its identity separately from transient request-rate throttling.

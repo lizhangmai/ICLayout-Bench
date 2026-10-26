@@ -214,8 +214,9 @@ Closing freezes selection and starts independent evaluation. Status includes
 The authoritative budget is `[task].hours`; `limits.wall_seconds` is that value
 in seconds. The service cannot replace it with a participant-selected budget.
 The frozen `limits.phase_budgets` declares `solve_seconds`, `command_seconds`,
-`settlement_seconds` and `evaluation_seconds`. These are independent finite
-allowances, rather than a session-wide soft/hard switch.
+`settlement_seconds` and `evaluation_seconds`. Solve, command and settlement
+allowances are finite. `evaluation_seconds` is null in normal service sessions,
+allowing independent EDA evaluation to finish without an automatic deadline.
 
 | `phase` | Transition and permitted work |
 | --- | --- |
@@ -223,21 +224,23 @@ allowances, rather than a session-wide soft/hard switch.
 | `draining` | An operation started before solve expiry finishes within its original command deadline; no new commands/checks/writes. |
 | `settling` | Final read/submission/close until the later of solve expiry and the last bounded operation end, plus the settlement allowance. |
 | `expired` | Submission window exhausted; close selection and remove the workspace. |
-| `evaluating` | Workspace closed; the frozen accepted candidate is independently judged under the final-evaluation allowance. |
+| `evaluating` | Workspace closed; independently judge the frozen accepted candidate, without an automatic deadline in normal sessions. |
 | `complete`, `error` | Terminal result; an infrastructure failure preserves candidate and diagnostic evidence. |
 
 Status keeps the coarse `state` for protocol compatibility and exposes `phase`
 separately. `budget` includes phase-specific remaining times. Command defaults are
-3600 seconds, settlement 60 seconds; the final-evaluation allowance is the sum of
-job tool timeouts (300 seconds for a backend without a declared tool timeout),
-plus 60 seconds. Execution requests with null timeout use the command cap;
+3600 seconds, settlement 60 seconds. Final evaluation does not derive a time
+allowance from backend job timeouts. Execution requests with null timeout use the command cap;
 positive timeouts are clamped to that cap. Cancellation and polling remain available
-after solve expiry. Native evaluator timeouts are always enabled in sessions.
-Final evaluation records an absolute deadline at phase entry. Observation and
-recovery consume that deadline rather than creating another allowance.
+after solve expiry. Session feedback and final judging disable per-job EDA
+timeouts. An evaluating session publishes `evaluation_remaining_seconds: null`
+when judging is unlimited, and clients continue waiting across collection
+recovery. A retained deadline from an older collection attempt cannot terminate
+an explicitly unlimited evaluation.
 
 Standalone solver configurations may declare `[phase_budgets]` with
-`command_seconds`, `settlement_seconds` and `evaluation_seconds`; solve duration
+`command_seconds`, `settlement_seconds` and an optional finite
+`evaluation_seconds` for explicitly bounded judging; solve duration
 still comes from the task. Without this table the command allowance equals the solve duration and
 the settlement allowance is zero. The former `soft_budget` configuration is rejected. Elapsed time and
 late submissions remain recorded; final judging grants no additional solve time.
@@ -363,9 +366,13 @@ and expect independent final judging.
 
 A service result contains session/task/condition/tool identity, `limits`,
 `evaluation_mode`, `provenance`, nullable `usage`, `submission`, `outcome`,
-`task_success`, `score`, `metrics`, failure details and evidence. Before terminal
+`termination`, `task_success`, `score`, `metrics`, failure details and evidence. Before terminal
 state, verdicts remain null. Terminal outcomes are `pass`, `fail`, `no_submission`
 or `error`; [Tasks](tasks.md#evaluation) defines their scoring consequences.
+
+`termination` records how the solve ended, independently of the candidate verdict.
+Its run score includes termination rules; an attached independent evaluation
+report retains the candidate's original quality score.
 
 `evaluation_mode` is `self_run` or `controlled_run`, independent of score and
 publication. Provenance separates `server_observed`, `participant_reported` and

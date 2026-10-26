@@ -112,7 +112,7 @@ def run_session(task, config, resources, backends, destination: Path, *, session
             feedback_root,
             task_sha256=task.digest,
             task_witnessed=task.witnessed,
-            limit_tools=True,
+            limit_tools=False,
         )
         raw = (feedback_root / "report.json").read_bytes()
         participant_report = {
@@ -166,14 +166,16 @@ def run_session(task, config, resources, backends, destination: Path, *, session
     if result.candidate is not None:
         started = time.monotonic()
         try:
+            evaluation_limit = config.phase_budgets.evaluation_seconds
             report.update(phase="evaluating", evaluation_started_epoch=time.time(),
-                          evaluation_deadline_epoch=time.time()+config.phase_budgets.evaluation_seconds)
+                          evaluation_deadline_epoch=(time.time()+evaluation_limit
+                                                     if evaluation_limit is not None else None))
             save()
-            with tool_deadline(time.monotonic()+config.phase_budgets.evaluation_seconds):
+            with tool_deadline(time.monotonic()+evaluation_limit if evaluation_limit is not None else None):
                 evaluated = run_evaluation(task.evaluation,
                                        {**task.evaluation_inputs(), "candidate": result.candidate},
                                        backends, destination / "evaluation", task_sha256=task.digest,
-                                       task_witnessed=task.witnessed, limit_tools=True)
+                                       task_witnessed=task.witnessed, limit_tools=False)
             report.update(evaluation={"path": "evaluation/report.json",
                                      "sha256": Asset((destination/"evaluation/report.json").read_bytes(), "json").sha256},
                           outcome=evaluated["outcome"], task_success=evaluated["task_success"])

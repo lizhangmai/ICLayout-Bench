@@ -620,7 +620,7 @@ time.sleep(30)
 @pytest.mark.acceptance
 @pytest.mark.acceptance_container
 @pytest.mark.parametrize('expires', [False, True])
-def test_feedback_eda_uses_command_and_tool_budgets(tmp_path, expires):
+def test_feedback_eda_has_only_the_enclosing_command_deadline(tmp_path, expires):
     task = session_task()
     config = replace(configuration('''
 output.write_bytes(b'accepted'); assert submit()['accepted']
@@ -629,7 +629,8 @@ output.write_bytes(b'final'); assert submit()['accepted']
 ''', seconds=1.5 if expires else 6),
         harness=HarnessSpec(capabilities=(PROCESS_FEEDBACK_CAPABILITY,)), budgets=PhaseBudgets(1.5 if expires else 6, command_seconds=2, settlement_seconds=2))
     tool = DockerTool(IMAGE, ['python', '--version'], 60)
-    # Both the independent command deadline and the declared tool limit apply.
+    # A short backend probe limit must not cut off EDA feedback. An explicitly
+    # bounded workspace operation still owns its command deadline.
     tool.timeout_seconds = 10 if expires else .1
     seen = []
 
@@ -646,8 +647,8 @@ output.write_bytes(b'final'); assert submit()['accepted']
     assert result.candidate.content == b'final'
     assert len(seen) == 1
     assert result.termination == 'completed'
-    assert result.process_feedback[-1]['outcome'] == 'error', seen[0].reason
-    assert b'done' not in seen[0].evidence['console'].content
+    assert result.process_feedback[-1]['outcome'] == ('error' if expires else 'passed'), seen[0].reason
+    assert (b'done' in seen[0].evidence['console'].content) is (not expires)
     assert result.submissions[-1]['after_budget'] is expires
 
 

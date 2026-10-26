@@ -10,10 +10,12 @@ class PhaseBudgets:
     solve_seconds: float
     command_seconds: float = 3600
     settlement_seconds: float = 60
-    evaluation_seconds: float = 7200
+    evaluation_seconds: float | None = None
 
     def __post_init__(self):
         for name, value in asdict(self).items():
+            if name == 'evaluation_seconds' and value is None:
+                continue
             if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
                 raise ValueError(f'{name} must be finite and nonnegative')
             if name != 'settlement_seconds' and value == 0:
@@ -26,22 +28,14 @@ class PhaseBudgets:
     def from_limits(cls, limits):
         if 'phase_budgets' in limits:
             return cls(**limits['phase_budgets'])
-        # Read historical sessions without restoring their unlimited soft waits.
+        # Historical finite evaluation budgets remain readable; new sessions
+        # wait for independent EDA evaluation without an automatic deadline.
         return cls(limits.get('wall_seconds', 3600))
 
     @classmethod
     def for_evaluation(cls, solve_seconds, plan, backends):
-        # A serial upper bound permits every declared job its own tool allowance.
-        # Actual parallel scheduling can only reduce this time. Archival/cleanup
-        # has its own fixed allowance, independent of solve difficulty.
-        total = 60
-        for job in plan.jobs:
-            backend = backends.get(job.operation)
-            tool = getattr(backend, 'tool', None)
-            while tool is not None and not hasattr(tool, 'timeout_seconds') and hasattr(tool, 'tool'):
-                tool = tool.tool
-            total += getattr(tool, 'timeout_seconds', 300)
-        return cls(solve_seconds, evaluation_seconds=total)
+        # Backend timeouts are bounded-probe settings, not a final-judging budget.
+        return cls(solve_seconds)
 
 
 class SessionBudget:

@@ -249,18 +249,21 @@ sum is not evaluation wall time. Resource preparation precedes that interval.
 
 #### Evaluation time limits and cancellation
 
-Session feedback and final judging always enforce declared backend
-`timeout_seconds` and record `tool_time_limits = true`. Feedback also inherits
-the active command deadline; final judging inherits its independent evaluation
-deadline. Nested tool calls and parallel jobs consume the same phase deadline.
-A job that has not started when that deadline expires returns an evaluator error.
-Tool failure and timeout evidence remains available with the accepted candidate.
+Session feedback, final judging, standalone evaluation, characterization and
+qualification let EDA jobs finish without per-job limits by default
+(`tool_time_limits = false`). Declared backend `timeout_seconds` does not impose
+an automatic cutoff on these evaluations. Callers can explicitly select
+`run_evaluation(..., limit_tools=True)` for bounded diagnostics; startup/version
+probes retain their own bounded timeouts.
 
-Standalone evaluation, characterization and qualification let started EDA jobs
-finish without per-job limits by default (`tool_time_limits = false`). Callers
-can select `run_evaluation(..., limit_tools=True)` for bounded diagnostics.
-Startup/version probes retain their own bounded timeouts. Phase budgets are
-specified by the [session protocol](architecture.md#lifecycle-and-budgets).
+Feedback inherits the active workspace command deadline and cancellation scope.
+Normal final judging and result collection have no automatic deadline, and the
+service does not derive one by adding backend timeouts. An explicitly configured
+standalone evaluation allowance remains bounded and is persisted across recovery.
+Nested calls and parallel jobs share any explicitly supplied deadline. Tool
+failure and cancellation evidence remains available with the accepted candidate.
+Phase budgets are specified by the
+[session protocol](architecture.md#lifecycle-and-budgets).
 
 Cancelling a process check propagates to native/container jobs and their parallel
 workers. Cancelled jobs retain diagnostics and cannot publish successful

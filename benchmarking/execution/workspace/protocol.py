@@ -61,7 +61,7 @@ class SessionProtocol:
             self.feedback_worker.shutdown(wait=True)
 
     def _feedback(self, candidate, sequence, cancellation, deadline):
-        with tool_time_limits(True), tool_cancellation(cancellation), tool_deadline(
+        with tool_time_limits(False), tool_cancellation(cancellation), tool_deadline(
                 deadline):
             return self.feedback(candidate, sequence)
 

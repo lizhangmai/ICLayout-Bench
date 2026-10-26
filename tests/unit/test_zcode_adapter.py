@@ -1,6 +1,7 @@
 """ZCode connection selection, isolation and credential-safe native evidence."""
 
 import json
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -49,6 +50,113 @@ def profile(home, *, kind='anthropic', file_key=False):
             'glm-5.3': {'reasoning': {'levels': ['low', 'high', 'max'], 'defaultLevel': 'high'}}}}}}
     (home / 'config.json').write_text(json.dumps(config))
     return config
+
+
+def subscription_profile(home, family='bigmodel'):
+    if shutil.which('node') is None:
+        pytest.skip('ZCode subscription credential decoding requires Node.js')
+    provider = f'account:{family}-individual-coding-plan'
+    endpoint = ('https://open.bigmodel.cn/api/anthropic' if family == 'bigmodel'
+                else 'https://api.z.ai/api/anthropic')
+    config = {'auth_method': 'subscription', 'model': {'main': provider + '/GLM-5.3'},
+              'provider': {provider: {'kind': 'anthropic', 'options': {'baseURL': endpoint},
+                  'models': {'GLM-5.3': {'reasoning': {'levels': ['high'], 'defaultLevel': 'high'}}}}}}
+    (home / 'config.json').write_text(json.dumps(config))
+    native = home / '.zcode/v2'; native.mkdir(parents=True)
+    credentials = {'oauth:active_provider': family, f'oauth:{family}:access_token': 'subscription-access-secret',
+                   'zcodejwttoken': 'subscription-jwt-secret',
+                   f'account-provider:{provider}:identity': 'fixture-account',
+                   f'account-provider:{provider}:auth-source': 'oauth'}
+    (native / 'credentials.json').write_text(json.dumps(credentials))
+    (native / 'provider_config.json').write_text('{"operator_selection":"preserve"}')
+    return config, credentials
+
+
+@pytest.mark.parametrize('family', ['bigmodel', 'zai'])
+def test_subscription_reuses_managed_authentication_with_isolated_runtime(tmp_path, family):
+    home = tmp_path / 'selected'; home.mkdir()
+    config, credentials = subscription_profile(home, family)
+    provider = next(iter(config['provider']))
+    selected = adapters.resolve('zcode', provider + '/GLM-5.3', 'high',
+        {'HOME': '/original', 'ZCODE_API_KEY': 'unrelated-host-secret'}, home=home)
+    assert selected.condition['auth_method'] == 'subscription'
+    assert 'subscription-access-secret' not in json.dumps(selected.condition) + repr(selected)
+    output = tmp_path / 'output'; work = output / '.private/workspace'; work.mkdir(parents=True)
+    selected.environment['ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS'] = '60'
+    mcp = work / 'mcp.json'; mcp.write_text('{"mcpServers":{}}')
+    context = LaunchContext(selected, mcp, work, output, work / 'bridge.py', 'fixture prompt')
+    argv = adapters.prepare(context)
+    runtime = output / '.private/native-home'
+    assert selected.environment['HOME'] == str(runtime)
+    assert selected.environment['ZCODE_CREDENTIAL_SECRET'].startswith('zcode-credential-fallback:')
+    assert 'ZCODE_API_KEY' not in selected.environment
+    native = runtime / '.zcode/v2'
+    assert native.resolve() == (home / '.zcode/v2').resolve()
+    personal = Path(selected.environment['ZCODE_PERSONAL_PROVIDER_CONFIG_FILE'])
+    assert personal.resolve().is_relative_to(output.resolve())
+    personal_config = json.loads(personal.read_text())['config']
+    assert personal_config['providerConfigRules']['providerRules'] == []
+    selection = personal_config['defaultModelSelection']
+    assert selection == {'providerId': provider, 'modelId': 'GLM-5.3', 'options': {'reasoningLevel': 'high'}}
+    assert json.loads((home / '.zcode/v2/provider_config.json').read_text()) == {'operator_selection': 'preserve'}
+    assert 'subscription-access-secret' not in str(argv) + personal.read_text()
+    assert {'subscription-access-secret', 'subscription-jwt-secret'} <= adapters.credential_redactions('zcode', output)
+    credentials[f'oauth:{family}:access_token'] = 'refreshed-subscription-secret'
+    # Native atomic replacement must reach the same managed directory and locks.
+    replacement = native / 'credentials.tmp'
+    replacement.write_text(json.dumps(credentials)); replacement.replace(native / 'credentials.json')
+    assert 'refreshed-subscription-secret' in (home / '.zcode/v2/credentials.json').read_text()
+    assert 'refreshed-subscription-secret' in adapters.credential_redactions('zcode', output)
+    zcode_session(output, selection=selection)
+    selected.environment['ICLAYOUT_BENCH_RESUME_ID'] = 'sess_fixture'
+    assert '--resume' in adapters.prepare(context)
+    credentials[f'account-provider:{provider}:identity'] = 'different-account'
+    (native / 'credentials.json').write_text(json.dumps(credentials))
+    with pytest.raises(ValueError, match='account'):
+        adapters.prepare(context)
+
+
+@pytest.mark.parametrize('change', ['missing', 'manual', 'endpoint', 'key', 'symlink'])
+def test_subscription_refuses_missing_or_ambiguous_authentication(tmp_path, change):
+    config, credentials = subscription_profile(tmp_path)
+    provider = next(iter(config['provider']))
+    path = tmp_path / '.zcode/v2/credentials.json'
+    if change == 'missing':
+        credentials.pop('oauth:bigmodel:access_token')
+    elif change == 'manual':
+        credentials[f'account-provider:{provider}:auth-source'] = 'manual'
+    elif change == 'endpoint':
+        config['provider'][provider]['options']['baseURL'] = 'https://unrelated.example'
+    elif change == 'key':
+        config['provider'][provider]['options']['apiKeyEnv'] = 'HOST_KEY'
+    path.write_text(json.dumps(credentials))
+    (tmp_path / 'config.json').write_text(json.dumps(config))
+    if change == 'symlink':
+        path.rename(path.with_suffix('.real')); path.symlink_to(path.with_suffix('.real'))
+    with pytest.raises(ValueError, match='ZCode'):
+        adapters.resolve('zcode', provider + '/GLM-5.3', 'high', {'HOST_KEY': 'host-secret'}, home=tmp_path)
+
+
+def test_native_encrypted_subscription_store_uses_its_login_cipher_context(tmp_path):
+    config, _ = subscription_profile(tmp_path)
+    provider = next(iter(config['provider']))
+    source = Path(__file__).parents[1] / 'fixtures/agents/zcode-oauth-credentials.json'
+    (tmp_path / '.zcode/v2/credentials.json').write_bytes(source.read_bytes())
+    env = {'ZCODE_CREDENTIAL_SECRET': 'fixture-native-cipher-secret', 'HOME': '/login-home'}
+    selected = adapters.resolve('zcode', provider + '/GLM-5.3', 'high', env, home=tmp_path)
+    assert {'subscription-access-secret', 'subscription-jwt-secret'} <= credential_values(selected.settings)
+    env['ZCODE_CREDENTIAL_SECRET'] = 'wrong-cipher-secret'
+    with pytest.raises(ValueError, match='cipher context') as error:
+        adapters.resolve('zcode', provider + '/GLM-5.3', 'high', env, home=tmp_path)
+    assert 'subscription-access-secret' not in str(error.value)
+
+
+def test_native_oauth_authentication_failure_stops_provider_dispatch(tmp_path):
+    event = {'type': 'turn.failed', 'payload': {'error': {'code': 'provider_not_configured',
+        'attribution': {'source': 'provider', 'reason': 'auth_failed', 'statusCode': 401, 'retryable': False}}}}
+    (tmp_path / 'harness.jsonl').write_text(json.dumps(event))
+    problem = adapters.harness_failure('zcode', tmp_path, exit_code=1)
+    assert problem['category'] == 'authentication' and problem['stop_dispatch']
 
 
 @pytest.mark.parametrize('kind,wire,file_key', [

@@ -12,6 +12,29 @@ from benchmarking.service.state import ServiceState
 pytestmark = pytest.mark.unit
 
 
+def test_evaluating_status_publishes_unlimited_judging(tmp_path, executable_case):
+    from benchmarking.service.application import LocalService
+    from benchmarking.service.supervisor import SessionControl
+    from benchmarking.tasks.contract import load_task
+
+    class Control(SessionControl):
+        def workspace(self, sid):
+            return SimpleNamespace(active=False)
+
+    service = LocalService(tmp_path, load_task(executable_case), {}, {}, 'unused', 'operator',
+                           seconds=60, session_control=Control())
+    run = tmp_path / 'session/run'
+    run.mkdir(parents=True)
+    write_json(run / 'run.json', {'phase': 'evaluating', 'evaluation_deadline_epoch': None})
+    data = {'session_id': 'session', 'deadline_epoch': 0, 'created_at': 'start', 'deadline': 'end',
+            'closing': True, 'submissions': {}, 'executions': {}, 'limits': service.controller.limits}
+    result = service.controller._status(data)
+    assert result['phase'] == 'evaluating'
+    assert result['budget']['evaluation_remaining_seconds'] is None
+    assert service.controller.limits['phase_budgets']['evaluation_seconds'] is None
+    service.shutdown()
+
+
 def test_slow_checkpoint_keeps_status_and_cancel_available(tmp_path, executable_case):
     import base64
     import threading

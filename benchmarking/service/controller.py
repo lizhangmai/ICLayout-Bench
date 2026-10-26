@@ -267,8 +267,9 @@ class SessionController:
                 import json
                 report = json.loads(path.read_bytes())
                 deadline = report.get('evaluation_deadline_epoch')
-                if deadline is not None:
-                    result['budget']['evaluation_remaining_seconds'] = max(0, deadline-time.time())
+                if 'evaluation_deadline_epoch' in report:
+                    result['budget']['evaluation_remaining_seconds'] = (
+                        max(0, deadline-time.time()) if deadline is not None else None)
         return result
 
     def _result(self, data):

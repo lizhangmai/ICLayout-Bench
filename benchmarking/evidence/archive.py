@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from benchmarking.evaluation.scoring import attempt_score
 from benchmarking.evidence.journal import read_journal, recover_submissions
 from benchmarking.files import Asset, EvidenceError, checked, read_file
 
@@ -50,6 +51,7 @@ class FinalRunEvidence:
     candidate: bytes | None
     top_cell: str | None
     evaluation: EvaluationArchive | None
+    termination: str | None = None
 
 
 @dataclass(frozen=True)
@@ -131,9 +133,13 @@ class RunArchive:
             checked(self.root, self.report['evaluation'])
             evaluation = EvaluationArchive(self.root / 'evaluation')
             judged = evaluation.report
-            if judged.get('score') != result.get('score'):
+            expected = judged.get('score')
+            if expected is not None:
+                expected = attempt_score(self.report.get('termination'), self.report.get('outcome'),
+                                         expected, method=expected['method'])
+            if expected != result.get('score'):
                 raise EvidenceError('Service score differs from independent evaluator report')
-        return FinalRunEvidence(candidate, top_cell, evaluation)
+        return FinalRunEvidence(candidate, top_cell, evaluation, self.report.get('termination'))
 
     def feedback(self):
         for check in self.report.get('process_feedback', {}).get('checks', []):
