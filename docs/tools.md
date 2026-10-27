@@ -249,10 +249,13 @@ sum is not evaluation wall time. Resource preparation precedes that interval.
 
 #### Evaluation time limits and cancellation
 
-Session feedback, final judging, standalone evaluation, characterization and
-qualification let EDA jobs finish without per-job limits by default
+The shared native/container tool executor lets EDA jobs finish without per-job
+limits by default, including direct operator and preview calls, session feedback,
+final judging, standalone evaluation, characterization and qualification.
+The default is owned by the shared execution policy; evaluation, feedback and
+preview callers inherit it, including across worker threads
 (`tool_time_limits = false`). Declared backend `timeout_seconds` does not impose
-an automatic cutoff on these evaluations. Callers can explicitly select
+an automatic cutoff on these jobs. Callers can explicitly select
 `run_evaluation(..., limit_tools=True)` for bounded diagnostics; startup/version
 probes retain their own bounded timeouts.
 
@@ -268,6 +271,35 @@ Phase budgets are specified by the
 Cancelling a process check propagates to native/container jobs and their parallel
 workers. Cancelled jobs retain diagnostics and cannot publish successful
 extraction. Later checks and final judging use independent cancellation scopes.
+
+#### Automatic tool retries
+
+The shared native/container executor permits at most three attempts for an
+immutable EDA job, waiting one and two seconds before the next attempts. It retries
+explicit native crashes (including PVS report-cleanup crashes) and recognized
+license checkout failures. Capacity and server connectivity failures qualify only
+when the native diagnostic explicitly identifies them. A `No such feature exists`
+response is also retried because it can occur intermittently during startup;
+it does not by itself establish that the feature is permanently absent or that
+concurrency caused the failure. Persistent missing-feature responses stop at the
+same attempt limit. Explicit expired/invalid licenses, unrecognized exits and input
+errors do not trigger retries. Completed DRC/LVS rejections and measurement failures
+remain candidate/evaluation results; they are not retried to seek a better score.
+
+Each attempt uses the same frozen command, inputs, declared resources and tool
+identity in a fresh directory or container. Failed processes are stopped before
+another attempt starts. Only the last attempt supplies outputs to the backend's
+normal completion and result checks. Retry exhaustion remains an evaluation error
+with an unknown score, never a fabricated zero or pass.
+
+The retry policy is recorded in the tool identity. When recovery is attempted,
+`tool-attempts.json` records attempts, exit codes, failure classifications,
+elapsed time and termination; `tool-attempts/N/` retains earlier logs and partial
+outputs. These older diagnostics cannot override the final attempt's failure
+classification. Report wall time includes attempts and backoff, and retries do
+not renew an enclosing command or diagnostic deadline. Cancellation also stops
+backoff and prevents another launch. This recovery does not restart a participant
+or replay arbitrary solver workspace commands.
 Native tools record process/thread states before termination without retaining
 command arguments or environment values in those snapshots.
 
@@ -908,6 +940,8 @@ are not implied by a default DRC pass. Evidence includes the runset, native log,
 summary and error report. The runtime must provide `assura` on PATH.
 For a host diagnostic with the same runset and parser, use
 `python -m benchmarking.eda.backends.assura --layout FILE --top CELL --deck FILE --output NEW_DIR`.
+This command inherits the shared EDA time policy; `--timeout SECONDS` explicitly
+requests a bounded diagnostic run.
 `assura-lvs-native` accepts frozen GDS, task and reference CDL (`spice` format).
 Its `extract_deck`, `compare_deck` and `binding_deck` are relative to `PDK_ROOT`.
 It invokes native Assura extraction and CDL comparison without OA access, rule
@@ -1323,7 +1357,7 @@ Both use the common measurement window. Their first edges are aligned once by
 the nearest initial event, and subsequent edges are paired by ordinal position.
 Population standard deviation or peak-to-peak span uses these continuous time
 differences, preserving accumulated drift and cycle slips. Too few aligned
-edges is an error. This observation does not establish frequency lock by itself.
+edges rejects the candidate response. This observation does not establish frequency lock by itself.
 
 ### Crossing events
 
@@ -1331,7 +1365,7 @@ edges is an error. This observation does not establish frequency lock by itself.
 (`rise` or `fall`). `delay` requires unit `s`, `trigger` and `target` events,
 one-based ordinal `pairs` such as `[[1,1],[2,2]]`, and `aggregation = "min"` or
 `"max"`. Both event lists use the declared window independently. Early targets
-produce negative delays; missing requested edges are errors. This supports
+produce negative delays; missing requested edges reject the candidate response. This supports
 propagation, pulse widths, slew and signed dead time without selecting a later
 edge to conceal overlap. Authors must also bound crossing counts and logic
 levels to reject glitches or missing cycles. Nonfinite/incomplete signals,
@@ -1342,7 +1376,7 @@ between zero and one. Its threshold is that fraction of the trace's minimum-to-
 maximum range within the measurement window, including interpolated endpoints.
 This supports relative slew measurement without imposing an absolute swing gate.
 The two threshold forms are mutually exclusive; a constant signal has no relative
-threshold and is an error. Both threshold forms use the same event pairing and
+threshold and rejects a prescribed response measurement. Both threshold forms use the same event pairing and
 missing-edge checks.
 
 ### Cycle measurements
@@ -1352,7 +1386,7 @@ missing-edge checks.
 high time divided by period between each consecutive pair of rising crossings,
 requiring exactly one falling crossing inside every complete period. Partial
 cycles at the window boundaries are excluded; too few complete periods or
-missing/ambiguous falling crossings are errors. Use separate minimum and maximum
+missing/ambiguous falling crossings reject the candidate response. Use separate minimum and maximum
 metrics to enforce a duty envelope on every observed cycle; an average alone
 does not establish that envelope. Frequency, amplitude and startup requirements
 remain separate task gates.
@@ -1370,6 +1404,18 @@ in addition to the common fields. Both windows independently require the minimum
 complete-cycle count. With arithmetic mean frequencies `a` in the main window
 and `b` in the reference window, they return `a/b` and `abs(a-b)/((a+b)/2)`.
 These comparisons do not replace per-cycle frequency, duty or amplitude gates.
+
+After successful Spectre execution, these response rejections produce a `failed`
+simulation job and a zero layout score under the shared candidate-rejection rule.
+The adapter retains native logs, the sampled waveform, and
+`waveform-measurements.json`, which records each rejected measurement with its
+declared specification and all independently available values. Undefined values
+are never replaced with fabricated scalars. A response rejection in an unrequested
+diagnostic measure alone does not reject the requested observations.
+Malformed or truncated waveforms, absent signals, invalid declarations, windows
+outside the completed analysis, and execution failures remain `error` with an
+unknown score. Validation errors take precedence over a response rejection;
+neither condition triggers infrastructure retries.
 
 ### ADC transfer
 

@@ -13,7 +13,10 @@ from benchmarking.eda.environment import ExternalRuntime
 from benchmarking.evaluation.contracts import JobResult, Measurement
 from benchmarking.evaluation.measurements.frequency import measure_transfer
 from benchmarking.evaluation.measurements.sweep import measure_sweep
-from benchmarking.evaluation.measurements.waveform import measure_waveform
+from benchmarking.evaluation.measurements.waveform import (
+    WaveformRejected,
+    measure_waveform,
+)
 from benchmarking.evidence.identity import package_source
 from benchmarking.execution.tools.native import NativeEDATool
 from benchmarking.files import Asset, keys
@@ -310,6 +313,24 @@ class SpectreBackend:
             else:
                 measurements = ac_measurements(psf_ascii(result.files['results/ac.ac'].content),
                                                psf_ascii(result.files['results/op.dc'].content), job.parameters['response'])
+        except WaveformRejected as error:
+            evidence['waveform-measurements.json'] = Asset(json.dumps({
+                'measurements': {name: {'value': value.value, 'unit': value.unit}
+                                 for name, value in error.measurements.items()},
+                'rejections': {name: {'reason': reason,
+                                      'specification': job.parameters['waveform']['measures'][name]}
+                               for name, reason in error.rejections.items()},
+            }, allow_nan=False).encode(), 'json')
+            requested = job.parameters['measurements']
+            specs = job.parameters['waveform']['measures']
+            if not requested or any(name not in specs or specs[name]['unit'] != unit
+                                    for name, unit in requested.items()):
+                return JobResult('error', 'Unsupported Spectre measurement or unit', evidence=evidence)
+            rejected = {name: reason for name, reason in error.rejections.items() if name in requested}
+            if rejected:
+                return JobResult('failed', '; '.join(f'{name}: {reason}' for name, reason in rejected.items()),
+                                 evidence=evidence)
+            measurements = error.measurements
         except (ValueError, KeyError) as error:
             return JobResult("error", str(error), evidence=evidence)
         requested = job.parameters['measurements']

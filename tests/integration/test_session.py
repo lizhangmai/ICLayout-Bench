@@ -265,6 +265,51 @@ assert submit()['accepted']
 
 @pytest.mark.acceptance
 @pytest.mark.acceptance_container
+def test_direct_container_jobs_share_the_unlimited_eda_default():
+    tool = DockerTool(IMAGE, ['python', '--version'], 10)
+    tool.timeout_seconds = .02
+    result = tool.run(['python', '-c', 'import time; time.sleep(.1); print("complete")'], {}, {})
+    assert result.returncode == 0 and not result.reason
+    assert result.evidence['console'].content.strip() == b'complete'
+
+
+@pytest.mark.acceptance
+@pytest.mark.acceptance_container
+@pytest.mark.parametrize('diagnostic', [
+    'Fatal error (signal SIGSEGV) - crash handler invoked',
+    'FLEXnet ERROR(-5, 0, 0): No such feature exists.'])
+def test_container_infrastructure_retries_use_fresh_containers_and_keep_failed_outputs(monkeypatch, diagnostic):
+    created = []
+    original = subprocess.check_output
+
+    def create(command, **kwargs):
+        result = original(command, **kwargs)
+        if command[:2] == ['docker', 'create']:
+            created.append(result.strip())
+        return result
+
+    monkeypatch.setattr(subprocess, 'check_output', create)
+    tool = DockerTool(IMAGE, ['python', '--version'], 10)
+    script = ('from pathlib import Path; '
+              'Path("output.gds").write_bytes(Path("input.gds").read_bytes()); '
+              f'print({diagnostic!r},flush=True); '
+              'raise SystemExit(1)')
+    result = tool.run(['python', '-c', script], {'input.gds': Asset(b'frozen input', 'gds')},
+                      {'output.gds': 'gds'})
+    expected = tool.identity['retry_policy']['max_attempts']
+    assert len(created) == len(set(created)) == expected
+    assert result.returncode == 1 and result.reason
+    attempts = json.loads(result.evidence['tool-attempts.json'].content)
+    assert attempts['termination'] == 'exhausted'
+    assert len(attempts['attempts']) == expected
+    for i in range(1, expected):
+        assert result.evidence[f'tool-attempts/{i}/outputs/output.gds'].content == b'frozen input'
+    for container in created:
+        assert subprocess.run(['docker', 'inspect', container], capture_output=True, check=False).returncode != 0
+
+
+@pytest.mark.acceptance
+@pytest.mark.acceptance_container
 @pytest.mark.parametrize('ending', ['complete', 'error', 'timeout', 'cancel'])
 def test_tool_memory_workspace_retains_private_outputs_after_failure(tmp_path, monkeypatch, ending):
     model = tmp_path / 'model.txt'
@@ -342,7 +387,13 @@ elif sys.argv[1] == 'error':
             result = pending.result(timeout=3)
         assert subprocess.run(['docker', 'inspect', containers[0]], capture_output=True, check=False).returncode != 0
     else:
-        result = execute_tool()
+        if ending == 'timeout':
+            from benchmarking.execution.tools.budget import tool_time_limits
+
+            with tool_time_limits(True):
+                result = execute_tool()
+        else:
+            result = execute_tool()
     assert 'models/derived.txt' in result.files, (result.reason, result.evidence)
     assert result.files['models/derived.txt'].content == b'frozen input / mounted model'
     assert result.files['linked-output.txt'].content == b'frozen input / mounted model'

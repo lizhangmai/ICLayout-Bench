@@ -15,6 +15,25 @@ from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
 
+
+def test_direct_native_jobs_share_the_unlimited_eda_default():
+    """Preview and operator callers must not need their own timeout opt-out."""
+    from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.execution.tools.budget import tool_time_limits
+    from benchmarking.execution.tools.native import NativeTool
+
+    runtime = ExternalRuntime('test', {'image': 'unused', 'environment': {}, 'mounts': []})
+    tool = NativeTool(runtime, timeout_seconds=.02)
+    command = [sys.executable, '-c', 'import time; time.sleep(.1); print("complete")']
+    result = tool.run(command, {}, {})
+    assert result.returncode == 0 and not result.reason
+    assert result.evidence['console'].content.strip() == b'complete'
+    with tool_time_limits(True):
+        limited = tool.run(command, {}, {})
+    assert limited.returncode is None and 'time limit' in limited.reason
+    assert tool.run(command, {}, {}).returncode == 0
+
+
 @pytest.mark.parametrize('crash', [False, True])
 def test_independent_simulations_overlap_after_extraction(tmp_path, inputs, bindings, crash):
     """Serial corner execution wastes the explicit backend concurrency allowance.
@@ -54,6 +73,7 @@ def test_evaluation_and_qualification_allow_native_jobs_to_finish_by_default(
 
     from benchmarking.eda.environment import ExternalRuntime
     from benchmarking.evaluation.qualification import run as qualify
+    from benchmarking.execution.tools.budget import tool_time_limits
     from benchmarking.execution.tools.native import NativeTool
 
     runtime = ExternalRuntime('test', {'image': 'unused', 'environment': {}, 'mounts': []})
@@ -88,17 +108,28 @@ def test_evaluation_and_qualification_allow_native_jobs_to_finish_by_default(
     assert limited['jobs']['nominal']['status'] == 'error'
     assert limited['jobs']['slow']['status'] == 'error'
     assert limited['tool_time_limits'] is True
+    with tool_time_limits(True):
+        if entry == 'qualification':
+            with pytest.raises(ValueError, match='Qualification did not pass'):
+                evaluate_at('shared-policy')
+            inherited = json.loads((tmp_path / 'shared-policy/evaluation/report.json').read_text())
+        else:
+            inherited = evaluate_at('shared-policy')
+    assert inherited['tool_time_limits'] is True
+    assert inherited['jobs']['nominal']['status'] == 'error'
     # An explicitly bounded probe must not change later evaluation defaults.
     assert evaluate_at('independent')['task_success'] is True
 
 
 @pytest.mark.parametrize('phase', ['feedback', 'final'])
-def test_session_evaluation_allows_native_jobs_to_finish(tmp_path, inputs, bindings, phase):
+@pytest.mark.parametrize('limited', [False, True])
+def test_session_evaluation_inherits_shared_tool_policy(tmp_path, inputs, bindings, phase, limited):
     from types import SimpleNamespace
 
     from benchmarking.eda.environment import ExternalRuntime
     from benchmarking.execution.budgets import PhaseBudgets
     from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
+    from benchmarking.execution.tools.budget import tool_time_limits
     from benchmarking.execution.tools.native import NativeTool
     from benchmarking.execution.workspace import SessionResult
     from benchmarking.execution.workspace.config import RunConfig
@@ -134,13 +165,14 @@ def test_session_evaluation_allows_native_jobs_to_finish(tmp_path, inputs, bindi
                                  inputs['candidate'] if phase == 'final' else None,
                                  Asset(b'', 'text'), False, {})
 
-    run_session(task, config, {}, bindings, tmp_path / 'session', session=Session())
+    with tool_time_limits(limited):
+        run_session(task, config, {}, bindings, tmp_path / 'session', session=Session())
     report = (feedback_reports[0] if phase == 'feedback' else
               json.loads((tmp_path / 'session/evaluation/report.json').read_text()))
-    assert report['task_success'] is True, {
+    assert report['tool_time_limits'] is limited
+    assert report['task_success'] is (None if limited else True), {
         name: result['reason'] for name, result in report['jobs'].items()
         if result['status'] == 'error'}
-    assert report['tool_time_limits'] is False
 
 
 def test_check_cancellation_reaches_parallel_native_jobs_and_does_not_leak(tmp_path, inputs, bindings):
@@ -351,6 +383,15 @@ def test_native_license_failure_is_infrastructure_error_not_candidate_rejection(
     job = report['jobs']['artifact' if stage == 'check' else 'parasitics']
     assert job['status'] == 'error'
     assert job['failure']['category'] == 'license_unavailable'
+    assert report['outcome'] == 'error' and report['score']['value'] is None
+
+
+def test_last_failure_is_not_reclassified_from_an_earlier_retry_log(tmp_path, inputs, bindings):
+    bindings['check'].run = lambda job, assets: JobResult('error', 'Invalid native input', evidence={
+        'console': Asset(b'Invalid native input', 'text'),
+        'tool-attempts/1/evidence/console': Asset(b'ERROR (ELI-00111) Failed to check out license.\n', 'text')})
+    report = evaluate(tmp_path, inputs, bindings)
+    assert report['jobs']['artifact'].get('failure') is None
     assert report['outcome'] == 'error' and report['score']['value'] is None
 
 

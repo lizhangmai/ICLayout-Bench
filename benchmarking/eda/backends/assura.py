@@ -3,17 +3,23 @@
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import shlex
 import subprocess
 import sys
+import tempfile
+import time
 from pathlib import Path
 
 from benchmarking.eda.environment import ExternalRuntime
 from benchmarking.eda.netlists.dspf import ExtractionRejected, bind_extracted_netlist
 from benchmarking.evaluation.contracts import JobResult
 from benchmarking.evidence.identity import package_source
+from benchmarking.execution.process import execute
+from benchmarking.execution.tools import ToolResult, run_with_retries, tool_retry_policy
+from benchmarking.execution.tools.budget import tool_deadline, tool_timeout
 from benchmarking.execution.tools.native import NativeEDATool
 from benchmarking.files import Asset, keys
 
@@ -288,13 +294,17 @@ def main():
     parser.add_argument('--top', required=True)
     parser.add_argument('--deck', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--timeout', type=int, default=300)
+    parser.add_argument('--timeout', type=float,
+                        help='Explicit diagnostic deadline in seconds; default inherits shared EDA policy')
     parser.add_argument('--pdk', type=Path,
                         help='Process manifest for host checks; deck paths are relative to PDK_ROOT')
     parser.add_argument('--netlist', type=Path)
     parser.add_argument('--compare-deck', type=Path)
     parser.add_argument('--binding-deck', type=Path)
     args = parser.parse_args()
+    if args.timeout is not None and (not math.isfinite(args.timeout) or args.timeout <= 0):
+        parser.error('--timeout must be positive and finite')
+    diagnostic_deadline = None if args.timeout is None else time.monotonic() + args.timeout
     if args.pdk:
         from benchmarking.evaluation.contracts import Job
 
@@ -302,21 +312,22 @@ def main():
         layout = Asset(args.layout.read_bytes(), 'gds')
         inputs = {'layout': layout, 'task': Asset(json.dumps({
             'output': {'top_cell': args.top}, 'netlist_subcircuit': args.top}).encode(), 'json')}
+        timing = {} if args.timeout is None else {'timeout_seconds': args.timeout}
         if args.check == 'lvs':
             if not all([args.netlist, args.compare_deck, args.binding_deck]):
                 parser.error('LVS requires --netlist, --compare-deck and --binding-deck')
             inputs['netlist'] = Asset(args.netlist.read_bytes(), 'spice')
             backend = AssuraLvsNative(runtime=runtime, extract_deck=str(args.deck),
                                       compare_deck=str(args.compare_deck),
-                                      binding_deck=str(args.binding_deck), timeout_seconds=args.timeout)
+                                      binding_deck=str(args.binding_deck), **timing)
         else:
             if any([args.netlist, args.compare_deck, args.binding_deck]):
                 parser.error('CDL and comparison decks belong to LVS')
-            backend = AssuraNative(runtime=runtime, drc_deck=str(args.deck),
-                                   timeout_seconds=args.timeout)
+            backend = AssuraNative(runtime=runtime, drc_deck=str(args.deck), **timing)
         args.output.mkdir(parents=True, exist_ok=False)
-        result = backend.run(Job(args.check, 'check', 'layout.' + args.check,
-                                 (), (), (), None, '{}'), inputs)
+        with tool_deadline(diagnostic_deadline):
+            result = backend.run(Job(args.check, 'check', 'layout.' + args.check,
+                                     (), (), (), None, '{}'), inputs)
         for name, asset in result.evidence.items():
             path = args.output / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -344,19 +355,37 @@ def main():
     (args.output / 'run.rsf').write_text(runset)
     def sha(path):
         return hashlib.sha256(path.read_bytes()).hexdigest()
-    report = {'check': args.check, 'top': args.top, 'command': ['assura', 'run.rsf']}
+    report = {'check': args.check, 'top': args.top, 'command': ['assura', 'run.rsf'],
+              'retry_policy': tool_retry_policy()}
     for name, path in sources.items():
         report.update({name: str(path), name + '_sha256': sha(path)})
     environment = {key: value for key, value in os.environ.items()
                    if key not in {'OA_HOME', 'OA_PLUGIN_PATH', 'LD_LIBRARY_PATH'}}
+
+    def attempt():
+        if any(sha(path) != report[name + '_sha256'] for name, path in sources.items()):
+            raise ValueError('Assura inputs changed during the run')
+        with tempfile.TemporaryDirectory(prefix='assura-job-', dir=args.output) as temporary:
+            root = Path(temporary)
+            (root / 'run.rsf').write_text(runset)
+            with (root / 'assura.log').open('w') as log:
+                code, timed_out = execute(['assura', 'run.rsf'], cwd=root, stdout=log,
+                    stderr=subprocess.STDOUT, timeout=tool_timeout(args.timeout), env=environment)
+            files = {p.relative_to(root).as_posix(): Asset(p.read_bytes(), 'text') for p in root.rglob('*')
+                     if p.is_file() and p != root / 'run.rsf'}
+        reason = 'Assura exceeded its diagnostic deadline' if timed_out else 'Assura did not complete' if code else ''
+        return ToolResult(None if timed_out else code, reason, files, {})
+
     try:
-        with (args.output / 'assura.log').open('w') as log:
-            proc = subprocess.run(['assura', 'run.rsf'], cwd=args.output, stdout=log,
-                                  stderr=subprocess.STDOUT, timeout=args.timeout, check=False,
-                                  env=environment)
-        report['returncode'] = proc.returncode
-        if proc.returncode:
-            raise ValueError('Assura did not complete')
+        with tool_deadline(diagnostic_deadline):
+            result = run_with_retries(attempt, args.timeout)
+        for name, asset in (result.files | result.evidence).items():
+            target = args.output / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(asset.content)
+        report['returncode'] = result.returncode
+        if result.reason or result.returncode:
+            raise ValueError(result.reason or 'Assura did not complete')
         reports = [(args.output / name).read_text(errors='replace')
                    for name in ['assura.log', 'result.sum']]
         if args.check == 'lvs':

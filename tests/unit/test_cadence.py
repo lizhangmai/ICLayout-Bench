@@ -708,6 +708,59 @@ def test_transient_settling_uses_last_band_entry_and_frozen_reference_window():
         transient_measurements(samples, settings | {'edge_index': 2})
 
 
+@pytest.mark.parametrize(('problem', 'expected'), [
+    ('cycles', 'failed'), ('flat', 'failed'), ('glitch', 'failed'),
+    ('truncated', 'error'), ('missing_signal', 'error'), ('sparse', 'error'),
+    ('invalid_minimum', 'error'), ('invalid_unit', 'error'),
+    ('invalid_requested_unit', 'error'), ('invalid_after_rejection', 'error'),
+    ('unrequested_diagnostic', 'passed'), ('execution', 'error'), ('completion', 'error')])
+def test_spectre_distinguishes_waveform_rejection_from_invalid_evidence(problem, expected):
+    samples = {'time': list(range(7)), 'out': [-1, -1, 1, 1, -1, -1, 1]}
+    if problem == 'flat':
+        samples['out'] = [1]*7
+    if problem == 'glitch':
+        samples['out'] = [-1, -1, 1, 0, 1, -1, 1]
+    psf = 'VALUE\n' + ''.join(
+        ''.join(f'"{name}" {values[i]}\n' for name, values in samples.items())
+        for i in range(7)) + ('END\n' if problem != 'truncated' else '')
+    backend = object.__new__(SpectreNative)
+    backend.runtime = SimpleNamespace(pdk_file=lambda name: (None, '/pdk/model'))
+    backend.model, backend.section = 'models', 'tt'
+    backend.tool = SimpleNamespace(run=lambda *a, **kw: ToolResult(
+        1 if problem == 'execution' else 0, 'native failure' if problem == 'execution' else '',
+        {'spectre.log': Asset(b'incomplete' if problem == 'completion' else
+                              b'spectre completes with 0 errors', 'text'),
+         'results/tran.tran.tran': Asset(psf.encode(), 'text')}, {}))
+    short = problem in {'cycles', 'invalid_requested_unit', 'invalid_after_rejection', 'unrequested_diagnostic'}
+    spec = {'operation': 'frequency', 'start_s': 0, 'stop_s': 3 if short else 6,
+            'unit': 'V' if problem == 'invalid_unit' else 'Hz', 'trace': 'out', 'threshold': 0,
+            'min_cycles': 0 if problem == 'invalid_minimum' else 1, 'aggregation': 'mean'}
+    settings = {'max_step_s': .5 if problem == 'sparse' else 1,
+                'traces': {'out': {'terms': {'absent' if problem == 'missing_signal' else 'out': 1}}},
+                'measures': {'frequency': spec,
+                             'edges': {'operation': 'count', 'start_s': 0, 'stop_s': 6, 'unit': '1',
+                                       'event': {'trace': 'out', 'threshold': 0, 'direction': 'rise'}}}}
+    if problem == 'invalid_after_rejection':
+        settings['measures']['edges']['event']['direction'] = 'invalid'
+    requested = ({'edges': '1'} if problem == 'unrequested_diagnostic' else
+                 {'frequency': 'V' if problem == 'invalid_requested_unit' else spec['unit'], 'edges': '1'})
+    job = Job('oscillator', 'simulate', 'circuit.simulate', (), (), (), None,
+              json.dumps({'measurements': requested, 'waveform': settings}))
+    result = backend.run(job, {name: Asset(b'fixture', 'spice') for name in ('deck', 'dut')})
+    assert result.status == expected
+    assert not result.outputs
+    if expected == 'passed':
+        assert result.measurements['edges'].value == 2
+    else:
+        assert not result.measurements
+    assert 'results/tran.tran.tran' in result.evidence
+    if expected == 'failed':
+        detail = json.loads(result.evidence['waveform-measurements.json'].content)
+        assert 'frequency' in detail['rejections']
+        assert 'frequency' not in detail['measurements']
+        assert detail['measurements']['edges']['value'] == (0 if problem == 'flat' else 2)
+
+
 def test_spectre_named_transients_share_run_and_reject_missing_edge():
     # Two analytical ramps settle at 1.9 and 4.9 s; trigger crossings are
     # at .5 and 3.5 s, hence both settling times are 1.4 s.
@@ -954,6 +1007,47 @@ def test_assura_native_drc_requires_complete_nonempty_run():
     assert 'blackBox' not in rsf and '?set' not in rsf
     with pytest.raises(ValueError):
         drc_runset('candidate.gds', 'dut', '/pdk/"bad')
+
+
+@pytest.mark.parametrize('mode', ['default', 'shared-deadline', 'explicit-deadline', 'recover-crash'])
+def test_assura_standalone_inherits_shared_execution_deadline(tmp_path, monkeypatch, mode):
+    import time
+
+    from benchmarking.eda.backends.assura import main
+    from benchmarking.execution.tools.budget import tool_deadline
+
+    tool = tmp_path / 'assura'
+    log = 'Translating structure "dut"\nTop Cell is \'dut\'\nTotal errors: 0 0\nAssura terminated normally\n'
+    summary = 'Total cells checked = 1\nTotal rules checked = 42\nEnd of Summary Report\n'
+    counter = tmp_path / 'attempt-count'
+    tool.write_text(f'#!{sys.executable}\nimport time\nfrom pathlib import Path\n'
+                    f'counter=Path({str(counter)!r})\nn=int(counter.read_text())+1 if counter.exists() else 1\n'
+                    'Path("reports").mkdir()\nPath("reports/native.dat").write_bytes(bytes([0,255]))\n'
+                    f'counter.write_text(str(n))\nif {mode == "recover-crash"!r} and n==1:\n'
+                    ' print("Fatal error (signal SIGSEGV) - crash handler invoked",flush=True)\n'
+                    ' raise SystemExit(1)\n'
+                    f'time.sleep(.1)\nprint({log!r})\nPath("result.sum").write_text({summary!r})\n')
+    tool.chmod(0o755)
+    monkeypatch.setenv('PATH', str(tmp_path))
+    layout, deck = tmp_path / 'candidate.gds', tmp_path / 'native.rul'
+    layout.write_bytes(b'frozen candidate')
+    deck.write_text('declared deck')
+    output = tmp_path / 'result'
+    command = ['assura', '--layout', str(layout), '--top', 'dut',
+               '--deck', str(deck), '--output', str(output)]
+    if mode == 'explicit-deadline':
+        command += ['--timeout', '.02']
+    monkeypatch.setattr(sys, 'argv', command)
+    with tool_deadline(time.monotonic()+.02 if mode == 'shared-deadline' else None):
+        code = main()
+    record = json.loads((output / 'result.json').read_text())
+    assert code == (0 if mode in {'default', 'recover-crash'} else 1)
+    assert record['status'] == ('passed' if mode in {'default', 'recover-crash'} else 'error')
+    if mode == 'recover-crash':
+        assert counter.read_text() == '2'
+        assert (output / 'tool-attempts.json').is_file()
+        assert (output / 'reports/native.dat').read_bytes() == bytes([0, 255])
+        assert (output / 'tool-attempts/1/outputs/reports/native.dat').read_bytes() == bytes([0, 255])
 
 
 def test_assura_lvs_reports_require_agreement_and_complete_run():

@@ -416,7 +416,9 @@ Trusted backends explicitly distinguish completed candidate rejections (`failed`
 from inability to judge (`error`). A readable native extraction that violates the
 prescribed interface or physical completeness requirements is a rejection. A
 completed simulation that explicitly reports no required response event is also
-a rejection. Both score zero, even when the native diagnostic uses the word
+a rejection. This includes a complete, valid sampled waveform with too few
+prescribed cycles or missing required crossing events inside the declared window.
+Both score zero, even when the native diagnostic uses the word
 "error". Retain those diagnostics without rewriting their contents.
 
 Crashes, infrastructure execution/cleanup failures, invalid task configuration,
@@ -591,7 +593,8 @@ bounds; `aggregation` affects only the displayed summary. A metric without bound
 has no acceptance threshold, though it may contribute source-paired quality.
 An unscored `target` metric requires both bounds; a scored target uses its paired
 source value and scale. Units must match exactly. Missing, nonfinite and wrong-unit
-measurements are errors; no implicit unit conversion is performed.
+measurements are errors unless a trusted adapter explicitly establishes a
+completed candidate response rejection. No implicit unit conversion is performed.
 
 Backends receive only the inputs declared for their jobs. The `task` input
 provides fields such as `output.top_cell` and `netlist_subcircuit`, without reference

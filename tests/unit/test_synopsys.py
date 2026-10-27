@@ -124,6 +124,8 @@ def test_hspice_model_cards_and_library_sections(monkeypatch, sections, statemen
 
 
 def test_native_frozen_bytes_license_redaction_and_timeout(monkeypatch):
+    from benchmarking.execution.tools.budget import tool_time_limits
+
     monkeypatch.setenv('ICLAYOUT_TEST_LICENSE', 'private-test-setting')
     runtime = ExternalRuntime('test', {'image': 'unused', 'environment': {}, 'mounts': [],
                                       'pass_environment': ['ICLAYOUT_TEST_LICENSE']})
@@ -138,7 +140,8 @@ def test_native_frozen_bytes_license_redaction_and_timeout(monkeypatch):
     assert b'private-test-setting' not in result.evidence['console'].content
     assert b'<operator-license-setting>' in result.evidence['console'].content
     tool.timeout_seconds = .1
-    result = tool.run([sys.executable, '-c', 'import time; time.sleep(2)'], {}, {'missing': 'text'})
+    with tool_time_limits(True):
+        result = tool.run([sys.executable, '-c', 'import time; time.sleep(2)'], {}, {'missing': 'text'})
     assert result.returncode is None and 'time limit' in result.reason and not result.files
     result = tool.run([sys.executable, '-c', 'raise SystemExit(4)'], {}, {'missing': 'text'})
     assert result.returncode == 4 and 'exited with 4' in result.reason

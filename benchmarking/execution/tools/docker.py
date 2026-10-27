@@ -7,7 +7,7 @@ import tarfile
 from pathlib import Path
 
 from benchmarking.evaluation.contracts import number
-from benchmarking.execution.tools import ToolResult
+from benchmarking.execution.tools import ToolResult, run_with_retries, tool_retry_policy
 from benchmarking.execution.tools.budget import (
     ToolCancelled,
     tool_cancelled,
@@ -110,19 +110,30 @@ class DockerTool:
     def identity(self) -> dict:
         return {"image_id": self.image_id, "tool_version": self.version,
                 "timeout_seconds": self.timeout_seconds, "limits": self.limits,
+                "retry_policy": tool_retry_policy(),
                 "executable_workspace": self.executable_workspace,
                 "execution_sha256": Asset(Path(__file__).read_bytes() + _SNAPSHOT.encode()
                                           + Path(__file__).with_name('cleanup.py').read_bytes()
+                                          + Path(__file__).with_name('__init__.py').read_bytes()
+                                          + Path(__file__).with_name('diagnostics.py').read_bytes()
                                           + Path(__file__).with_name('budget.py').read_bytes(), "python").sha256,
                 **({'external': self.runtime.identity} if self.runtime else {})}
 
     def run(self, command: list[str], files: dict[str, Asset | ReadOnlyMount], exports: dict[str, str], *,
             environment: dict[str, str] | None = None) -> ToolResult:
+        command, files, exports = list(command), dict(files), dict(exports)
+        environment = dict(environment) if environment is not None else None
+        return run_with_retries(lambda: self._run_once(command, files, exports, environment=environment),
+                                 self.timeout_seconds)
+
+    def _run_once(self, command, files, exports, *, environment=None):
         """Stream inputs and outputs through a fresh, in-memory tool workspace.
 
         exports maps paths to formats. Collect declared files even on failure;
         never interpret tool output as a successful circuit check here.
         """
+        if self.runtime is not None and self.runtime.identity != self.runtime._identity:
+            raise ValueError('External installation changed since preparation')
         controls = self.runtime.control_assets() if self.runtime else {}
         if controls.keys() & files.keys():
             raise ValueError('Tool inputs collide with native process control files')

@@ -11,7 +11,7 @@ from benchmarking.execution._scripts.wait_process_tree import (
     kill_descendants,
     process_snapshot,
 )
-from benchmarking.execution.tools import ToolResult
+from benchmarking.execution.tools import ToolResult, run_with_retries, tool_retry_policy
 from benchmarking.execution.tools.budget import (
     ToolCancelled,
     tool_cancelled,
@@ -43,10 +43,13 @@ class NativeTool:
     def identity(self):
         return {'execution': 'operator-native', 'uid': os.getuid(), 'gid': os.getgid(),
                 'timeout_seconds': self.timeout_seconds,
+                'retry_policy': tool_retry_policy(),
                 'isolation': 'fresh-job-directory; operator host resources and network',
                 'external': self.runtime.identity,
                 'native_launcher_sha256': Asset(Path(__file__).read_bytes()
                     + Path(__file__).with_name('budget.py').read_bytes()
+                    + Path(__file__).with_name('__init__.py').read_bytes()
+                    + Path(__file__).with_name('diagnostics.py').read_bytes()
                     + Path(__file__).resolve().parents[1].joinpath('_scripts/wait_process_tree.py').read_bytes(),
                     'python').sha256}
 
@@ -64,6 +67,15 @@ class NativeTool:
 
     def run(self, command, files, exports, *, evidence_patterns=(), file_rewriter=None,
             failure_label=None):
+        command, files, exports = list(command), dict(files), dict(exports)
+        environment, evidence_patterns = dict(self.environment), tuple(evidence_patterns)
+        return run_with_retries(lambda: self._run_once(command, files, exports,
+            evidence_patterns=evidence_patterns, file_rewriter=file_rewriter, failure_label=failure_label,
+            environment=environment),
+            self.timeout_seconds)
+
+    def _run_once(self, command, files, exports, *, evidence_patterns=(), file_rewriter=None,
+                  failure_label=None, environment=None):
         if self.runtime.identity != self.runtime._identity:
             raise ValueError('External installation changed since preparation')
         controls = self.runtime.control_assets()
@@ -88,7 +100,7 @@ class NativeTool:
                 path.write_bytes(content)
                 path.chmod(0o444)
             with (root / 'native-console').open('wb') as log:
-                process = subprocess.Popen(command, cwd=root, env=self.environment, stdout=log,
+                process = subprocess.Popen(command, cwd=root, env=environment, stdout=log,
                                            stderr=subprocess.STDOUT, start_new_session=True)
                 try:
                     code = wait_for_tool(process, tool_timeout(self.timeout_seconds))
@@ -105,6 +117,11 @@ class NativeTool:
                         pass
                     process.wait()
             if code not in (None, 0):
+                # A failed driver must not leave workers running into a retry.
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
                 reason = reason or f'Native {label} exited with {code}'
             evidence['console'] = self._evidence((root / 'native-console').read_bytes(), 'text')
             for pattern in evidence_patterns:

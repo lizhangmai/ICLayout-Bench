@@ -9,6 +9,7 @@ from benchmarking.evidence.journal import RecordingError
 from benchmarking.execution._scripts import benchmark_feedback as opinions
 from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY
 from benchmarking.execution.tools.budget import (
+    current_tool_time_limits,
     tool_cancellation,
     tool_deadline,
     tool_time_limits,
@@ -60,8 +61,8 @@ class SessionProtocol:
                 self.feedback_cancellation.set()
             self.feedback_worker.shutdown(wait=True)
 
-    def _feedback(self, candidate, sequence, cancellation, deadline):
-        with tool_time_limits(False), tool_cancellation(cancellation), tool_deadline(
+    def _feedback(self, candidate, sequence, cancellation, deadline, limit_tools):
+        with tool_time_limits(limit_tools), tool_cancellation(cancellation), tool_deadline(
                 deadline):
             return self.feedback(candidate, sequence)
 
@@ -86,7 +87,8 @@ class SessionProtocol:
             if time.monotonic() >= operation_deadline:
                 raise TimeoutError('Process feedback snapshot missed the command deadline')
             cancellation = self.feedback_cancellation = threading.Event()
-            pending = self.feedback_worker.submit(self._feedback, frozen, sequence, cancellation, operation_deadline)
+            pending = self.feedback_worker.submit(self._feedback, frozen, sequence, cancellation,
+                                                  operation_deadline, current_tool_time_limits())
             while True:
                 if disconnected is not None and disconnected():
                     cancellation.set()

@@ -136,6 +136,40 @@ def test_evaluation_deadline_bounds_real_native_process():
     assert result.reason and 'execution_error' in result.evidence
 
 
+@pytest.mark.parametrize('limited', [False, True])
+def test_process_feedback_worker_inherits_shared_tool_policy(limited):
+    import sys
+    import time
+
+    from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
+    from benchmarking.execution.tools.native import NativeTool
+    from benchmarking.execution.workspace.protocol import SessionProtocol
+
+    started = time.monotonic()
+    deadline = started + 10
+    task = SimpleNamespace(output=SimpleNamespace(path='output/final.gds', max_bytes=1024))
+    config = SimpleNamespace(harness=HarnessSpec(capabilities=(PROCESS_FEEDBACK_CAPABILITY,)))
+    workspace = SimpleNamespace(read=lambda *args: b'frozen candidate',
+                                budget=SessionBudget(PhaseBudgets(10), deadline))
+    tool = NativeTool(ExternalRuntime('test', {'image': 'unused', 'environment': {}, 'mounts': []}),
+                      timeout_seconds=.02)
+
+    def feedback(candidate, sequence):
+        result = tool.run([sys.executable, '-c', 'import time; time.sleep(.1)'], {}, {})
+        return {'report': {'outcome': 'pass' if result.returncode == 0 else 'error'}}
+
+    protocol = SessionProtocol(task, config, workspace, started, deadline, recorder=None,
+                               record=lambda *args, **kwargs: None, feedback=feedback, on_ready=None)
+    try:
+        with tools.tool_time_limits(limited):
+            receipt = protocol.check()
+        assert receipt['accepted']
+        assert receipt['feedback']['outcome'] == ('error' if limited else 'pass')
+    finally:
+        protocol.close()
+
+
 def test_terminal_result_budget_is_stable_across_polls():
     from benchmarking.service.views import status
 

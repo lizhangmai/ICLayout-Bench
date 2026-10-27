@@ -13,6 +13,15 @@ from benchmarking.evaluation.contracts import Measurement
 from benchmarking.files import keys
 
 
+class WaveformRejected(ValueError):
+    """A valid waveform lacks a prescribed response; retain independent observations."""
+
+    def __init__(self, reason, *, measurements=None, rejections=None):
+        super().__init__(reason)
+        self.measurements = measurements if measurements is not None else {}
+        self.rejections = rejections if rejections is not None else {}
+
+
 def _absolute_segment_area(duration, left, right):
     a, b = abs(left), abs(right)
     if left < 0 < right or right < 0 < left:
@@ -77,6 +86,9 @@ class _Waveform:
         keys(event, {'trace', 'direction'}, {'threshold', 'threshold_fraction'}, 'waveform event')
         if ('threshold' in event) == ('threshold_fraction' in event):
             raise ValueError('Waveform event requires exactly one threshold definition')
+        direction = event['direction']
+        if direction not in {'rise', 'fall'}:
+            raise ValueError('Invalid waveform event')
         tt, yy = self.window(event['trace'], start, stop)
         if 'threshold_fraction' in event:
             fraction = event['threshold_fraction']
@@ -84,12 +96,11 @@ class _Waveform:
                 raise ValueError('Waveform threshold fraction must be between zero and one')
             low, high = min(yy), max(yy)
             if low == high:
-                raise ValueError('Relative waveform threshold requires nonconstant signal')
+                raise WaveformRejected('Relative waveform threshold requires nonconstant signal')
             threshold = (1-fraction)*low + fraction*high
         else:
             threshold = event['threshold']
-        direction = event['direction']
-        if type(threshold) not in (int, float) or not math.isfinite(threshold) or direction not in {'rise', 'fall'}:
+        if type(threshold) not in (int, float) or not math.isfinite(threshold):
             raise ValueError('Invalid waveform event')
         return [a+(b-a)*(threshold-va)/(vb-va)
                 for a, b, va, vb in zip(tt[:-1], tt[1:], yy[:-1], yy[1:], strict=True)
@@ -107,12 +118,12 @@ class _Waveform:
         rises = self.crossings(event, start, stop)
         falls = self.crossings(event | {'direction': 'fall'}, start, stop)
         if len(rises)-1 < minimum:
-            raise ValueError('Too few complete waveform cycles')
+            raise WaveformRejected('Too few complete waveform cycles')
         cycles = []
         for a, b in pairwise(rises):
             inside = falls[bisect.bisect_right(falls, a):bisect.bisect_left(falls, b)]
             if len(inside) != 1:
-                raise ValueError('Required cycle falling edge is missing or ambiguous')
+                raise WaveformRejected('Required cycle falling edge is missing or ambiguous')
             cycles.append((a, inside[0], b))
         return cycles
 
@@ -248,147 +259,158 @@ def measure_waveform(samples, settings):
                  for name, spec in settings.get('adc_transfers', {}).items()}
     spectra = _adc_spectra(waveform, settings.get('adc_spectra', {}))
     results = {}
+    rejections = {}
     for name, spec in settings['measures'].items():
-        common = {'operation', 'start_s', 'stop_s', 'unit'}
-        operation = spec['operation']
-        if operation == 'adc_spectrum':
-            keys(spec, {'operation', 'spectrum', 'statistic', 'unit'}, set(), 'ADC spectrum measurement')
-            value, unit = spectra[spec['spectrum']][spec['statistic']]
-            if unit != spec['unit'] or not math.isfinite(value):
-                raise ValueError('Invalid ADC spectrum unit or nonfinite measurement')
-            results[name] = Measurement(value, unit)
-            continue
-        if operation == 'adc_transfer':
-            keys(spec, {'operation', 'transfer', 'statistic', 'unit'}, {'index'},
-                 'sampled ADC measurement')
-            transfer = transfers[spec['transfer']]
-            statistic = spec['statistic']
-            scalar = {'code_count': ('1', transfer['code_count']),
-                      'threshold_uncertainty_v': ('V', transfer['threshold_uncertainty_v']),
-                      'max_abs_dnl_lsb': ('1', max(map(abs, transfer['dnl_lsb']))),
-                      'max_abs_inl_lsb': ('1', max(map(abs, transfer['inl_lsb'])))}
-            indexed = {'threshold_v': ('V', transfer['thresholds_v']),
-                       'dnl_lsb': ('1', transfer['dnl_lsb']),
-                       'inl_lsb': ('1', transfer['inl_lsb'])}
-            if statistic in scalar and 'index' not in spec:
-                unit, value = scalar[statistic]
-            elif statistic in indexed:
-                unit, values = indexed[statistic]
-                index = spec.get('index')
-                if type(index) is not int or not 1 <= index <= len(values):
-                    raise ValueError('Invalid sampled ADC measurement index')
-                value = values[index-1]
-            else:
-                raise ValueError('Invalid sampled ADC measurement statistic')
-            if spec['unit'] != unit:
-                raise ValueError('Sampled ADC measurement unit mismatch')
-            if not math.isfinite(value):
-                raise ValueError('Nonfinite sampled ADC measurement')
-            results[name] = Measurement(value, unit)
-            continue
-        start, stop = spec['start_s'], spec['stop_s']
-        if operation in {'mean', 'min', 'max', 'rms', 'integral', 'abs_integral', 'span', 'absmax'}:
-            keys(spec, common | {'trace'}, set(), 'waveform statistic')
-            tt, yy = waveform.window(spec['trace'], start, stop)
-            integral = sum((b-a)*(va+vb)/2 for a, b, va, vb in
-                           zip(tt[:-1], tt[1:], yy[:-1], yy[1:], strict=True))
-            # Exact integral of the square of each linearly interpolated segment.
-            square = sum((b-a)*(va*va+va*vb+vb*vb)/3 for a, b, va, vb in
-                         zip(tt[:-1], tt[1:], yy[:-1], yy[1:], strict=True))
-            absolute = (sum(_absolute_segment_area(b-a, va, vb) for a, b, va, vb in
-                            zip(tt[:-1], tt[1:], yy[:-1], yy[1:], strict=True))
-                        if operation == 'abs_integral' else None)
-            value = {'mean': integral/(stop-start), 'min': min(yy), 'max': max(yy),
-                     'rms': math.sqrt(square/(stop-start)), 'integral': integral,
-                     'abs_integral': absolute,
-                     'span': max(yy)-min(yy), 'absmax': max(map(abs, yy))}[operation]
-        elif operation == 'mean_difference':
-            keys(spec, common | {'trace', 'reference_start_s', 'reference_stop_s'}, set(),
-                 'waveform mean difference')
+        try:
+            common = {'operation', 'start_s', 'stop_s', 'unit'}
+            operation = spec['operation']
+            if operation == 'adc_spectrum':
+                keys(spec, {'operation', 'spectrum', 'statistic', 'unit'}, set(), 'ADC spectrum measurement')
+                value, unit = spectra[spec['spectrum']][spec['statistic']]
+                if unit != spec['unit'] or not math.isfinite(value):
+                    raise ValueError('Invalid ADC spectrum unit or nonfinite measurement')
+                results[name] = Measurement(value, unit)
+                continue
+            if operation == 'adc_transfer':
+                keys(spec, {'operation', 'transfer', 'statistic', 'unit'}, {'index'},
+                     'sampled ADC measurement')
+                transfer = transfers[spec['transfer']]
+                statistic = spec['statistic']
+                scalar = {'code_count': ('1', transfer['code_count']),
+                          'threshold_uncertainty_v': ('V', transfer['threshold_uncertainty_v']),
+                          'max_abs_dnl_lsb': ('1', max(map(abs, transfer['dnl_lsb']))),
+                          'max_abs_inl_lsb': ('1', max(map(abs, transfer['inl_lsb'])))}
+                indexed = {'threshold_v': ('V', transfer['thresholds_v']),
+                           'dnl_lsb': ('1', transfer['dnl_lsb']),
+                           'inl_lsb': ('1', transfer['inl_lsb'])}
+                if statistic in scalar and 'index' not in spec:
+                    unit, value = scalar[statistic]
+                elif statistic in indexed:
+                    unit, values = indexed[statistic]
+                    index = spec.get('index')
+                    if type(index) is not int or not 1 <= index <= len(values):
+                        raise ValueError('Invalid sampled ADC measurement index')
+                    value = values[index-1]
+                else:
+                    raise ValueError('Invalid sampled ADC measurement statistic')
+                if spec['unit'] != unit:
+                    raise ValueError('Sampled ADC measurement unit mismatch')
+                if not math.isfinite(value):
+                    raise ValueError('Nonfinite sampled ADC measurement')
+                results[name] = Measurement(value, unit)
+                continue
+            start, stop = spec['start_s'], spec['stop_s']
+            if operation in {'mean', 'min', 'max', 'rms', 'integral', 'abs_integral', 'span', 'absmax'}:
+                keys(spec, common | {'trace'}, set(), 'waveform statistic')
+                tt, yy = waveform.window(spec['trace'], start, stop)
+                integral = sum((b-a)*(va+vb)/2 for a, b, va, vb in
+                               zip(tt[:-1], tt[1:], yy[:-1], yy[1:], strict=True))
+                # Exact integral of the square of each linearly interpolated segment.
+                square = sum((b-a)*(va*va+va*vb+vb*vb)/3 for a, b, va, vb in
+                             zip(tt[:-1], tt[1:], yy[:-1], yy[1:], strict=True))
+                absolute = (sum(_absolute_segment_area(b-a, va, vb) for a, b, va, vb in
+                                zip(tt[:-1], tt[1:], yy[:-1], yy[1:], strict=True))
+                            if operation == 'abs_integral' else None)
+                value = {'mean': integral/(stop-start), 'min': min(yy), 'max': max(yy),
+                         'rms': math.sqrt(square/(stop-start)), 'integral': integral,
+                         'abs_integral': absolute,
+                         'span': max(yy)-min(yy), 'absmax': max(map(abs, yy))}[operation]
+            elif operation == 'mean_difference':
+                keys(spec, common | {'trace', 'reference_start_s', 'reference_stop_s'}, set(),
+                     'waveform mean difference')
 
-            value = (waveform.mean(spec['trace'], start, stop)
-                     - waveform.mean(spec['trace'], spec['reference_start_s'], spec['reference_stop_s']))
-        elif operation == 'phase_difference':
-            keys(spec, common | {'event', 'reference_event', 'min_edges', 'statistic'}, set(),
-                 'clock phase measurement')
-            if (spec['unit'] != 's' or type(spec['min_edges']) is not int or spec['min_edges'] < 2
-                    or spec['statistic'] not in {'std', 'span'}):
-                raise ValueError('Invalid clock phase measurement')
-            edges = waveform.crossings(spec['event'], start, stop)
-            references = waveform.crossings(spec['reference_event'], start, stop)
-            if min(len(edges), len(references)) < spec['min_edges']:
-                raise ValueError('Too few clock phase edges')
-            # Align once at the beginning. Keeping ordinal pairs preserves
-            # accumulated phase drift and cycle slips instead of wrapping them.
-            if edges[0] >= references[0]:
-                offset = min(range(len(references)), key=lambda i: abs(references[i]-edges[0]))
-                references = references[offset:]
+                value = (waveform.mean(spec['trace'], start, stop)
+                         - waveform.mean(spec['trace'], spec['reference_start_s'], spec['reference_stop_s']))
+            elif operation == 'phase_difference':
+                keys(spec, common | {'event', 'reference_event', 'min_edges', 'statistic'}, set(),
+                     'clock phase measurement')
+                if (spec['unit'] != 's' or type(spec['min_edges']) is not int or spec['min_edges'] < 2
+                        or spec['statistic'] not in {'std', 'span'}):
+                    raise ValueError('Invalid clock phase measurement')
+                edges = waveform.crossings(spec['event'], start, stop)
+                references = waveform.crossings(spec['reference_event'], start, stop)
+                if min(len(edges), len(references)) < spec['min_edges']:
+                    raise WaveformRejected('Too few clock phase edges')
+                # Align once at the beginning. Keeping ordinal pairs preserves
+                # accumulated phase drift and cycle slips instead of wrapping them.
+                if edges[0] >= references[0]:
+                    offset = min(range(len(references)), key=lambda i: abs(references[i]-edges[0]))
+                    references = references[offset:]
+                else:
+                    offset = min(range(len(edges)), key=lambda i: abs(edges[i]-references[0]))
+                    edges = edges[offset:]
+                size = min(len(edges), len(references))
+                if size < spec['min_edges']:
+                    raise WaveformRejected('Too few aligned clock phase edges')
+                phases = [a-b for a, b in zip(edges[:size], references[:size], strict=True)]
+                average = sum(phases)/size
+                value = (max(phases)-min(phases) if spec['statistic'] == 'span' else
+                         math.sqrt(sum((p-average)**2 for p in phases)/size))
+            elif operation == 'count':
+                keys(spec, common | {'event'}, set(), 'waveform crossing count')
+                if spec['unit'] != '1':
+                    raise ValueError('Crossing count requires dimensionless unit')
+                value = len(waveform.crossings(spec['event'], start, stop))
+            elif operation == 'delay':
+                keys(spec, common | {'trigger', 'target', 'pairs', 'aggregation'}, set(), 'waveform delay')
+                if spec['unit'] != 's' or spec['aggregation'] not in {'min', 'max'} or not spec['pairs']:
+                    raise ValueError('Invalid waveform delay definition')
+                if any(len(pair) != 2 or any(type(i) is not int or i < 1 for i in pair)
+                       for pair in spec['pairs']):
+                    raise ValueError('Invalid waveform event pair')
+                triggers = waveform.crossings(spec['trigger'], start, stop)
+                targets = waveform.crossings(spec['target'], start, stop)
+                values = []
+                for pair in spec['pairs']:
+                    if pair[0] > len(triggers) or pair[1] > len(targets):
+                        raise WaveformRejected('Required waveform event pair was not observed')
+                    values.append(targets[pair[1]-1]-triggers[pair[0]-1])
+                value = (min if spec['aggregation'] == 'min' else max)(values)
+            elif operation in {'duty_cycle', 'frequency', 'cycle_extrema'}:
+                required = common | {'trace', 'threshold', 'aggregation', 'min_cycles'}
+                if operation == 'cycle_extrema':
+                    required.add('statistic')
+                keys(spec, required, set(), 'waveform cycle statistic')
+                unit = {'duty_cycle': '1', 'frequency': 'Hz'}.get(operation)
+                if ((unit is not None and spec['unit'] != unit)
+                        or spec['aggregation'] not in {'min', 'max', 'mean'}
+                        or operation == 'cycle_extrema' and spec['statistic'] not in {'min', 'max'}):
+                    raise ValueError('Invalid waveform cycle statistic definition')
+                cycles = waveform.complete_cycles(spec['trace'], spec['threshold'], start, stop, spec['min_cycles'])
+                if operation == 'cycle_extrema':
+                    statistic = min if spec['statistic'] == 'min' else max
+                    values = [statistic(waveform.window(spec['trace'], a, b)[1]) for a, _, b in cycles]
+                elif operation == 'frequency':
+                    values = [1/(b-a) for a, _, b in cycles]
+                else:
+                    values = [(fall-a)/(b-a) for a, fall, b in cycles]
+                value = {'min': min(values), 'max': max(values),
+                         'mean': sum(values)/len(values)}[spec['aggregation']]
+            elif operation in {'frequency_ratio', 'frequency_relative_difference'}:
+                keys(spec, common | {'trace', 'threshold', 'min_cycles',
+                                    'reference_start_s', 'reference_stop_s'}, set(),
+                     'waveform frequency comparison')
+                if spec['unit'] != '1':
+                    raise ValueError('Frequency comparison requires dimensionless unit')
+                # Validate both declared intervals before judging response events.
+                waveform.window(spec['trace'], start, stop)
+                waveform.window(spec['trace'], spec['reference_start_s'], spec['reference_stop_s'])
+                frequencies = []
+                for left, right in ((start, stop), (spec['reference_start_s'], spec['reference_stop_s'])):
+                    cycles = waveform.complete_cycles(spec['trace'], spec['threshold'], left, right, spec['min_cycles'])
+                    frequencies.append(sum(1/(b-a) for a, _, b in cycles)/len(cycles))
+                a, b = frequencies
+                value = a/b if operation == 'frequency_ratio' else abs(a-b)/((a+b)/2)
             else:
-                offset = min(range(len(edges)), key=lambda i: abs(edges[i]-references[0]))
-                edges = edges[offset:]
-            size = min(len(edges), len(references))
-            if size < spec['min_edges']:
-                raise ValueError('Too few aligned clock phase edges')
-            phases = [a-b for a, b in zip(edges[:size], references[:size], strict=True)]
-            average = sum(phases)/size
-            value = (max(phases)-min(phases) if spec['statistic'] == 'span' else
-                     math.sqrt(sum((p-average)**2 for p in phases)/size))
-        elif operation == 'count':
-            keys(spec, common | {'event'}, set(), 'waveform crossing count')
-            if spec['unit'] != '1':
-                raise ValueError('Crossing count requires dimensionless unit')
-            value = len(waveform.crossings(spec['event'], start, stop))
-        elif operation == 'delay':
-            keys(spec, common | {'trigger', 'target', 'pairs', 'aggregation'}, set(), 'waveform delay')
-            if spec['unit'] != 's' or spec['aggregation'] not in {'min', 'max'} or not spec['pairs']:
-                raise ValueError('Invalid waveform delay definition')
-            triggers = waveform.crossings(spec['trigger'], start, stop)
-            targets = waveform.crossings(spec['target'], start, stop)
-            values = []
-            for pair in spec['pairs']:
-                if (len(pair) != 2 or any(type(i) is not int or i < 1 for i in pair)
-                        or pair[0] > len(triggers) or pair[1] > len(targets)):
-                    raise ValueError('Required waveform event pair was not observed')
-                values.append(targets[pair[1]-1]-triggers[pair[0]-1])
-            value = (min if spec['aggregation'] == 'min' else max)(values)
-        elif operation in {'duty_cycle', 'frequency', 'cycle_extrema'}:
-            required = common | {'trace', 'threshold', 'aggregation', 'min_cycles'}
-            if operation == 'cycle_extrema':
-                required.add('statistic')
-            keys(spec, required, set(), 'waveform cycle statistic')
-            unit = {'duty_cycle': '1', 'frequency': 'Hz'}.get(operation)
-            if ((unit is not None and spec['unit'] != unit)
-                    or spec['aggregation'] not in {'min', 'max', 'mean'}):
-                raise ValueError('Invalid waveform cycle statistic definition')
-            cycles = waveform.complete_cycles(spec['trace'], spec['threshold'], start, stop, spec['min_cycles'])
-            if operation == 'cycle_extrema':
-                if spec['statistic'] not in {'min', 'max'}:
-                    raise ValueError('Cycle extrema require min or max statistic')
-                statistic = min if spec['statistic'] == 'min' else max
-                values = [statistic(waveform.window(spec['trace'], a, b)[1]) for a, _, b in cycles]
-            elif operation == 'frequency':
-                values = [1/(b-a) for a, _, b in cycles]
-            else:
-                values = [(fall-a)/(b-a) for a, fall, b in cycles]
-            value = {'min': min(values), 'max': max(values),
-                     'mean': sum(values)/len(values)}[spec['aggregation']]
-        elif operation in {'frequency_ratio', 'frequency_relative_difference'}:
-            keys(spec, common | {'trace', 'threshold', 'min_cycles',
-                                'reference_start_s', 'reference_stop_s'}, set(),
-                 'waveform frequency comparison')
-            if spec['unit'] != '1':
-                raise ValueError('Frequency comparison requires dimensionless unit')
-            frequencies = []
-            for left, right in ((start, stop), (spec['reference_start_s'], spec['reference_stop_s'])):
-                cycles = waveform.complete_cycles(spec['trace'], spec['threshold'], left, right, spec['min_cycles'])
-                frequencies.append(sum(1/(b-a) for a, _, b in cycles)/len(cycles))
-            a, b = frequencies
-            value = a/b if operation == 'frequency_ratio' else abs(a-b)/((a+b)/2)
-        else:
-            raise ValueError('Unsupported waveform operation')
-        if not math.isfinite(value):
-            raise ValueError('Nonfinite waveform measurement')
-        results[name] = Measurement(value, spec['unit'])
+                raise ValueError('Unsupported waveform operation')
+            if not math.isfinite(value):
+                raise ValueError('Nonfinite waveform measurement')
+            results[name] = Measurement(value, spec['unit'])
+        except WaveformRejected as error:
+            rejections[name] = str(error)
+    if rejections:
+        reason = '; '.join(f'{name}: {message}' for name, message in rejections.items())
+        raise WaveformRejected(reason, measurements=results, rejections=rejections)
     if not results:
         raise ValueError('No waveform measurements declared')
     return results

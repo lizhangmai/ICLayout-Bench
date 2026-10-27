@@ -3,6 +3,28 @@ import pytest
 pytestmark = pytest.mark.unit
 
 
+def test_cycle_rejection_retains_measurements_before_and_after_missing_cycle():
+    from benchmarking.evaluation.measurements.waveform import (
+        WaveformRejected,
+        measure_waveform,
+    )
+
+    # Rising edges at 1.5 and 5.5 s define a 0.25 Hz clock. The first
+    # three seconds contain only one edge, so no period can be measured there.
+    samples = {'time': list(range(7)), 'out': [-1, -1, 1, 1, -1, -1, 1]}
+    cycle = {'operation': 'frequency', 'start_s': 0, 'stop_s': 6, 'unit': 'Hz',
+             'trace': 'out', 'threshold': 0, 'min_cycles': 1, 'aggregation': 'mean'}
+    settings = {'max_step_s': 1, 'traces': {'out': {'terms': {'out': 1}}},
+                'measures': {'frequency': cycle, 'short_window': cycle | {'stop_s': 3},
+                             'edges': {'operation': 'count', 'start_s': 0, 'stop_s': 6, 'unit': '1',
+                                       'event': {'trace': 'out', 'threshold': 0, 'direction': 'rise'}}}}
+    with pytest.raises(WaveformRejected, match='short_window') as rejected:
+        measure_waveform(samples, settings)
+    assert rejected.value.measurements['frequency'].value == pytest.approx(.25)
+    assert rejected.value.measurements['edges'].value == 2
+    assert set(rejected.value.rejections) == {'short_window'}
+
+
 @pytest.mark.parametrize('period', [1.0, 1.1])
 def test_continuous_clock_phase_retains_drift_and_rejects_missing_edges(period):
     import math

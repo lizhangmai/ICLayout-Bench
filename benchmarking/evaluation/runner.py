@@ -24,6 +24,7 @@ from benchmarking.evidence.identity import EVALUATION_SOURCE_FILES, package_sour
 from benchmarking.execution.tools.budget import (
     current_tool_cancellation,
     current_tool_deadline,
+    current_tool_time_limits,
     tool_cancellation,
     tool_cancelled,
     tool_deadline,
@@ -89,8 +90,9 @@ def _execute_jobs(jobs, assets, backends, results, timings, limit_tools):
             _validate_result(job, result)
             if result.status == 'error' and result.failure is None:
                 problem = native_failure(asset.content for name, asset in result.evidence.items()
-                                         if name.rsplit('/', 1)[-1] in {
-                                             'console', 'virtuoso.log', 'spectre.log', 'calibre.log', 'log'})
+                                         if not name.startswith('tool-attempts/') and name.rsplit('/', 1)[-1] in {
+                                             'console', 'virtuoso.log', 'spectre.log', 'calibre.log',
+                                             'pvs.log', 'qrc.log', 'assura.log', 'log'})
                 if problem:
                     result = replace(result, failure=problem)
             return result
@@ -127,16 +129,17 @@ def _execute_jobs(jobs, assets, backends, results, timings, limit_tools):
 def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
                    backends: dict[str, Backend], destination: Path, *,
                    task_sha256: str | None = None, task_witnessed: bool | None = None,
-                   limit_tools: bool = False) -> dict:
+                   limit_tools: bool | None = None) -> dict:
     """Execute all independent jobs; block dependents of failed/error jobs.
 
     inputs is keyed by candidate, task or input:<role>. Backends are keyed by logical
     operation, selected by the trusted caller, never imported from task TOML.
-    EDA jobs have no per-job time limit by default. Callers may explicitly opt
+    EDA jobs inherit the shared tool policy, unlimited by default. Callers may explicitly opt
     into the backend's declared limits for a bounded diagnostic evaluation.
     This command produces local evidence, not a signed official benchmark score.
     """
     started = time.monotonic()
+    limit_tools = current_tool_time_limits() if limit_tools is None else limit_tools
     missing = plan.external_inputs() - inputs.keys()
     if missing:
         raise ValueError(f"Missing evaluation inputs: {sorted(missing)}")

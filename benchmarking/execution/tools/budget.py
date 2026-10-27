@@ -5,7 +5,7 @@ import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 
-_LIMIT_TOOLS = ContextVar('limit_eda_tools', default=True)
+_LIMIT_TOOLS = ContextVar('limit_eda_tools', default=False)
 _DEADLINE = ContextVar('eda_phase_deadline', default=None)
 _CANCELLATION = ContextVar('cancel_eda_tools', default=None)
 
@@ -48,6 +48,26 @@ def wait_for_tool(process, seconds, *, capture=False):
                 raise
 
 
+def wait_for_retry(seconds):
+    """Back off without renewing the owner's deadline or losing cancellation."""
+    until = time.monotonic() + seconds
+    while True:
+        if tool_cancelled():
+            return 'cancelled'
+        now, deadline = time.monotonic(), current_tool_deadline()
+        if deadline is not None and now >= deadline:
+            return 'deadline'
+        remaining = until - now
+        if remaining <= 0:
+            return None
+        delay = min(.1, remaining, deadline-now if deadline is not None else remaining)
+        cancellation = current_tool_cancellation()
+        if cancellation is not None:
+            cancellation.wait(delay)
+        else:
+            time.sleep(delay)
+
+
 @contextmanager
 def tool_time_limits(enabled):
     token = _LIMIT_TOOLS.set(enabled)
@@ -55,6 +75,11 @@ def tool_time_limits(enabled):
         yield
     finally:
         _LIMIT_TOOLS.reset(token)
+
+
+def current_tool_time_limits():
+    """Capture the shared policy before dispatching EDA work to another thread."""
+    return _LIMIT_TOOLS.get()
 
 
 def current_tool_deadline():
@@ -73,7 +98,7 @@ def tool_deadline(deadline):
 
 
 def tool_timeout(seconds):
-    """Probes remain bounded; evaluation callers may let started jobs finish."""
+    """EDA jobs finish by default; only explicit tool limits or enclosing deadlines apply."""
     value = seconds if _LIMIT_TOOLS.get() else None
     deadline = current_tool_deadline()
     if deadline is not None:

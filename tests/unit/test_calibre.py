@@ -141,12 +141,14 @@ def test_explicit_native_execution_preserves_frozen_bytes_and_failure_evidence()
 
 def test_native_timeout_is_an_error_without_fabricated_outputs():
     from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.execution.tools.budget import tool_time_limits
     from benchmarking.execution.tools.native import NativeTool
     from benchmarking.files import Asset
 
     runtime = ExternalRuntime('native-test', {'image': 'unused', 'environment': {}, 'mounts': []})
     tool = NativeTool(runtime, .1, failure_label='Calibre')
-    result = tool.run(['bash', 'run.sh'], {'run.sh': Asset(b'sleep 3\n', 'text')}, {'result': 'text'})
+    with tool_time_limits(True):
+        result = tool.run(['bash', 'run.sh'], {'run.sh': Asset(b'sleep 3\n', 'text')}, {'result': 'text'})
     assert result.returncode is None and 'time limit' in result.reason
     assert not result.files and 'missing:result' in result.evidence
 
