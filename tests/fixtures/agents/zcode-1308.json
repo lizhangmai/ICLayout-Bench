@@ -1,0 +1,22 @@
+{
+  "type": "turn.failed",
+  "payload": {
+    "error": {
+      "type": "unknown_error",
+      "code": "1308",
+      "attribution": {
+        "source": "provider",
+        "reason": "rate_limited",
+        "errorPhase": "stream",
+        "exceptionKind": "provider_business",
+        "providerId": "account:bigmodel-individual-coding-plan",
+        "providerKind": "anthropic",
+        "transport": "sse",
+        "statusCode": 429,
+        "providerErrorCode": "1308",
+        "retryable": false
+      }
+    },
+    "turnPhase": "processing_input"
+  }
+}

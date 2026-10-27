@@ -16,20 +16,27 @@ from benchmarking.participants.harnesses.credentials import credential_values
 pytestmark = pytest.mark.unit
 
 
-def test_recorded_policy_rate_limit_uses_bounded_recovery(tmp_path):
-    # Minimized terminal envelope from the 2026-10-14 failed run; no request IDs,
-    # provider connection, user content or stack paths are needed to reproduce it.
-    event = json.loads((Path(__file__).parents[1] / 'fixtures/agents/zcode-1313.json').read_text())
+@pytest.mark.parametrize('provider_code,category,code,retryable,scope,stop_dispatch', [
+    ('1313', 'rate_limit', 'account_policy_rate_limit', True, 'session', False),
+    ('1308', 'quota_exhausted', 'insufficient_quota', False, 'provider', True),
+])
+def test_recorded_provider_limits_preserve_recovery_scope(
+        tmp_path, provider_code, category, code, retryable, scope, stop_dispatch):
+    # Minimized native terminal envelopes; no request IDs, user content or stack
+    # paths are needed to reproduce policy throttling or subscription exhaustion.
+    event = json.loads((Path(__file__).parents[1] / f'fixtures/agents/zcode-{provider_code}.json').read_text())
     (tmp_path / 'harness.jsonl').write_text(json.dumps(event))
     problem = adapters.harness_failure('zcode', tmp_path, exit_code=1)
-    assert problem['category'] == 'rate_limit' and problem['retryable']
-    assert problem['code'] == 'account_policy_rate_limit'
+    assert problem == {'category': category, 'source': 'harness_event', 'code': code,
+                       'scope': scope, 'retryable': retryable, 'stop_dispatch': stop_dispatch}
 
 
 @pytest.mark.parametrize('attribution,category,retryable', [
     ({'statusCode': 429}, 'unknown', False),
     ({'statusCode': 429, 'reason': 'rate_limited', 'retryable': True}, 'rate_limit', True),
     ({'statusCode': 429, 'providerErrorCode': 'insufficient_quota'}, 'quota_exhausted', False),
+    ({'statusCode': 429, 'providerErrorCode': '1308', 'reason': 'rate_limited', 'retryable': True},
+     'quota_exhausted', False),
     ({'statusCode': 429, 'providerErrorCode': '1312'}, 'provider_overloaded', True),
     ({'statusCode': 429, 'reason': 'provider_overloaded', 'retryable': True}, 'provider_overloaded', True),
     ({'statusCode': 429, 'providerErrorCode': 'unrecognized'}, 'unknown', False),
@@ -231,6 +238,7 @@ def test_terminal_network_attribution_is_classified_without_provider_prose(tmp_p
 
 @pytest.mark.parametrize('code,category', [('authentication_error', 'authentication'),
                                          ('insufficient_quota', 'quota_exhausted'),
+                                         ('1308', 'quota_exhausted'),
                                          ('rate_limit_error', 'rate_limit'),
                                          ('overloaded_error', 'provider_overloaded')])
 def test_native_terminal_provider_errors_are_read_from_the_zcode_envelope(tmp_path, code, category):

@@ -792,6 +792,12 @@ signals and unknown/mixed failures do not authorize an
 automatic relaunch. A successful native exit does not trigger continuation.
 Adapters classify native evidence; generated assistant prose is not evidence.
 
+ZCode maps BigModel subscription code `1308` (usage-window exhaustion) to
+`quota_exhausted`, even when native attribution reports HTTP 429 and
+`rate_limited`. It stops automatic continuation and blocks new dispatch for the
+affected harness/profile. Already running cases continue; quota reset does not
+automatically restart the batch.
+
 Network and capacity waits grow exponentially with up to 20% positive jitter,
 bounded by their respective caps. A native `retry_after` is a minimum wait;
 a hint above the cap or beyond remaining time ends automatic continuation.
