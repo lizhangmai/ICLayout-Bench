@@ -99,6 +99,58 @@ def test_magic_requires_explicit_rejection_and_successful_execution(tmp_path, mo
                                                   if problem == 'crash' else b'')
 
 
+def test_magic_candidate_rejection_reaches_feedback_and_zero_score_despite_console_error(
+        tmp_path, monkeypatch, inputs, bindings):
+    import json
+    import tomllib
+
+    from helpers.evaluation import PLAN
+
+    from benchmarking.eda.backends.magic import MagicRCDocker
+    from benchmarking.evaluation import parse_evaluation
+    from benchmarking.evaluation.feedback import feedback_details
+    from benchmarking.evaluation.runner import run_evaluation
+    from benchmarking.evidence.bundles import publish_bundle
+    from benchmarking.execution.tools import ToolResult
+    from benchmarking.files import Asset
+
+    reason = 'Magic RC does not support multiple ports on the same conductor'
+    console = b'exttospice finished.\nError:  Substrate tile at (0 0) not visited!\n'
+
+    class Tool:
+        def __init__(self, *args):
+            self.identity = {'tool_version': '8.3.685', 'image': 'synthetic'}
+
+        def run(self, command, files, outputs):
+            if command == ['python', 'magic_ports.py']:
+                return ToolResult(0, '', {'extraction.gds': files['candidate.gds']}, {})
+            return ToolResult(0, '', {
+                'interface-check.json': Asset(json.dumps({'status': 'failed', 'reason': reason}).encode(), 'json'),
+            }, {'console': Asset(console, 'text')})
+
+    monkeypatch.setattr('benchmarking.eda.backends.magic.DockerTool', Tool)
+    publish_bundle({'tech.tech': Asset(b'', 'text')}, {}, tmp_path / 'support')
+    bindings['extract'] = MagicRCDocker(image='unused', support=str(tmp_path / 'support'),
+                                      technology='tech.tech', tech_name='test', style='test')
+    data = tomllib.loads(PLAN.decode())
+    next(job for job in data['jobs'] if job['id'] == 'parasitics')['parameters'] = {
+        'top_cell': 'dut', 'ports': ['P']}
+    plan = parse_evaluation(json.dumps(data).encode(), file_format='json')
+    directory = tmp_path / 'evaluation'
+    report = run_evaluation(plan, inputs, bindings, directory)
+
+    assert report['jobs']['parasitics']['status'] == 'failed'
+    assert report['jobs']['parasitics']['reason'] == reason
+    assert report['jobs']['nominal']['status'] == report['jobs']['slow']['status'] == 'blocked'
+    assert report['outcome'] == 'failed' and report['score']['value'] == 0
+    for bounded in (True, False):
+        feedback = feedback_details(report, directory, bounded=bounded)
+        assert feedback['jobs']['parasitics']['status'] == 'failed'
+        assert feedback['jobs']['parasitics']['reason'] == reason
+        assert 'Substrate tile' in feedback['jobs']['parasitics']['evidence']['console']['text']
+        assert not {'score', 'plan', 'inputs', 'pre_layout'} & feedback.keys()
+
+
 # Netgen exits successfully for completed mismatches. Its documented JSON
 # comparisons (netgen.tcl.in convert_to_json) must establish a nonempty top and
 # matching connectivity, properties and pins; the existing extraction tests do

@@ -403,7 +403,11 @@ and devices share the same resolution during resistance extraction. Ambiguous
 styles are configuration errors. Missing gate connections and orphaned-node
 substitutions reject an unusable candidate extraction even if Magic writes a
 netlist. Native interface validation reports explicit `passed`/`failed` verdicts;
-tool crashes and missing/malformed interface reports remain `error`. Optional `label_layers` is a
+after successful tool execution, an explicit candidate rejection takes precedence
+over generic console-error matching. Its reason is returned in `check` and report
+feedback, with the native console retained as supporting evidence. Tool crashes,
+execution/cleanup failures and missing/malformed interface reports remain `error`.
+Optional `label_layers` is a
 nonempty list of GDS layer/datatype pairs that may contain electrical text;
 text on other layers is removed from the extraction copy without removing any
 geometry. `case_insensitive_ports=true` aliases case variants to unique internal
@@ -444,7 +448,8 @@ results against the declared task measurements and tolerances.
 The supported RC interface has one declared port per conductor. A native
 topology check rejects multiple ports on one conductor: the installed Magic
 can otherwise duplicate the resistance network or bypass it with an alias
-resistor. This limitation produces an evaluation error. Case-specific
+resistor. A completed topology rejection is a candidate failure (`failed`) with
+zero score; its same-conductor reason is exposed in process feedback. Case-specific
 extraction warnings, models and calibration still require review against the
 selected contract.
 

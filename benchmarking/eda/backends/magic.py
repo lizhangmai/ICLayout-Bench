@@ -201,8 +201,8 @@ class MagicCapacitanceDocker:
             return JobResult("error", result.reason or "Magic did not complete", evidence=evidence, failure=failure)
         status, diagnostic_reason, diagnostic_evidence = self._check_diagnostics(log, result.files)
         evidence.update(diagnostic_evidence)
-        if status == "error":
-            return JobResult(status, diagnostic_reason, evidence=evidence)
+        # A completed native rejection identifies a candidate problem. Generic
+        # console errors must not hide that verdict or its participant feedback.
         try:
             verdict = json.loads(result.files["interface-check.json"].content)
             if verdict["status"] == "failed" and isinstance(verdict["reason"], str) and verdict["reason"]:
@@ -211,6 +211,8 @@ class MagicCapacitanceDocker:
                 raise ValueError("Unknown interface verdict")
         except (KeyError, ValueError, TypeError) as error:
             return JobResult("error", f"Invalid Magic interface report: {error}", evidence=evidence)
+        if status == "error":
+            return JobResult(status, diagnostic_reason, evidence=evidence)
         if result.reason:
             return JobResult("error", result.reason or "Magic did not complete", evidence=evidence)
         if status == "failed":
