@@ -543,11 +543,18 @@ def test_catalog_preserves_netlist_bytes_without_drawings_and_rejects_mismatches
 # Delivery is a separate public contract: packages must preserve terminal bytes,
 # exclude live credentials and reject attacker-controlled archive paths. Existing
 # SQL tests do not exercise that transport boundary; all artifacts use tmp_path.
-def test_portable_package_preserves_results_without_runtime(tmp_path):
+def test_portable_package_preserves_results_without_runtime(tmp_path, monkeypatch):
+    from benchmarking.results.preview import ensure_layout_preview
     from benchmarking.results.transfer import pack, unpack
     source = result(tmp_path / "source")
     (source.parent / ".runtime").mkdir()
     (source.parent / ".runtime" / "credentials").write_text("never packaged")
+
+    def unavailable(*args):
+        raise RuntimeError('DATATYPE record expected')
+
+    monkeypatch.setattr('benchmarking.results.preview.DockerTool', unavailable)
+    failed = ensure_layout_preview(source.parent)
     package = tmp_path / "results.zip"
     pack(source.parent, package)
     target = tmp_path / "received"
@@ -555,10 +562,17 @@ def test_portable_package_preserves_results_without_runtime(tmp_path):
     copied = next(target.rglob("result.json"))
     assert copied.read_bytes() == source.read_bytes()
     assert (copied.parent / "final.gds").read_bytes() == b"candidate"
+    assert (copied.parent / failed['diagnostics']).read_bytes() == (source.parent / failed['diagnostics']).read_bytes()
     assert not list(target.rglob("credentials"))
     store = ResultStore(tmp_path / "received-db")
     record = store.import_result(copied)
     assert store.detail(record["run_id"])["evaluation"]["score"] == 80
+    retried = ensure_layout_preview(source.parent)
+    assert store.import_result(source)['evaluation_id'] == record['evaluation_id']
+    artifacts = {a['name']: a for a in store.detail(record['run_id'])['artifacts']}
+    for status in (failed, retried):
+        diagnostic = artifacts[status['diagnostics']]
+        assert b'DATATYPE record expected' in store.artifact(diagnostic['sha256']).read_bytes()
     store.close()
 
 

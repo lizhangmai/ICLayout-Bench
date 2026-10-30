@@ -214,9 +214,10 @@ def provider_code(attribution, fallback):
     if attribution.get('reason') == 'auth_failed' and attribution.get('statusCode') in {401, 403}:
         return 'authentication_error'
     code = attribution.get('providerErrorCode') or fallback
-    # BigModel subscription usage-window exhaustion is a provider quota block,
-    # even though native attribution calls it rate_limited with HTTP 429.
-    if code == '1308':
+    # Upstream usage-window exhaustion can arrive through a subscription or
+    # an API gateway. Native rate_limited/HTTP 429 attribution alone is not
+    # enough to distinguish exhausted quota from transient throttling.
+    if code in {'1308', '1310'}:
         return 'insufficient_quota'
     # Explicit policy throttling shares the bounded capacity recovery budget.
     # Preserve its identity separately from transient request-rate throttling.

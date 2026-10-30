@@ -123,7 +123,7 @@ def test_customcompiler_import_separates_candidate_failures_from_tool_errors(mon
             return SimpleNamespace(returncode=0, stdout=b'importStream X-2025.06')
 
         def run(self, command, files, exports):
-            return SimpleNamespace(returncode=1, reason='Native exit 1',
+            return SimpleNamespace(returncode=1, reason='Native Custom Compiler exited with 1',
                                    evidence={'console': Asset(console.encode(), 'text')},
                                    files={'stream.log': Asset(report.encode(), 'text')})
 

@@ -13,6 +13,7 @@ from benchmarking.eda.netlists.dspf import ExtractionRejected, bind_extracted_ne
 from benchmarking.eda.netlists.spice import logical_lines, number
 from benchmarking.evaluation.contracts import JobResult
 from benchmarking.evidence.identity import package_source
+from benchmarking.execution.tools.diagnostics import native_failure
 from benchmarking.execution.tools.native import NativeTool
 from benchmarking.files import Asset, keys
 
@@ -246,6 +247,22 @@ class CalibreBackend:
         files['run.sh'] = Asset(('set -eu\n'+self.runtime.module_setup('calibre')+'\n'+command).encode(), 'text')
         result = self._run_tool(['bash', 'run.sh'], files, exports)
         evidence = result.evidence | result.files
+        failure = native_failure(asset.content for name, asset in evidence.items()
+                                 if asset.format == 'text' and not name.startswith('tool-attempts/'))
+        if {'execution_error', 'cleanup_error'} & result.evidence.keys() or failure:
+            return JobResult('error', result.reason or 'Calibre execution failed',
+                             evidence=evidence, failure=failure)
+        # Exit 4 alone is ambiguous. These native input diagnostics explicitly
+        # reject the frozen layout, before DRC/LVS summaries can be produced.
+        if result.returncode == 4 and result.reason in {'', 'Native Calibre exited with 4'}:
+            log = result.files.get('calibre.log', Asset(b'', 'text')).content.decode(errors='replace')
+            if re.search(r'^ERROR: LAYOUT \[PATH\] precision \S+ is not consistent with database '
+                         r'precision \S+ in input file candidate\.gds\.\s*$', log, re.MULTILINE):
+                return JobResult('failed', 'Submitted GDS precision is incompatible with the declared layout precision',
+                                 evidence=evidence)
+            if re.search(r'^ERROR: Failure to read input file candidate\.gds at record offset \d+\.\s*$',
+                         log, re.MULTILINE):
+                return JobResult('failed', 'Calibre rejected malformed GDS records', evidence=evidence)
         if result.reason or result.returncode:
             return JobResult('error', result.reason or 'Calibre did not complete', evidence=evidence)
         try:

@@ -28,19 +28,24 @@ def netgen_verdict(records, top, subcircuit):
             if pins[0] != pins[1]:
                 return False
             continue
-        for field in ('name', 'pins', 'nets', 'devices'):
+        for field in ('name', 'nets', 'devices'):
             if not isinstance(record.get(field), list) or len(record[field]) != 2:
                 raise ValueError(f"Malformed Netgen {field}")
         if any(record.get(k) for k in ('badnets', 'badelements', 'properties')):
             return False
         if record['nets'][0] != record['nets'][1]:
             return False
+        counts = [sum(count for _, count in side) for side in record['devices']]
+        if counts[0] != counts[1]:
+            return False
+        # Netgen may reject a hierarchy before emitting a pin comparison.
+        # A completed mismatch is conclusive; matching connectivity still
+        # requires a complete named-pin comparison before it can pass.
+        if not isinstance(record.get('pins'), list) or len(record['pins']) != 2:
+            raise ValueError('Malformed Netgen pins')
         left, right = record['pins']
         if len(left) != len(right) or any(a.casefold() != b.casefold() or not a
                                         for a, b in zip(left, right, strict=True)):
-            return False
-        counts = [sum(count for _, count in side) for side in record['devices']]
-        if counts[0] != counts[1]:
             return False
     return all(sum(count for _, count in side) > 0 for side in tops[0]['devices'])
 

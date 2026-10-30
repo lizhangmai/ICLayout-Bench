@@ -479,15 +479,18 @@ def test_tool_error_is_not_a_circuit_failure(tmp_path, inputs, bindings):
     assert report["jobs"]["lvs"]["status"] == "passed"
 
 
-@pytest.mark.parametrize('extracted,execution_error,status', [
-    (b'.subckt layout IN OUT\n.ends\n', False, 'failed'),
-    (b'* Top level circuit layout\n.end\n', False, 'failed'),
-    (b'.subckt layout IN OUT\nR1 IN OUT 1000\n.ends\n', False, 'error'),
-    (b'.subckt layout IN OUT\n.ends\n', True, 'error'),
+@pytest.mark.parametrize('extracted,execution_error,comparison,status', [
+    (b'.subckt layout IN OUT\n.ends\n', False, 'missing', 'failed'),
+    (b'* Top level circuit layout\n.end\n', False, 'missing', 'failed'),
+    (b'.subckt layout IN OUT\nR1 IN OUT 1000\n.ends\n', False, 'missing', 'error'),
+    (b'.subckt layout IN OUT\n.ends\n', True, 'missing', 'error'),
+    (b'.subckt layout IN OUT\nR1 IN OUT 1000\n.ends\n', False, 'mismatch', 'failed'),
+    (b'.subckt layout IN OUT\nR1 IN OUT 1000\n.ends\n', False, 'incomplete', 'error'),
+    (b'.subckt layout IN OUT\nR1 IN OUT 1000\n.ends\n', False, 'invalid_json', 'error'),
 ])
-def test_empty_candidate_lvs_rejection_and_tool_failure_have_distinct_scores(
-        tmp_path, monkeypatch, inputs, bindings, extracted, execution_error, status):
-    """Device-free extraction is conclusive; unavailable comparison/execution is not."""
+def test_candidate_lvs_rejection_and_tool_failure_have_distinct_scores(
+        tmp_path, monkeypatch, inputs, bindings, extracted, execution_error, comparison, status):
+    """Completed native rejections score zero; unavailable or invalid reports do not."""
     from types import SimpleNamespace
 
     import tomli_w
@@ -510,8 +513,17 @@ def test_empty_candidate_lvs_rejection_and_tool_failure_have_distinct_scores(
                 if execution_error:
                     reason = 'Container execution unavailable'
                     evidence['execution_error'] = Asset(reason.encode(), 'text')
-            else:
+            elif comparison == 'missing':
                 reason = 'Declared tool output is missing: comparison.json'
+            else:
+                child = {'name': ['child', 'child'], 'nets': [2, 2],
+                         'devices': [[['nmos', 1]], [['nmos', 1]]]}
+                if comparison == 'mismatch':
+                    child['badnets'] = [[['layout_net'], ['source_net']]]
+                top = {'name': ['layout', 'source'], 'pins': [['IN', 'OUT'], ['IN', 'OUT']],
+                       'nets': [2, 2], 'devices': [[['child', 1]], [['child', 1]]]}
+                raw = b'not JSON' if comparison == 'invalid_json' else json.dumps([child, top]).encode()
+                files['comparison.json'] = Asset(raw, 'json')
             return SimpleNamespace(reason=reason, returncode=0, files=files, evidence=evidence)
 
     monkeypatch.setattr('benchmarking.eda.backends.magic_checks.DockerTool', Tool)
@@ -532,6 +544,103 @@ def test_empty_candidate_lvs_rejection_and_tool_failure_have_distinct_scores(
     assert report['task_success'] is (False if status == 'failed' else None)
     assert report['score']['value'] == (0 if status == 'failed' else None)
     assert report['jobs']['parasitics']['status'] == 'blocked'
+
+
+@pytest.mark.parametrize('check,diagnostic,interruption,expected', [
+    ('artifact', 'stream_80053', None, 0),
+    ('artifact', 'stream_80054', None, 0),
+    ('drc', 'precision', None, 0),
+    ('lvs', 'precision', None, 0),
+    ('drc', 'record_offset', None, 0),
+    ('lvs', 'record_offset', None, 0),
+    ('rc', 'record_offset', None, 0),
+    ('artifact', 'stream_80053', 'license', None),
+    ('artifact', 'stream_80053', 'crash', None),
+    ('artifact', 'stream_80054', 'timeout', None),
+    ('artifact', 'stream_80053', 'cleanup', None),
+    ('artifact', 'stream_80053', 'execution', None),
+    ('artifact', 'stream_80054', 'unexpected_reason', None),
+    ('artifact', 'stream_80054', 'unexpected_exit', None),
+    ('artifact', 'unknown', None, None),
+    ('drc', 'precision', 'license', None),
+    ('drc', 'record_offset', 'crash', None),
+    ('drc', 'precision', 'timeout', None),
+    ('drc', 'precision', 'cleanup', None),
+    ('drc', 'precision', 'execution', None),
+    ('drc', 'precision', 'unexpected_reason', None),
+    ('drc', 'precision', 'unexpected_exit', None),
+    ('drc', 'other_input', None, None),
+    ('drc', 'unknown', None, None),
+])
+def test_native_gds_rejections_score_zero_but_execution_faults_remain_unknown(
+        tmp_path, native_tmp_path, monkeypatch, inputs, bindings, check, diagnostic, interruption, expected):
+    """Replay native input rejection through the actual adapters and score runner."""
+    from types import SimpleNamespace
+
+    import tomli_w
+
+    from benchmarking.eda.backends.calibre import CalibreNative
+    from benchmarking.eda.backends.customcompiler import CustomCompilerGeometryNative
+    from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.execution.tools import ToolResult
+    from benchmarking.execution.tools.native import NativeTool
+
+    logs = {
+        'stream_80053': 'ERROR: (IMPORT_STREAM-80053): The Stream file is invalid.\n',
+        'stream_80054': ('ERROR: (IMPORT_STREAM-80054): The Stream file is invalid. '
+                         'An invalid record type "2" was read. The EndLib record type "4" was expected.\n'),
+        'precision': ('ERROR: LAYOUT [PATH] precision 1000 is not consistent with database '
+                      'precision 134217728000 in input file candidate.gds.\n'),
+        'record_offset': 'ERROR: Failure to read input file candidate.gds at record offset 13215926.\n',
+        'other_input': 'ERROR: Failure to read input file process.rules at record offset 13215926.\n',
+        'unknown': 'ERROR: Unrecognized tool error.\n',
+    }
+    raw = logs[diagnostic].encode()
+    log_name = 'stream.log' if check == 'artifact' else 'calibre.log'
+    label = 'Custom Compiler' if check == 'artifact' else 'Calibre'
+    code = 1 if check == 'artifact' else 4
+    reason = f'Native {label} exited with {code}'
+    evidence = {'console': Asset(b'Native console\n', 'text')}
+    if interruption in {'execution', 'cleanup'}:
+        evidence[interruption + '_error'] = Asset(b'Operator execution failed', 'text')
+    elif interruption == 'license':
+        evidence['console'] = Asset(b'ERROR (LMF-02002): License call failed. Invalid license file syntax.\n', 'text')
+    elif interruption == 'crash':
+        evidence['console'] = Asset(b'Fatal error (signal SIGSEGV) - crash handler invoked\n', 'text')
+    elif interruption == 'timeout':
+        code, reason = None, f'Native {label} exceeded its fixed time limit'
+    elif interruption == 'unexpected_reason':
+        reason = 'Output collection failed'
+    elif interruption == 'unexpected_exit':
+        code, reason = -11, f'Native {label} exited with -11'
+    result = ToolResult(code, reason, {log_name: Asset(raw, 'text')}, evidence)
+    monkeypatch.setattr(NativeTool, 'probe', lambda *args, **kwargs:
+                        SimpleNamespace(returncode=0, stdout=b'Synthetic release'))
+    monkeypatch.setattr(NativeTool, 'run', lambda *args, **kwargs: result)
+    (native_tmp_path / 'process.rules').write_text('width_rule { INTERNAL M1 < 0.2 }\n')
+    runtime = ExternalRuntime('test', {'image': 'unused', 'environment': {'PDK_ROOT': str(native_tmp_path)},
+        'mounts': [{'source': str(native_tmp_path), 'target': str(native_tmp_path), 'release': 'test',
+                    'identity_paths': ['process.rules']}]})
+    backend = (CustomCompilerGeometryNative(runtime=runtime, check=check) if check == 'artifact'
+               else CalibreNative(runtime=runtime, check=check, deck='process.rules'))
+    bindings['native'] = backend
+    inputs['task'] = Asset(b'{"output":{"top_cell":"TOP","max_bytes":100000},"netlist_subcircuit":"TOP"}', 'json')
+    data = tomllib.loads(PLAN.decode())
+    target = 'parasitics' if check == 'rc' else check
+    job = next(job for job in data['jobs'] if job['id'] == target)
+    job.update(operation='native', inputs={'layout': 'candidate', 'task': 'task'})
+    if check in {'lvs', 'rc'}:
+        job['inputs']['netlist'] = 'input:netlist'
+    if check == 'rc':
+        job['parameters'] = {'ports': ['IN', 'OUT']}
+    report = evaluate(tmp_path, inputs, bindings, tomli_w.dumps(data).encode())
+
+    status = 'failed' if expected == 0 else 'error'
+    assert report['jobs'][target]['status'] == status, report['jobs'][target]['reason']
+    assert report['jobs'][target]['evidence'][log_name]['sha256'] == hashlib.sha256(raw).hexdigest()
+    assert report['score']['value'] == expected
+    assert report['task_success'] is (False if expected == 0 else None)
+    assert report['jobs']['nominal']['status'] == 'blocked'
 
 
 @pytest.mark.parametrize("status", ["failed", "error"])

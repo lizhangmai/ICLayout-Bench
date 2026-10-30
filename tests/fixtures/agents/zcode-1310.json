@@ -1,0 +1,22 @@
+{
+  "type": "turn.failed",
+  "payload": {
+    "error": {
+      "type": "unknown_error",
+      "code": "1310",
+      "attribution": {
+        "source": "provider",
+        "reason": "rate_limited",
+        "errorPhase": "stream",
+        "exceptionKind": "provider_business",
+        "providerId": "fixture-gateway",
+        "providerKind": "anthropic",
+        "transport": "sse",
+        "statusCode": 429,
+        "providerErrorCode": "1310",
+        "retryable": false
+      }
+    },
+    "turnPhase": "processing_input"
+  }
+}

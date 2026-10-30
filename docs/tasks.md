@@ -413,7 +413,12 @@ validity within the selected rules; task success additionally requires the
 specified geometry and electrical behavior. Neither is full manufacturing signoff.
 
 Trusted backends explicitly distinguish completed candidate rejections (`failed`)
-from inability to judge (`error`). A readable native extraction that violates the
+from inability to judge (`error`). Explicit native rejection of malformed submitted
+GDS records or GDS precision incompatible with the declared layout precision is a
+candidate rejection, even when the tool exits nonzero before producing DRC/LVS
+summaries. A nonzero exit alone does not establish a rejection. Execution,
+cleanup, license and crash failures within that invocation remain errors.
+A readable native extraction that violates the
 prescribed interface or physical completeness requirements is a rejection. A
 completed simulation that explicitly reports no required response event is also
 a rejection. This includes a complete, valid sampled waveform with too few

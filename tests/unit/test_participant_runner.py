@@ -1069,15 +1069,18 @@ def test_replacement_rejects_active_remote_session(tmp_path, monkeypatch):
         validate_replacement(tmp_path, identity)
 
 
-@pytest.mark.parametrize('harness', ['codex', 'kimi-code', 'zcode'])
-def test_fatal_provider_errors_halt_related_dispatch_without_creating_extra_repetitions(tmp_path, monkeypatch, harness):
+@pytest.mark.parametrize('harness,provider_code', [
+    ('codex', None), ('kimi-code', None), ('zcode', '1308'), ('zcode', '1310'),
+])
+def test_fatal_provider_errors_halt_related_dispatch_without_creating_extra_repetitions(
+        tmp_path, monkeypatch, harness, provider_code):
     from benchmarking.participants.harnesses import registry as adapters
     from benchmarking.run import main
     config = tmp_path / 'trial.toml'
     config.write_text(f'harness="{harness}"\nmodel="fixture"\neffort="high"\ntasks=["test"]\nconcurrency=1\nrepetitions=3\n')
     (tmp_path / 'harness.jsonl').write_text('{"type":"error","code":"insufficient_quota"}\n' if harness == 'codex' else '')
     if harness == 'zcode':
-        event = json.loads((Path(__file__).parents[1] / 'fixtures/agents/zcode-1308.json').read_text())
+        event = json.loads((Path(__file__).parents[1] / f'fixtures/agents/zcode-{provider_code}.json').read_text())
         (tmp_path / 'harness.jsonl').write_text(json.dumps(event) + '\n')
     if harness == 'kimi-code':
         (tmp_path / 'harness.stderr').write_text('error: failed to run prompt: The provided authorization grant is invalid\n')

@@ -8,6 +8,10 @@ from pathlib import Path
 from benchmarking.evidence.identity import package_source
 from benchmarking.execution.tools.docker import DockerTool
 from benchmarking.files import Asset, atomic_write, read_file
+from benchmarking.results.preview_diagnostics import (
+    PreviewRenderError,
+    save_diagnostics,
+)
 
 
 def export_layout(case_dir, *, image=None, runtime=None):
@@ -47,7 +51,8 @@ def export_layout(case_dir, *, image=None, runtime=None):
             "settings.json": Asset(json.dumps({"top_cell": top_cell}).encode(), "json"),
         }, {"layout.png": "png", "image.json": "json"})
         if rendered.returncode != 0 or rendered.reason:
-            raise RuntimeError("Layout renderer failed or timed out")
+            raise PreviewRenderError("Layout renderer failed or timed out", stage='docker_render',
+                                     renderer={'image_id': tool.image_id}, result=rendered)
         png = rendered.files["layout.png"]
         info = json.loads(rendered.files["image.json"].content)
         renderer_identity = {"renderer_image_id": tool.image_id}
@@ -69,19 +74,23 @@ def ensure_layout_preview(case_dir, *, image=None, runtime=None):
         status = export_layout(case_dir, image=image, runtime=runtime)
     except (OSError, ValueError, KeyError, TypeError, RuntimeError, subprocess.SubprocessError) as error:
         status = {"status": "error", "error_type": type(error).__name__}
-        # Do not copy Docker diagnostics, credentials or host paths into shareable metadata.
+        try:
+            status['diagnostics'] = save_diagnostics(case_dir, error)
+        except OSError as diagnostic_error:
+            status['diagnostics_error_type'] = type(diagnostic_error).__name__
         try:
             path = Path(case_dir) / "result.json"
             if path.exists():
                 compact = json.loads(path.read_text())
                 compact["image"] = status
+                if 'diagnostics' in status and status['diagnostics'] not in compact.setdefault('files', []):
+                    compact['files'].append(status['diagnostics'])
                 atomic_write(path, (json.dumps(compact, indent=2) + "\n").encode())
-            else:
-                atomic_write(Path(case_dir) / "layout-preview-error.json",
-                             (json.dumps(status) + "\n").encode())
-        except OSError:
+        except (OSError, ValueError, TypeError):
             pass  # An unwritable preview directory must not invalidate a scored result.
-        print(f"LAYOUT_PREVIEW error={type(error).__name__} case={case_dir}; retry with benchmarking.layout_preview",
+        detail = (f" diagnostics={status['diagnostics']}" if 'diagnostics' in status else
+                  f" diagnostics_error={status['diagnostics_error_type']}")
+        print(f"LAYOUT_PREVIEW error={type(error).__name__} case={case_dir}{detail}; retry with benchmarking.layout_preview",
               flush=True)
         return status
     if status["status"] == "complete":

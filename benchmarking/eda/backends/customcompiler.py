@@ -8,6 +8,7 @@ from benchmarking.eda.backends.geometry import validate_constraints
 from benchmarking.eda.backends.virtuoso import geometry_result
 from benchmarking.eda.environment import ExternalRuntime
 from benchmarking.evaluation.contracts import JobResult
+from benchmarking.execution.tools.diagnostics import native_failure
 from benchmarking.execution.tools.native import NativeTool
 from benchmarking.files import Asset, keys
 
@@ -84,9 +85,18 @@ custom_shell -gui false -batch true -libDefFile lib.defs -log custom -command 's
         evidence = {**result.evidence, **result.files, 'script': files['inspect.tcl']}
         report = result.files.get('stream.log', Asset(b'', 'text')).content.decode(errors='replace')
         console = result.evidence.get('console', Asset(b'', 'text')).content.decode(errors='replace')
-        if re.search(r'ERROR: \(IMPORT_STREAM-80053\):', report):
+        failure = native_failure(asset.content for name, asset in evidence.items()
+                                 if asset.format == 'text' and not name.startswith('tool-attempts/'))
+        if {'execution_error', 'cleanup_error'} & result.evidence.keys() or failure:
+            return JobResult('error', result.reason or 'Native GDS inspection failed',
+                             evidence=evidence, failure=failure)
+        # importStream deliberately exits nonzero for a rejected stream. Only
+        # its normal exit and explicit input verdict establish a rejection.
+        completed = (result.returncode in {0, 1}
+                     and result.reason in {'', 'Native Custom Compiler exited with 1'})
+        if completed and re.search(r'^ERROR: \(IMPORT_STREAM-8005[34]\):', report, re.MULTILINE):
             return JobResult('failed', 'Malformed GDS', evidence=evidence)
-        if '(DATA_MANAGEMENT-019)' in console:
+        if completed and '(DATA_MANAGEMENT-019)' in console:
             return JobResult('failed', 'Missing declared top cell', evidence=evidence)
         if result.reason or result.returncode or 'geometry.txt' not in result.files:
             return JobResult('error', result.reason or 'Native GDS inspection did not complete', evidence=evidence)

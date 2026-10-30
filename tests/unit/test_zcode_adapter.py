@@ -19,6 +19,7 @@ pytestmark = pytest.mark.unit
 @pytest.mark.parametrize('provider_code,category,code,retryable,scope,stop_dispatch', [
     ('1313', 'rate_limit', 'account_policy_rate_limit', True, 'session', False),
     ('1308', 'quota_exhausted', 'insufficient_quota', False, 'provider', True),
+    ('1310', 'quota_exhausted', 'insufficient_quota', False, 'provider', True),
 ])
 def test_recorded_provider_limits_preserve_recovery_scope(
         tmp_path, provider_code, category, code, retryable, scope, stop_dispatch):
@@ -36,6 +37,8 @@ def test_recorded_provider_limits_preserve_recovery_scope(
     ({'statusCode': 429, 'reason': 'rate_limited', 'retryable': True}, 'rate_limit', True),
     ({'statusCode': 429, 'providerErrorCode': 'insufficient_quota'}, 'quota_exhausted', False),
     ({'statusCode': 429, 'providerErrorCode': '1308', 'reason': 'rate_limited', 'retryable': True},
+     'quota_exhausted', False),
+    ({'statusCode': 429, 'providerErrorCode': '1310', 'reason': 'rate_limited', 'retryable': True},
      'quota_exhausted', False),
     ({'statusCode': 429, 'providerErrorCode': '1312'}, 'provider_overloaded', True),
     ({'statusCode': 429, 'reason': 'provider_overloaded', 'retryable': True}, 'provider_overloaded', True),
@@ -239,6 +242,7 @@ def test_terminal_network_attribution_is_classified_without_provider_prose(tmp_p
 @pytest.mark.parametrize('code,category', [('authentication_error', 'authentication'),
                                          ('insufficient_quota', 'quota_exhausted'),
                                          ('1308', 'quota_exhausted'),
+                                         ('1310', 'quota_exhausted'),
                                          ('rate_limit_error', 'rate_limit'),
                                          ('overloaded_error', 'provider_overloaded')])
 def test_native_terminal_provider_errors_are_read_from_the_zcode_envelope(tmp_path, code, category):

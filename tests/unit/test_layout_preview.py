@@ -5,6 +5,7 @@ real saved candidates exercise KLayout separately, without claiming EDA validity
 """
 import json
 import struct
+import subprocess
 import zlib
 from types import SimpleNamespace
 
@@ -100,7 +101,9 @@ def test_native_preview_failure_never_falls_back_to_an_open_image(tmp_path, monk
         raise RuntimeError('private tool diagnostics')
 
     monkeypatch.setattr('benchmarking.results.native_preview.render', unavailable)
-    assert ensure_layout_preview(tmp_path, runtime=object()) == {'status': 'error', 'error_type': 'RuntimeError'}
+    status = ensure_layout_preview(tmp_path, runtime=object())
+    assert status['status'] == 'error' and status['error_type'] == 'RuntimeError'
+    assert 'private tool diagnostics' in (tmp_path / status['diagnostics']).read_text()
     assert not docker_calls
     state = json.loads((tmp_path / 'result.json').read_text())
     assert state['evaluation'] == before
@@ -146,6 +149,110 @@ def test_renderer_failure_does_not_change_score_and_can_retry(tmp_path, monkeypa
     renderer_fixture(monkeypatch)
     assert ensure_layout_preview(tmp_path)['status'] == 'complete'
     assert json.loads(result.read_text())['evaluation'] == before
+
+
+def test_failed_renderer_keeps_redacted_parser_diagnostics_and_survives_retry(tmp_path, monkeypatch, capsys):
+    candidate = exported_case(tmp_path)
+    before = json.loads((tmp_path / 'result.json').read_text())['evaluation']
+    monkeypatch.setenv('PREVIEW_API_KEY', 'fixture-provider-secret')
+    console = ('File "/private/operator/render.py", line 17\n'
+               'Authorization: Bearer fixture-bearer-secret\n'
+               '{"Authorization": "Basic fixture-basic-secret", "password": "fixture-password"}\n'
+               'api_key="fixture-provider-secret"\n'
+               'RuntimeError: DATATYPE record expected (position=732556, cell=TOP)\n')
+
+    class Renderer:
+        def __init__(self, *args):
+            self.image_id = 'frozen-image'
+
+        def run(self, *args):
+            return SimpleNamespace(returncode=1, reason='Tool/container exited with 1', files={},
+                                   evidence={'console': Asset(console.encode(), 'text')})
+
+    monkeypatch.setattr('benchmarking.results.preview.DockerTool', Renderer)
+    status = ensure_layout_preview(tmp_path)
+    diagnostics = tmp_path / status['diagnostics']
+    report = json.loads(diagnostics.read_text())
+    assert report['details']['stage'] == 'docker_render'
+    assert report['details']['returncode'] == 1
+    assert 'DATATYPE record expected' in report['details']['logs']['console']
+    assert 'position=732556' in report['details']['logs']['console']
+    assert diagnostics.stat().st_mode & 0o777 == 0o600
+    state = json.loads((tmp_path / 'result.json').read_text())
+    assert state['image'] == status
+    assert status['diagnostics'] in state['files']
+    assert state['evaluation'] == before
+    assert (tmp_path / 'final.gds').read_bytes() == candidate.content
+    captured = capsys.readouterr()
+    assert status['diagnostics'] in captured.out
+    for secret in ['fixture-provider-secret', 'fixture-bearer-secret', 'fixture-basic-secret',
+                   'fixture-password', '/private/operator']:
+        assert secret not in diagnostics.read_text() + json.dumps(state) + captured.out + captured.err
+    renderer_fixture(monkeypatch)
+    assert ensure_layout_preview(tmp_path)['status'] == 'complete'
+    assert json.loads((tmp_path / 'result.json').read_text())['evaluation'] == before
+    assert diagnostics.is_file()  # The failed attempt remains available after a successful retry.
+
+
+def test_native_geometry_failure_keeps_tool_diagnostics(tmp_path, monkeypatch):
+    exported_case(tmp_path)
+    before = json.loads((tmp_path / 'result.json').read_text())['evaluation']
+    monkeypatch.setenv('CDS_LIC_FILE', 'fixture-license-server')
+    result = SimpleNamespace(returncode=23, reason='Native tool exited with 23', files={}, evidence={
+        'console': Asset(b'Cannot import GDS: invalid TEXT record; license fixture-license-server', 'text')})
+    backend = SimpleNamespace(run=lambda *args, **kwargs: result, identity={'adapter': 'virtuoso'})
+    monkeypatch.setattr('benchmarking.results.native_preview.VirtuosoGDSNative', lambda runtime: backend)
+    status = ensure_layout_preview(tmp_path, runtime=SimpleNamespace(modules={'virtuoso': 'fixture'}))
+    report = json.loads((tmp_path / status['diagnostics']).read_text())
+    assert report['details']['stage'] == 'native_geometry'
+    assert report['details']['returncode'] == 23
+    assert 'invalid TEXT record' in report['details']['logs']['console']
+    assert 'fixture-license-server' not in json.dumps(report)
+    assert json.loads((tmp_path / 'result.json').read_text())['evaluation'] == before
+
+
+@pytest.mark.parametrize('timed_out', [False, True])
+def test_preview_diagnostics_capture_subprocess_output_and_bound_large_logs(tmp_path, monkeypatch, timed_out):
+    exported_case(tmp_path)
+    message = b'warning\n' * 20000 + b'DATATYPE record expected at end of log\n'
+
+    def unavailable(*args):
+        if timed_out:
+            raise subprocess.TimeoutExpired(['/private/bin/renderer'], 120, output=message,
+                                            stderr=b'password=fixture-password\n')
+        raise subprocess.CalledProcessError(3, ['/private/bin/renderer'], output=message,
+                                            stderr=b'password=fixture-password\n')
+
+    monkeypatch.setattr('benchmarking.results.preview.DockerTool', unavailable)
+    status = ensure_layout_preview(tmp_path)
+    report = json.loads((tmp_path / status['diagnostics']).read_text())
+    assert report['process']['returncode'] == (None if timed_out else 3)
+    assert report['process']['timeout_seconds'] == (120 if timed_out else None)
+    assert 'DATATYPE record expected' in report['process']['stdout']
+    assert len(report['process']['stdout'].encode()) <= 65536
+    assert '<truncated>' in report['process']['stdout']
+    assert 'fixture-password' not in json.dumps(report)
+    assert '/private/bin' not in json.dumps(report)
+
+
+def test_diagnostics_storage_failure_does_not_invalidate_score(tmp_path, monkeypatch):
+    exported_case(tmp_path)
+    before = json.loads((tmp_path / 'result.json').read_text())['evaluation']
+
+    def unavailable(*args):
+        raise RuntimeError('DATATYPE record expected')
+
+    from benchmarking.results import preview_diagnostics
+
+    def full_disk(*args, **kwargs):
+        raise OSError('injected diagnostics disk failure')
+
+    monkeypatch.setattr('benchmarking.results.preview.DockerTool', unavailable)
+    monkeypatch.setattr(preview_diagnostics, 'atomic_write', full_disk)
+    status = ensure_layout_preview(tmp_path)
+    assert status['status'] == 'error' and 'diagnostics' not in status
+    assert status['diagnostics_error_type'] == 'OSError'
+    assert json.loads((tmp_path / 'result.json').read_text())['evaluation'] == before
 
 
 def test_remote_or_unsubmitted_result_does_not_render(tmp_path, monkeypatch):

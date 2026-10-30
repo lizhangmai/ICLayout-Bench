@@ -282,8 +282,13 @@ when the native diagnostic explicitly identifies them. A `No such feature exists
 response is also retried because it can occur intermittently during startup;
 it does not by itself establish that the feature is permanently absent or that
 concurrency caused the failure. Persistent missing-feature responses stop at the
-same attempt limit. Explicit expired/invalid licenses, unrecognized exits and input
-errors do not trigger retries. Completed DRC/LVS rejections and measurement failures
+same attempt limit. The combined Cadence `LMF-02002` and
+`FLEXnet ERROR(-2, 0, 0): Invalid license file syntax` checkout response also
+receives this bounded retry; that response alone does not establish a permanent
+configuration defect. Other explicit invalid-file, host, key and expiration
+diagnostics remain non-retryable, including when they accompany this response.
+Unrecognized exits and input errors do not trigger retries.
+Completed DRC/LVS rejections and measurement failures
 remain candidate/evaluation results; they are not retried to seek a better score.
 
 Each attempt uses the same frozen command, inputs, declared resources and tool
@@ -468,7 +473,10 @@ LVS extracts the candidate independently, invokes Netgen against the trusted
 source, and reads its JSON comparisons. Matching exit status alone is
 insufficient: the top comparison must contain devices, pins and net counts must
 match, and no hierarchy, element or property mismatch may remain. Missing or
-malformed reports are errors. A completed candidate extraction containing no
+malformed reports are errors. Netgen can omit a hierarchy's pin comparison after
+reporting a connectivity, device-count or property mismatch; that completed
+rejection fails LVS and scores zero. Missing pins without a conclusive mismatch
+remain an error. A completed candidate extraction containing no
 devices, or a completed empty/black-box top comparison, fails LVS and scores zero;
 it does not require a usable Netgen comparison to establish rejection. Native
 logs, scripts and comparison evidence are retained. The image pins Netgen 1.5.323

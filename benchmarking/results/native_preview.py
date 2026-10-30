@@ -12,6 +12,7 @@ from pathlib import Path
 from benchmarking.eda.oa.customcompiler import CustomCompilerGDSNative, tcl_string
 from benchmarking.eda.oa.virtuoso import VirtuosoGDSNative
 from benchmarking.files import Asset
+from benchmarking.results.preview_diagnostics import PreviewRenderError
 
 
 def _cadence(top):
@@ -82,7 +83,8 @@ def render(candidate, top, runtime):
         raise ValueError('Declare a supported commercial EDA renderer module')
     rendered = backend.run({'source': candidate}, script, reports=('polygons.txt',))
     if rendered.reason or rendered.returncode:
-        raise RuntimeError('Native EDA geometry rendering failed')
+        raise PreviewRenderError('Native EDA geometry rendering failed', stage='native_geometry',
+                                 renderer={'adapter': backend.identity['adapter']}, result=rendered)
     polygons = []
     for line in rendered.files['polygons.txt'].content.decode().splitlines():
         layer, datatype, *values = line.split()

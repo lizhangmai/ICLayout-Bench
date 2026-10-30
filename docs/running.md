@@ -792,9 +792,12 @@ signals and unknown/mixed failures do not authorize an
 automatic relaunch. A successful native exit does not trigger continuation.
 Adapters classify native evidence; generated assistant prose is not evidence.
 
-ZCode maps BigModel subscription code `1308` (usage-window exhaustion) to
-`quota_exhausted`, even when native attribution reports HTTP 429 and
-`rate_limited`. It stops automatic continuation and blocks new dispatch for the
+ZCode maps upstream provider codes `1308` (usage-window exhaustion) and `1310`
+(weekly/monthly usage exhaustion) to `quota_exhausted`, including responses
+forwarded through API gateways, even when native attribution reports HTTP 429
+and `rate_limited`. The explicit provider code takes precedence over a generic
+retryability hint; HTTP 429 alone remains insufficient evidence. Exhausted quota
+stops automatic continuation and blocks new dispatch for the
 affected harness/profile. Already running cases continue; quota reset does not
 automatically restart the batch.
 
@@ -1160,6 +1163,22 @@ instead use `--pdk /path/to/pdk.toml`, selecting declared Virtuoso/Custom Compil
 modules and the installed Ghostscript rasterizer. It renders a fresh native
 library, omits labels and records native/rasterizer identities. Rendering failure
 remains an optional presentation error and cannot change a score.
+
+On failure, `result.json` records `image.status = "error"`, the exception type and
+an `image.diagnostics` relative path under `layout-preview-errors/`. The referenced
+JSON artifact retains the exception message and traceback, tool exit code and
+reason, and available renderer logs (including GDS parser output). Subprocess
+startup, timeout and rasterizer failures also retain captured stdout/stderr.
+The console prints the diagnostic path alongside the retry command.
+
+Diagnostics redact credential/license values from the environment, common secret
+assignments and authorization headers, and replace absolute directories with a
+path marker while keeping filenames. Each text field is limited to 64 KiB,
+preserving its beginning and end with a truncation marker. Diagnostic files have
+mode `0600` and appear in the result's artifact list for packaging and import.
+Each failure gets an immutable artifact; retries retain earlier diagnostics,
+including after a successful preview. If diagnostics cannot be written, the image
+status records `diagnostics_error_type` instead of a file reference.
 
 ### Result archive
 

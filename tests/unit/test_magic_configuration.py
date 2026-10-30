@@ -181,3 +181,26 @@ def test_netgen_absent_top_comparison_is_an_error(records):
 def test_netgen_completed_empty_comparison_rejects_candidate():
     record = {'name': ['layout', 'source'], 'pins': [[], []], 'nets': [0, 0], 'devices': [[], []]}
     assert netgen_verdict([record], 'layout', 'source') is False
+
+
+@pytest.mark.parametrize('mismatch', [
+    {'badnets': [[['layout_net'], ['source_net']]]},
+    {'badelements': [[['layout_device'], ['source_device']]]},
+    {'properties': [[['layout_device', ['W', 1]], ['source_device', ['W', 2]]]]},
+    {'nets': [2, 3]},
+    {'devices': [[['nmos', 1]], [['nmos', 2]]]},
+])
+def test_netgen_hierarchy_rejection_can_omit_pin_comparison(mismatch):
+    child = {'name': ['child', 'child'], 'nets': [2, 2],
+             'devices': [[['nmos', 1]], [['nmos', 1]]]}
+    top = {'name': ['layout', 'source'], 'pins': [['IN'], ['IN']],
+           'nets': [2, 2], 'devices': [[['child', 1]], [['child', 1]]]}
+    # Native Netgen can reject a hierarchy before comparing its pins.
+    assert netgen_verdict([child | mismatch, top], 'layout', 'source') is False
+
+
+def test_netgen_missing_pins_without_a_completed_rejection_is_an_error():
+    record = {'name': ['layout', 'source'], 'nets': [2, 2],
+              'devices': [[['nmos', 1]], [['nmos', 1]]]}
+    with pytest.raises(ValueError, match='Malformed Netgen pins'):
+        netgen_verdict([record], 'layout', 'source')

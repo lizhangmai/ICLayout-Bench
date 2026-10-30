@@ -20,6 +20,9 @@ BUSY_LICENSE = ('ERROR (ELI-00111) Failed to check out license.\n'
 MISSING_LICENSE = ('ERROR (LMF-02005): License call failed for feature CICNG_129, version 1.000 and quantity 1.\n'
                    'FLEXnet ERROR(-5, 0, 0): No such feature exists.\n'
                    "ERROR (ELI-00111) Failed to check out license 'CICNG_129'.")
+SYNTAX_LICENSE = ('ERROR (LMF-02002): License call failed for feature CICNG_129, version 1.000 and quantity 1.\n'
+                  'FLEXnet ERROR(-2, 0, 0): Invalid license file syntax.\n'
+                  "ERROR (ELI-00111) Failed to check out license 'CICNG_129'.")
 
 
 def native_tool():
@@ -44,7 +47,7 @@ print('tool completed normally',flush=True)
     return [sys.executable, '-c', script]
 
 
-@pytest.mark.parametrize('diagnostic', [PVS_CRASH, BUSY_LICENSE, MISSING_LICENSE])
+@pytest.mark.parametrize('diagnostic', [PVS_CRASH, BUSY_LICENSE, MISSING_LICENSE, SYNTAX_LICENSE])
 def test_native_recovers_known_infrastructure_failure_with_fresh_frozen_inputs(tmp_path, diagnostic):
     marker = tmp_path / 'attempt-count'
     result = native_tool().run(command(marker, diagnostic), {'input.gds': Asset(b'frozen input', 'gds')},
@@ -59,7 +62,13 @@ def test_native_recovers_known_infrastructure_failure_with_fresh_frozen_inputs(t
 
 
 @pytest.mark.parametrize('diagnostic', [MISSING_LICENSE+'\nFeature has expired',
-                                      MISSING_LICENSE+'\nInvalid license file', 'Run Result : MISMATCH',
+                                      MISSING_LICENSE+'\nInvalid license file',
+                                      SYNTAX_LICENSE+'\nFeature has expired',
+                                      SYNTAX_LICENSE+'\nInvalid host',
+                                      SYNTAX_LICENSE+'\nInvalid license key',
+                                      SYNTAX_LICENSE+'\nInvalid license file /operator/license.dat',
+                                      'FLEXnet ERROR(-2, 0, 0): Invalid license file syntax.',
+                                      'Run Result : MISMATCH',
                                       'Invalid source netlist', 'Too few complete waveform cycles'])
 def test_native_does_not_retry_permanent_or_candidate_failures(tmp_path, diagnostic):
     marker = tmp_path / 'attempt-count'
@@ -71,7 +80,8 @@ def test_native_does_not_retry_permanent_or_candidate_failures(tmp_path, diagnos
 
 
 @pytest.mark.parametrize(('diagnostic', 'failure_code'), [
-    (PVS_CRASH, 'native_crash'), (MISSING_LICENSE, 'license_checkout_failed')])
+    (PVS_CRASH, 'native_crash'), (MISSING_LICENSE, 'license_checkout_failed'),
+    (SYNTAX_LICENSE, 'license_checkout_failed')])
 def test_native_stops_retrying_persistent_infrastructure_failure_and_keeps_all_failures(
         tmp_path, diagnostic, failure_code):
     tool = native_tool()
