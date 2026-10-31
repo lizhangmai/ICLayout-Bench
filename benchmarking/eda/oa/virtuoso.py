@@ -14,17 +14,44 @@ from benchmarking.execution.tools.native import NativeTool
 from benchmarking.files import Asset
 
 
+def _validate_text_records(records, start):
+    # TEXT uses TEXTTYPE, not polygon DATATYPE. Properties follow STRING;
+    # optional presentation/path/transform records precede its single XY.
+    order = (rb'\x0c\x26?\x2f?\x0d\x16\x17?\x21?\x0f?'
+             rb'(?:\x1a\x1b?\x1c?)?\x10\x19(?:\x2b\x2c)*\x11')
+    if not re.fullmatch(order, bytes(kind for kind, _, _ in records)):
+        raise ValueError(f'Invalid GDS TEXT record sequence at byte {start}; '
+                         'expected LAYER, TEXTTYPE, XY, STRING and ENDEL in order')
+    fields = {0x0C: (0, 0), 0x26: (1, 2), 0x2F: (3, 4),
+              0x0D: (2, 2), 0x16: (2, 2), 0x17: (1, 2), 0x21: (2, 2),
+              0x0F: (3, 4), 0x1A: (1, 2), 0x1B: (5, 8), 0x1C: (5, 8),
+              0x10: (3, 8), 0x19: (6, None), 0x2B: (2, 2), 0x2C: (6, None), 0x11: (0, 0)}
+    if any(datatype != fields[kind][0] or (fields[kind][1] is not None and size != fields[kind][1])
+           for kind, datatype, size in records):
+        raise ValueError(f'Invalid GDS TEXT record payload at byte {start}')
+
+
 def stream_metadata(content):
-    """Read stream directory/precision records, without interpreting geometry."""
+    """Read directory/precision and validate TEXT syntax without repairing records."""
     cells, referenced, layers = set(), set(), set()
     dbu, layer, offset, ended = None, None, 0, False
+    text_records, text_start = None, None
     while offset < len(content):
         if offset + 4 > len(content):
             raise ValueError('Truncated GDS record header')
-        length, kind, _ = struct.unpack_from('>HBB', content, offset)
+        length, kind, datatype = struct.unpack_from('>HBB', content, offset)
         if length < 4 or length % 2 or offset + length > len(content):
             raise ValueError('Invalid GDS record length')
         data = content[offset + 4:offset + length]
+        if kind == 0x0C:
+            if text_records is not None:
+                raise ValueError(f'Unterminated GDS TEXT element at byte {text_start}')
+            text_records, text_start = [], offset
+        if text_records is not None:
+            text_records.append((kind, datatype, len(data)))
+            if kind == 0x11:
+                _validate_text_records(text_records, text_start)
+                text_records = None
         if kind in (0x06, 0x12):
             name = data.rstrip(b'\0').decode('ascii')
             (cells if kind == 0x06 else referenced).add(name)
@@ -36,8 +63,12 @@ def stream_metadata(content):
             value = data[8:]
             dbu = (-1 if value[0] & 128 else 1) * int.from_bytes(value[1:], 'big') / 2**56 * 16**((value[0] & 127) - 64) * 1e6
         elif kind == 0x0D:
+            if len(data) != 2:
+                raise ValueError('Invalid GDS layer record')
             layer = struct.unpack('>H', data)[0]
         elif kind in (0x0E, 0x16) and layer is not None:
+            if len(data) != 2:
+                raise ValueError('Invalid GDS layer type record')
             layers.add((layer, struct.unpack('>H', data)[0]))
         offset += length
         if kind == 0x04:
@@ -45,6 +76,8 @@ def stream_metadata(content):
                 raise ValueError('Unexpected nonzero data after GDS library end')
             ended = True
             break
+    if text_records is not None:
+        raise ValueError(f'Unterminated GDS TEXT element at byte {text_start}')
     if not ended or dbu is None or dbu <= 0 or not cells:
         raise ValueError('GDS directory or precision is missing')
     if referenced - cells:

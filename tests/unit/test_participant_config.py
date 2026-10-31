@@ -475,7 +475,7 @@ class BridgeTests(unittest.TestCase):
                 bridge = Bridge(client, 's', Path(directory) / 'tools.jsonl')
                 result = bridge.call('execute', {'command': 'native tool'})
                 assert result['state'] == 'running' and result['execution_id'] == 'e'
-                assert client.execute.call_args.args[2] == 3600
+                assert client.execute.call_args.args[2] is None
                 client.session.return_value = {'remaining_seconds': 0, 'budget': {'phase': 'settling'}}
                 result = bridge.call('poll', {'execution_id': 'e', 'offset': result['next_offset'], 'wait_seconds': 0})
                 assert result['state'] == 'running'
@@ -496,7 +496,7 @@ class BridgeTests(unittest.TestCase):
                 'state': 'complete', 'exit_code': 0, 'truncated': False}
             bridge = Bridge(client, 'session', Path(directory) / 'tools.jsonl')
             result = bridge.call('execute', {'command': 'already started'})
-            assert client.execute.call_args.args[2] == 3600
+            assert client.execute.call_args.args[2] is None
             assert result['budget'] == expired['budget']
             client.session.side_effect = None
             client.session.return_value = expired
@@ -564,7 +564,7 @@ class BridgeTests(unittest.TestCase):
             client.session.return_value = {"remaining_seconds": 25}
             bridge.call("execute", {"command": "eda"})
             self.assertEqual(client.execute.call_args.args[2], 700)
-            for seconds in (0, -1, True, float("inf"), float("nan")):
+            for seconds in (None, 0, -1, True, float("inf"), float("nan")):
                 with self.assertRaises(ValueError):
                     bridge.call("execute", {"command": "eda", "seconds": seconds})
 
@@ -598,9 +598,9 @@ def test_new_agent_calls_after_transport_loss_use_new_keys_and_current_allowance
     bridge = Bridge(client, 's', log)
     client.session.return_value = {'remaining_seconds': 20}
     bridge.call('execute', {'command': 'different'})
-    assert client.execute.call_args.args == ('s', 'different', 3600)
+    assert client.execute.call_args.args == ('s', 'different', None)
     bridge.call('execute', {'command': 'increment'})
-    assert client.execute.call_args.args == ('s', 'increment', 3600)
+    assert client.execute.call_args.args == ('s', 'increment', None)
     keys = [call.kwargs['key'] for call in client.execute.call_args_list]
     assert len(set(keys)) == 3
     assert client.execute.call_args_list[0] == first

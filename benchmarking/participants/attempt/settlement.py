@@ -51,13 +51,16 @@ def settle_session(client, sid, output):
             remaining = status.get('budget', {}).get('command_remaining_seconds', budgets.command_seconds)
             # Freeze an absolute expiry in the journal: explicit collection may
             # resume after transport loss but never reissues the command budget.
-            if 'drain_deadline_epoch' not in record:
+            if remaining is None:
+                record['drain_deadline_epoch'] = None
+            elif record.get('drain_deadline_epoch') is None:
                 record['drain_deadline_epoch'] = time.time() + remaining
-            deadline = time.monotonic() + max(0, record['drain_deadline_epoch']-time.time())
+            deadline = (time.monotonic() + max(0, record['drain_deadline_epoch']-time.time())
+                        if record['drain_deadline_epoch'] is not None else None)
             execution = record['executions'].setdefault(eid, {'next_offset': 0})
             record['phase'] = 'draining'
             persist()
-            while time.monotonic() < deadline:
+            while deadline is None or time.monotonic() < deadline:
                 polled = client.poll(sid, eid, offset=execution['next_offset'])
                 raw = base64.b64decode(polled['log_base64'], validate=True)
                 if raw:
@@ -68,7 +71,7 @@ def settle_session(client, sid, output):
                 if polled['state'] != 'running' and not raw:
                     break
                 if not raw:
-                    time.sleep(min(.5, max(0, deadline-time.monotonic())))
+                    time.sleep(.5 if deadline is None else min(.5, max(0, deadline-time.monotonic())))
             else:
                 raise TimeoutError('Session settlement: active command deadline expired; execution evidence retained')
 
@@ -118,7 +121,22 @@ def participant_timeout(created, status):
     if 'phase_budgets' not in created['limits']:
         return max(0, status['remaining_seconds'])
     budgets = PhaseBudgets.from_limits(created['limits'])
+    if budgets.command_seconds is None:
+        return None
     return max(0, status['remaining_seconds']) + budgets.command_seconds + budgets.settlement_seconds
+
+
+def participant_expiry(client, sid, remaining):
+    """Stop model work at service expiry while allowing an active EDA job to drain."""
+    solve_deadline = time.monotonic() + max(0, remaining)
+
+    def expired():
+        if time.monotonic() < solve_deadline:
+            return False
+        status = client.session(sid)
+        return status['state'] != 'active' or status.get('phase', status.get('budget', {}).get('phase')) == 'expired'
+
+    return expired
 
 
 def wait_result(client, sid, output=None):

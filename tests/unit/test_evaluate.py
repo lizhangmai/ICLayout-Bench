@@ -6,6 +6,7 @@ from typing import ClassVar
 
 import pytest
 from helpers.evaluation import PLAN, Checks, Extractor, Simulator, evaluate
+from helpers.gds import array_gds
 
 from benchmarking.evaluation import parse_evaluation
 from benchmarking.evaluation.contracts import JobResult, Measurement
@@ -624,7 +625,13 @@ def test_native_gds_rejections_score_zero_but_execution_faults_remain_unknown(
     backend = (CustomCompilerGeometryNative(runtime=runtime, check=check) if check == 'artifact'
                else CalibreNative(runtime=runtime, check=check, deck='process.rules'))
     bindings['native'] = backend
-    inputs['task'] = Asset(b'{"output":{"top_cell":"TOP","max_bytes":100000},"netlist_subcircuit":"TOP"}', 'json')
+    top = 'TOP'
+    if check == 'artifact':
+        # Exercise native execution faults after a syntactically valid submission.
+        inputs['candidate'] = Asset(array_gds(), 'gds')
+        top = 'dut'
+    inputs['task'] = Asset(json.dumps({'output': {'top_cell': top, 'max_bytes': 100000},
+                                     'netlist_subcircuit': top}).encode(), 'json')
     data = tomllib.loads(PLAN.decode())
     target = 'parasitics' if check == 'rc' else check
     job = next(job for job in data['jobs'] if job['id'] == target)

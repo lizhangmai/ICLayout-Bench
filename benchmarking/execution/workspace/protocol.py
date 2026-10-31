@@ -75,16 +75,16 @@ class SessionProtocol:
         owns_operation = False
         try:
             remaining = self.deadline - requested_at
-            if remaining <= 0 and self.workspace.budget.operation_deadline is None:
+            if remaining <= 0 and not self.workspace.budget.operation_active:
                 entry['error'] = 'budget_exhausted'
                 return {'accepted': False, 'sequence': sequence, 'feedback': entry}
-            if self.workspace.budget.operation_deadline is None:
+            if not self.workspace.budget.operation_active:
                 self.workspace.budget.begin_operation()
                 owns_operation = True
             operation_deadline = self.workspace.budget.operation_deadline
             frozen = self.snapshot_candidate(remaining)
             entry['candidate'] = self.recorder.archive(frozen) if self.recorder else frozen.identity()
-            if time.monotonic() >= operation_deadline:
+            if operation_deadline is not None and time.monotonic() >= operation_deadline:
                 raise TimeoutError('Process feedback snapshot missed the command deadline')
             cancellation = self.feedback_cancellation = threading.Event()
             pending = self.feedback_worker.submit(self._feedback, frozen, sequence, cancellation,
@@ -92,7 +92,7 @@ class SessionProtocol:
             while True:
                 if disconnected is not None and disconnected():
                     cancellation.set()
-                if time.monotonic() >= operation_deadline:
+                if operation_deadline is not None and time.monotonic() >= operation_deadline:
                     cancellation.set()
                     raise TimeoutError('Process feedback exceeded its command deadline')
                 try:

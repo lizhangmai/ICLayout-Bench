@@ -8,10 +8,18 @@ import sys
 
 import pytest
 
-from benchmarking.execution.process import process_start, stop_process_tree
+from benchmarking.execution.process import execute, process_start, stop_process_tree
 from benchmarking.participants import cli
 
 pytestmark = pytest.mark.unit
+
+
+def test_unlimited_participant_process_still_stops_at_service_expiry(tmp_path):
+    with (tmp_path/'output').open('w') as output:
+        _, timed_out = execute([sys.executable, '-I', '-c', 'import time; time.sleep(30)'],
+                               cwd=tmp_path, env=os.environ, stdout=output, stderr=output,
+                               timeout=None, expired=lambda: True)
+    assert timed_out
 
 
 @pytest.fixture

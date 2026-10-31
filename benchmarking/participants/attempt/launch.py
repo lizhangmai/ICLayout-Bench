@@ -39,8 +39,11 @@ class ParticipantLaunch:
         # Only a scoped session credential reaches the native CLI/bridge subprocess.
         env.update(ICLAYOUT_BENCH_ENDPOINT=endpoint, ICLAYOUT_BENCH_TOKEN=created["session_token"],
                    ICLAYOUT_BENCH_SESSION=sid, ICLAYOUT_BENCH_PARTICIPANT_TOOL_LOG=str(output / "tools.jsonl"),
-                   ICLAYOUT_BENCH_COMMAND_SECONDS=str(created["limits"]["max_command_seconds"]),
                    ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS=str(math.ceil(created["limits"]["wall_seconds"]) + 60))
+        command_limit = created['limits']['max_command_seconds']
+        env.pop('ICLAYOUT_BENCH_COMMAND_SECONDS', None)
+        if command_limit is not None:
+            env['ICLAYOUT_BENCH_COMMAND_SECONDS'] = str(command_limit)
         env["ICLAYOUT_BENCH_TASK_FILE"] = str((output / "session.json").resolve())
         env["ICLAYOUT_BENCH_MODEL"] = condition["model"]
         env["ICLAYOUT_BENCH_EFFORT"] = condition.get("effort_resolved") or ""

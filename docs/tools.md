@@ -259,7 +259,8 @@ an automatic cutoff on these jobs. Callers can explicitly select
 `run_evaluation(..., limit_tools=True)` for bounded diagnostics; startup/version
 probes retain their own bounded timeouts.
 
-Feedback inherits the active workspace command deadline and cancellation scope.
+Feedback inherits an explicitly bounded workspace command's deadline and its
+cancellation scope. Workspace commands and checks have no automatic time limit.
 Normal final judging and result collection have no automatic deadline, and the
 service does not derive one by adding backend timeouts. An explicitly configured
 standalone evaluation allowance remains bounded and is persisted across recovery.
@@ -567,6 +568,14 @@ flattened copy of the design. The geometry check supports `bbox_max` and
 support connectivity constraints. Neither KLayout nor an authoring bridge is
 needed in this container. Import logs and native geometry measurements are
 retained as evaluation evidence.
+
+Both native geometry adapters check stream record lengths, directory/precision
+and TEXT record syntax before importing the submitted bytes. In particular, a
+TEXT label requires TEXTTYPE and ordered XY/STRING records; permissive OA import
+does not establish validity for malformed labels. A confirmed format violation
+fails the artifact gate and scores zero. The adapters preserve the submission
+without rewriting records; license, execution and unclassified tool failures
+remain evaluation errors.
 
 For Synopsys runtimes, `customcompiler-geometry-native` accepts the same settings
 and bounding-box constraints. It explicitly runs operator-installed Custom

@@ -19,6 +19,16 @@ class Response(io.BytesIO):
     code = 200
 
 
+@pytest.mark.parametrize('seconds', [None, 7200])
+def test_process_check_preserves_the_callers_timeout_without_a_default_cap(monkeypatch, seconds):
+    client = Client('http://localhost:1', 'secret')
+    calls = []
+    monkeypatch.setattr(client, 'session', lambda _: {'capabilities': ['process-feedback']})
+    monkeypatch.setattr(client, 'execute', lambda sid, command, timeout, **kw: calls.append(timeout))
+    client.check('session', seconds, key='check')
+    assert calls == [seconds]
+
+
 @pytest.mark.parametrize('response,code', [
     ({'protocol':'other'}, 'incompatible_protocol'),
     ({'protocol':'layout-http','content_base64':base64.b64encode(b'changed').decode(),

@@ -31,10 +31,11 @@ def test_started_command_drains_then_settles_without_renewing_solve():
     assert clock.phase == 'expired' and clock.settlement_deadline == 30
 
 
-def test_stuck_command_cannot_extend_settlement_when_polled_late():
+@pytest.mark.parametrize('maximum,requested', [(2, 100), (None, 2)])
+def test_stuck_command_cannot_extend_settlement_when_polled_late(maximum, requested):
     now = [9]
-    clock = SessionBudget(PhaseBudgets(10, command_seconds=2, settlement_seconds=3), 10, clock=lambda: now[0])
-    assert clock.begin_operation(100) == 2
+    clock = SessionBudget(PhaseBudgets(10, command_seconds=maximum, settlement_seconds=3), 10, clock=lambda: now[0])
+    assert clock.begin_operation(requested) == 2
     now[0] = 100
     clock.end_operation()
     assert clock.phase == 'expired' and clock.settlement_deadline == 14
@@ -46,6 +47,97 @@ def test_no_active_command_enters_only_submission_grace():
     assert clock.phase == 'settling'
     now[0] = 13
     assert clock.phase == 'expired'
+
+
+def test_default_command_can_drain_without_renewing_the_solve_budget():
+    now = [9]
+    clock = SessionBudget(PhaseBudgets(10, settlement_seconds=3), 10, clock=lambda: now[0])
+    assert clock.begin_operation() is None
+    now[0] = 10000
+    assert clock.phase == 'draining'
+    assert clock.snapshot()['solve_remaining_seconds'] == 0
+    assert clock.snapshot()['command_remaining_seconds'] is None
+    with pytest.raises(TimeoutError):
+        clock.begin_operation()
+    clock.end_operation()
+    assert clock.phase == 'settling'
+    now[0] += 3
+    assert clock.phase == 'expired'
+
+
+def test_process_check_does_not_reintroduce_an_automatic_eda_deadline(monkeypatch):
+    from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
+    from benchmarking.execution.workspace.protocol import SessionProtocol
+
+    now = [9]
+    monkeypatch.setattr(tools.time, 'monotonic', lambda: now[0])
+    task = SimpleNamespace(output=SimpleNamespace(path='output/final.gds', max_bytes=1024))
+    config = SimpleNamespace(harness=HarnessSpec(capabilities=(PROCESS_FEEDBACK_CAPABILITY,)))
+    workspace = SimpleNamespace(read=lambda *args: b'frozen candidate',
+                                budget=SessionBudget(PhaseBudgets(10), 10, clock=lambda: now[0]))
+
+    def feedback(candidate, sequence):
+        assert tools.tool_timeout(1800) is None
+        now[0] = 10000
+        assert workspace.budget.phase == 'draining'
+        return {'report': {'outcome': 'passed'}}
+
+    protocol = SessionProtocol(task, config, workspace, 0, 10, recorder=None,
+                               record=lambda *args, **kwargs: None, feedback=feedback, on_ready=None)
+    try:
+        receipt = protocol.check()
+        assert receipt['accepted'] and receipt['feedback']['outcome'] == 'passed'
+        assert workspace.budget.phase == 'settling'
+    finally:
+        protocol.close()
+
+
+def test_settlement_waits_for_unlimited_command_after_a_retained_deadline(tmp_path, monkeypatch):
+    import json
+
+    from benchmarking.participants.attempt import settlement
+
+    (tmp_path/'finalization.json').write_text(json.dumps({
+        'executions': {}, 'errors': [], 'drain_deadline_epoch': 1}))
+    now = [10000]
+    monkeypatch.setattr(settlement.time, 'time', lambda: now[0])
+    monkeypatch.setattr(settlement.time, 'monotonic', lambda: now[0])
+    monkeypatch.setattr(settlement.time, 'sleep', lambda _: None)
+    state = {'active': True}
+    receipt = {'submission_id': '3', 'candidate_sha256': 'a'*64}
+    closed = []
+
+    def poll(*args, **kwargs):
+        now[0] += 10000
+        state['active'] = False
+        return {'log_base64': '', 'next_offset': 0, 'state': 'complete',
+                'exit_code': 0, 'truncated': False}
+
+    client = SimpleNamespace(session=lambda _: {
+        'state': 'active', 'active_execution_id': 'check' if state['active'] else None,
+        'last_submission': receipt, 'budget': {'command_remaining_seconds': None}},
+        poll=poll, close=lambda *args, **kwargs: closed.append(True))
+    assert settlement.settle_session(client, 'session', tmp_path) == receipt
+    record = json.loads((tmp_path/'finalization.json').read_text())
+    assert record['drain_deadline_epoch'] is None and record['error'] is None
+    assert closed and record['closed']
+
+
+def test_participant_expiry_tracks_service_phase_without_ending_active_eda(monkeypatch):
+    from benchmarking.participants.attempt import settlement
+
+    now = [0]
+    monkeypatch.setattr(settlement.time, 'monotonic', lambda: now[0])
+    status = {'state': 'active', 'phase': 'draining'}
+    client = SimpleNamespace(session=lambda _: status)
+    expired = settlement.participant_expiry(client, 'session', 10)
+    assert not expired()
+    now[0] = 10000
+    assert not expired()
+    status['phase'] = 'settling'
+    assert not expired()
+    status['phase'] = 'expired'
+    assert expired()
 
 
 def test_evaluation_has_no_automatic_budget_from_tool_or_solve_limits():
@@ -73,7 +165,7 @@ def test_evaluation_phase_deadline_survives_tool_threads(monkeypatch):
 
 
 @pytest.mark.parametrize('value', [0, -1, float('inf'), float('nan')])
-def test_phase_budgets_reject_unbounded_command_duration(value):
+def test_phase_budgets_reject_invalid_explicit_command_duration(value):
     with pytest.raises(ValueError):
         PhaseBudgets(10, command_seconds=value)
 

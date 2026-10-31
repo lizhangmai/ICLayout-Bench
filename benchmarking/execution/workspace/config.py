@@ -33,8 +33,7 @@ class RunConfig:
 
     @property
     def phase_budgets(self):
-        return self.budgets or PhaseBudgets(self.wall_seconds, command_seconds=self.wall_seconds,
-                                           settlement_seconds=0)
+        return self.budgets or PhaseBudgets(self.wall_seconds, settlement_seconds=0)
 
 
 def load_run_config(path: Path) -> RunConfig:

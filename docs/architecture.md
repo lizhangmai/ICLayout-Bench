@@ -214,24 +214,28 @@ Closing freezes selection and starts independent evaluation. Status includes
 The authoritative budget is `[task].hours`; `limits.wall_seconds` is that value
 in seconds. The service cannot replace it with a participant-selected budget.
 The frozen `limits.phase_budgets` declares `solve_seconds`, `command_seconds`,
-`settlement_seconds` and `evaluation_seconds`. Solve, command and settlement
-allowances are finite. `evaluation_seconds` is null in normal service sessions,
-allowing independent EDA evaluation to finish without an automatic deadline.
+`settlement_seconds` and `evaluation_seconds`. Solve and settlement allowances
+are finite. `command_seconds` and `evaluation_seconds` are null by default,
+allowing started commands, feedback and independent EDA evaluation to finish
+without an automatic deadline.
 
 | `phase` | Transition and permitted work |
 | --- | --- |
 | `solving` | Until the original solve deadline; commands/checks/writes may start. |
-| `draining` | An operation started before solve expiry finishes within its original command deadline; no new commands/checks/writes. |
-| `settling` | Final read/submission/close until the later of solve expiry and the last bounded operation end, plus the settlement allowance. |
+| `draining` | An operation started before solve expiry finishes; an explicitly requested command deadline is honored. No new commands/checks/writes. |
+| `settling` | Final read/submission/close until the later of solve expiry and the last operation end, plus the settlement allowance. |
 | `expired` | Submission window exhausted; close selection and remove the workspace. |
 | `evaluating` | Workspace closed; independently judge the frozen accepted candidate, without an automatic deadline in normal sessions. |
 | `complete`, `error` | Terminal result; an infrastructure failure preserves candidate and diagnostic evidence. |
 
 Status keeps the coarse `state` for protocol compatibility and exposes `phase`
-separately. `budget` includes phase-specific remaining times. Command defaults are
-3600 seconds, settlement 60 seconds. Final evaluation does not derive a time
-allowance from backend job timeouts. Execution requests with null timeout use the command cap;
-positive timeouts are clamped to that cap. Cancellation and polling remain available
+separately. `budget` includes phase-specific remaining times; an active unlimited
+command publishes `command_remaining_seconds: null` and
+`settlement_remaining_seconds: null`. Settlement defaults to 60 seconds after the
+operation ends. Final evaluation does not derive a time allowance from backend job
+timeouts. Execution requests with null timeout have no automatic cutoff unless an
+explicit command cap was configured; positive timeouts are honored and clamped to
+such a cap when present. Cancellation and polling remain available
 after solve expiry. Session feedback and final judging disable per-job EDA
 timeouts. An evaluating session publishes `evaluation_remaining_seconds: null`
 when judging is unlimited, and clients continue waiting across collection
@@ -241,13 +245,13 @@ an explicitly unlimited evaluation.
 Standalone solver configurations may declare `[phase_budgets]` with
 `command_seconds`, `settlement_seconds` and an optional finite
 `evaluation_seconds` for explicitly bounded judging; solve duration
-still comes from the task. Without this table the command allowance equals the solve duration and
+still comes from the task. Without this table commands have no automatic cutoff and
 the settlement allowance is zero. The former `soft_budget` configuration is rejected. Elapsed time and
 late submissions remain recorded; final judging grants no additional solve time.
 
 CPU, memory and PID limits default to null, meaning no framework quota. The
 local service enforces workspace/file/candidate/log/response bounds and publishes
-`max_command_seconds`, matching the independent command cap.
+`max_command_seconds`, null by default or matching an explicitly configured command cap.
 [Tools](tools.md#eda-backend-contract) defines evaluator job time limits.
 
 Workspace execution, file access and submission are serialized. A busy workspace

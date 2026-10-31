@@ -60,7 +60,8 @@ class SessionWorkspace:
         # Preserve declared PDK environment only for model commands, not file readers.
         try:
             return subprocess.Popen(["docker", "exec", "-i", self.cid, "/usr/bin/python3", "-I",
-                                     "/protocol/workspace.py", "exec", execution_id, str(timeout)],
+                                     "/protocol/workspace.py", "exec", execution_id,
+                                     str(timeout) if timeout is not None else 'none'],
                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         except Exception:
             self.budget.end_operation()

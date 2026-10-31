@@ -9,6 +9,7 @@ import struct
 
 import pytest
 from helpers.catalog import CASES, read_case
+from helpers.gds import array_gds
 
 from benchmarking.eda.environment import ExternalRuntime
 from benchmarking.evaluation import Job
@@ -27,42 +28,6 @@ def geometry_cases():
     return list(selected.values())
 
 
-def array_gds(*, geometry=True):
-    """Six 1 um squares at x=-1,1,3 and y=1,4; ignore a distant text label."""
-    def record(kind, datatype, data=b''):
-        data += b'\0' * (len(data) % 2)
-        return struct.pack('>HBB', len(data) + 4, kind, datatype) + data
-
-    def xy(*values):
-        return struct.pack('>' + 'i' * len(values), *values)
-
-    def real8(value):
-        exponent = 64
-        while value < 1 / 16:
-            value *= 16
-            exponent -= 1
-        while value >= 1:
-            value /= 16
-            exponent += 1
-        return bytes([exponent]) + int(value * 2**56).to_bytes(7, 'big')
-
-    dates = struct.pack('>12h', *([2026, 1, 1, 0, 0, 0] * 2))
-    boundary = [record(8, 0), record(13, 2, struct.pack('>h', 17)),
-                record(14, 2, struct.pack('>h', 3)),
-                record(16, 3, xy(0, 0, 1000, 0, 1000, 1000, 0, 1000, 0, 0)), record(17, 0)]
-    return b''.join([
-        record(0, 2, struct.pack('>h', 600)), record(1, 2, dates), record(2, 6, b'control'),
-        record(3, 5, real8(.001) + real8(1e-9)),
-        record(5, 2, dates), record(6, 6, b'child'), *(boundary if geometry else []), record(7, 0),
-        record(5, 2, dates), record(6, 6, b'dut'), record(11, 0), record(18, 6, b'child'),
-        record(19, 2, struct.pack('>2h', 3, 2)),
-        record(16, 3, xy(-1000, 1000, 5000, 1000, -1000, 7000)), record(17, 0),
-        record(12, 0), record(13, 2, struct.pack('>h', 17)), record(22, 2, struct.pack('>h', 3)),
-        record(16, 3, xy(100000, 100000)), record(25, 6, b'IGNORE_TEXT'), record(17, 0),
-        record(7, 0), record(4, 0),
-    ])
-
-
 @pytest.fixture(scope='module', params=geometry_cases(), ids=lambda path: path.parents[3].name)
 def geometry_backend(request):
     from benchmarking.eda.backends.customcompiler import CustomCompilerGeometryNative
@@ -79,11 +44,14 @@ def artifact_backend(geometry_backend):
     return type(geometry_backend)(runtime=geometry_backend.runtime, check='artifact')
 
 
-@pytest.mark.parametrize('control', ['valid', 'text_only', 'missing', 'malformed'])
+@pytest.mark.parametrize('control', ['valid', 'text_only', 'missing', 'malformed', 'malformed_text'])
 def test_native_artifact_requires_geometry_and_a_readable_declared_top(artifact_backend, control, tmp_path):
     task = {'output': {'top_cell': 'absent' if control == 'missing' else 'dut', 'max_bytes': 1000000}}
+    candidate = b'bad gds' if control == 'malformed' else array_gds(geometry=control != 'text_only')
+    if control == 'malformed_text':
+        candidate = candidate.replace(struct.pack('>HBBh', 6, 22, 2, 3), struct.pack('>HBBh', 6, 14, 2, 3), 1)
     result = artifact_backend.run(Job('artifact', 'check', 'layout.artifact', (), (), (), 'artifact', '{}'), {
-        'layout': Asset(b'bad gds' if control == 'malformed' else array_gds(geometry=control != 'text_only'), 'gds'),
+        'layout': Asset(candidate, 'gds'),
         'task': Asset(json.dumps(task).encode(), 'json'),
     })
     for name, asset in result.evidence.items():

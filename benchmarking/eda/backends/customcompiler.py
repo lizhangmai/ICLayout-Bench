@@ -7,6 +7,7 @@ from pathlib import Path
 from benchmarking.eda.backends.geometry import validate_constraints
 from benchmarking.eda.backends.virtuoso import geometry_result
 from benchmarking.eda.environment import ExternalRuntime
+from benchmarking.eda.oa.virtuoso import stream_metadata
 from benchmarking.evaluation.contracts import JobResult
 from benchmarking.execution.tools.diagnostics import native_failure
 from benchmarking.execution.tools.native import NativeTool
@@ -31,6 +32,7 @@ class CustomCompilerGeometryNative:
         return {'adapter': 'customcompiler-geometry-native', 'check': self.check, **self.tool.identity,
                 'tool_version': self.version,
                 'adapter_sha256': Asset(Path(__file__).read_bytes(), 'python').sha256,
+                'stream_parser_sha256': Asset(Path(__file__).parents[1].joinpath('oa/virtuoso.py').read_bytes(), 'python').sha256,
                 'geometry_parser_sha256': Asset(Path(__file__).with_name('virtuoso.py').read_bytes(), 'python').sha256}
 
     def run(self, job, inputs):
@@ -46,6 +48,11 @@ class CustomCompilerGeometryNative:
             raise ValueError('Unsupported GDS top cell name')
         if not 0 < len(inputs['layout'].content) <= task['output']['max_bytes']:
             return JobResult('failed', 'Empty or oversized GDS')
+        try:
+            stream_metadata(inputs['layout'].content)
+        except ValueError as error:
+            return JobResult('failed', f'Malformed GDS: {error}',
+                             evidence={'format_error': Asset(str(error).encode(), 'text')})
         constraints = (json.loads(inputs['constraints'].content) if self.check == 'geometry'
                        else {'hard': [], 'quality': []})
         if self.check == 'geometry':

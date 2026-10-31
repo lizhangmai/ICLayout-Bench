@@ -285,14 +285,16 @@ a session. Independent final judging has no automatic time limit:
 | Phase | Budget and allowed work |
 | --- | --- |
 | `solving` | The case's solve deadline; new commands, checks and writes are allowed. |
-| `draining` | Only an already-started command/check continues, to its original command deadline. Commands default to a 3600-second cap; an explicit shorter timeout is honored. |
-| `settling` | 60 seconds after solve expiry or the last command's bounded end, whichever is later, for reading, final submission and close. No new optimization work. |
+| `draining` | Only an already-started command/check continues. No automatic command or EDA deadline; an explicitly requested timeout is honored. |
+| `settling` | 60 seconds after solve expiry or the last command's end, whichever is later, for reading, final submission and close. No new optimization work. |
 | `evaluating` | Independent final judging; no automatic EDA or collection deadline. |
 
 Polling, retries and reconnection never renew the solve, command or settlement
-deadlines. A command started before solve expiry may finish within its own budget.
+deadlines. A command started before solve expiry may finish after expiry.
 Feedback and final judging do not impose individual backend timeouts. Feedback
-retains the enclosing command deadline; final judging waits for EDA completion.
+retains an explicitly requested enclosing command deadline; by default both feedback
+and final judging wait for EDA completion. Model processes are still stopped at
+service expiry after any active command has drained and settlement has ended.
 Late submission and elapsed overrun are recorded.
 The service retains the last accepted candidate when the workspace closes.
 [Lifecycle and budgets](architecture.md#lifecycle-and-budgets) defines the protocol.

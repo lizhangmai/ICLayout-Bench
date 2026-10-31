@@ -231,7 +231,8 @@ def test_phase_budgets_drain_work_and_accept_final_submission(host):
     status = client.session(sid)
     assert status['remaining_seconds'] == 0
     assert status['phase'] in {'draining', 'settling'}
-    assert status['budget']['command_remaining_seconds'] <= 3600
+    assert (status['budget']['command_remaining_seconds'] is None
+            if status['phase'] == 'draining' else status['budget']['command_remaining_seconds'] == 0)
     assert 'do not start another optimization round' in status['budget']['message']
     for action in ('execute', 'write', 'check'):
         with pytest.raises(ClientError) as caught:

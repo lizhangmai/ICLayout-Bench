@@ -122,16 +122,25 @@ def stop_process_tree(owner, *, timeout=60):
     return {'state': 'stopped', 'pid': pid, 'stopped_pids': sorted(known), 'forced_pids': forced}
 
 
-def execute(argv, *, cwd, env, stdout, stderr, timeout, prompt=None, pass_fds=()):
+def execute(argv, *, cwd, env, stdout, stderr, timeout, prompt=None, pass_fds=(), expired=None):
     process = subprocess.Popen(argv, cwd=cwd, env=env, stdout=stdout, stderr=stderr,
                                stdin=subprocess.PIPE if prompt is not None else subprocess.DEVNULL,
                                text=True, start_new_session=True, pass_fds=pass_fds)
     timed_out = False
+    deadline = time.monotonic() + max(.001, timeout) if timeout is not None else None
     try:
-        try:
-            process.communicate(prompt, timeout=None if timeout is None else max(.001, timeout))
-        except subprocess.TimeoutExpired:
-            timed_out = True
+        while True:
+            remaining = max(.001, deadline-time.monotonic()) if deadline is not None else None
+            try:
+                process.communicate(prompt, timeout=min(.5, remaining) if remaining is not None
+                                    else .5 if expired is not None else None)
+                break
+            except subprocess.TimeoutExpired:
+                prompt = None
+                if (deadline is not None and time.monotonic() >= deadline
+                        or expired is not None and expired()):
+                    timed_out = True
+                    break
         return process.returncode, timed_out
     finally:
         # Descendants must stop even when the original process already exited.

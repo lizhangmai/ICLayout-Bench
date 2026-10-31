@@ -14,6 +14,7 @@ import uuid
 from pathlib import Path
 
 from benchmarking.client import Client, ClientError
+from benchmarking.execution.budgets import command_timeout
 
 
 def tool(name, description, properties, required=()):
@@ -85,12 +86,12 @@ class Bridge:
             remaining = status["remaining_seconds"]
             if remaining <= 0:
                 raise ClientError('budget_exhausted', 'Submit immediately without another optimization round')
-            command_limit = status.get('budget', {}).get('phase_budgets', {}).get('command_seconds', 3600)
-            command_limit = min(command_limit, self.command_seconds or command_limit)
-            seconds = args.get('seconds', command_limit)
-            if type(seconds) not in (int, float) or not math.isfinite(seconds) or seconds <= 0:
+            command_limit = command_timeout(
+                self.command_seconds, status.get('budget', {}).get('phase_budgets', {}).get('command_seconds'))
+            if 'seconds' in args and args['seconds'] is None:
                 raise ValueError('Command seconds must be positive and finite')
-            seconds = min(seconds, command_limit)
+            seconds = args.get('seconds', command_limit)
+            seconds = command_timeout(seconds, command_limit)
         request = {"tool": name, "arguments": args, "mutation": mutation, "key": key}
         if name in {"execute", "check"}:
             request["seconds"] = seconds

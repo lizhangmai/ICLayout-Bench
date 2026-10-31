@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 
 from benchmarking.evidence.identity import evaluation_identity
-from benchmarking.execution.budgets import PhaseBudgets
+from benchmarking.execution.budgets import PhaseBudgets, command_timeout
 from benchmarking.execution.checkpoints import (
     DEFAULT_CHECKPOINT_POLICY,
     checkpoint_failure,
@@ -449,7 +449,7 @@ class SessionController:
             raise ValueError('Invalid command')
         if timeout is not None and (type(timeout) not in (int,float) or not math.isfinite(timeout) or timeout<=0):
             raise ValueError('Invalid timeout')
-        timeout = min(timeout or self.limits['max_command_seconds'], self.limits['max_command_seconds'])
+        timeout = command_timeout(timeout, self.limits['max_command_seconds'])
         eid = uuid.uuid4().hex
         def started():
             data['executions'][eid] = {

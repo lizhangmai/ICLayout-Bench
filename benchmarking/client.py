@@ -203,9 +203,7 @@ class Client:
         status = self.session(session_id)
         if "process-feedback" not in status.get("capabilities", []):
             raise ValueError("Service does not advertise process-feedback")
-        seconds = (status.get('budget', {}).get('phase_budgets', {}).get('command_seconds', 3600)
-                   if timeout_seconds is None else timeout_seconds)
-        return self.execute(session_id, "python -I /protocol/process_check.py", seconds, key=key)
+        return self.execute(session_id, "python -I /protocol/process_check.py", timeout_seconds, key=key)
 
     def submit(self, session_id, path, *, key):
         return self.session(session_id, "submissions", {"path": path}, key=key)
@@ -228,7 +226,7 @@ def command_main(argv):
     parser.add_argument("action", choices=("status", "exec", "check", "poll", "cancel", "submit", "close", "result", "read", "write"))
     parser.add_argument("value", nargs="?")
     parser.add_argument("--key")
-    parser.add_argument("--seconds", type=float, default=120)
+    parser.add_argument("--seconds", type=float)
     parser.add_argument('--offset', type=int, default=0, help='Execution log byte offset for poll')
     parser.add_argument("--export", help="Export a terminal result to a new directory")
     args = parser.parse_args(argv)

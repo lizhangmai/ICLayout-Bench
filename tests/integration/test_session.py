@@ -638,10 +638,9 @@ output.write_bytes(b'late-storage'); submit()
 
 @pytest.mark.acceptance
 @pytest.mark.acceptance_container
-def test_process_feedback_cannot_extend_solver_deadline(tmp_path):
-    # Existing feedback coverage uses immediate callbacks. A delayed trusted
-    # evaluator must not extend the documented solve budget. Inspect the real
-    # container during that callback; a late return alone cannot prove isolation.
+def test_started_process_feedback_drains_after_solve_expiry(tmp_path):
+    # Started EDA finishes after solve expiry; optimization cannot continue
+    # after it drains. Inspect the real container during the delayed callback.
     task = session_task()
     config = replace(configuration('''
 output.write_bytes(b'accepted'); assert submit()['accepted']
@@ -662,10 +661,10 @@ time.sleep(30)
 
     result = DockerSession(config.image).run(
         task, config, {}, task_message(task, config), recorder=recorder, feedback=feedback)
-    assert running_during_late_feedback == [False]
+    assert running_during_late_feedback == [True]
     assert result.termination == 'budget_exhausted'
     assert result.candidate.content == b'accepted'
-    assert result.process_feedback[-1]['outcome'] == 'error'
+    assert result.process_feedback[-1]['outcome'] == 'failed'
 
 
 @pytest.mark.acceptance

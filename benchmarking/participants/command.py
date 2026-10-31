@@ -5,6 +5,7 @@ from benchmarking.execution.process import execute
 from benchmarking.files import atomic_write
 from benchmarking.observe import export_observation
 from benchmarking.participants.attempt.settlement import (
+    participant_expiry,
     participant_timeout,
     settle_session,
     wait_result,
@@ -27,9 +28,11 @@ def run_command(access, task_id, frozen, output, *, creation_key):
     error, exit_code = None, None
     try:
         with (output / 'stdout.jsonl').open('w') as stdout, (output / 'stderr.log').open('w') as stderr:
+            status = client.session(sid)
             exit_code, timed_out = execute(frozen['command'], cwd=frozen['cwd'], env=env,
                                             stdout=stdout, stderr=stderr,
-                                            timeout=participant_timeout(created, client.session(sid)))
+                                            timeout=participant_timeout(created, status),
+                                            expired=participant_expiry(client, sid, status['remaining_seconds']))
             if timed_out:
                 error = 'participant_timeout'
             elif exit_code:

@@ -25,6 +25,7 @@ from benchmarking.participants.attempt.recovery import (
     policy,
 )
 from benchmarking.participants.attempt.settlement import (
+    participant_expiry,
     participant_timeout,
     settle_session,
 )
@@ -152,7 +153,8 @@ def run_participant(access, row, output, selection: ParticipantSelection):
                 try:
                     exit_code, timed_out = execute(args, cwd=context.directory, env=env, stdout=out, stderr=err,
                                                   prompt=context.prompt, timeout=participant_timeout(created, {'remaining_seconds': remaining}),
-                                                  pass_fds=tuple(int(env[k]) for k in ["ICLAYOUT_BENCH_LEASE_FD"] if k in env))
+                                                  pass_fds=tuple(int(env[k]) for k in ["ICLAYOUT_BENCH_LEASE_FD"] if k in env),
+                                                  expired=participant_expiry(client, sid, remaining))
                 finally:
                     # Keep refreshed secrets in redactions before credential synchronization,
                     # including native process failures and interrupted launches.
