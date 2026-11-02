@@ -198,6 +198,10 @@ def export_participant_results(results, destination):
                **(usage.get("tokens") or {}), "api_seconds": usage.get("api_seconds"),
                "cost_per_task": usage.get("cost"), "currency": usage.get("currency"),
                "cost_source": usage.get("cost_source"),
+               "usage_aggregation": usage.get("aggregation"),
+               "output_tokens_missing_records": (usage.get("coverage") or {}).get("output_tokens", {}).get("missing"),
+               "cost_missing_records": (usage.get("coverage") or {}).get("cost", {}).get("missing"),
+               "missing_attempts": usage.get("missing_attempts"),
                "wall_seconds": (result.get("execution") or {}).get("elapsed_seconds")}
         rows.append(row)
         key = (condition["harness"], condition["model"], condition["effort_resolved"])
@@ -206,6 +210,7 @@ def export_participant_results(results, destination):
     columns = ("task", "session_id", "repetition", "harness", "model", "effort", "outcome",
                *TOKEN_FIELDS, "api_seconds", "cost_per_task", "currency",
                "cost_source", "wall_seconds")
+    columns += ("usage_aggregation", "output_tokens_missing_records", "cost_missing_records", "missing_attempts")
     _csv(output / "runs.csv", columns, rows)
     summaries = [{"harness": key[0], "model": key[1], "effort": key[2], **model_usage_summary(values)}
                  for key, values in groups.items()]

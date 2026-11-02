@@ -158,8 +158,8 @@ def _calculate_token_cost(request, pricing, configured_model):
 
 
 def _total(records, field):
-    values = [number(r.get(field)) for r in records]
-    return sum(values) if values and all(v is not None for v in values) else None
+    values = [value for record in records if (value := number(record.get(field))) is not None]
+    return sum(values) if values else None
 
 
 def summarize_usage(evidence, *, model, pricing=None, wall_seconds=None):
@@ -184,7 +184,8 @@ def summarize_usage(evidence, *, model, pricing=None, wall_seconds=None):
         request["cost_source"] = "api_token_pricing" if request["cost"] is not None else None
     tokens = {key: _total(requests, key) for key in TOKEN_FIELDS}
     if evidence.totals is not None:
-        tokens.update({key: number(value, integer=True) for key, value in evidence.totals.items() if key in TOKEN_FIELDS})
+        tokens.update({key: measured for key, value in evidence.totals.items()
+                       if key in TOKEN_FIELDS and (measured := number(value, integer=True)) is not None})
     seconds = number(evidence.api_seconds)
     if seconds is None:
         seconds = _total(requests, "elapsed_seconds")
@@ -196,7 +197,7 @@ def summarize_usage(evidence, *, model, pricing=None, wall_seconds=None):
         cost, currency, cost_source = evidence.reported_cost, evidence.currency, "harness_reported"
     elif len(currencies) == 1:
         currency = next(iter(currencies))
-    return {"provenance": "participant_reported", "model": model, "requests": requests,
+    return {"provenance": "participant_reported", "aggregation": "sum_known", "model": model, "requests": requests,
             "request_count": len(requests) if requests and all(r.get("scope") == "request" for r in requests) else None,
             "record_count": len(requests), "tokens": tokens, "api_seconds": seconds, "wall_seconds": number(wall_seconds),
             "cost": cost, "currency": currency, "cost_source": cost_source, "pricing": pricing,
@@ -215,7 +216,7 @@ def combine_usage(components):
     sources = {p.get("cost_source") for p in parts if p.get("cost") is not None}
     requests = [{**request, "id": f"attempt-{index}:{request['id']}"}
                 for index, part in enumerate(parts) for request in part.get("requests", [])]
-    return {**parts[-1], "tokens": tokens, "requests": requests,
+    return {**parts[-1], "aggregation": "sum_known", "tokens": tokens, "requests": requests,
             "request_count": _total(parts, "request_count"), "record_count": len(requests),
             "api_seconds": seconds, "wall_seconds": wall,
             "cost": cost, "currency": next(iter(currencies)) if len(currencies) == 1 else None,

@@ -914,9 +914,11 @@ the active command's remaining budget and persists its absolute expiry in the
 finalization journal. Final collection follows the service's evaluation deadline,
 independently of solve time. Repeated polls do not reset either allowance.
 When draining times out, the runner still requests close, preserving the accepted
-receipt and execution journal. A pending final evaluation raises a collection
-error and retains the session for explicit recovery; it does not invent a verdict
-or score. Cleanup never launches or replays an execution.
+receipt and execution journal. After a confirmed close it continues collecting
+the final evaluation; the drain timeout remains diagnostic evidence and does not
+replace the evaluator's verdict or score. A pending final evaluation raises a
+collection error and retains the session for explicit recovery; it does not
+invent a verdict or score. Cleanup never launches or replays an execution.
 `finalization.json` records execution offsets, submission outcome and independent
 settlement/close errors; drained logs use `finalization-<execution-id>.log`.
 
@@ -924,6 +926,10 @@ If the service has already entered evaluation or a terminal state, the runner
 collects that result without closing the workspace again. A `session_closed`
 response during close is accepted only after a status read confirms that
 transition; other close failures retain their recovery evidence.
+Container removal interrupted by a shutdown signal is retried once after the
+daemon confirms that the owned container still exists, within the original
+removal timeout. Both removal attempts remain in the cleanup evidence;
+persistent failures remain infrastructure errors.
 
 Harness interruption, settlement failure and evaluator verdict remain separate.
 Failures carry a `scope`: `session` isolates one case, `provider` blocks tasks using
@@ -1055,13 +1061,18 @@ The independent service normally cannot observe model usage, so its
 | `cost`, `currency`, `cost_source` | Task cost and its recorded basis. |
 | `pricing` | Frozen selected model price table, when configured. |
 | `coverage` | Known/missing record counts for each measured field. |
+| `aggregation` | `sum_known`: aggregate the available observations; inspect coverage for missing usage. |
 | `api_seconds`, `wall_seconds` | Native API duration and separate participant runtime. |
 
-Missing counts, native timing or prices remain unknown. Partial request coverage
-cannot establish a complete total. Failed requests with recorded usage remain
-included; DSH transport-only failures without usage or generated content
-contribute zero and stay in failure history. Replaced attempts contribute their
-original usage and prices; an unknown attempt makes the complete total unknown.
+Missing per-request counts, native timing or prices remain unknown. Aggregate
+token counts, costs and durations sum the available observations, so one missing
+request does not erase recorded usage from other requests. `coverage` retains
+the known/missing counts; an aggregate with missing observations is a recorded
+subtotal, not a complete measurement. A field with no observations remains null.
+Failed requests with recorded usage remain included; DSH transport-only failures
+without usage or generated content contribute zero and stay in failure history.
+Replaced attempts contribute their original usage and prices; missing attempts
+remain counted in `missing_attempts` without erasing known attempt subtotals.
 
 Cost prefers a valid native amount, including a genuine zero, unless the explicit
 price table sets `prefer_reported_cost = false`. Otherwise native token counts
@@ -1136,9 +1147,10 @@ analyzed separately; each invocation accepts one format. A collection with a
 | HTTP service result | `results.json`, `manifest.json`; nonempty results also produce `runs.csv` and `tasks.csv`. |
 
 Participant CSV records native tokens, `cost_per_task`, currency, cost source,
-API duration and wall duration. `summary.json` reports condition-level usage/cost
-coverage. Complete totals require all selected measurements; currencies remain
-separate. Service analysis groups scores by task/version, condition, tools,
+API duration and wall duration, together with aggregation and missing-record
+counts. `summary.json` retains request coverage and missing attempts alongside
+condition-level usage/cost coverage. Complete totals require all selected
+measurements; currencies remain separate. Service analysis groups scores by task/version, condition, tools,
 limits and evaluation mode. It reports known/missing counts and sample standard
 deviation; a lone sample has no sample standard deviation. Error or incomplete
 scores remain missing. Output consists of structured data for consumers to render.

@@ -95,6 +95,28 @@ def test_native_cost_including_zero_is_used_without_repricing():
     assert report["api_seconds"] is None
 
 
+def test_native_usage_keeps_known_sums_when_a_failed_request_has_no_usage():
+    from benchmarking.results.usage import (
+        UsageEvidence,
+        request_record,
+        summarize_usage,
+    )
+
+    known = request_record('completed', 'model', input_tokens=1000, cached=0, written=0,
+                           output=100, seconds=2)
+    failed = request_record('failed', 'model')
+    report = summarize_usage(UsageEvidence([known, failed]), model='model', pricing=price_table())
+
+    assert report['tokens']['input_tokens'] == 1000
+    assert report['tokens']['output_tokens'] == 100
+    assert report['cost'] == pytest.approx(.003)
+    assert report['api_seconds'] == 2
+    assert report['coverage']['output_tokens'] == {'known': 1, 'missing': 1}
+    assert report['coverage']['cost'] == {'known': 1, 'missing': 1}
+    assert report['requests'][1].get('output_tokens') is None
+    assert summarize_usage(UsageEvidence([failed]), model='model', pricing=price_table())['cost'] is None
+
+
 def test_model_pricing_uses_each_requests_context_length_and_keeps_unpriced_models_unknown():
     from benchmarking.results.usage import (
         UsageEvidence,
@@ -112,7 +134,8 @@ def test_model_pricing_uses_each_requests_context_length_and_keeps_unpriced_mode
     assert report["cost"] == pytest.approx(.0059)
     unknown = request_record("b", "other-model", input_tokens=100, cached=0, written=0, output=10)
     partial = summarize_usage(UsageEvidence([call, unknown]), model="model", pricing=rates)
-    assert partial["cost"] is None and partial["coverage"]["cost"] == {"known": 1, "missing": 1}
+    assert partial["cost"] == pytest.approx(.0059)
+    assert partial["coverage"]["cost"] == {"known": 1, "missing": 1}
     invalid = request_record("c", "model", input_tokens=100, cached=101, written=0, output=10)
     assert summarize_usage(UsageEvidence([invalid]), model="model", pricing=rates)["cost"] is None
     rates['models'] = {'other-model': {'input_per_million': 1, 'cache_read_per_million': .1,
@@ -156,7 +179,7 @@ def test_task_usage_aggregation_preserves_missing_tasks_and_currencies():
     assert model_usage_summary([a, {**b, "api_seconds": None}])["api_seconds"]["sum"] is None
 
 
-def test_replaced_attempt_costs_use_their_own_snapshots_and_missing_attempts_stay_unknown():
+def test_replaced_attempt_costs_keep_known_sums_and_missing_attempt_coverage():
     from benchmarking.results.usage import (
         UsageEvidence,
         combine_usage,
@@ -173,7 +196,10 @@ def test_replaced_attempt_costs_use_their_own_snapshots_and_missing_attempts_sta
     assert combined['wall_seconds'] == 30
     assert len({r['id'] for r in combined['requests']}) == 2
     assert combined['cost_source'] == 'mixed'
-    assert combine_usage([None, second])['cost'] is None
+    partial = combine_usage([None, second])
+    assert partial['cost'] == 1 and partial['tokens']['output_tokens'] == 100
+    assert partial['missing_attempts'] == 1 and partial['aggregation'] == 'sum_known'
+    assert combine_usage([None, None])['cost'] is None
 
 
 def test_gateway_summary_keeps_failed_requests_and_missing_cost():

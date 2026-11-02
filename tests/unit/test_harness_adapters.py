@@ -148,19 +148,19 @@ def test_each_harness_reuses_native_usage_and_keeps_cache_categories_disjoint(ha
         assert priced['cost_source'] == 'api_token_pricing'
 
 
-@pytest.mark.parametrize('attempt_type,code,usage,chunks,expected_cost', [
-    ('assistant/attempt', 'TRANSPORT', None, [], .00013),
-    ('assistant/attempt', 'TRANSPORT', {}, [], .00013),
-    ('assistant/attempt', 'TRANSPORT', {'inputTokens': 5, 'outputTokens': 2}, [], .000145),
+@pytest.mark.parametrize('attempt_type,code,usage,chunks,expected_cost,missing', [
+    ('assistant/attempt', 'TRANSPORT', None, [], .00013, 0),
+    ('assistant/attempt', 'TRANSPORT', {}, [], .00013, 0),
+    ('assistant/attempt', 'TRANSPORT', {'inputTokens': 5, 'outputTokens': 2}, [], .000145, 0),
     ('assistant/attempt', 'TRANSPORT', None,
-     [{'type': 'usage', 'usage': {'inputTokens': 5, 'outputTokens': 2}}], .000145),
-    ('assistant/attempt', 'TRANSPORT', {'inputTokens': 5}, [], None),
-    ('assistant/attempt', 'TRANSPORT', None, [{'type': 'text', 'text': 'partial'}], None),
-    ('assistant/attempt', 'SERVER', None, [], None),
-    ('assistant/message', 'TRANSPORT', None, [], None),
+     [{'type': 'usage', 'usage': {'inputTokens': 5, 'outputTokens': 2}}], .000145, 0),
+    ('assistant/attempt', 'TRANSPORT', {'inputTokens': 5}, [], .00013, 1),
+    ('assistant/attempt', 'TRANSPORT', None, [{'type': 'text', 'text': 'partial'}], .00013, 1),
+    ('assistant/attempt', 'SERVER', None, [], .00013, 1),
+    ('assistant/message', 'TRANSPORT', None, [], .00013, 1),
 ])
-def test_dsh_empty_transport_attempt_contributes_zero_before_successful_retry(
-        attempt_type, code, usage, chunks, expected_cost):
+def test_dsh_transport_failure_preserves_recorded_retry_usage(
+        attempt_type, code, usage, chunks, expected_cost, missing):
     from benchmarking.results.usage import summarize_usage
 
     finish = {'type': 'finish', 'reason': {'kind': 'error', 'failure': {'code': code}}}
@@ -179,17 +179,16 @@ def test_dsh_empty_transport_attempt_contributes_zero_before_successful_retry(
                'cache_write_per_million': 2, 'output_per_million': 5,
                'currency': 'USD', 'prefer_reported_cost': False}
     report = summarize_usage(adapters.usage('dsh', b'', native), model='fixture-model', pricing=pricing)
-    if expected_cost is None:
-        assert report['cost'] is None
-        assert report['coverage']['cost']['missing'] == 1
-    else:
-        assert report['cost'] == pytest.approx(expected_cost)
-        assert report['coverage']['cost']['missing'] == 0
-        if expected_cost == .00013:
-            assert report['tokens']['input_tokens'] == 30
-            assert report['tokens']['output_tokens'] == 20
-            assert report['request_count'] == 1
-            assert report['api_seconds'] == 2
+    assert report['cost'] == pytest.approx(expected_cost)
+    assert report['coverage']['cost']['missing'] == missing
+    if missing:
+        assert report['requests'][0].get('cost') is None
+        assert report['request_count'] == 2
+    elif expected_cost == .00013:
+        assert report['tokens']['input_tokens'] == 30
+        assert report['tokens']['output_tokens'] == 20
+        assert report['request_count'] == 1
+        assert report['api_seconds'] == 2
 
 
 def test_claude_resumed_totals_and_placeholder_outputs_are_not_added_again():

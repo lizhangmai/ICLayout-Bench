@@ -127,7 +127,8 @@ def test_import_is_independent_idempotent_and_preserves_unknowns(tmp_path):
     store.close()
 
 
-def test_participant_usage_survives_terminal_cleanup_archive_comparison_and_csv(tmp_path):
+@pytest.mark.parametrize('partial', [False, True])
+def test_participant_usage_survives_terminal_cleanup_archive_comparison_and_csv(tmp_path, partial):
     import csv
 
     from helpers.participant import terminal_files
@@ -152,7 +153,10 @@ def test_participant_usage_survives_terminal_cleanup_archive_comparison_and_csv(
     (record.participant / 'harness-summary.json').write_text('{"elapsed_seconds": 5}')
     event = {'type': 'model.usage', 'request_id': 'r1', 'model': 'fixture-model', 'elapsed_seconds': 2,
              'usage': {'input_tokens': 100, 'cached_input_tokens': 60, 'cache_write_input_tokens': 0, 'output_tokens': 20}}
-    (record.participant / 'harness.jsonl').write_text(json.dumps(event) + '\n')
+    events = [event]
+    if partial:
+        events.append({'type': 'model.usage', 'request_id': 'interrupted', 'model': 'fixture-model', 'usage': {}})
+    (record.participant / 'harness.jsonl').write_text(''.join(json.dumps(e) + '\n' for e in events))
     finish_case(root)
     raw = json.loads((root / 'result.json').read_text())
     assert not record.runtime.exists()
@@ -160,6 +164,8 @@ def test_participant_usage_survives_terminal_cleanup_archive_comparison_and_csv(
     assert raw['model_usage']['api_seconds'] == 2
     assert raw['model_usage']['wall_seconds'] == 5
     assert raw['model_usage']['pricing'] == pricing
+    assert raw['model_usage']['aggregation'] == 'sum_known'
+    assert raw['model_usage']['coverage']['output_tokens'] == {'known': 1, 'missing': int(partial)}
     assert all(value is None for value in raw['evaluation']['usage'].values())
     store = ResultStore(tmp_path / 'archive')
     imported = store.import_result(root)
@@ -167,12 +173,16 @@ def test_participant_usage_survives_terminal_cleanup_archive_comparison_and_csv(
     totals = store.comparison()['totals'][0]['model_usage']
     assert totals['cost_per_task'] == pytest.approx(.000292)
     assert totals['api_seconds']['sum'] == 2
+    assert totals['coverage']['cost'] == {'known': 1, 'missing': int(partial)}
     export_participant_results([raw], tmp_path / 'analysis')
     with (tmp_path / 'analysis/runs.csv').open() as stream:
         row, = csv.DictReader(stream)
     assert float(row['cost_per_task']) == pytest.approx(.000292)
     assert float(row['api_seconds']) == 2
     assert float(row['wall_seconds']) == 5
+    assert row['usage_aggregation'] == 'sum_known'
+    assert int(row['output_tokens_missing_records']) == int(partial)
+    assert int(row['cost_missing_records']) == int(partial)
     summaries = json.loads((tmp_path / 'analysis/summary.json').read_text())
     for exported in (raw['model_usage'], totals, row, *summaries):
         assert not {'output_tokens_per_second', 'wall_output_tokens_per_second'} & exported.keys()

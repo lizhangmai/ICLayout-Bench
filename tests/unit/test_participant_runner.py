@@ -199,6 +199,7 @@ def test_finalization_command_expiry_retains_accepted_candidate(tmp_path, monkey
 
     from benchmarking.participants.attempt.runner import finalize_session
     fixture = InFlightService()
+    fixture.condition = {}
     receipt = {'submission_id': 'earlier', 'sequence': 1, 'candidate_sha256': 'a' * 64}
     old_session = fixture.session
     fixture.session = lambda sid: dict(old_session(sid), last_submission=receipt,
@@ -210,11 +211,47 @@ def test_finalization_command_expiry_retains_accepted_candidate(tmp_path, monkey
         clock[0] += seconds
     monkeypatch.setattr('benchmarking.participants.attempt.settlement.time', SimpleNamespace(
         monotonic=lambda: clock[0], time=lambda: clock[0], sleep=sleep))
-    with pytest.raises(TimeoutError, match='command deadline'):
-        finalize_session(fixture, 'fixture-session', tmp_path)
+    (tmp_path / '.private').mkdir()
+    (tmp_path / '.private/recovery.json').write_text('{"redactions": []}')
+    result = fixture.result
+    monkeypatch.setattr(fixture, 'result', lambda sid: dict(
+        result(sid), submission=receipt, outcome='fail',
+        score={'method': 'layout', 'maximum': 100, 'reference': 100, 'value': 0.0}))
+    observed = finalize_session(fixture, 'fixture-session', tmp_path)
+    assert observed['submission'] == receipt and observed['score']['value'] == 0.0
     evidence = json.loads((tmp_path / 'finalization.json').read_text())
     assert evidence['receipt'] == receipt and evidence['closed']
+    assert evidence['error']['error'] == 'TimeoutError'
     assert fixture.closed == ['fixture-session'] and not fixture.submitted
+
+
+@pytest.mark.parametrize('score', [0.0, 87.5])
+def test_finalization_collects_accepted_candidate_after_drain_timeout(tmp_path, monkeypatch, score):
+    from benchmarking.participants.attempt.runner import finalize_session
+
+    fixture = InFlightService()
+    fixture.condition = {}
+    receipt = {'submission_id': 'final', 'sequence': 4, 'candidate_sha256': 'a' * 64}
+    session, result = fixture.session, fixture.result
+    monkeypatch.setattr(fixture, 'session', lambda sid: dict(session(sid), last_submission=receipt))
+    monkeypatch.setattr(fixture, 'result', lambda sid: dict(
+        result(sid), submission=receipt, outcome='pass' if score else 'fail',
+        score={'method': 'layout', 'maximum': 100, 'reference': 100, 'value': score}))
+
+    def poll(*args, **kwargs):
+        raise TimeoutError('execution polling timed out')
+
+    monkeypatch.setattr(fixture, 'poll', poll)
+    (tmp_path / '.private').mkdir()
+    (tmp_path / '.private/recovery.json').write_text('{"redactions": []}')
+
+    observed = finalize_session(fixture, 'fixture-session', tmp_path)
+
+    assert observed['state'] == 'complete' and observed['score']['value'] == score
+    assert observed['submission'] == receipt and not fixture.submitted
+    assert (tmp_path / 'observation/manifest.json').is_file()
+    record = json.loads((tmp_path / 'finalization.json').read_text())
+    assert record['closed'] and record['error']['error'] == 'TimeoutError'
 
 
 def test_finalization_keeps_primary_error_when_close_also_fails(tmp_path, monkeypatch):

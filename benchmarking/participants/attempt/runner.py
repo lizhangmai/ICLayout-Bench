@@ -215,7 +215,17 @@ def finalize_session(client, sid, output):
     summary_path = output / "harness-summary.json"
     summary = json.loads(summary_path.read_text()) if summary_path.exists() else {}
     try:
-        receipt = settle_session(client, sid, output)
+        try:
+            receipt = settle_session(client, sid, output)
+        except TimeoutError:
+            # A drain timeout does not invalidate the accepted snapshot. Close
+            # may already have succeeded in settle_session's finally block;
+            # collect its independent verdict and retain the timeout journal.
+            journal = output / "finalization.json"
+            settlement = json.loads(journal.read_text()) if journal.exists() else {}
+            if not settlement.get("closed"):
+                raise
+            receipt = settlement.get("receipt")
         summary.pop("finalization_error", None)
         summary["final_receipt"] = receipt
         save(summary_path, summary)

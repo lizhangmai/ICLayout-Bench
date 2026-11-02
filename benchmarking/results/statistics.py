@@ -85,6 +85,11 @@ def model_usage_summary(measurements):
     costs = resource_distribution(m.get("cost") if m else None for m in measurements)
     seconds = resource_distribution(m.get("api_seconds") if m else None for m in measurements)
     return {"tasks": len(measurements), "measured": len(present), "tokens": tokens,
+            "aggregation": "sum_known",
+            "coverage": {key: {name: sum((m.get("coverage") or {}).get(key, {}).get(name, 0)
+                                           for m in present) for name in ("known", "missing")}
+                         for key in (*TOKEN_FIELDS, "elapsed_seconds", "cost")},
+            "missing_attempts": sum(m.get("missing_attempts", 0) for m in present),
             "api_seconds": seconds,
             "currency": next(iter(currencies)) if len(currencies) == 1 else None,
             "cost": costs if len(currencies) <= 1 else resource_distribution(None for _ in measurements),
