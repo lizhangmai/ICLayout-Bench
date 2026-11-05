@@ -693,7 +693,7 @@ def test_native_resume_keeps_sandbox_and_explicit_session(tmp_path):
     args = prepare_harness_args(selected, env, {}, tmp_path / 'mcp.json', tmp_path)
     assert args[-3:] == ['resume', 'session-identity', '-']
     assert '--ephemeral' not in args
-    assert args[args.index('--sandbox') + 1] == 'read-only'
+    assert args[args.index('--sandbox') + 1] == 'workspace-write'
     native_session(tmp_path, 'claude-code', 'session-identity')
     args = prepare_harness_args(selected | {'harness': 'claude-code'}, env, {}, tmp_path / 'mcp.json', tmp_path)
     assert args[args.index('--resume') + 1] == 'session-identity'
@@ -793,7 +793,7 @@ def test_codex_preapproves_layout_tools_without_granting_host_execution(tmp_path
     config = {key: json.loads(value) for key, value in overrides.items()}
     assert config['mcp_servers.layout.default_tools_approval_mode'] == 'approve'
     assert config['approval_policy'] == 'never'
-    assert args[args.index('--sandbox') + 1] == 'read-only'
+    assert args[args.index('--sandbox') + 1] == 'workspace-write'
     assert config['features.shell_tool'] is False
     assert config['features.unified_exec'] is False
     assert '--ignore-user-config' in args

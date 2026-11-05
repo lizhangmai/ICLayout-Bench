@@ -195,7 +195,7 @@ def prepare(context: LaunchContext) -> list[str]:
         "--ignore-rules",
         "--skip-git-repo-check",
         "--sandbox",
-        "read-only",
+        "workspace-write",
         "--json",
         "-m",
         condition["model"],

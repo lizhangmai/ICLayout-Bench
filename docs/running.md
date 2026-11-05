@@ -401,9 +401,11 @@ The adapter passes approved connection settings as CLI overrides while retaining
 `--ignore-user-config` and `--ignore-rules`. Model, effort, hooks, skills, plugins
 and MCP configuration do not belong in this native connection file.
 
-Bench configures noninteractive approval for the declared MCP tools, a read-only
-host sandbox and disabled native host execution tools. These settings also apply
-to continuation; MCP permission fields are not experiment TOML options.
+Bench configures noninteractive approval for the declared MCP tools and starts
+Codex with `--sandbox workspace-write` in its per-attempt host working directory.
+Native host execution tools remain disabled; layout operations run through MCP
+in the remote EDA workspace. These settings also apply to continuation; MCP
+permission fields are not experiment TOML options.
 
 #### Claude Code and DSH
 
