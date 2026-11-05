@@ -145,6 +145,8 @@ def test_spectre_x_preserves_inputs_and_rejects_native_failure(monkeypatch):
 
     monkeypatch.setattr('benchmarking.eda.backends.spectre.NativeEDATool', Tool)
     monkeypatch.setattr('benchmarking.eda.environment.ExternalRuntime.pdk_file', lambda *args: (None, '/pdk/model'))
+    monkeypatch.setattr('benchmarking.eda.backends.spectre.os.sched_getaffinity',
+                        lambda pid: set(range(16)))
     runtime = ExternalRuntime('test', {'image': 'test-image', 'environment': {}, 'mounts': []})
     settings = {'runtime': runtime, 'model': 'model', 'section': 'tt'}
     backend = SpectreXNative(threads=16, preset='ax', preset_override=['maxstep'], **settings)
@@ -168,8 +170,6 @@ def test_spectre_x_preserves_inputs_and_rejects_native_failure(monkeypatch):
         SpectreXNative(preset='moderate', **settings)
     with pytest.raises(ValueError, match='overridden parameters'):
         SpectreXNative(preset_override=['unknown'], **settings)
-    monkeypatch.setattr('benchmarking.eda.backends.spectre.os.sched_getaffinity',
-                        lambda pid: set(range(16)))
     with pytest.raises(ValueError, match='CPU allocation'):
         SpectreXNative(threads=17, **settings)
 
