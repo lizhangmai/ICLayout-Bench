@@ -157,7 +157,15 @@ through [participant tool schemes](running.md#participant-tool-schemes).
 | Tool support bundle | Declared profiles select Magic, MOS models and KLayout rules; generated models are compiled in a separate container. |
 | PDK resource view | `resource.json` binds shared preparation; containers mount installed roots and derived files read-only. Sessions detect the selected PDK; `/protocol/task.json` → `resources` publishes its container-local import paths and a preflight import command without adding task or reference files |
 
-Keep originals byte-for-byte as supplied upstream and register framework-generated startup settings separately in the manifest. Preserve the license notices for components such as PSP models, PyCell, and pypreprocessor. The PDK view currently validates only basic MOS/tap primitives; importing a tool or device does not qualify every parameter or process rule.
+Keep upstream files byte-for-byte and register generated startup settings
+separately in the manifest. Preserve component license notices, including those
+for PSP models, PyCell and pypreprocessor.
+
+Resource preflight runs the process's declared `checks` and any selected
+support-profile checks. A passing command establishes only the functionality it
+exercises; successful imports do not certify every device parameter or process
+rule. Physical and electrical coverage comes from the selected task's declared
+evaluation scope, as described under [qualification](tasks.md#qualification).
 
 ### Manual support preparation
 
@@ -804,12 +812,8 @@ alongside ngspice. Qucs-S parses/netlists `.sch` files headlessly with
 The image does not provide Xyce. A task requiring Xyce needs a compatible runtime
 and backend; Qucsator is not a substitute for that simulator.
 
-The pinned ngspice build applies a one-line `xfer` DC Jacobian correction:
-the derivative equals the real transfer value at the first table frequency,
-matching the model's existing DC output equation. Without this derivative,
-even a linear negative feedback circuit can fail its operating-point solve.
-The image smoke check compares `xfer` with an equivalent VCVS against an
-analytical DC solution. This correction does not add S-parameter thermal noise
+The pinned ngspice build includes an `xfer` DC Jacobian correction for
+operating-point convergence. `xfer` does not provide S-parameter thermal noise
 or transient support; those analyses require an appropriate passive model.
 
 ## External commercial runtimes

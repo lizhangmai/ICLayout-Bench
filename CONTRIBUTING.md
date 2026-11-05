@@ -265,6 +265,12 @@ ICLAYOUT_BENCH_TEST_IMAGE=iclayout-bench-tools:dev \
   bash tests/integration/test_toolchain.sh
 ```
 
+Validate the pinned [ngspice `xfer` DC Jacobian patch](scripts/patches/ngspice-xfer-dc-jacobian.patch)
+with the [toolchain smoke check](tests/integration/test_toolchain.sh). The
+derivative must equal the real transfer value at the first table frequency,
+matching the model's DC output equation. Compare `xfer` and an equivalent VCVS
+against the analytical DC solution for the same negative-feedback circuit.
+
 The image must provide the complete locked EDA group, including KPEX. Solver and
 evaluator containers use the same prepared toolchain; Agent harnesses run outside
 the EDA image.

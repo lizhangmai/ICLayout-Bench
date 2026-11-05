@@ -446,10 +446,11 @@ quality alone does not establish noise, mismatch, process-corner robustness or
 application-level performance. Consult the case's own measurement limits.
 
 Numerical consistency observations check the simulation or measurement setup,
-not circuit performance. If a case currently expresses such an observation as
-a bounded metric, its bound still participates in the verdict; consult the case
-plan and raw job status when diagnosing a rejection. New measurement-validity
-checks should report unusable evidence as evaluator errors.
+not circuit performance. Their declared metric bounds affect the verdict.
+A completed bound violation is a candidate rejection; unusable or unexplained
+missing measurement evidence is an evaluation error. Inspect the selected plan,
+metric observations and raw job status to distinguish these outcomes; see
+[evaluation results](#evaluation).
 
 <a id="task-configuration"></a>
 
