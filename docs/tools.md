@@ -50,7 +50,7 @@ images and installed vendor tools follow [Commercial runtimes](#external-commerc
 
 ### Dataset loading
 
-The public task Dataset is `MAI716/ICLayout-Bench`. Supply that repository ID,
+The public task Dataset is `lizhangmai/ICLayout-Bench`. Supply that repository ID,
 another Dataset ID or a directory containing a downloaded Dataset. The package
 contains no task tree. Case loading reads source contracts without editing them, verifies
 declared inputs and resolves resource bindings in memory. Sessions snapshot only
@@ -68,9 +68,9 @@ Inspect host prerequisites or prefetch one case's PDK resources without a model:
 ```bash
 python -m benchmarking.eda doctor
 python -m benchmarking.eda \
-  --dataset MAI716/ICLayout-Bench list
+  --dataset lizhangmai/ICLayout-Bench list
 python -m benchmarking.eda \
-  --dataset MAI716/ICLayout-Bench fetch --case NAND2_X1
+  --dataset lizhangmai/ICLayout-Bench fetch --case NAND2_X1
 ```
 
 `list` and `fetch` use task and resource declarations and require no reference
@@ -78,7 +78,7 @@ layout. Add `--revision DATASET_COMMIT` before the subcommand to select a fixed
 Dataset revision. To download a directory for use with other tools:
 
 ```bash
-hf download MAI716/ICLayout-Bench --type dataset --local-dir /path/to/dataset
+hf download lizhangmai/ICLayout-Bench --type dataset --local-dir /path/to/dataset
 ```
 
 Ordinary candidate evaluation needs no reference. Author reference evaluation

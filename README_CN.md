@@ -35,7 +35,7 @@
 
 - **Python 3.12+**。
 - **已安装并完成认证的 Agent CLI**，或自己的控制器。
-- **任务 Dataset**，例如公开的 [ICLayout-Bench 题库](https://huggingface.co/datasets/MAI716/ICLayout-Bench)，通过仓库 ID 或目录指定。
+- **任务 Dataset**，例如公开的 [ICLayout-Bench 题库](https://huggingface.co/datasets/lizhangmai/ICLayout-Bench)，通过仓库 ID 或目录指定。
 - **本地评测额外需要：** Linux x86-64、Docker 和兼容的 EDA 镜像。
   远程参评使用运营方提供的工具环境。
 
@@ -68,7 +68,7 @@ concurrency = 1
 repetitions = 1
 
 [dataset]
-source = "MAI716/ICLayout-Bench"
+source = "lizhangmai/ICLayout-Bench"
 name = "core"
 split = "test"
 ```

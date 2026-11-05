@@ -187,7 +187,7 @@ protocol regression and does not establish EDA correctness.
 HTTP tests. Download a published snapshot if needed:
 
 ```bash
-uv run --locked hf download MAI716/ICLayout-Bench --type dataset \
+uv run --locked hf download lizhangmai/ICLayout-Bench --type dataset \
   --local-dir /path/to/dataset
 ```
 

@@ -36,7 +36,7 @@ connect your controller to an HTTP evaluation service.
 
 - **Python 3.12+**.
 - **An installed, authenticated agent CLI** or your own controller.
-- **A task Dataset**, such as the public [ICLayout-Bench Dataset](https://huggingface.co/datasets/MAI716/ICLayout-Bench), supplied by repository ID or directory.
+- **A task Dataset**, such as the public [ICLayout-Bench Dataset](https://huggingface.co/datasets/lizhangmai/ICLayout-Bench), supplied by repository ID or directory.
 - **For local evaluation:** Linux x86-64, Docker and a compatible EDA image.
   Remote participation uses the operator's tools instead.
 
@@ -72,7 +72,7 @@ concurrency = 1
 repetitions = 1
 
 [dataset]
-source = "MAI716/ICLayout-Bench"
+source = "lizhangmai/ICLayout-Bench"
 name = "core"
 split = "test"
 ```

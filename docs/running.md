@@ -50,7 +50,7 @@ author reference layouts and qualification evidence.
 
 Save the following as `experiment.toml`. Replace the model ID and effort with
 values supported by your authenticated native CLI. The public Dataset is
-`MAI716/ICLayout-Bench`; replace `source` to use another Dataset ID or directory:
+`lizhangmai/ICLayout-Bench`; replace `source` to use another Dataset ID or directory:
 
 ```toml
 harness = "codex"
@@ -60,7 +60,7 @@ concurrency = 1
 repetitions = 1
 
 [dataset]
-source = "MAI716/ICLayout-Bench"
+source = "lizhangmai/ICLayout-Bench"
 name = "core"
 split = "test"
 ```
@@ -614,7 +614,7 @@ Inspect the conditions, then run the comparison:
 python -m benchmarking.run --matrix contrast.toml \
   --dataset /path/to/dataset --dry-run
 python -m benchmarking.run --matrix contrast.toml \
-  --dataset MAI716/ICLayout-Bench
+  --dataset lizhangmai/ICLayout-Bench
 ```
 
 Install A and its dependencies before running. Matrix defaults are shallow: each
