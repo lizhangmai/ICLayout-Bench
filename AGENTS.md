@@ -52,6 +52,9 @@ Start with [README](README.md), run `git status --short --branch`, and preserve 
   credentials and machine-specific settings out of tracked source. Document commands
   that work from a fresh clone or an installed package; accept explicit Dataset,
   image and output selections without requiring a maintainer's workspace layout.
+- For PDK manifests, resource adapters or runtime control files, follow
+  [PDK manifest organization](docs/tools.md#pdk-manifests). Keep native content in
+  referenced files and cover preparation, Agent relocation and portable file inventory.
 
 ## Completion
 

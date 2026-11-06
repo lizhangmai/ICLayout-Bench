@@ -101,6 +101,7 @@ _BUILTINS = {
     "magic-physical-docker": ("magic_checks", "MagicPhysicalDocker"),
     "magic-capacitance-docker": ("magic", "MagicCapacitanceDocker"),
     "magic-rc-docker": ("magic", "MagicRCDocker"),
+    "substrate-sheet-docker": ("substrate", "SubstrateSheetDocker"),
     "sg13g2-hbt-rc-docker": ("hbt.backend", "SG13G2HBTRCDocker"),
     "klayout-docker": ("klayout", "KLayoutDocker"),
     "kpex-cc-docker": ("kpex", "KpexCCDocker"),

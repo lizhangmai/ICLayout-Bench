@@ -9,7 +9,7 @@ import shlex
 import tomllib
 from pathlib import Path
 
-from benchmarking.files import Asset, keys, relative
+from benchmarking.files import Asset, keys, read_file, relative
 
 
 class ExternalRuntime:
@@ -101,11 +101,22 @@ class ExternalRuntime:
     @classmethod
     def from_manifest(cls, manifest):
         """Bind the declared process runtime to its installed host resources."""
-        declaration = tomllib.loads(Path(manifest).read_text())
+        manifest = Path(manifest).absolute()
+        declaration = tomllib.loads(manifest.read_text())
         source = declaration['source']
         if source.get('kind') != 'external':
             raise ValueError('Process does not declare external resources')
-        return cls(source['runtime'], declaration['runtime'])
+        profile = dict(declaration['runtime'])
+        controls = {}
+        for name, spec in profile.get('control_files', {}).items():
+            if isinstance(spec, dict):
+                keys(spec, {'path'}, set(), 'native process control file reference')
+                controls[name] = read_file(manifest.parent, spec['path']).decode('utf-8')
+            else:
+                controls[name] = spec  # Retained datasets may still carry literal control text.
+        if controls:
+            profile['control_files'] = controls
+        return cls(source['runtime'], profile)
 
     @property
     def identity(self):

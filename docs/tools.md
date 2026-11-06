@@ -110,6 +110,48 @@ construction. Case preparation binds paths instead of copying PDK installations.
 Frozen support bundles are not updated in place; a changed declaration resolves
 to a new binding.
 
+### PDK manifests
+
+`pdk.toml` is an index of reviewed process resources. Keep release identities,
+module and mount selections, environment settings, profile selection and file
+references in the manifest. Maintain JSON configuration, SPICE entries, native
+rules, program text and license/attribution text as separate files in
+`resources/` beside it, including content that could fit on one line. Reuse
+one file for identical content serving the same purpose. Existing vendor
+files remain in their pinned installation rather than being copied into this
+directory. Project resources must not contain task solutions or complete DUTs.
+
+| Declaration | Path base | Meaning |
+| --- | --- | --- |
+| `profiles.<name>.files` / `compile_files` | Pinned installation | Existing tool/PDK files and compiler inputs. |
+| `profiles.<name>.local_files.<target>` | Manifest directory | Project-owned file with `path` and `format`, prepared at the named support target. |
+| `replace[].old_file` / `new_file` | Manifest directory | Exact-match replacement fragments. Short single-line `old` / `new` literals are also supported. |
+| `agent.local_files.<target>` | Manifest directory | Reviewed Agent resource with `path` and `format`, exposed at `/resources/<target>`. |
+| `runtime.control_files.<target>.path` | Manifest directory | Native control file staged at `process/<target>` and selected through the existing `@<target>` interface. |
+| `notices.<name>.path` | Manifest directory | Preserved license or attribution file. |
+
+For example, a process can declare an independent native control fragment:
+
+```toml
+[runtime.control_files."strict-lvs.tvf"]
+path = "resources/strict-lvs.tvf"
+```
+
+Paths are explicit normalized relative paths. Keep local files regular and
+declared; each support target has one owner. Preparation includes their actual
+bytes in its resource identity and preserves native syntax. Agent preparation
+relocates project-owned support files from `/workspace/support` to their
+`/resources/support/<profile>` view. Checks invoke declared scripts or installed
+commands rather than embedded `python -c` or shell programs.
+
+Portable snapshots and publication inventories carry every declared local
+file, preserving its relative path, and exclude undeclared files. They do not
+copy external installations or credentials. Moving content out of a manifest
+requires byte-equivalence and path-resolution checks, not new circuit
+qualification when models, rules and conditions are unchanged. The reader
+continues to accept literal `generated.content` and runtime control text in
+retained datasets; maintained manifests use file references.
+
 ### Agent PDK resources
 
 For each selected process, runtime loading exposes the declared PDK roots and
@@ -466,6 +508,54 @@ resistor. A completed topology rejection is a candidate failure (`failed`) with
 zero score; its same-conductor reason is exposed in process feedback. Case-specific
 extraction warnings, models and calibration still require review against the
 selected contract.
+
+### Projected substrate and well sheets
+
+`substrate-sheet-docker` can bind to `layout.extract_substrate`. It accepts
+`layout`, the authoritative `netlist`, `constraints` and optional `task`, and
+exports a SPICE `netlist`. Require independent DRC, ordinary combined LVS and
+geometry gates before this extraction. Its additional native uncombined export
+preserves primitive MOS positions and parameters; that export's comparison is
+not a substitute for the independent LVS gate. Source devices never replace
+candidate devices.
+
+The reviewed `support`/`profile` defines process layers, MOS body domains,
+contact/via sizes, sheet and cut resistances, and native extraction variables.
+`physical_support`/`physical_profile` selects the native LVS resource. The job's
+`fixture` defines domain-to-supply bindings, an `outline_constraint` identifying
+the existing bounding-box constraint, power-pin access windows, the fixed
+external return and numerical domain, four substrate excitation boxes, well
+boundary-band width, mesh steps, convergence tolerance and grid budget.
+Bounding-box registration removes translation only; it does not rescale or
+rotate a submission. Each supply requires one external power-pin label.
+
+The native conductor database selects only actual supply-connected metal.
+Every primitive channel must map uniquely to the candidate's physical body
+domain. Manhattan material boundaries are discretized with harmonic half-cell
+face resistances; opposite-polarity domains have no galvanic connection.
+Same-polarity tap diffusion adds local parallel sheet conductance, with explicit
+contact/via cuts and finite supply metal. The resource and task must disclose
+the ideal vertical ohmic connection assumed by this projection.
+
+Four substrate footprints and four directional active-well boundary-strip
+unions form eight experiments. Unused wells do not dilute well excitation.
+The fixed testbench defines `lb_sheet_drive_0` through `lb_sheet_drive_7` as AC
+currents; all have zero DC injection. A reciprocal passive multiport is realized
+with native SPICE current sensors and CCVS elements, preserving nonlinear MOS
+body-current loading, all original model parameters and all non-body terminal
+connections. The result keeps the original named top-level interface.
+
+Retained evidence includes native geometry and SPICE, registration, primitive
+bindings, contact counts, every mesh's impedance matrix, reciprocity, KCL,
+return-current conservation, passivity and mesh convergence. Run source and
+candidate immunity simulations with the same fixture; ideal equipotential source
+bodies have zero disturbance. Declare and validate that source boundary.
+
+This branch assumes ideal signal interconnect and projected ohmic silicon.
+It does not establish vertical/backside transport, depletion coupling, carrier
+collection, latch-up or silicon-calibrated isolation. Evaluate ordinary wire-RC
+performance in a separate declared branch. Coefficients, convergence, electrical
+loading and useful degraded-layout controls require author qualification.
 
 ### Magic and Netgen Physical Checks
 

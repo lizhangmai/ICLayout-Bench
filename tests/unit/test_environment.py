@@ -95,3 +95,32 @@ def test_selected_resource_cannot_escape_installation(declared_pdk):
     manifest.write_text(tomli_w.dumps(spec))
     with pytest.raises(ValueError, match='escapes its root'):
         prepare_agent_resources(manifest, root / 'selected')
+
+
+def test_agent_local_checks_and_native_support_paths_are_portable(declared_pdk, monkeypatch):
+    import tomllib
+
+    from benchmarking.execution.workspace.environment import resource_preflight
+
+    root, source, manifest, _git = declared_pdk
+    resources = root/'resources-src'
+    resources.mkdir()
+    (resources/'smoke.py').write_text("print('reviewed check')\n")
+    startup = b'pre_osdi /workspace/support/model.osdi\n'
+    (resources/'spiceinit').write_bytes(startup)
+    spec = tomllib.loads(manifest.read_text())
+    spec['agent'].update(local_files={'checks/smoke.py': {'path': 'resources-src/smoke.py', 'format': 'python'}},
+                         checks=[['python', '/resources/checks/smoke.py']], support_profiles=['models'])
+    spec['profiles'] = {'models': {'local_files': {'.spiceinit': {'path': 'resources-src/spiceinit', 'format': 'text'}}}}
+    manifest.write_text(tomli_w.dumps(spec))
+    monkeypatch.setattr('benchmarking.eda.resources.agent.installation_path', lambda _: source)
+    first = prepare_agent_resources(manifest, root/'prepared-one')
+    files = dict(first.files)
+    assert files['checks/smoke.py'].content == b"print('reviewed check')\n"
+    assert files['support/models/.spiceinit'].content == b'pre_osdi /resources/support/models/model.osdi\n'
+    assert (resources/'spiceinit').read_bytes() == startup
+    assert resource_preflight(files)['checks'] == [['python', '/resources/checks/smoke.py']]
+    (resources/'smoke.py').write_text("print('changed check')\n")
+    second = prepare_agent_resources(manifest, root/'prepared-two')
+    assert second.manifest.sha256 != first.manifest.sha256
+    assert dict(second.files)['checks/smoke.py'].content == b"print('changed check')\n"

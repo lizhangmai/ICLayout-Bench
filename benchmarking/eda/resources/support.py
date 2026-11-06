@@ -9,7 +9,26 @@ from benchmarking.eda.images import tool_image
 from benchmarking.eda.resources.cache import bind_resources, cached_resources
 from benchmarking.evidence.bundles import publish_bundle
 from benchmarking.execution.tools.docker import DockerTool
-from benchmarking.files import Asset, ReadOnlyMount, keys, read_file
+from benchmarking.files import Asset, ReadOnlyMount, keys, read_file, relative
+
+
+def _profile_local_paths(profile):
+    paths = [spec["path"] for spec in profile.get("local_files", {}).values()]
+    for spec in (profile.get("files", {}) | profile.get("compile_files", {})).values():
+        paths.extend(edit[key] for edit in spec.get("replace", []) for key in ("old_file", "new_file") if key in edit)
+    return {relative(path, "manifest resource file") for path in paths}
+
+
+def manifest_local_paths(manifest):
+    """Inventory files beside a PDK manifest for portable static copying."""
+    paths = set().union(*(_profile_local_paths(p) for p in manifest.get("profiles", {}).values()))
+    paths.update(relative(n["path"], "manifest notice file") for n in manifest.get("notices", {}).values()
+                 if "path" in n)
+    paths.update(relative(n["path"], "manifest Agent file")
+                 for n in manifest.get("agent", {}).get("local_files", {}).values())
+    paths.update(relative(n["path"], "manifest control file")
+                 for n in manifest.get("runtime", {}).get("control_files", {}).values() if isinstance(n, dict))
+    return tuple(sorted(paths))
 
 
 def load_profile(spec: str) -> Asset:
@@ -47,6 +66,9 @@ def prepare_support_cache(source: Path | None, profile: str, *,
     """Return shared runtime resources without creating a per-case binding directory."""
     raw = load_profile(profile)
     data = json.loads(raw.content)
+    local_targets = set(data.get("local_files", {}))
+    if local_targets & (data.get("files", {}).keys() | data.get("compile_files", {}).keys() | data.get("generated", {}).keys()):
+        raise ValueError("A support target cannot have both local and generated/installed owners")
     if data["source"].get("kind") == "ciel":
         from benchmarking.eda.resources.installation import prepare_installation
 
@@ -56,6 +78,10 @@ def prepare_support_cache(source: Path | None, profile: str, *,
     builds = data.get("compile", [])
     compiler = DockerTool(tool_image(compiler_image), ["openvaf", "--version"], 180) if builds else None
     recipe = {"profile": data, "source_root": str(source)}
+    manifest_root = Path(profile.partition("#")[0]).absolute().parent
+    local_files = {name: read_file(manifest_root, name) for name in _profile_local_paths(data)}
+    if local_files:
+        recipe["local_files_sha256"] = {name: Asset(content, "binary").sha256 for name, content in local_files.items()}
     if compiler:
         recipe["compiler"] = compiler.identity
 
@@ -70,7 +96,12 @@ def prepare_support_cache(source: Path | None, profile: str, *,
                 continue
             asset = Asset((source / spec["path"]).read_bytes(), spec["format"])
             for edit in spec.get("replace", []):
-                old, new = edit["old"].encode(), edit["new"].encode()
+                if ("old" in edit) == ("old_file" in edit):
+                    raise ValueError("Support replacement requires exactly one of old or old_file")
+                if ("new" in edit) == ("new_file" in edit):
+                    raise ValueError("Support replacement requires exactly one of new or new_file")
+                old = local_files[edit["old_file"]] if "old_file" in edit else edit["old"].encode()
+                new = local_files[edit["new_file"]] if "new_file" in edit else edit["new"].encode()
                 if not old or asset.content.count(old) != 1:
                     raise ValueError(f"Support replacement must match exactly once: {spec['path']}")
                 asset = Asset(asset.content.replace(old, new), asset.format)
@@ -80,6 +111,10 @@ def prepare_support_cache(source: Path | None, profile: str, *,
             target = stage / name
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(asset.content)
+        for name, spec in data.get("local_files", {}).items():
+            target = stage / relative(name, "support target")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(local_files[spec["path"]])
         for name, spec in data.get("generated", {}).items():
             target = stage / name
             target.parent.mkdir(parents=True, exist_ok=True)

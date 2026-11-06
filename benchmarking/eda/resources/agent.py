@@ -13,7 +13,7 @@ from benchmarking.eda.resources.support import load_profile, prepare_support_cac
 from benchmarking.evidence.bundles import load_bundle
 from benchmarking.evidence.identity import package_source
 from benchmarking.execution.workspace.environment import DESCRIPTOR
-from benchmarking.files import Asset, keys, relative
+from benchmarking.files import Asset, keys, read_file, relative
 
 
 def agent_spec(manifest):
@@ -22,9 +22,15 @@ def agent_spec(manifest):
     if spec is None:
         return None
     keys(spec, {"id", "sources", "environment", "checks"},
-         {"support_profiles"}, "Agent PDK")
+         {"support_profiles", "local_files"}, "Agent PDK")
     if not re.fullmatch(r"[A-Za-z0-9_-]+", spec["id"]) or not spec["sources"]:
         raise ValueError("Agent PDK needs an ID and sources")
+    for target, local in spec.get('local_files', {}).items():
+        relative(target, 'Agent resource target')
+        if target.split('/')[0] in {'pdks', 'support', DESCRIPTOR, 'pdk-check.py'}:
+            raise ValueError('Agent local files must not replace PDK, support or environment resources')
+        keys(local, {'path', 'format'}, set(), 'Agent local file')
+        relative(local['path'], 'manifest Agent file')
     for name, source in spec["sources"].items():
         if not re.fullmatch(r"[A-Za-z0-9_-]+", name):
             raise ValueError("Invalid PDK source name")
@@ -82,6 +88,8 @@ def prepare_agent_cache(manifest, *, profiles=None, image=None,
         locations[name] = locations[name] / source.get("path", "")
     selected_profiles = spec.get("support_profiles", []) if selected is None else sorted(selected)
     checks = list(spec["checks"])
+    local_files = {name: read_file(manifest.parent, local['path'])
+                   for name, local in spec.get('local_files', {}).items()}
     for profile in selected_profiles:
         profile_data = json.loads(load_profile(f"{manifest}#{profile}").content)
         if "check" in profile_data:
@@ -96,6 +104,8 @@ def prepare_agent_cache(manifest, *, profiles=None, image=None,
     recipe = {"kind": "pdk-mounts", **info, "roots": {k: str(v) for k, v in locations.items()},
               "profiles": {k: v.manifest.sha256 for k, v in profiles.items()},
               "probe": Asset(probe.read_bytes(), "python").sha256 if needs_probe else None}
+    if local_files:
+        recipe['local_files_sha256'] = {name: Asset(content, 'binary').sha256 for name, content in local_files.items()}
 
     def build(stage):
         mounts = {}
@@ -107,11 +117,12 @@ def prepare_agent_cache(manifest, *, profiles=None, image=None,
                 target = f"pdks/{name}" + (f"/{selected_path}" if selected_path else "")
                 mounts[target] = str(path)
         for profile, bundle in profiles.items():
-            generated = json.loads(bundle.manifest.content)["provenance"]["profile"].get("generated", {})
+            profile_data = json.loads(bundle.manifest.content)["provenance"]["profile"]
+            owned = profile_data.get("generated", {}).keys() | profile_data.get("local_files", {}).keys()
             for name, asset in bundle.files:
                 target = stage / "support" / profile / name
                 relocated = (asset.content.replace(b"/workspace/support", f"/resources/support/{profile}".encode())
-                             if name in generated else None)
+                             if name in owned else None)
                 if relocated is not None and relocated != asset.content:
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(relocated)
@@ -119,6 +130,10 @@ def prepare_agent_cache(manifest, *, profiles=None, image=None,
                     mounts[f"support/{profile}/{name}"] = str(asset.path)
         if needs_probe:
             (stage / "pdk-check.py").write_bytes(probe.read_bytes())
+        for name, content in local_files.items():
+            target = stage / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
         (stage / DESCRIPTOR).write_text(json.dumps(info, sort_keys=True))
         return mounts
 
