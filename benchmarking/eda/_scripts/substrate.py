@@ -335,6 +335,32 @@ def spice_multiport(original, devices, impedance, ports):
     return "\n".join(lines)+"\n"
 
 
+def mesh_comparison(coarse, fine, bodies):
+    """Retain column-scaled errors and distinguish the rows used by the circuit."""
+    scopes = {"all_ports": (0, len(fine), 0, len(fine)),
+              "body_response": (0, bodies, 0, len(fine)),
+              "body_loading": (0, bodies, 0, bodies),
+              "excitation_to_body": (0, bodies, bodies, len(fine))}
+    result = {}
+    for name, (r0, r1, c0, c1) in scopes.items():
+        old, new = coarse[r0:r1, c0:c1], fine[r0:r1, c0:c1]
+        difference = abs(new-old)
+        scales = np.max(abs(new), axis=0)
+        delta = np.max(difference, axis=0)
+        relative = np.divide(delta, scales, out=np.zeros_like(delta), where=scales > 0)
+        relative[(scales == 0) & (delta > 0)] = np.inf
+        column = int(relative.argmax())
+        row = int(difference[:, column].argmax())
+        finite = lambda value: float(value) if np.isfinite(value) else None
+        result[name] = {"relative_change": finite(relative[column]),
+                        "column_relative_changes": [finite(v) for v in relative],
+                        "column_start": c0, "row": row+r0, "column": column+c0,
+                        "coarse_ohm": float(old[row, column]), "fine_ohm": float(new[row, column]),
+                        "column_scale_ohm": float(scales[column]),
+                        "max_abs_change_ohm": float(delta[column])}
+    return result
+
+
 def main():
     config = json.loads(Path("config.json").read_text())
     fixture = config["fixture"]
@@ -345,26 +371,57 @@ def main():
     g = geometry(config)
     g["domain"], g["sources"] = environment(g, config)
     runs, meshes, last = [], [], None
+    ports = [{"kind": "device_body", "name": f"M${d['id']}:{d['model']}:B",
+              "device_id": d["id"], "position_um": d["position_um"]} for d in g["devices"]]
+    ports.extend({"kind": "excitation", "name": f"substrate_source_{i}", "box_um": box}
+                 for i, box in enumerate(fixture["psub_boxes_um"]))
+    ports.extend({"kind": "excitation", "name": f"well_{direction}"}
+                 for direction in ("west", "east", "south", "north"))
+    evidence = {"model": "projected_ohmic_sheet", "registration_um": g["registration_um"],
+                "devices": g["devices"], "ports": ports, "runs": runs,
+                "requested_mesh_steps_um": fixture["mesh_steps_um"],
+                "mesh_tolerance": fixture["mesh_tolerance"], "mesh_converged": None,
+                "source_areas_um2": [s.area()*g["dbu"]**2 for s in g["sources"]],
+                "scope": "Native MOS, finite body contacts/power metal; ideal signal wires, no vertical transport."}
+
+    def retain():
+        Path("audit.json").write_text(json.dumps(evidence, indent=2, allow_nan=False))
+        if meshes:
+            np.savez_compressed("impedance.npz", impedance_ohm=meshes[-1], mesh_impedance_ohm=meshes,
+                                mesh_steps_um=[r["step_um"] for r in runs])
+
     for step in fixture["mesh_steps_um"]:
+        evidence["current_step_um"] = step
+        retain()
         impedance, audit = transport(g, config, step)
         if last is not None:
-            # Compare each body/source column by its maximum absolute response.
-            # Tiny cancellation entries do not define a relative-error scale.
-            change = float(np.max(np.max(abs(impedance-last), axis=0)/np.max(abs(impedance), axis=0)))
-            audit["mesh_column_change"] = change
+            audit["mesh_comparison"] = mesh_comparison(last, impedance, len(g["devices"]))
+            audit["mesh_column_change"] = audit["mesh_comparison"]["all_ports"]["relative_change"]
         runs.append({"step_um": step, **audit})
         meshes.append(impedance)
         last = impedance
-    if len(runs) < 2 or runs[-1]["mesh_column_change"] > fixture["mesh_tolerance"]:
-        raise ValueError("Projected body multiport has not converged at the declared mesh")
+        retain()
+    change = runs[-1].get("mesh_column_change")
+    evidence["mesh_converged"] = change is not None and change <= fixture["mesh_tolerance"]
+    retain()
+    if not evidence["mesh_converged"]:
+        if len(runs) >= 2 and change is not None:
+            comparison = runs[-1]["mesh_comparison"]
+            worst = comparison["all_ports"]
+            body = comparison["body_response"]["relative_change"]
+            reason = (f"Projected body multiport has not converged: mesh change {100*change:.6g}% exceeds "
+                      f"{100*fixture['mesh_tolerance']:g}% ({runs[-2]['step_um']:g} -> {step:g} um); "
+                      f"row {worst['row']} ({ports[worst['row']]['name']}), "
+                      f"column {worst['column']} ({ports[worst['column']]['name']}); "
+                      f"body-response change {100*body:.6g}%" if body is not None else
+                      "Projected body multiport has an unbounded body-response mesh change")
+        else:
+            reason = "Projected body multiport requires two finite meshes to establish convergence"
+        Path("model-check.json").write_text(json.dumps({"status": "error", "code": "mesh_not_converged",
+                                                        "reason": reason, "mesh_tolerance": fixture["mesh_tolerance"]}))
+        return
     derived = spice_multiport(Path("native.spice").read_text(), g["devices"], last, config["ports"])
     Path("substrate.spice").write_text(derived)
-    np.savez_compressed("impedance.npz", impedance_ohm=last, mesh_impedance_ohm=meshes,
-                        mesh_steps_um=fixture["mesh_steps_um"])
-    Path("audit.json").write_text(json.dumps({"model": "projected_ohmic_sheet", "registration_um": g["registration_um"],
-                                             "devices": g["devices"], "runs": runs,
-                                             "source_areas_um2": [s.area()*g["dbu"]**2 for s in g["sources"]],
-                                             "scope": "Native MOS, finite body contacts/power metal; ideal signal wires, no vertical transport."}, indent=2))
     Path("model-check.json").write_text(json.dumps({"status": "passed", "reason": ""}))
 
 

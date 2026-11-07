@@ -84,9 +84,9 @@ class SubstrateSheetDocker:
             verdict = json.loads(result.files["model-check.json"].content)
         except (KeyError, ValueError):
             return JobResult("error", "Missing or malformed projected-model verdict", evidence=evidence)
-        if (not result.returncode and not cleanup_failed and verdict.get("status") == "failed" and verdict.get("reason")
+        if (not result.returncode and not cleanup_failed and verdict.get("status") in {"failed", "error"} and verdict.get("reason")
                 and (not result.reason or result.reason.startswith("Declared tool output is missing:"))):
-            return JobResult("failed", verdict["reason"], evidence=evidence)
+            return JobResult(verdict["status"], verdict["reason"], evidence=evidence)
         if (result.returncode or result.reason or cleanup_failed or verdict.get("status") != "passed"
                 or "substrate.spice" not in result.files):
             return JobResult("error", result.reason or "Substrate extraction failed", evidence=evidence)

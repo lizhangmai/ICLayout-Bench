@@ -58,9 +58,81 @@ def test_native_multiport_preserves_all_nonbody_fields_and_reorders_named_ports(
         spice_multiport(native, devices, impedance, ["d", "g", "s", "unknown"])
 
 
+@pytest.fixture
+def mesh_problem(tmp_path, monkeypatch):
+    import json
+
+    import klayout.db as k
+
+    from benchmarking.eda._scripts import substrate
+
+    fixture = {"psub_boxes_um": [[-2, -2, -1, -1]]*4, "well_band_um": 1,
+               "return_half_um": 40, "domain_half_um": 64,
+               "mesh_steps_um": [.125, .0625], "mesh_tolerance": .03}
+    (tmp_path/"config.json").write_text(json.dumps({"model": {}, "fixture": fixture}))
+    patch = k.Region(k.Box(0, 0, 1000, 1000))
+    geometry = {"devices": [{"id": 7, "model": "nfet", "body": "vss", "position_um": [.5, .5]}],
+                "registration_um": [0, 0], "dbu": .001}
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(substrate, "geometry", lambda _: geometry)
+    monkeypatch.setattr(substrate, "environment", lambda *_: (patch, [patch]*8))
+    return tmp_path, substrate
+
+
+def test_unconverged_mesh_retains_matrices_and_identifies_the_unused_source_block(mesh_problem, monkeypatch):
+    import json
+
+    tmp_path, substrate = mesh_problem
+
+    def solve(_geometry, _config, step):
+        matrix = np.eye(9)
+        # Only an excitation's self-impedance changes. Body-voltage rows are identical.
+        matrix[3, 3] = 1.1 if step == .125 else 1.
+        return matrix, {"unknowns": 1}
+
+    monkeypatch.setattr(substrate, "transport", solve)
+    substrate.main()
+    verdict = json.loads((tmp_path/"model-check.json").read_text())
+    audit = json.loads((tmp_path/"audit.json").read_text())
+    matrices = np.load(tmp_path/"impedance.npz")
+    assert verdict["status"] == "error"
+    assert verdict["code"] == "mesh_not_converged"
+    assert "10%" in verdict["reason"] and "3%" in verdict["reason"]
+    assert list(matrices["mesh_steps_um"]) == [.125, .0625]
+    assert matrices["mesh_impedance_ohm"].shape == (2, 9, 9)
+    comparison = audit["runs"][-1]["mesh_comparison"]
+    assert comparison["all_ports"]["relative_change"] == pytest.approx(.1)
+    assert comparison["body_response"]["relative_change"] == 0
+    assert comparison["all_ports"]["row"] == comparison["all_ports"]["column"] == 3
+    assert audit["ports"][3]["kind"] == "excitation"
+    assert not (tmp_path/"substrate.spice").exists()
+
+
+def test_completed_coarse_mesh_survives_a_fine_mesh_solver_error(mesh_problem, monkeypatch):
+    import json
+
+    tmp_path, substrate = mesh_problem
+
+    def solve(_geometry, _config, step):
+        if step == .0625:
+            raise RuntimeError("fine solver failed")
+        return np.eye(9), {"unknowns": 1}
+
+    monkeypatch.setattr(substrate, "transport", solve)
+    with pytest.raises(RuntimeError, match="fine solver failed"):
+        substrate.main()
+    audit = json.loads((tmp_path/"audit.json").read_text())
+    matrices = np.load(tmp_path/"impedance.npz")
+    assert audit["current_step_um"] == .0625
+    assert audit["mesh_converged"] is None
+    assert list(matrices["mesh_steps_um"]) == [.125]
+    assert matrices["mesh_impedance_ohm"].shape == (1, 9, 9)
+    assert not (tmp_path/"model-check.json").exists()
+
+
 @pytest.mark.parametrize("problem,status", [
     ("passed", "passed"), ("rejected", "failed"), ("crash", "error"),
-    ("cleanup", "error"), ("malformed", "error"), ("missing", "error"),
+    ("cleanup", "error"), ("malformed", "error"), ("missing", "error"), ("mesh", "error"),
 ])
 def test_sheet_backend_requires_explicit_verdict_and_successful_execution(tmp_path, monkeypatch, problem, status):
     import json
@@ -84,9 +156,14 @@ def test_sheet_backend_requires_explicit_verdict_and_successful_execution(tmp_pa
             pass
 
         def run(self, *args):
-            rejected = problem in {"rejected", "crash", "cleanup"}
+            rejected = problem in {"rejected", "crash", "cleanup", "mesh"}
             verdict = {"status": "failed" if rejected else "passed", "reason": "Invalid power access"}
+            if problem == "mesh":
+                verdict = {"status": "error", "reason": "Mesh change 10% exceeds 3% at well_east"}
             files = {"model-check.json": Asset(b"{bad" if problem == "malformed" else json.dumps(verdict).encode(), "json")}
+            if problem == "mesh":
+                files.update({"audit.json": Asset(b'{"mesh_converged":false}', "json"),
+                              "impedance.npz": Asset(b"retained matrices", "npz")})
             if problem == "missing":
                 files.clear()
             if not rejected:
@@ -108,3 +185,6 @@ def test_sheet_backend_requires_explicit_verdict_and_successful_execution(tmp_pa
                                "constraints": Asset(json.dumps(constraints).encode(), "json")})
     assert result.status == status
     assert bool(result.outputs) == (status == "passed")
+    if problem == "mesh":
+        assert result.reason == "Mesh change 10% exceeds 3% at well_east"
+        assert {"audit.json", "impedance.npz"} <= result.evidence.keys()

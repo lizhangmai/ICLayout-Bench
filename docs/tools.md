@@ -551,6 +551,22 @@ return-current conservation, passivity and mesh convergence. Run source and
 candidate immunity simulations with the same fixture; ideal equipotential source
 bodies have zero disturbance. Declare and validate that source boundary.
 
+Each completed mesh is retained in `impedance.npz`, including when a subsequent
+solve fails. `audit.json` identifies the body and excitation ports, completed
+steps, the current step, conservation checks and each refinement's column-scaled
+errors. It distinguishes the full matrix from the body-response rows, body-loading
+block and excitation-to-body block, with the worst row/column and their impedance
+values. These additional diagnostics do not change the declared full-matrix
+convergence criterion.
+
+An exhausted mesh sequence returns an explicit `mesh_not_converged` numerical
+error with the measured change, tolerance and port names. Its matrices and audit
+remain available, while no qualified SPICE model is emitted. Candidate rejection
+remains `failed`; numerical uncertainty and tool crashes remain `error`, with
+their respective diagnostic evidence. Finer meshes or
+circuits generated from unconverged matrices may be used in a separate author
+diagnostic; such probes do not replace the declared evaluation or its score.
+
 This branch assumes ideal signal interconnect and projected ohmic silicon.
 It does not establish vertical/backside transport, depletion coupling, carrier
 collection, latch-up or silicon-calibrated isolation. Evaluate ordinary wire-RC
