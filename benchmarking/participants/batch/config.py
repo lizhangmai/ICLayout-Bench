@@ -11,7 +11,7 @@ from benchmarking.participants.harnesses import registry as adapters
 from benchmarking.participants.harnesses.contracts import EFFORTS, HARNESSES
 from benchmarking.results.usage import validate_pricing
 
-FIELDS = {"name", "harness", "harness_home", "model", "effort", "tasks", "dataset", "concurrency", "repetitions", "recovery", "results_data", "scheme", "pricing"}
+FIELDS = {"name", "harness", "harness_home", "model", "effort", "tasks", "dataset", "concurrency", "repetitions", "recovery", "results_data", "archive_objects", "scheme", "pricing"}
 INPUT_FIELDS = FIELDS | {"pricing_file"}
 
 
@@ -58,6 +58,9 @@ def validate(row):
             raise ValueError(key + " must be explicitly set to a positive integer")
     if "results_data" in row and (not isinstance(row["results_data"], str) or not row["results_data"].strip()):
         raise ValueError("results_data must be a nonempty archive directory")
+    if 'archive_objects' in row and (not isinstance(row['archive_objects'], str)
+                                     or not row['archive_objects'].strip() or '\x00' in row['archive_objects']):
+        raise ValueError('archive_objects must be a nonempty directory path')
     if "pricing" in row:
         validate_pricing(row["pricing"])
     from benchmarking.participants.attempt.recovery import policy
@@ -161,6 +164,8 @@ def _scheme(row, base):
     from benchmarking.participants.harnesses.scheme import resolve_scheme
     if "harness_home" in row:
         row["harness_home"] = str((base / row["harness_home"]).resolve())
+    if 'archive_objects' in row:
+        row['archive_objects'] = str((base / row['archive_objects']).resolve())
     if "scheme" in row or row["harness"] == "command":
         row["scheme"] = resolve_scheme(row.get("scheme", {}), base, row["harness"])
     return row

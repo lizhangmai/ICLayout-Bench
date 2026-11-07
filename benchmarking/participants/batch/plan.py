@@ -51,7 +51,7 @@ class PlannedCondition:
     selection: ParticipantSelection
 
     def description(self):
-        return {**{k: v for k, v in self.row.items() if k != "results_data"},
+        return {**{k: v for k, v in self.row.items() if k not in {"results_data", "archive_objects"}},
                 "resolved": self.selection.condition}
 
 

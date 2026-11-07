@@ -16,15 +16,19 @@ __all__ = [
 
 
 def load(path):
-    return json.loads(path.read_text())
+    return json.loads(read_file(path.parent, path.name))
 
 
 def put(root, name, raw, files):
     destination = root / name
     destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    if destination.exists() and destination.read_bytes() != raw:
+    try:
+        existing = read_file(root, name)
+    except FileNotFoundError:
+        existing = None
+    if existing is not None and existing != raw:
         raise ValueError('Refusing to replace different result artifact: ' + name)
-    if not destination.exists():
+    if existing is None:
         atomic_write(destination, raw)
     if name not in files:
         files.append(name)
@@ -64,12 +68,10 @@ def compact_result(result):
 
 def compact_report(report):
     report = without_hashes(report)
-    for key in ('inputs', 'backends'):
-        report.pop(key, None)
     for job in report['jobs'].values():
         for group in ('outputs', 'evidence'):
             job[group] = {k: v for k, v in job[group].items()
-                          if 'content' in v or 'path' in v}
+                          if 'content' in v or 'path' in v or 'retention' in v}
     return report
 
 
@@ -79,41 +81,45 @@ def verify(root, result):
             read_file(root, name)
 
 
-def evaluation_export(evidence, root, files, prefix='evaluation'):
+def evaluation_export(evidence, root, files, prefix='evaluation', *, process=False):
     from benchmarking.evaluation.plans import parse_evaluation
     from benchmarking.evaluation.scoring import recompute_score
+    from benchmarking.results.retention import EvidenceUnavailable, process_omissions
 
     report = evidence.report
+    omissions = process_omissions(report) if process else {}
     plan_raw = evidence.plan.content
     plan = parse_evaluation(plan_raw, file_format=evidence.plan.format)
     if recompute_score(plan, report) != report.get('score'):
         raise ValueError('Evaluation measurements do not reproduce the stored score')
     put(root, prefix + '/plan.json', plan_raw, files)
     report['plan']['path'] = 'plan.json'
-    # Input bytes and reusable tool/PDK sources belong to preparation, not results.
+    # Freeze exactly the evaluated inputs. These are declared task materials,
+    # not author workspaces or complete PDK installations.
     for ref in report['inputs'].values():
-        ref.pop('path', None)
+        original = dict(ref)
+        if ref.get('path'):
+            name = 'inputs/' + ref['sha256']
+            put(root, prefix + '/' + name, evidence.artifact(original), files)
+            ref['path'] = name
+    retained = {}
     for job_id, job in report['jobs'].items():
-        retained = {}
         for group in ('outputs', 'evidence'):
             for name, ref in job[group].items():
                 path = ref.pop('path', None)
                 if path is None:
                     continue
                 original = dict(ref, path=path)
-                reusable = (':' in name or name in {'runner', 'configuration', 'support_manifest'}
-                            or ref['format'] in {'python', 'gds'})
-                if reusable:
-                    ref['retention'] = 'rebuild_from_recorded_environment'
+                if path in omissions:
+                    ref['retention'] = 'successful_process_check'
                     continue
-                raw = evidence.artifact(original)
-                # Keep readable logs/measurements inline instead of dozens of tiny files.
-                if ref['format'] in {'text', 'json', 'spice', 'tcl', 'magic-ext'}:
-                    try:
-                        ref['content'] = raw.decode('utf-8')
-                        continue
-                    except UnicodeDecodeError:
-                        pass  # Native tools can emit non-UTF-8 or mixed encodings. Keep exact bytes.
+                try:
+                    raw = evidence.artifact(original)
+                except EvidenceUnavailable:
+                    if not process:
+                        raise
+                    ref['retention'] = 'successful_process_check'
+                    continue
                 sha = ref['sha256']
                 if sha not in retained:
                     filename = quote(job_id + '-' + name, safe='-_.')
@@ -138,6 +144,7 @@ class ParticipantEvidence:
     execution: dict | None
     events: tuple[dict, ...]
     model_usage: dict | None = None
+    checks: tuple[FeedbackEvidence, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -184,6 +191,26 @@ def export_run(root, evidence: ParticipantEvidence, result):
     if evidence.events:
         raw = ''.join(json.dumps(without_hashes(event)) + '\n' for event in evidence.events)
         put(root, 'evaluation/events.jsonl', raw.encode(), files)
+    result['checks'] = export_checks(root, evidence.checks, files)
+
+
+def export_checks(root, checks, files, prefix='checks/'):
+    """Keep every observed candidate and reply, with purpose-based raw retention."""
+    records = []
+    for check in checks:
+        record = copy.deepcopy(check.record)
+        directory = prefix + 'check-' + str(record['sequence']) + '/'
+        for key, filename in (('candidate', 'candidate.gds'), ('report', 'report.json')):
+            if key in check.assets:
+                name = directory + filename
+                put(root, name, check.assets[key], files)
+                record[key] = dict(record[key], path=name)
+        if check.reply is not None:
+            put(root, directory + 'participant-report.json', check.reply, files)
+        if check.evaluation is not None:
+            evaluation_export(check.evaluation, root, files, directory + 'evaluation', process=True)
+        records.append(record)
+    return records
 
 
 def export_attempts(root, evidence_records, files):
@@ -195,22 +222,12 @@ def export_attempts(root, evidence_records, files):
         entry['sessions'] = []
         for run in evidence.runs:
             run_prefix = prefix + 'sessions/' + run.session_id + '/'
-            session = {'session_id': run.session_id, 'checks': []}
+            session = {'session_id': run.session_id}
             if run.candidate is not None:
                 name = run_prefix + 'final.gds'
                 put(root, name, run.candidate, files)
                 session['candidate'] = name
-            for check in run.checks:
-                retained = copy.deepcopy(check.record)
-                check_prefix = run_prefix + 'check-' + str(retained['sequence']) + '/'
-                for key, filename in (('candidate', 'candidate.gds'), ('report', 'report.json')):
-                    if key in check.assets:
-                        name = check_prefix + filename
-                        put(root, name, check.assets[key], files)
-                        retained[key] = dict(retained[key], path=name)
-                session['checks'].append(retained)
-                if check.evaluation is not None:
-                    evaluation_export(check.evaluation, root, files, check_prefix + 'evaluation')
+            session['checks'] = export_checks(root, run.checks, files, run_prefix)
             entry['sessions'].append(session)
         attempts.append(entry)
     return attempts

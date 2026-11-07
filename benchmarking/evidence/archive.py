@@ -59,6 +59,7 @@ class FeedbackEvidence:
     record: dict
     assets: dict[str, bytes]
     evaluation: EvaluationArchive | None
+    reply: bytes | None = None
 
 
 class RunArchive:
@@ -145,5 +146,10 @@ class RunArchive:
         for check in self.report.get('process_feedback', {}).get('checks', []):
             assets = {key: checked(self.root, check[key]) for key in ('candidate', 'report') if check.get(key)}
             source = self.root / 'feedback' / ('check-' + str(check['sequence']))
+            try:
+                reply = read_file(source, 'participant-report.json')
+            except FileNotFoundError:
+                reply = None
             yield FeedbackEvidence(dict(check), assets,
-                                   EvaluationArchive(source) if (source / 'report.json').exists() else None)
+                                   EvaluationArchive(source) if 'report' in assets else None,
+                                   reply)

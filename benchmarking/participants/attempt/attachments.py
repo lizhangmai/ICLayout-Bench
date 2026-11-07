@@ -6,10 +6,16 @@ from pathlib import Path
 
 from benchmarking.eda.images import tool_image
 from benchmarking.evidence.archive import RunArchive
-from benchmarking.files import atomic_write
+from benchmarking.files import atomic_write, read_file
 from benchmarking.participants.attempt.storage import CaseLease
 from benchmarking.protocol import json_bytes
-from benchmarking.results.package import compact_result, evaluation_export, put, verify
+from benchmarking.results.package import (
+    compact_result,
+    evaluation_export,
+    export_checks,
+    put,
+    verify,
+)
 
 
 def attach_session_evidence(path, store, *, renderer_image=None, renderer_runtime=None):
@@ -36,9 +42,13 @@ def attach_session_evidence(path, store, *, renderer_image=None, renderer_runtim
                 state['top_cell'] = evidence.top_cell
             if evidence.evaluation is not None:
                 evaluation_export(evidence.evaluation, staging, files)
+            state['checks'] = export_checks(staging, archive.feedback(), files)
             for name in files:
-                existing = path.parent / name
-                if existing.exists() and existing.read_bytes() != (staging / name).read_bytes():
+                try:
+                    existing = read_file(path.parent, name)
+                except FileNotFoundError:
+                    existing = None
+                if existing is not None and existing != (staging / name).read_bytes():
                     raise ValueError('Refusing to replace different result artifact: ' + name)
             for name in files:
                 put(path.parent, name, (staging / name).read_bytes(), state['files'])

@@ -267,7 +267,9 @@ def test_dependencies_follow_extracted_candidate_and_archive_evidence(tmp_path, 
     evaluation_export(EvaluationArchive(root), destination, files)
     exported = json.loads((destination / 'evaluation/report.json').read_text())
     assert exported['score'] == report['score']
-    assert exported['jobs']['parasitics']['outputs']['netlist']['content'] == 'derived-from-layout'
+    reference = exported['jobs']['parasitics']['outputs']['netlist']
+    assert 'content' not in reference
+    assert (destination / 'evaluation' / reference['path']).read_text() == 'derived-from-layout'
     assert json.loads((root / 'report.json').read_text()) == report
 
 def test_drc_lvs_success_is_not_performance_success(tmp_path, inputs, bindings):
@@ -309,6 +311,44 @@ def test_export_preserves_non_utf8_native_logs_without_changing_score(tmp_path, 
     assert 'evaluation/' + ref['path'] in files
     assert exported['score'] == report['score']
     assert archive.report == report
+
+
+@pytest.mark.parametrize('functional_rejection', [False, True])
+def test_process_export_keeps_exact_feedback_and_preserves_rejection_waveforms(
+        tmp_path, inputs, bindings, functional_rejection):
+    from dataclasses import replace
+
+    from benchmarking.evidence.archive import EvaluationArchive, FeedbackEvidence
+    from benchmarking.results.package import export_checks
+
+    native_wave = b'original native samples\n' * 10000
+    original = bindings['response'].run
+    bindings['response'].run = lambda job, assets: replace(
+        original(job, assets), evidence={'results/tran.tran.tran': Asset(native_wave, 'text')})
+    plan = PLAN.replace(b'upper = 4.0', b'upper = 2.0') if functional_rejection else PLAN
+    report = evaluate(tmp_path, inputs, bindings, plan)
+    raw = (tmp_path / 'report/report.json').read_bytes()
+    candidate = inputs['candidate']
+    reply = b'{"observed":"exact model feedback"}'
+    evidence = FeedbackEvidence({'sequence': 1, 'elapsed_seconds': 2,
+                                 'candidate': candidate.identity(), 'report': Asset(raw, 'json').identity()},
+                                {'candidate': candidate.content, 'report': raw},
+                                EvaluationArchive(tmp_path / 'report'), reply)
+    destination, files = tmp_path / 'portable', []
+    records = export_checks(destination, [evidence], files)
+    check = destination / 'checks/check-1'
+    assert (destination / records[0]['candidate']['path']).read_bytes() == candidate.content
+    assert (check / 'report.json').read_bytes() == raw
+    assert (check / 'participant-report.json').read_bytes() == reply
+    exported = json.loads((check / 'evaluation/report.json').read_bytes())
+    assert exported['score'] == report['score']
+    ref = exported['jobs']['nominal']['evidence']['results/tran.tran.tran']
+    assert 'content' not in ref
+    if functional_rejection:
+        assert (check / 'evaluation' / ref['path']).read_bytes() == native_wave
+    else:
+        assert ref['retention'] == 'successful_process_check'
+        assert 'path' not in ref
 
 
 @pytest.mark.parametrize('termination', ['budget_exhausted', 'agent_error'])

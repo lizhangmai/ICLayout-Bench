@@ -63,7 +63,12 @@ def read_file(root: Path, name: str) -> bytes:
     # The operator-selected root may be ../my-agent; lexical normalization is
     # distinct from following symlinks. Declared asset names remain confined.
     path = Path(os.path.abspath(root)) / relative(name, "file path")
-    resolved = path.resolve(strict=True)
+    try:
+        resolved = path.resolve(strict=True)
+    except FileNotFoundError:
+        from benchmarking.results.retention import read_retained_file
+
+        return read_retained_file(path)
     if not path.is_file() or (resolved != path and not is_hub_file(path)):
         raise ValueError(f"Input must be a regular, non-symlink file: {name}")
     return path.read_bytes()

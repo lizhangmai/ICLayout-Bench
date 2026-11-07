@@ -120,6 +120,7 @@ def read_participant_evidence(runtime):
         traces, execution,
         tuple(json.loads(line) for line in events.read_text().splitlines() if line.strip())
         if events.is_file() else (), read_model_usage(participant, traces, execution),
+        tuple(archive.feedback()) if archive is not None else (),
     )
 
 

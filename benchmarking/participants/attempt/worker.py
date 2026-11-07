@@ -49,6 +49,10 @@ def finish_case(root, *, output=None, results_data=None, schedule=None):
     if state['state'] == 'finished':
         ensure_layout_preview(record.root)
     summary = _finish_case(record, state)
+    from benchmarking.results.retention import compact
+
+    selected_pool = next((row['archive_objects'] for row in schedule or [] if row.get('archive_objects')), None)
+    compact(record.root, objects=selected_pool or (Path(output) / '.objects' if output is not None else None))
     # Derived previews and archive indexing can be retried without a solve.
     if output is not None:
         archive_result(results_data, output, str(record.root.relative_to(output)), schedule or state['identity']['plan'])

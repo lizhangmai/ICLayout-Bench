@@ -141,6 +141,7 @@ selected harness/model; equal effort names do not imply equal computation.
 | `[recovery]` | Optional overrides of [recovery defaults](#recovery-settings). |
 | `[scheme]` | Optional declared [participant tools or custom controller](#participant-tool-schemes). |
 | `results_data` | Optional [local archive](#automatic-indexing-and-recovery) directory. |
+| `archive_objects` | Optional shared compressed object directory, relative to the configuration file. Storage location is not part of the model condition. |
 
 #### Static Dataset inputs
 
@@ -1022,6 +1023,58 @@ before transfer. Compact exports do not provide post-export tamper detection.
 
 Keep results outside disposable build/cache storage and back them up. Prepared
 resources are rebuildable; experiment evidence and checkpoints are persistent.
+
+### Evidence retention
+
+Terminal archives preserve identities, original scores and measurements, observed
+model traces and usage, every check's candidate and exact available participant
+reply, and final evaluation evidence. Task inputs and evaluation plans are frozen
+with the result. Raw text and waveform attachments are separate files, never
+unbounded inline JSON strings.
+
+Only ordinary process checks with explicit functional success and successful job
+and metric states may omit full waveforms, verbose successful-tool logs and
+temporary native databases. Rejections, tool errors, ambiguous checks and final
+evaluations retain their original attachments. Omitted attachments are explicitly
+identified as `successful_process_check`; they cannot be independently remeasured
+after collection. Their recorded measurements, candidate, report and reply remain.
+
+Large retained files use lossless Zstandard objects. `.retained/manifest.json`
+maps their original logical paths to uncompressed SHA-256 identities and records
+intentional omissions. The archive contains local object files, so copying one
+archive does not require a shared external store. A result scope's `.objects/`
+pool deduplicates identical compressed objects using hard links. Final GDS and PNG
+files remain directly readable. Read archived attachments through
+`benchmarking.files.read_file`; direct filesystem existence checks do not describe
+the availability of compressed evidence. Declared result transfer and import use
+this same reader.
+
+The maintenance command is read-only unless `--apply` is supplied:
+
+```bash
+python -m benchmarking.results.retention /path/to/results --tree --report /path/to/inventory.json
+python -m benchmarking.results.retention /path/to/results --tree --apply --report /path/to/migration.json
+python -m benchmarking.results.retention /path/to/terminal-run --verify
+```
+
+Migration takes the case or service lease, stages and verifies compressed objects,
+commits the manifest, then removes original copies and explicitly classified
+process attachments. Unfinished or locked runs remain unchanged. Repeating an
+interrupted operation verifies the committed objects before completing cleanup.
+`--keep-check check-N` preserves a diagnostic check before migration; omitted bytes
+cannot be recovered by a later invocation. Retention does not invoke models or
+EDA, change recorded scores, or upgrade the result's verification level. Native
+credential homes and active recovery state remain outside the archived file set.
+
+After verifying stopped service archives, retire their authentication state while
+keeping redacted observations, request receipts and execution summaries:
+
+```bash
+python -m benchmarking.results.retention /path/to/results --retire-services --apply --report /path/to/retirement.json
+```
+
+The resulting `service-observations.json` is diagnostic evidence, not resumable
+HTTP state. Unfinished sessions keep their original recovery state.
 
 ### Read a run
 

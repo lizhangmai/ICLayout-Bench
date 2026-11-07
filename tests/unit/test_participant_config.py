@@ -26,6 +26,27 @@ def price_snapshot():
             'cache_write_per_million': 2.5, 'output_per_million': 10}
 
 
+def test_archive_objects_is_relative_to_config_and_not_a_model_condition(tmp_path):
+    import tomli_w
+
+    from benchmarking.participants.batch.plan import PlannedCondition
+
+    row = {'harness': 'codex', 'model': 'fixture', 'effort': 'high', 'tasks': ['fixture'],
+           'concurrency': 1, 'repetitions': 1, 'archive_objects': '../results/.objects'}
+    directory = tmp_path / 'configs'
+    directory.mkdir()
+    path = directory / 'experiment.toml'
+    path.write_text(tomli_w.dumps(row))
+    selected, = read_configs([path])
+    assert selected['archive_objects'] == str(tmp_path / 'results/.objects')
+    condition = PlannedCondition(selected, 'fixture', ParticipantSelection({}, {}, {}))
+    assert 'archive_objects' not in condition.description()
+    row['archive_objects'] = ''
+    path.write_text(tomli_w.dumps(row))
+    with pytest.raises(ValueError, match='archive_objects'):
+        read_configs([path])
+
+
 def test_price_snapshot_is_preserved_in_experiment_conditions_and_rejects_ambiguous_rates(tmp_path, price_snapshot):
     import tomli_w
 
