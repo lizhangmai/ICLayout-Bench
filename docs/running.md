@@ -414,6 +414,9 @@ helper, or its native `.credentials.json`. Inherited Anthropic/Claude provider
 settings do not select a different authentication method. DSH composes its native
 headless configuration with the selected `DSH_HOME`; its credential store and
 native `.env` fallback come from that directory.
+DSH runs with the headless profile and native tool execution; no interactive mode
+selection is needed. Bench retains the required execution plugins while disabling
+host tools and unrelated MCP servers.
 See [Kimi Code](#kimi-code) and [ZCode](#zcode) for their model and provider declarations.
 
 #### Kimi Code

@@ -176,9 +176,11 @@ def prepare(context: LaunchContext) -> list[str]:
     settings_path = directory / "dsh-settings.json"
     save(settings_path, saved)
     patch = []
+    native_executor = any(row["id"] == "tool-executor-native" for row in settings["rows"])
     for row in settings["rows"]:
         name = row["id"]
-        if name.startswith(("tool-", "mcp-")) or name in {
+        # New DSH versions require the native executor to dispatch MCP tools.
+        if (name.startswith(("tool-", "mcp-")) and name != "tool-executor-native") or name in {
             "agent-instructions", "skill-filesystem", "session-title-llm", "session-log-deepseek",
             "plan-mode", "plugin-manager", "hmr", "config-editor", "subagent",
             "subagent-spawn-in-process", "subagent-fork-in-process",
@@ -196,7 +198,6 @@ def prepare(context: LaunchContext) -> list[str]:
         # New DSH settings forms no longer apply a settings-file overlay.
         {"id": "agent-default-model", "config": selection},
         {"id": "settings", "config": {"path": str(settings_path), "watch": False}},
-        {"id": "tools", "config": {"mode": "native"}},
         {"id": "session-telemetry-otel", "config": {"mode": "DISABLED"}},
         {"id": "credentials", "disabled": False,
          "config": {"path": str(home / '.credentials.yaml'), "watch": False}},
@@ -208,6 +209,11 @@ def prepare(context: LaunchContext) -> list[str]:
             "env": {k: v for k, v in env.items() if k.startswith("ICLAYOUT_BENCH_")},
         }}]},
     ]
+    if native_executor:
+        patch.append({"id": "tool-executor-native", "disabled": False})
+    else:
+        # Older DSH versions select the executor on the tools service itself.
+        patch.append({"id": "tools", "config": {"mode": "native"}})
     for name, spec in settings.get("mcp_servers", {}).items():
         patch.append({"insert": [{"id": "mcp-" + name, "name": "@deepseek-ai/dsh-mcp-client", "config": {
             "serverName": name, "transport": "stdio", **spec,

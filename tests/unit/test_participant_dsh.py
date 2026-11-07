@@ -143,6 +143,8 @@ class DshPatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             settings = {'rows': [{'id': 'tool-bash'}, {'id': 'tool-fs'}, {'id': 'tool-subagent'},
+                                 {'id': 'tool-executor-native'},
+                                 {'id': 'tool-executor-ptc', 'disabled': True}, {'id': 'agent-loop'},
                                  {'id': 'agent-instructions'}, {'id': 'mcp-other'},
                                  {'id': 'llm-deepseek', 'config': {'baseURL': 'http://fixture-gateway', 'apiKey': 'profile-key-fixture'}},
                                  {'id': 'plan-mode'}, {'id': 'plugin-manager'}],
@@ -167,6 +169,10 @@ class DshPatchTests(unittest.TestCase):
             self.assertNotIn('profile-key-fixture', ' '.join(args))
             disabled = {r['id'] for r in overlay if r.get('disabled')}
             self.assertTrue({'tool-bash', 'tool-fs', 'tool-subagent', 'agent-instructions', 'mcp-other', 'plan-mode', 'plugin-manager'} <= disabled)
+            self.assertNotIn('tool-executor-native', disabled)
+            self.assertNotIn('agent-loop', disabled)
+            self.assertIn('tool-executor-ptc', disabled)
+            self.assertFalse(any('mode' in row.get('config', {}) for row in overlay if row.get('id') == 'tools'))
             added = {r['insert'][0]['config']['serverName']: r['insert'][0]['config'] for r in overlay if 'insert' in r}
             self.assertEqual(added['a']['command'], '/tools/a')
             self.assertEqual(added['a']['env'], {'A_API_KEY': 'private-a'})
@@ -179,6 +185,11 @@ class DshPatchTests(unittest.TestCase):
             prepare(LaunchContext(ParticipantSelection(condition, env, settings), root / 'mcp.json', root, root / 'output', root / 'bridge.py', 'task'))
             config = json.loads((root / 'dsh-settings.json').read_text())
             self.assertEqual(config['agent-default-model']['reasoningEffort'], 'max')
+            settings['rows'] = [row for row in settings['rows'] if not row['id'].startswith('tool-executor-')]
+            prepare(LaunchContext(ParticipantSelection(condition, env, settings), root / 'mcp.json', root, root / 'output', root / 'bridge.py', 'task'))
+            overlay = json.loads((root / 'dsh.patch.json').read_text())
+            tools = next(row['config'] for row in overlay if row.get('id') == 'tools')
+            self.assertEqual(tools['mode'], 'native')
 
 
 if __name__ == '__main__':
