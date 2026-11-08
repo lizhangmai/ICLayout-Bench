@@ -1,0 +1,77 @@
+* Fixed native OTA measurement; all device parameters belong to dut.spice.
+.include "parameters.spice"
+.include "models.spice"
+.include "dut.spice"
+.temp {temperature_c}
+.options reltol=1e-6 abstol=1e-15 vntol=1e-9
+VDD vdd 0 {supply_v}
+IBIAS vdd ib {bias_a}
+VIN in 0 SIN({common_v} .1 1meg)
+CLOAD out 0 {load_f}
+XDUT vdd out in out ib 0 ota_5t
+.control
+set noaskquit
+set numdgt=12
+setcs sparse
+save v(in) v(out)
+tran .5n 15u 0 .5n
+meas tran output_dc_v avg v(out) from=10u to=15u
+let sine_1=v(out)*sin(2*PI*1e6*time)
+let cosine_1=v(out)*cos(2*PI*1e6*time)
+meas tran int_s_1 integ sine_1 from=10u to=15u
+meas tran int_c_1 integ cosine_1 from=10u to=15u
+let amp_1=2*sqrt(int_s_1^2+int_c_1^2)/5e-6
+let sine_2=v(out)*sin(2*PI*2e6*time)
+let cosine_2=v(out)*cos(2*PI*2e6*time)
+meas tran int_s_2 integ sine_2 from=10u to=15u
+meas tran int_c_2 integ cosine_2 from=10u to=15u
+let amp_2=2*sqrt(int_s_2^2+int_c_2^2)/5e-6
+let sine_3=v(out)*sin(2*PI*3e6*time)
+let cosine_3=v(out)*cos(2*PI*3e6*time)
+meas tran int_s_3 integ sine_3 from=10u to=15u
+meas tran int_c_3 integ cosine_3 from=10u to=15u
+let amp_3=2*sqrt(int_s_3^2+int_c_3^2)/5e-6
+let sine_4=v(out)*sin(2*PI*4e6*time)
+let cosine_4=v(out)*cos(2*PI*4e6*time)
+meas tran int_s_4 integ sine_4 from=10u to=15u
+meas tran int_c_4 integ cosine_4 from=10u to=15u
+let amp_4=2*sqrt(int_s_4^2+int_c_4^2)/5e-6
+let sine_5=v(out)*sin(2*PI*5e6*time)
+let cosine_5=v(out)*cos(2*PI*5e6*time)
+meas tran int_s_5 integ sine_5 from=10u to=15u
+meas tran int_c_5 integ cosine_5 from=10u to=15u
+let amp_5=2*sqrt(int_s_5^2+int_c_5^2)/5e-6
+let sine_6=v(out)*sin(2*PI*6e6*time)
+let cosine_6=v(out)*cos(2*PI*6e6*time)
+meas tran int_s_6 integ sine_6 from=10u to=15u
+meas tran int_c_6 integ cosine_6 from=10u to=15u
+let amp_6=2*sqrt(int_s_6^2+int_c_6^2)/5e-6
+let sine_7=v(out)*sin(2*PI*7e6*time)
+let cosine_7=v(out)*cos(2*PI*7e6*time)
+meas tran int_s_7 integ sine_7 from=10u to=15u
+meas tran int_c_7 integ cosine_7 from=10u to=15u
+let amp_7=2*sqrt(int_s_7^2+int_c_7^2)/5e-6
+let sine_8=v(out)*sin(2*PI*8e6*time)
+let cosine_8=v(out)*cos(2*PI*8e6*time)
+meas tran int_s_8 integ sine_8 from=10u to=15u
+meas tran int_c_8 integ cosine_8 from=10u to=15u
+let amp_8=2*sqrt(int_s_8^2+int_c_8^2)/5e-6
+let sine_9=v(out)*sin(2*PI*9e6*time)
+let cosine_9=v(out)*cos(2*PI*9e6*time)
+meas tran int_s_9 integ sine_9 from=10u to=15u
+meas tran int_c_9 integ cosine_9 from=10u to=15u
+let amp_9=2*sqrt(int_s_9^2+int_c_9^2)/5e-6
+let sine_10=v(out)*sin(2*PI*10e6*time)
+let cosine_10=v(out)*cos(2*PI*10e6*time)
+meas tran int_s_10 integ sine_10 from=10u to=15u
+meas tran int_c_10 integ cosine_10 from=10u to=15u
+let amp_10=2*sqrt(int_s_10^2+int_c_10^2)/5e-6
+let fundamental_v=amp_1
+let fundamental_gain=amp_1/.1
+let thd_ratio=sqrt(amp_2^2+amp_3^2+amp_4^2+amp_5^2+amp_6^2+amp_7^2+amp_8^2+amp_9^2+amp_10^2)/amp_1
+let linearity_error=(sqrt(amp_2^2+amp_3^2+amp_4^2+amp_5^2+amp_6^2+amp_7^2+amp_8^2+amp_9^2+amp_10^2)+max(0,.08-amp_1))/.1
+print fundamental_v fundamental_gain thd_ratio linearity_error
+write waveform.raw
+quit
+.endc
+.end

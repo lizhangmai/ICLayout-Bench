@@ -1,0 +1,57 @@
+# SKY130 Two-Stage Miller Operational Amplifier Layout Task
+
+## Objective
+
+Implement `OPAMP_TWO_STAGE` from the supplied transistor-level circuit, preserving topology, fixed device parameters, four-terminal body connections and the ordered interface. Submit a candidate GDS for electrical evaluation of its distributed RC extraction.
+
+### Optimization objective
+
+Maximize the declared quality score within the solve budget while satisfying all physical and necessary functional requirements. The first passing DRC, LVS and required electrical checks establish a feasible baseline. Continue improving the scored metrics from that baseline; a passing check or `task_success = true` does not mean that the quality objectives have been achieved.
+
+## Inputs and Interface
+
+Ordered ports are `VDD GND DIFFPAIR_BIAS VP VN CS_BIAS VOUT`. Declared inputs include `problem.md`, `materials/circuit.spice` and `materials/testbench.spice`. The runtime provides models and process resources; reference layouts, author code and qualification evidence are maintainer-only materials.
+
+## Operating Conditions
+
+Supply 1.8 V, input common mode 0.9 V, and external input-stage/common-source-stage bias currents 20, 100 uA, respectively. Use output capacitances 0.1, 0.5, 1 pF and a 100 Mohm resistive load. Feedback 9 Mohm and reference 1 Mohm resistors set noise gain 10; external large inductance/capacitance closes DC feedback and breaks AC feedback, measuring loop bandwidth and phase margin where open-loop magnitude falls to 10. This fixture does not prove unity-gain stability. All electrical experiments use fixed TT models at 27 °C; delivered testbenches define interpolation, edges, loads, sweeps, observation times and power intervals.
+
+## Physical Requirements
+
+Submit a nonempty GDS no larger than 10485760 bytes, with top cell `OPAMP_TWO_STAGE`. Functional geometry must fit within the 200 × 200 um envelope on the declared layer set. Pass complete Magic DRC without waivers and independent Netgen LVS checking named ports, models, dimensions, multiplicities and body/contact connections. After physical and geometric checks pass, extract the candidate's distributed interconnect resistance, capacitance and devices, then run every declared experiment.
+
+## Electrical Requirements and Scoring
+
+Artifact, geometry, DRC, LVS and declared functional requirements must pass. Parasitic extraction is also mandatory: it must produce a complete, electrically consistent netlist usable by the required post-layout simulations. A completed candidate rejection scores zero; infrastructure errors do not establish candidate failure.
+
+Output bias must be 0.3–1.5 V; phase margin at the specified crossing must lie on the stable-feedback branch within 0–180 degrees, and the crossing must exist. Gain, bandwidth and power are quality targets; no 40 dB, 100 kHz, 5 mW or 45 degree design-budget rejection thresholds are imposed. Power and absolute errors must be nonnegative; all required measurements must be complete, finite and in correct units.
+
+| Metric | Functional requirement or measurement domain | Aggregation | Score weight |
+| --- | --- | --- | ---: |
+| `functional_area` | No fixed performance bound | max | 20% |
+| `gain_low` | No fixed performance bound | min | 30% |
+| `loop_bandwidth` | 0 … +∞ Hz | min | 30% |
+| `supply_power` | 0 … +∞ W | max | 20% |
+| `phase_margin` | 0 … 180 deg | min | 0% |
+| `bias_voltage` | 0.3 … 1.5 V | max | 0% |
+
+Pair electrical quality with independent source-netlist observations under exactly the same conditions, taking the worst paired quality for each metric. Gain in dB uses `10^((x-b)/20)`; target quantities use `1/(1+abs(x-b)/s)`; ratio quantities use `x/b` or `b/x` according to optimization direction; cost quantities declaring `saturating_ratio` use `2*(b+s)/(b+x+2*s)`. `x` is the candidate observation, `b` is the source observation and `s` is the contract's physical normalization scale. These define no degradation allowance. Zero-weight observations still undergo measurement and functional checks.
+
+Area quality is `14329.60165 um² / candidate functional area`; the area target is the original reference layout's functional-footprint soft target, and a separate envelope constraint controls functional bounds. Total score is `100 × product(min(1, q_i)^w_i)`, using the contract's `layout` method and original weights. Source-equivalent performance at target area scores 100, and each metric is capped at quality 1, so scores cannot exceed 100. Physical or functional invalidity scores zero; missing or unusable measurements make the score unknown. Capability coefficient `3` is independent of this quality score.
+
+## Tools and Submission
+
+Soft solve budget: **8 hours**.
+
+Read `/protocol/task.json` for input/output paths, constraints and the `resources` object; `/protocol/harness.json` describes the active check and submission interface.
+
+Use the task information, tools and SKY130 resources provided by the runtime protocol. Write only the final GDS to `output/final.gds` and explicitly submit through the declared interface. Source simulation serves characterization; accepted results come from complete physical and RC electrical evaluation of the candidate GDS. Conclusions cover only the declared conditions, excluding PVT, mismatch, reliability and product signoff.
+
+### Solve workflow
+
+1. Read the declared circuit and materials, `/protocol/task.json` for paths, constraints and reviewed resources, and `/protocol/harness.json` for capabilities and helper commands. Task inputs under `/task` and resources under `/resources` are read-only; construct the layout in `/workspace` with the declared tools. With layout MCP, paths and commands refer to the remote EDA workspace. Create your own implementation with real devices, interconnect and pins, using your own tool loop without delegating to other agents; reference layouts and author code are not solver inputs.
+2. Inspect `resources.external` before using external tools. Each command starts a fresh shell: when tool modules are declared, source `/usr/share/Modules/init/bash` and load the selected tool's modules; export its declared `tool_environment` settings in that same command. Repeat as needed and use batch or headless operation. Local manuals, command references, and release notes may be available within the declared EDA installation and PDK resource directories. Locate these resources through `/protocol/task.json` and consult the documentation for the installed tool version when diagnosing unfamiliar syntax or tool failures.
+3. Generate an initial candidate and submit a snapshot early. When `process-feedback` is available, check the current GDS with layout MCP `check` or `python -I /protocol/process_check.py` before the final submission. This runs the final evaluator's complete plan and returns engineering diagnostics and candidate measurements, without scores or normalized quality factors. Checks have no count limit and consume the same wall-clock budget. Inspect the physical and functional results and all scored metrics; successful tool execution alone does not establish requirement satisfaction. Read paginated diagnostics with `report` when using MCP. Local exploratory checks do not replace this complete check.
+4. Use the remaining time for measured improvements to the declared quality objectives. Identify the limiting scored metrics, make targeted layout changes, regenerate and check the candidate, and compare measurements with the previous candidate and the stated scoring targets and trade-offs. Preserve the best valid candidate and revert changes that worsen the overall objective. Repeat while time and useful improvements remain; passing validity checks alone is not a stopping condition.
+5. Stop optimization when the budget expires, all declared quality objectives are achieved, or measured trials support convergence. If stopping early, explain the changes tried, the metric comparisons and the remaining limitations. Track remaining time through session status. At soft-budget expiry, finish or cancel already-started work and submit immediately; do not start another command, check or optimization round. If an MCP execution is running, use `poll` with its `execution_id` and the returned `next_offset` as `offset` until completion, or cancel it and wait for it to stop.
+6. Finish or cancel outstanding work, restore your best candidate to the declared output path, and explicitly submit it before ending the session. With layout MCP `submit`, remove the `/workspace/` prefix from `output.path`; with the container interface, run `python -I /protocol/submit.py`. Wait for the receipt: only the last accepted snapshot is judged, and writing a file alone is not submission. Acceptance confirms delivery; the framework independently evaluates validity and quality after the session.

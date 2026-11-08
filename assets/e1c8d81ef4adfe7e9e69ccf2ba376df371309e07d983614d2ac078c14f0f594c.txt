@@ -1,0 +1,86 @@
+# Clocked SRAM Sense Amplifier Layout Task
+
+## Objective
+
+Implement the supplied clocked regenerative sense amplifier. Dout is low when sampled BL is below BR, and high for the opposite differential. Preserve authoritative netlist models, W/L, interface and connections; top cell is `sense_amp`.
+
+### Optimization objective
+
+Maximize the declared quality score within the solve budget while satisfying all physical and necessary functional requirements. The first passing DRC, LVS and required electrical checks establish a feasible baseline. Continue improving the scored metrics from that baseline; a passing check or `task_success = true` does not mean that the quality objectives have been achieved.
+
+## Inputs and Interface
+
+Ordered SPICE ports: `bl br dout sclk vdd gnd`. Names are case-insensitive, but different names are not interchangeable. Inputs are this description, `materials/circuit.spice` and `materials/testbench.spice`. The reviewed resource package supplies models and extraction resources; reference geometry and qualification evidence are not solver inputs.
+
+## Operating Conditions
+
+Use nominal FreePDK45 BSIM4 models at **1.0 V and 27 C**, with ground at 0 V. Every transistor has channel length 50 nm; widths and model types follow the netlist.
+
+First decision uses BL/BR=0.8/1.0 V, second 1.0/0.8 V. SCLK is low during sampling and rises at 500 ps and 1500 ps with 10 ps edges, remaining high for 480 ps. Dout load is 0.5 fF; sample at 610 ps and 1610 ps, and average supply power over 0–2 ns. This task tests a loaded 200 mV differential decision and does not claim 50 mV sensitivity.
+
+The deck precisely defines stimuli and observation times, testing only through external ports. Validation covers these nominal conditions, excluding PVT, mismatch, array integration, substrate noise and manufacturing signoff.
+
+## Physical Requirements
+
+Submit a nonempty GDSII no larger than 10 MiB. Enable every check in the supplied KLayout DRC deck, including grid and antenna checks, without waivers. Strict LVS checks named ports, models, W/L and physical well/contact connectivity, with library-specific implicit or global power connections disabled. The upstream deck does not implement its documented spacing rule for wells at different potentials and does not provide complete foundry signoff.
+
+The hard functional-outline limit is 100 um × 100 um. Its bounding box includes all functional geometry on drawing layers 1/0–29/0: active regions, wells, implants, threshold markers, poly, contacts, ten metal layers and nine via layers. Area is scored in um2. Keep functional geometry on these layers, excluding pin-purpose and annotation geometry. Electrical labels use poly or metal drawing layers (9/0, 11/0, 13/0, …, 29/0); nonelectrical annotation text is not extracted.
+
+Translation, equivalent hierarchy and internal instance renaming are allowed. LVS permits source/drain exchange and equivalent parallel devices; the candidate must still pass the same RC electrical evaluation. Preserve top-level port identities and explicit body connections.
+
+## Electrical Requirements and Scoring
+
+Artifact, geometry, DRC, LVS and declared functional requirements must pass. Parasitic extraction is also mandatory: it must produce a complete, electrically consistent netlist usable by the required post-layout simulations. A completed candidate rejection scores zero; infrastructure errors do not establish candidate failure.
+
+Extract the candidate GDS only after file, DRC, LVS and geometry checks pass. Simulate its Magic RC netlist directly, with independent source simulation supplying the scoring baseline. Independent LVS first checks VTG/VTL device types, then uses the matching extraction configuration. Extraction includes poly/metal sheet resistance, contacts/vias, geometry-dependent coupling and ground capacitance, and device junction areas/perimeters. Wells use lumped connectivity; BSIM4 describes device and junction behavior. Interconnect RC uses estimated coefficients and native capacitance placement from the fixed community FreePDK45 Magic technology. The adapter binds VTG/VTL models, preserves annotation layers and corrects dimension-unit conversion. This is a predictive approximation without field-solver signoff accuracy.
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations define the 100-point electrical baseline without depending on the submitted GDS; reports retain every paired result.
+
+Let x be the post-layout measurement and b the source-circuit measurement under the same conditions:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. Each metric takes its worst paired quality q, and the total score is S = 100 * product(min(1, q_i) ** w_i), with area quality q_area = area_reference / candidate_functional_area. The weights below sum to 1; metric dimensions describe measurements and do not determine weights. Physical, extraction, or functional rejection scores zero; other missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Matching source-circuit performance at the reference area scores 100 points; each metric is capped at quality 1, so scores cannot exceed 100. Weights express quality tradeoffs rather than hard bounds.
+
+| Metric | Definition / observation | Unit | Quality normalization | Functional range | Scale |
+| --- | --- | --- | --- | --- | --- |
+| `low` | `find v(dout) at=610p` | V | functional check | −∞ … 0.1 | — |
+| `high` | `find v(dout) at=1610p` | V | functional check | 0.9 … +∞ | — |
+| `supply` | `avg par('-v(vdd)*i(Vdd)') from=0 to=2n` | W | minimize / ratio | 0 … +∞ | 1e-12 |
+| `decision_delay_fall` | SCLK 50% to Dout 50% decision delay; see testbench window. | s | minimize / ratio | 0.0 … +∞ | — |
+
+Area reference: **2.82 um2**. The expanded circuit has 7 device instances, a sum of device/contact envelopes 1.4529 um2, a one-sided envelope margin of 0.12 um, a routing allowance of 50%, and a total outer width/height allowance 0.24 um. Estimate = ceil(100 * (1.5 * envelope_sum + 2 * margin * sqrt(envelope_sum) + margin^2)) / 100. Here margin is the total allowance across both sides, and the envelope sum is displayed to four decimal places. MOS/passive envelopes use W/L (or resistor dimensions) and multiplicity, including explicit contacts and HBT emitter/contact envelopes. This is a frozen engineering estimate, not a process minimum or a proven achievable area.
+
+The capability coefficient is **5**, independent of this task's reference-normalized score.
+
+### Score weights
+
+SRAM periphery: delay 68%, supply power 17%, area 15%; each objective weight is divided equally among its metrics.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.15 |
+| `decision_delay_fall` | 0.680000000000 |
+| `supply` | 0.170000000000 |
+
+Only falling decision delay contributes to timing quality. Both decision polarities must pass final sampled-level checks; rising decision timing is outside this task's measurement objective.
+
+## Tools and Submission
+
+Soft solve budget: **3 hours**.
+
+Read `/protocol/task.json` for input/output paths, constraints and the `resources` object; `/protocol/harness.json` describes the active check and submission interface.
+
+
+Use the reviewed FreePDK45 KLayout, Magic and ngspice resources in the `resources` field of `/protocol/task.json`. Magic RC extraction uses `/resources/support/magic-vtg/freepdk45.tech`, including model and unit adaptation. `/protocol/task.json` supplies consistent constraints, measurements and scoring; `/task` contains only declared inputs. Write `/workspace/output/final.gds`, then run `python -I /protocol/submit.py` to submit explicitly. If `process-feedback` is provided, intermediate checks use the frozen plan and backend identities; their snapshots are not final submissions.
+
+### Solve workflow
+
+1. Read the declared circuit and materials, `/protocol/task.json` for paths, constraints and reviewed resources, and `/protocol/harness.json` for capabilities and helper commands. Task inputs under `/task` and resources under `/resources` are read-only; construct the layout in `/workspace` with the declared tools. With layout MCP, paths and commands refer to the remote EDA workspace. Create your own implementation with real devices, interconnect and pins, using your own tool loop without delegating to other agents; reference layouts and author code are not solver inputs.
+2. Inspect `resources.external` before using external tools. Each command starts a fresh shell: when tool modules are declared, source `/usr/share/Modules/init/bash` and load the selected tool's modules; export its declared `tool_environment` settings in that same command. Repeat as needed and use batch or headless operation. Local manuals, command references, and release notes may be available within the declared EDA installation and PDK resource directories. Locate these resources through `/protocol/task.json` and consult the documentation for the installed tool version when diagnosing unfamiliar syntax or tool failures.
+3. Generate an initial candidate and submit a snapshot early. When `process-feedback` is available, check the current GDS with layout MCP `check` or `python -I /protocol/process_check.py` before the final submission. This runs the final evaluator's complete plan and returns engineering diagnostics and candidate measurements, without scores or normalized quality factors. Checks have no count limit and consume the same wall-clock budget. Inspect the physical and functional results and all scored metrics; successful tool execution alone does not establish requirement satisfaction. Read paginated diagnostics with `report` when using MCP. Local exploratory checks do not replace this complete check.
+4. Use the remaining time for measured improvements to the declared quality objectives. Identify the limiting scored metrics, make targeted layout changes, regenerate and check the candidate, and compare measurements with the previous candidate and the stated scoring targets and trade-offs. Preserve the best valid candidate and revert changes that worsen the overall objective. Repeat while time and useful improvements remain; passing validity checks alone is not a stopping condition.
+5. Stop optimization when the budget expires, all declared quality objectives are achieved, or measured trials support convergence. If stopping early, explain the changes tried, the metric comparisons and the remaining limitations. Track remaining time through session status. At soft-budget expiry, finish or cancel already-started work and submit immediately; do not start another command, check or optimization round. If an MCP execution is running, use `poll` with its `execution_id` and the returned `next_offset` as `offset` until completion, or cancel it and wait for it to stop.
+6. Finish or cancel outstanding work, restore your best candidate to the declared output path, and explicitly submit it before ending the session. With layout MCP `submit`, remove the `/workspace/` prefix from `output.path`; with the container interface, run `python -I /protocol/submit.py`. Wait for the receipt: only the last accepted snapshot is judged, and writing a file alone is not submission. Acceptance confirms delivery; the framework independently evaluates validity and quality after the session.

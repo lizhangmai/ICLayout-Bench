@@ -1,0 +1,60 @@
+# SKY130 Continuous Comparator with Complementary Input Load Layout Task
+
+## Objective
+
+Implement `sky130_ef_ip__ccomp3v_cl` from the supplied transistor-level circuit, preserving topology, fixed device parameters, four-terminal body connections and the ordered interface. Submit a candidate GDS for electrical evaluation of its distributed RC extraction.
+
+### Optimization objective
+
+Maximize the declared quality score within the solve budget while satisfying all physical and necessary functional requirements. The first passing DRC, LVS and required electrical checks establish a feasible baseline. Continue improving the scored metrics from that baseline; a passing check or `task_success = true` does not mean that the quality objectives have been achieved.
+
+## Inputs and Interface
+
+Ordered ports are `VOUT DVDD DVSS VDD VSS VINP VINM CLOAD ENA`. Declared inputs include `problem.md`, `materials/circuit.spice` and `materials/testbench.spice`. The runtime provides models and process resources; reference layouts, author code and qualification evidence are maintainer-only materials.
+
+## Operating Conditions
+
+Use the synchronized _cl circuit/layout variant from the source. Analog supply is 3.3 V, digital supply and enable 1.8 V, output load 1 pF. Input common modes are 0.5, 1.65, 2.8 V, with CLOAD connected to the same common mode. DC differential-input measurement first sweeps -50 to +50 mV in 0.25 mV steps to locate the first rising output crossing at 0.9 V, then independently resets and scans +/-0.5 mV around that crossing in 1 uV steps; transient uses ±20 mV overdrive and 2 ns edges. Measure switching point, rising/falling delay and logic levels separately. All electrical experiments use fixed TT models at 27 °C; delivered testbenches define interpolation, edges, loads, sweeps, observation times and power intervals.
+
+## Physical Requirements
+
+Submit a nonempty GDS no larger than 10485760 bytes, with top cell `sky130_ef_ip__ccomp3v_cl`. Functional geometry must fit within the 120 × 120 um envelope on the declared layer set. Pass complete Magic DRC without waivers and independent Netgen LVS checking named ports, models, dimensions, multiplicities and body/contact connections. After physical and geometric checks pass, extract the candidate's distributed interconnect resistance, capacitance and devices, then run every declared experiment.
+
+## Electrical Requirements and Scoring
+
+Artifact, geometry, DRC, LVS and declared functional requirements must pass. Parasitic extraction is also mandatory: it must produce a complete, electrically consistent netlist usable by the required post-layout simulations. A completed candidate rejection scores zero; infrastructure errors do not establish candidate failure.
+
+At all three common modes, high levels must be 1.6–1.9 V and low levels -0.1–0.2 V; required crossings in both directions must exist. Switching-point preservation and propagation delay are scored continuously; power is diagnostic. Power and absolute errors must be nonnegative; all required measurements must be complete, finite and in correct units.
+
+| Metric | Functional requirement or measurement domain | Aggregation | Score weight |
+| --- | --- | --- | ---: |
+| `functional_area` | No fixed performance bound | max | 20% |
+| `trip_voltage` | No fixed performance bound | max | 20% |
+| `rise_delay` | 0 … +∞ s | max | 30% |
+| `fall_delay` | 0 … +∞ s | max | 30% |
+| `supply_power` | 0 … +∞ W | max | 0% |
+| `high_level` | 1.6 … 1.9 V | max | 0% |
+| `low_level` | -0.1 … 0.2 V | max | 0% |
+
+Pair every electrical observation with the independent source-netlist observation under the same conditions, then take the worst paired quality for each metric. Switching-point preservation uses `q=1/(1+abs(x-b)/100 uV)`. Rising and falling delay use `q=10 ns/(10 ns+max(0,x-b))`, with candidate observation `x` and paired source observation `b`. Each factor is capped at 1. Zero-weight observations still undergo measurement and functional checks.
+
+Area quality is `4542.708625 um² / candidate functional area`; the area target is the original reference layout's functional-footprint soft target, and a separate envelope constraint controls functional bounds. Total score is `100 × product(min(1, q_i)^w_i)`, using the contract's `layout` method and declared weights. Source-equivalent performance at target area scores 100, and each metric is capped at quality 1, so scores cannot exceed 100. Physical or functional invalidity scores zero; missing or unusable measurements make the score unknown. Capability coefficient `3` is independent of this quality score.
+
+Rising and falling decision-delay preservation carry 30% each, switching-point preservation 20% and area 20%. The 10 ns additional-delay budget uses degradation normalization instead of dividing the loss by the intrinsic decision delay. The 100 uV switching-point scale is 0.5% of the 20 mV overdrive and is well above the verified DC search resolution. Every metric uses its worst same-condition source pair across the three common modes. Supply power remains diagnostic; targets are continuous quality objectives, not functional cutoffs.
+
+## Tools and Submission
+
+Soft solve budget: **3 hours**.
+
+Read `/protocol/task.json` for input/output paths, constraints and the `resources` object; `/protocol/harness.json` describes the active check and submission interface.
+
+Use the task information, tools and SKY130 resources provided by the runtime protocol. Write only the final GDS to `output/final.gds` and explicitly submit through the declared interface. Source simulation serves characterization; accepted results come from complete physical and RC electrical evaluation of the candidate GDS. Conclusions cover only the declared conditions, excluding PVT, mismatch, reliability and product signoff.
+
+### Solve workflow
+
+1. Read the declared circuit and materials, `/protocol/task.json` for paths, constraints and reviewed resources, and `/protocol/harness.json` for capabilities and helper commands. Task inputs under `/task` and resources under `/resources` are read-only; construct the layout in `/workspace` with the declared tools. With layout MCP, paths and commands refer to the remote EDA workspace. Create your own implementation with real devices, interconnect and pins, using your own tool loop without delegating to other agents; reference layouts and author code are not solver inputs.
+2. Inspect `resources.external` before using external tools. Each command starts a fresh shell: when tool modules are declared, source `/usr/share/Modules/init/bash` and load the selected tool's modules; export its declared `tool_environment` settings in that same command. Repeat as needed and use batch or headless operation. Local manuals, command references, and release notes may be available within the declared EDA installation and PDK resource directories. Locate these resources through `/protocol/task.json` and consult the documentation for the installed tool version when diagnosing unfamiliar syntax or tool failures.
+3. Generate an initial candidate and submit a snapshot early. When `process-feedback` is available, check the current GDS with layout MCP `check` or `python -I /protocol/process_check.py` before the final submission. This runs the final evaluator's complete plan and returns engineering diagnostics and candidate measurements, without scores or normalized quality factors. Checks have no count limit and consume the same wall-clock budget. Inspect the physical and functional results and all scored metrics; successful tool execution alone does not establish requirement satisfaction. Read paginated diagnostics with `report` when using MCP. Local exploratory checks do not replace this complete check.
+4. Use the remaining time for measured improvements to the declared quality objectives. Identify the limiting scored metrics, make targeted layout changes, regenerate and check the candidate, and compare measurements with the previous candidate and the stated scoring targets and trade-offs. Preserve the best valid candidate and revert changes that worsen the overall objective. Repeat while time and useful improvements remain; passing validity checks alone is not a stopping condition.
+5. Stop optimization when the budget expires, all declared quality objectives are achieved, or measured trials support convergence. If stopping early, explain the changes tried, the metric comparisons and the remaining limitations. Track remaining time through session status. At soft-budget expiry, finish or cancel already-started work and submit immediately; do not start another command, check or optimization round. If an MCP execution is running, use `poll` with its `execution_id` and the returned `next_offset` as `offset` until completion, or cancel it and wait for it to stop.
+6. Finish or cancel outstanding work, restore your best candidate to the declared output path, and explicitly submit it before ending the session. With layout MCP `submit`, remove the `/workspace/` prefix from `output.path`; with the container interface, run `python -I /protocol/submit.py`. Wait for the receipt: only the last accepted snapshot is judged, and writing a file alone is not submission. Acceptance confirms delivery; the framework independently evaluates validity and quality after the session.

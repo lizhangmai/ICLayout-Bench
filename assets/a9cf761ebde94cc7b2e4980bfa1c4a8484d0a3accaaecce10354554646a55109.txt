@@ -1,0 +1,7 @@
+* Fixed MOS process corner; native cards remain in the declared PDK resources.
+.include "support/design.spice"
+.lib "support/sm141064.spice" typical
+.lib "support/sm141064.spice" res_typical
+.lib "support/sm141064.spice" bjt_typical
+.lib "support/sm141064.spice" mimcap_typical
+.param sw_stat_global=0 sw_stat_mismatch=0

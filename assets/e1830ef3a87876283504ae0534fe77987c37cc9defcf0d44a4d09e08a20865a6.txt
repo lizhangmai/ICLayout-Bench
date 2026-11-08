@@ -1,0 +1,77 @@
+# SKY130 Eight-Bit Buffered Resistor DAC Layout Task
+
+## Objective
+
+Implement `sky130_ef_ip__rdac3v_8bit` from the supplied transistor-level circuit, preserving topology, fixed device parameters, four-terminal body connections and the ordered interface. Submit a candidate GDS for electrical evaluation of its distributed RC extraction.
+
+### Optimization objective
+
+Maximize the declared quality score within the solve budget while satisfying all physical and necessary functional requirements. The first passing DRC, LVS and required electrical checks establish a feasible baseline. Continue improving the scored metrics from that baseline; a passing check or `task_success = true` does not mean that the quality objectives have been achieved.
+
+## Inputs and Interface
+
+Ordered ports are `dvdd avss dvss avdd b[7] b[6] b[5] b[4] b[3] b[2] b[1] b[0] Vhigh out ena Vlow`. Declared inputs include `problem.md`, `materials/circuit.spice`, `materials/testbench_dc.spice`, `materials/testbench_transient.spice`. The runtime environment supplies models and process resources; reference layouts, author code and qualification evidence are maintainer-only.
+
+## Operating Conditions
+
+Analog/digital supplies are 3.3/1.8 V, enable 1.8 V, low/high references 0.8/2.4 V, and output load 1 pF. Four overlapping DC code blocks 0–64, 64–128, 128–192, 192–255 cover all integer codes and adjacent steps; each block also measures codes 0 and 255 to check full-range span. Precision follows the upstream CACE definition: ALSB=(2.4-0.8)/256=6.25 mV and ideal output=0.8 V+code*ALSB. The candidate endpoints do not determine this reference. Supply and reference power use the worst value over all codes. Transient switches all eight digital inputs simultaneously with 2 ns edges, timing the rising output crossing of 2.2 V and falling crossing of 1.0 V separately. All electrical experiments use fixed TT models at 27 °C; delivered testbenches define interpolation, edges, loads, sweeps, observation times and power intervals.
+
+## Physical Requirements
+
+Submit a nonempty GDS no larger than 10485760 bytes, with top cell `sky130_ef_ip__rdac3v_8bit`. Functional geometry must fit within the 250 × 300 um envelope on the declared layer set. Pass complete Magic DRC without waivers and independent Netgen LVS checking named ports, models, dimensions, multiplicities and body/contact connections. After physical and geometric checks pass, extract the candidate's distributed interconnect resistance, capacitance and devices, then run every declared experiment.
+
+## Electrical Requirements and Scoring
+
+Artifact, geometry, DRC, LVS and declared functional requirements must pass. Parasitic extraction is also mandatory: it must produce a complete, electrically consistent netlist usable by the required post-layout simulations. A completed candidate rejection scores zero; infrastructure errors do not establish candidate failure.
+
+For `layout` scoring, cap every positively weighted raw quality at 1 before aggregation; the score ranges from 0 to 100. Reaching every weighted target scores 100, and no minimum score is required for validity.
+
+Every adjacent-code step must be at least 1 uV, ensuring numerically resolvable strict monotonicity; full-range span must be 1.5–1.7 V, and transient high/low endpoints 2.35–2.45 V and 0.75–0.85 V, respectively, implementing the declared buffer linear-output range. Absolute INL and DNL must be nonnegative; INL and DNL retain the upstream external-reference definitions and both receive quality weight. INL, delay and power use the weights below for continuous quality, without 2 LSB, 1 LSB, 10 us or 20 mW accuracy/power rejection thresholds. Power and absolute errors must be nonnegative; all required measurements must be complete, finite and in correct units.
+
+| Metric | Functional requirement or measurement domain | Aggregation | Score weight |
+| --- | --- | --- | ---: |
+| `functional_area` | No fixed performance bound | max | 30% |
+| `inl_max` | 0 … +∞ LSB | max | 35% |
+| `dnl_max` | 0 … +∞ LSB | max | 20% |
+| `span` | 1.5 … 1.7 V | max | 0% |
+| `min_step` | 1e-06 … +∞ V | min | 0% |
+| `dc_power` | 0 … +∞ W | max | 0% |
+| `rise_delay` | 0 … +∞ s | max | 7.5% |
+| `fall_delay` | 0 … +∞ s | max | 7.5% |
+| `high_level` | 2.35 … 2.45 V | max | 0% |
+| `low_level` | 0.75 … 0.85 V | max | 0% |
+
+The 9000 um2 footprint objective is a 90 by 100 um integration allocation for the fixed ladder, decoder, level shifters and buffer; other aspect ratios are allowed. Area carries 30%, external-reference INL 35%, external-reference DNL 20%, and rising/falling full-scale delays 7.5% each. DC power remains an unweighted diagnostic.
+
+For code k, INL=(Vout(k)-[Vlow+k*ALSB])/ALSB. For adjacent codes, DNL=(Vout(k)-Vout(k-1))/ALSB-1. These are the upstream CACE formulas; take the maximum absolute error over every code or adjacent step. They retain gain and offset components instead of fitting the candidate endpoints. Paired pre-layout observations use the same conditions.
+
+| Metric | Quality anchor | Unit | Normalization | Scale |
+| --- | --- | --- | --- | --- |
+| `inl_max` | paired source | LSB | degradation | 0.05 |
+| `dnl_max` | paired source | LSB | degradation | 0.02 |
+| `dc_power` | paired source | W | saturating_ratio, diagnostic | 1e-06 |
+| `rise_delay` | paired source | s | saturating_ratio | 1e-09 |
+| `fall_delay` | paired source | s | saturating_ratio | 1e-09 |
+
+Precision quality is q=s/(s+max(0,x-b)). The 0.05/0.02 LSB budgets correspond to 312.5/125 uV under the declared references; they define sensitivity to additional error, not functional cutoffs.
+
+Independent source/candidate measurements remain paired under identical conditions. For a cost measurement x, saturating quality is `2*(b+s)/(b+x+2*s)`; target quality is `1/(1+abs(x-b)/s)`. Here b is the quality anchor above, and s is the declared scale. Take the worst quality across each metric’s conditions. Targets and scales do not add acceptance cutoffs; zero-weight observations remain checked.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical, extraction, or functional rejection scores zero; other missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+## Tools and Submission
+
+Soft solve budget: **4 hours**.
+
+Read `/protocol/task.json` for input/output paths, constraints and the `resources` object; `/protocol/harness.json` describes the active check and submission interface.
+
+Use the task information, tools and SKY130 resources provided by the runtime protocol. Write only the final GDS to `output/final.gds` and explicitly submit through the declared interface. Source simulation serves characterization; accepted results come from complete physical and RC electrical evaluation of the candidate GDS. Conclusions cover only the declared conditions, excluding PVT, mismatch, reliability and product signoff.
+
+### Solve workflow
+
+1. Read the declared circuit and materials, `/protocol/task.json` for paths, constraints and reviewed resources, and `/protocol/harness.json` for capabilities and helper commands. Task inputs under `/task` and resources under `/resources` are read-only; construct the layout in `/workspace` with the declared tools. With layout MCP, paths and commands refer to the remote EDA workspace. Create your own implementation with real devices, interconnect and pins, using your own tool loop without delegating to other agents; reference layouts and author code are not solver inputs.
+2. Inspect `resources.external` before using external tools. Each command starts a fresh shell: when tool modules are declared, source `/usr/share/Modules/init/bash` and load the selected tool's modules; export its declared `tool_environment` settings in that same command. Repeat as needed and use batch or headless operation. Local manuals, command references, and release notes may be available within the declared EDA installation and PDK resource directories. Locate these resources through `/protocol/task.json` and consult the documentation for the installed tool version when diagnosing unfamiliar syntax or tool failures.
+3. Generate an initial candidate and submit a snapshot early. When `process-feedback` is available, check the current GDS with layout MCP `check` or `python -I /protocol/process_check.py` before the final submission. This runs the final evaluator's complete plan and returns engineering diagnostics and candidate measurements, without scores or normalized quality factors. Checks have no count limit and consume the same wall-clock budget. Inspect the physical and functional results and all scored metrics; successful tool execution alone does not establish requirement satisfaction. Read paginated diagnostics with `report` when using MCP. Local exploratory checks do not replace this complete check.
+4. Use the remaining time for measured improvements to the declared quality objectives. Identify the limiting scored metrics, make targeted layout changes, regenerate and check the candidate, and compare measurements with the previous candidate and the stated scoring targets and trade-offs. Preserve the best valid candidate and revert changes that worsen the overall objective. Repeat while time and useful improvements remain; passing validity checks alone is not a stopping condition.
+5. Stop optimization when the budget expires, all declared quality objectives are achieved, or measured trials support convergence. If stopping early, explain the changes tried, the metric comparisons and the remaining limitations. Track remaining time through session status. At soft-budget expiry, finish or cancel already-started work and submit immediately; do not start another command, check or optimization round. If an MCP execution is running, use `poll` with its `execution_id` and the returned `next_offset` as `offset` until completion, or cancel it and wait for it to stop.
+6. Finish or cancel outstanding work, restore your best candidate to the declared output path, and explicitly submit it before ending the session. With layout MCP `submit`, remove the `/workspace/` prefix from `output.path`; with the container interface, run `python -I /protocol/submit.py`. Wait for the receipt: only the last accepted snapshot is judged, and writing a file alone is not submission. Acceptance confirms delivery; the framework independently evaluates validity and quality after the session.

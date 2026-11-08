@@ -1,0 +1,69 @@
+# MIM Switched-Capacitor Common-Mode Sampler Layout Task
+
+## Objective
+
+Implement `cmfb_004_output_switched_cap` in IHP SG13G2 and submit a self-contained GDS. Sixteen minimum-size MOS (W/L = 0.15/0.13 um) implement eight transmission paths. Four internal MIM capacitors retain the original connections: two separate vbias-to-vcm capacitors and two floating control-to-sense capacitors. Each is a 25.85 by 25.85 um cap_cmim, nominally about 1.00647 pF. Explicit physical substrate and well taps are included. The output samples common-mode displacement; this is a switched-capacitor sensing network with driven inputs, not a complete closed-loop amplifier or a loop-stability qualification.
+
+### Optimization objective
+
+Maximize the declared quality score within the solve budget while satisfying all physical and necessary functional requirements. The first passing DRC, LVS and required electrical checks establish a feasible baseline. Continue improving the scored metrics from that baseline; a passing check or `task_success = true` does not mean that the quality objectives have been achieved.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the authoritative physical circuit; `materials/circuit.spice` is its equivalent simulator representation. `materials/testbench.spice` supplies measurement apparatus. This problem is the description input. The ordered ports are `vinp vinn vcmfb vcm vbias clk_phi clk_phi_not vdd vss`: sensed positive/negative inputs, sampled control output, common-mode reference, control reference, two independent clock nets, supply and return.
+
+Preserve connections, MOS W/L/m, capacitor dimensions and cell multiplicities, and body terminals/contacts. Placement and routing are free; device splitting/merging and source/drain exchange must follow declared native LVS equivalence rules. Common-centroid geometry and statistical matching are not scored; ideal external sources, loads and measurement fixtures remain outside the DUT.
+
+## Operating Conditions
+
+Use typical IHP low-voltage MOS, resistor and capacitor models at 27 C, VDD=1.2 V, VSS=0 V, VCM=0.5 V and VBIAS=0.3 V. An external 50 fF actuator load connects vcmfb to ground. The fixed circuit, capacitor dimensions, physical contacts and the existing source/PEX body-model boundary are unchanged. Numerical conditioning is 1e12 ohm shunts and second-order Gear.
+
+The apparatus follows the upstream `cmfb/tran_sc_cmfb_step` template. Both sensed inputs receive the same common-mode step; exact-complement clocks have 50 ns edges and no added non-overlap gap. The four (clock frequency, common-mode step) conditions are (1 kHz,+50 mV), (1 kHz,-50 mV), (100 kHz,+50 mV), and (100 kHz,-50 mV). The 1 kHz conditions retain the upstream application; 100 kHz repeats the same apparatus to expose switching and routing cost.
+
+In units of clock periods, apply the step at 10 and release it at 20; stop at 30. The natural control level is averaged over periods 6–9, the plateau over 15–19, and the released level over 27–29. Every averaging window spans complete clock periods. Output print step is 0.005 periods and the maximum internal step is 0.0002 periods. Recovery uses the upstream last falling crossing of the absolute error from the released average, with a 20 mV threshold. This threshold exceeds the observed steady clock ripple; it is a measurement definition, not an acceptance budget. Statistical mismatch, noise, PVT, distributed substrate resistance and RF/EM are outside this task.
+
+## Physical Requirements
+
+The GDS top cell is `cmfb_004_output_switched_cap`, with a 10 MiB maximum file size. Provide physical, correctly connected and accessible labeled interface metal; retain every named port. Pass IHP main and maximal DRC (density and antenna excluded for this standalone block), strict named-interface LVS and a functional bounding box no larger than 320 by 70 um. No DRC waivers are used. The functional footprint includes device, passive, implant, well and complete routing layers; excludes annotations/pin text and nonfunctional markers. Its explicit GDS layer/datatype set is `[[1, 0], [3, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [11, 0], [13, 0], [14, 0], [19, 0], [24, 0], [26, 0], [28, 0], [29, 0], [30, 0], [31, 0], [32, 0], [33, 0], [35, 0], [36, 0], [40, 0], [44, 0], [46, 0], [49, 0], [50, 0], [51, 0], [52, 0], [53, 0], [55, 0], [58, 0], [66, 0], [67, 0], [90, 0], [101, 0], [111, 0], [125, 0], [126, 0], [128, 0], [129, 0], [133, 0], [134, 0], [139, 0], [152, 0]]`. The area is the bounding-box area of those layers, not summed metal area.
+
+Candidate GDS first passes file, DRC, LVS and hard geometry checks; Magic then extracts distributed interconnect RC with zero coupling-capacitance threshold and retains internal MIM. The supplied testbench uses the candidate extracted circuit; source simulation cannot replace acceptance. This is nominal module verification, not manufacturing signoff.
+
+## Electrical Requirements and Scoring
+
+Pass artifact, geometry, DRC, named-interface LVS and complete candidate RC extraction. The natural control node must stay within 0–1.2 V, and the measured common-mode transfer slope must be nonnegative. These check the supply interface and response polarity. There is no minimum quality score or reference-layout performance requirement.
+
+Every electrical observation is paired with the same-condition pre-layout circuit. Define natural level `vcmfb_nat` as the periods 6–9 average and `step_delta_v` as the plateau average minus that natural level. `cmfb_slope` is the signed step response divided by the signed input step. `ring_v` is half the plateau peak-to-peak clock ripple. `t_cm_settle` is the last falling crossing of the 20 mV released-level error minus the release time. `clock_power_w` averages the sum of nonnegative power supplied by the two independent clock sources over periods 15–19; returned energy is not credited. `i_supply` retains the upstream average VDD-current diagnostic.
+
+The integration objective is 3200 um2. Four fixed 25.85 um square MIM plates occupy 2672.89 um2, leaving 527.11 um2 of planar overhead. Legal overlap follows the PDK. This is an integration allocation, not a proven minimum or an acceptance bound.
+
+For each metric take the worst source/candidate pair. Area quality is 3200 divided by candidate functional area. Ripple uses `saturating_ratio`, q=2(b+s)/(b+x+2s), with s=0.1 mV. Recovery and clock power use q=(b+s)/(x+s), with scales 0.1 us and 0.01 pW. Here b is the source observation and x is the candidate observation; scales regularize measurement comparisons and are not functional cutoffs. The score is 100 times the product of each capped quality min(1,q) raised to its weight. Invalid candidates score zero; missing or invalid measurements remain evaluation errors. All zero-weight diagnostics must also be measured successfully.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.25 |
+| `ring_v` | 0.40 |
+| `t_cm_settle` | 0 |
+| `clock_power_w` | 0.35 |
+| `cmfb_slope` | 0 |
+| `vcmfb_nat` | 0 |
+| `step_delta_v` | 0 |
+
+The capability coefficient is **5**, independent of this score.
+
+## Tools and Submission
+
+Soft solve budget: **3 hours**.
+
+Read `/protocol/task.json` for input/output paths, constraints and the `resources` object; `/protocol/harness.json` describes the active check and submission interface.
+
+
+Use reviewed SG13G2 devices/rules/models from the `resources` field of `/protocol/task.json` and the task from `/protocol/task.json`. KLayout handles layout and physical checks, Magic extracts candidate RC, and ngspice runs declared decks. Discover feedback through the runtime protocol and explicitly submit workspace `output/final.gds`; reference layouts, the source repository and author scripts are not solver inputs.
+
+### Solve workflow
+
+1. Read the declared circuit and materials, `/protocol/task.json` for paths, constraints and reviewed resources, and `/protocol/harness.json` for capabilities and helper commands. Task inputs under `/task` and resources under `/resources` are read-only; construct the layout in `/workspace` with the declared tools. With layout MCP, paths and commands refer to the remote EDA workspace. Create your own implementation with real devices, interconnect and pins, using your own tool loop without delegating to other agents; reference layouts and author code are not solver inputs.
+2. Inspect `resources.external` before using external tools. Each command starts a fresh shell: when tool modules are declared, source `/usr/share/Modules/init/bash` and load the selected tool's modules; export its declared `tool_environment` settings in that same command. Repeat as needed and use batch or headless operation. Local manuals, command references, and release notes may be available within the declared EDA installation and PDK resource directories. Locate these resources through `/protocol/task.json` and consult the documentation for the installed tool version when diagnosing unfamiliar syntax or tool failures.
+3. Generate an initial candidate and submit a snapshot early. When `process-feedback` is available, check the current GDS with layout MCP `check` or `python -I /protocol/process_check.py` before the final submission. This runs the final evaluator's complete plan and returns engineering diagnostics and candidate measurements, without scores or normalized quality factors. Checks have no count limit and consume the same wall-clock budget. Inspect the physical and functional results and all scored metrics; successful tool execution alone does not establish requirement satisfaction. Read paginated diagnostics with `report` when using MCP. Local exploratory checks do not replace this complete check.
+4. Use the remaining time for measured improvements to the declared quality objectives. Identify the limiting scored metrics, make targeted layout changes, regenerate and check the candidate, and compare measurements with the previous candidate and the stated scoring targets and trade-offs. Preserve the best valid candidate and revert changes that worsen the overall objective. Repeat while time and useful improvements remain; passing validity checks alone is not a stopping condition.
+5. Stop optimization when the budget expires, all declared quality objectives are achieved, or measured trials support convergence. If stopping early, explain the changes tried, the metric comparisons and the remaining limitations. Track remaining time through session status. At soft-budget expiry, finish or cancel already-started work and submit immediately; do not start another command, check or optimization round. If an MCP execution is running, use `poll` with its `execution_id` and the returned `next_offset` as `offset` until completion, or cancel it and wait for it to stop.
+6. Finish or cancel outstanding work, restore your best candidate to the declared output path, and explicitly submit it before ending the session. With layout MCP `submit`, remove the `/workspace/` prefix from `output.path`; with the container interface, run `python -I /protocol/submit.py`. Wait for the receipt: only the last accepted snapshot is judged, and writing a file alone is not submission. Acceptance confirms delivery; the framework independently evaluates validity and quality after the session.

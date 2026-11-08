@@ -1,0 +1,132 @@
+* OTA differential/common-mode/supply response and current-preserving loop probe.
+.include "parameters.spice"
+.include "models.spice"
+.include "dut.spice"
+.temp {temperature_c}
+.options reltol=1e-6 abstol=1e-15 vntol=1e-9
+VCM vcm_ref 0 {common_v}
+VTARGET target 0 {common_v}
+
+VDD_D vdd_d 0 {supply_v}
+IBIAS_D vdd_d ib_d {bias_a}
+VDIFF cal_d 0 DC 0 AC 1
+EH_D diff 0 cal_d 0 1
+EP_D inp_d vcm_ref diff 0 .5
+EN_D inn_d vcm_ref diff 0 -.5
+RCLAMP target out_d 1m
+CL_D out_d 0 {load_f}
+XD_D vdd_d out_d inp_d inn_d ib_d 0 ota_5t
+
+VDD_C vdd_c 0 {supply_v}
+IBIAS_C vdd_c ib_c {bias_a}
+VCMSIGNAL common_c 0 DC {common_v} AC 1
+VOFF_C cal_c 0 DC 0
+EH_C diff_c 0 cal_c 0 1
+EP_C inp_c common_c diff_c 0 .5
+EN_C inn_c common_c diff_c 0 -.5
+CL_C out_c 0 {load_f}
+XD_C vdd_c out_c inp_c inn_c ib_c 0 ota_5t
+
+VDD_P vdd_p 0 DC {supply_v} AC 1
+IBIAS_P vdd_p ib_p {bias_a}
+VOFF_P cal_p 0 DC 0
+EH_P diff_p 0 cal_p 0 1
+EP_P inp_p vcm_ref diff_p 0 .5
+EN_P inn_p vcm_ref diff_p 0 -.5
+CL_P out_p 0 {load_f}
+XD_P vdd_p out_p inp_p inn_p ib_p 0 ota_5t
+
+VDD_N vdd_n 0 {supply_v}
+VSS_N vss_n 0 DC 0 AC 1
+IBIAS_N vdd_n ib_n {bias_a}
+VOFF_N cal_n 0 DC 0
+EH_N diff_n 0 cal_n 0 1
+EP_N inp_n vcm_ref diff_n 0 .5
+EN_N inn_n vcm_ref diff_n 0 -.5
+CL_N out_n 0 {load_f}
+XD_N vdd_n out_n inp_n inn_n ib_n vss_n ota_5t
+
+* E/V/F represent the feedback wire while preserving its gate loading.
+* The large L/C retain the DC loop and open only its voltage path in AC.
+VDD_L vdd_l 0 {supply_v}
+IBIAS_L vdd_l ib_l {bias_a}
+VLOOP loop_ac 0 DC 0 AC 1
+LDC out_l control_l 1e12
+CAC control_l loop_ac 1meg
+EFB drive_l 0 control_l 0 1
+VSENSE drive_l inn_l 0
+FLOAD out_l 0 VSENSE 1
+CL_L out_l 0 {load_f}
+XD_L vdd_l out_l vcm_ref inn_l ib_l 0 ota_5t
+
+.control
+set noaskquit
+set numdgt=12
+setcs sparse
+setplot const
+let low=-.2
+let high=.2
+let low_current=0
+let trial=0
+let trial_current=0
+let count=0
+alter VDIFF dc = $&low
+op
+let const.low_current=i(VTARGET)
+while count lt 24
+  let const.trial=(const.low+const.high)/2
+  alter VDIFF dc = $&const.trial
+  op
+  let const.trial_current=i(VTARGET)
+  if const.low_current*const.trial_current le 0
+    let const.high=const.trial
+  else
+    let const.low=const.trial
+    let const.low_current=const.trial_current
+  end
+  let const.count=const.count+1
+end
+let calibration_current_a=abs(i(VTARGET))
+print calibration_current_a
+alter VOFF_C dc = $&const.trial
+alter VOFF_P dc = $&const.trial
+alter VOFF_N dc = $&const.trial
+alter RCLAMP resistance = 1e15
+op
+let power_w=-v(vdd_d)*i(vdd_d)
+let offset_v=v(inp_d)-v(inn_d)
+let offset_abs_v=abs(offset_v)
+let bias_v=v(out_d)
+print power_w offset_v offset_abs_v bias_v
+save v(out_d) v(inp_d) v(inn_d) v(out_c) v(out_p) v(out_n) v(out_l) v(control_l)
+ac dec 80 10 1G
+let ad=v(out_d)/v(inp_d,inn_d)
+let db_gain=db(ad)
+let db_cmrr=db(ad/v(out_c))
+let db_psrr_p=db(ad/v(out_p))
+let db_psrr_n=db(ad/v(out_n))
+let loop_gain=-v(out_l)/v(control_l)
+let loop_db=db(loop_gain)
+let loop_phase=cph(loop_gain)
+meas ac gain_db find db_gain at=10
+meas ac unity_hz when db_gain=0 fall=1
+meas ac cmrr_db find db_cmrr at=10
+meas ac cmrr_100k_db find db_cmrr at=100k
+meas ac psrr_p_db find db_psrr_p at=10
+meas ac psrr_n_db find db_psrr_n at=10
+meas ac psrr_p_100k_db find db_psrr_p at=100k
+meas ac psrr_n_100k_db find db_psrr_n at=100k
+meas ac loop_unity_hz when loop_db=0 fall=1
+meas ac phase_at_unity find loop_phase when loop_db=0 fall=1
+let phase_margin_deg=180+180/PI*phase_at_unity
+print phase_margin_deg
+write waveform.raw
+save all
+noise v(out_d) VDIFF dec 40 10 100k
+let input_noise_v=inoise_total
+print input_noise_v
+setplot previous
+write noise.raw
+quit
+.endc
+.end

@@ -1,0 +1,696 @@
+kind = "layout_case"
+id = "TO_Apr2025.DC_to_130_GHz_TIA.design_1"
+title = "DC–130 GHz SiGe TIA with fixed upstream RF passives"
+status = "qualified"
+in_core = false
+
+[task]
+hours = 1
+coefficient = 4
+kind = "netlist_to_gds"
+family = "ihp_sg13g2_hbt_tia"
+environment = "ihp-sg13g2-rf"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "10f40e1eb2ae801df926822a13ba828a8a50be4f294ee58883ad3faca2a16579"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+subcircuit = "FMD_QNC_03a_TIA_1"
+sha256 = "df5d58d4a21821e81487226b43886f19f673e6cbec3f7f2ae708a91a0103870c"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "8b410bdf348d3c38be950afa8d164ed0d6ad0f8e919f6c5c5bcb44592216192a"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "f0d3f59b09f67f1b9b5d8ee4c5992a8a0aff355186433491ae6e7ea4d316e812"
+
+[task.inputs.macrolibrary]
+path = "materials/rf-macros.gds"
+format = "gds"
+sha256 = "2f3e1590fdedf35f72dba248fb090f11bb62a0d57ae28f433e481ca8b0d2a972"
+
+[task.inputs.macrospec]
+path = "materials/rf-macros.json"
+format = "json"
+sha256 = "c107eb6d149dd3d1cb608d47493ddd0748f56da67a357525e86c2dffbcc8bc97"
+
+[task.inputs.macros]
+path = "materials/rf-models.spice"
+format = "spice"
+sha256 = "6d44dae9be613e6ba818b1f08e544f3265032e910f57f038e60699bc4fc8c1f2"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 720
+max_height_um = 860
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "FMD_QNC_03a_TIA_1"
+max_bytes = 33554432
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 619200.0
+rationale = "Actual native post-layout controls show output matching is the hardest dimension: its quality is 0.109 versus 0.219 transimpedance, 0.223 delay and 0.311 input matching. Increase output-matching weight from 15% to 30%, retaining 45% for core transimpedance, 15% delay and 10% input matching. Bias, supply power and fixed-frame area remain diagnostics. No quality-score cutoff establishes feasibility."
+
+[task.evaluation.scoring.weights]
+functional_area = 0
+band_transimpedance = 0.45
+delay_ripple = 0.15
+input_reflection = 0.1
+output_reflection = 0.3
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "'Pad.fR_M1'"
+cell = "FMD_QNC_03a_TIA_1"
+markers = [
+    "polygon: (203.74,294.28;203.74,294.46;203.92,294.46;203.92,294.28)",
+    "polygon: (203.74,354.64;203.74,354.82;203.92,354.82;203.92,354.64)",
+    "polygon: (203.74,445.18;203.74,445.36;203.92,445.36;203.92,445.18)",
+    "polygon: (233.92,294.28;233.92,294.46;234.1,294.46;234.1,294.28)",
+    "polygon: (233.92,354.64;233.92,354.82;234.1,354.82;234.1,354.64)",
+    "polygon: (233.92,445.18;233.92,445.36;234.1,445.36;234.1,445.18)",
+    "polygon: (475.36,52.84;475.36,53.02;475.54,53.02;475.54,52.84)",
+    "polygon: (475.36,83.02;475.36,83.2;475.54,83.2;475.54,83.02)",
+    "polygon: (626.26,324.46;626.26,324.64;626.44,324.64;626.44,324.46)",
+    "polygon: (626.26,475.36;626.26,475.54;626.44,475.54;626.44,475.36)",
+    "polygon: (656.44,294.28;656.44,294.46;656.62,294.46;656.62,294.28)",
+    "polygon: (656.44,354.64;656.44,354.82;656.62,354.82;656.62,354.64)",
+    "polygon: (656.44,445.18;656.44,445.36;656.62,445.36;656.62,445.18)",
+    "polygon: (686.62,324.46;686.62,324.64;686.8,324.64;686.8,324.46)",
+    "polygon: (686.62,475.36;686.62,475.54;686.8,475.54;686.8,475.36)",
+]
+reason = "Exact inherited RF pad shape or recommended package exit; signal macro geometry is separately immutable. Core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "'Pad.fR_TM1'"
+cell = "FMD_QNC_03a_TIA_1"
+markers = [
+    "polygon: (421.685,99.745;421.685,101.58;423.685,101.58;423.685,99.745)",
+]
+reason = "Exact inherited RF pad shape or recommended package exit; signal macro geometry is separately immutable. Core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal2_drw_Angle45"
+cell = "RF_INPUT"
+markers = [
+    "edge: (0,16.5;8.5,30)",
+    "edge: (48.5,30;57,16.5)",
+    "edge: (57,13.5;48.5,0)",
+    "edge: (8.5,0;0,13.5)",
+]
+reason = "Exact inherited RF pad shape or recommended package exit; signal macro geometry is separately immutable. Core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal2_drw_Angle45"
+cell = "RF_OUTPUT"
+markers = [
+    "edge: (20.695,37.645;19.055,36.41)",
+    "edge: (251.305,16.5;259.805,30)",
+    "edge: (259.805,0;251.305,13.5)",
+    "edge: (299.805,30;308.305,16.5)",
+    "edge: (308.305,13.5;299.805,0)",
+]
+reason = "Exact inherited RF pad shape or recommended package exit; signal macro geometry is separately immutable. Core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs]]
+id = "macros"
+stage = "check"
+operation = "layout.fixed_macros"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+library = "input:macrolibrary"
+specification = "input:macrospec"
+
+[task.evaluation.jobs.outputs]
+layout = "gds"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "job:macros:layout"
+original = "candidate"
+binding = "job:macros:binding"
+task = "task"
+netlist = "input:netlist"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.parasitics"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "job:macros:layout"
+original = "candidate"
+binding = "job:macros:binding"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "RF_INPUT_INNER",
+    "RF_OUTPUT_INNER",
+    "VCC1",
+    "VCC2",
+    "VEE",
+    "RF_SUPPLY1_INNER",
+    "RF_SUPPLY2_INNER",
+]
+
+[[task.evaluation.jobs]]
+id = "rf"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "job:parasitics:netlist"
+macros = "input:macros"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+rf = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+supply_power = "W"
+band_gain = "dB"
+band_transimpedance = "dBohm"
+delay_ripple = "s"
+input_reflection = "1"
+output_reflection = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+rf = "frequency_response.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "band_transimpedance"
+category = "performance"
+observations = [
+    "rf:band_transimpedance",
+]
+unit = "dBohm"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_rf:band_transimpedance",
+]
+normalization = "degradation"
+scale = 3.0
+
+[[task.evaluation.metrics]]
+id = "delay_ripple"
+category = "performance"
+observations = [
+    "rf:delay_ripple",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_rf:delay_ripple",
+]
+normalization = "degradation"
+scale = 5e-13
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "A squared reflection magnitude or peak-to-peak delay range is nonnegative; its size is scored continuously."
+
+[[task.evaluation.metrics]]
+id = "input_reflection"
+category = "performance"
+observations = [
+    "rf:input_reflection",
+]
+unit = "1"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_rf:input_reflection",
+]
+normalization = "degradation"
+scale = 0.05
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "A squared reflection magnitude or peak-to-peak delay range is nonnegative; its size is scored continuously."
+
+[[task.evaluation.metrics]]
+id = "output_reflection"
+category = "performance"
+observations = [
+    "rf:output_reflection",
+]
+unit = "1"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_rf:output_reflection",
+]
+normalization = "degradation"
+scale = 0.05
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "A squared reflection magnitude or peak-to-peak delay range is nonnegative; its size is scored continuously."
+
+[[task.evaluation.metrics]]
+id = "band_gain"
+category = "performance"
+observations = [
+    "rf:band_gain",
+]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = [
+    "rf:supply_power",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "080dcc77312386ba2b98a6addde05cd4ee527b52f012e7ff12c2e5cdd5e2cfa1"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"d872114717bdbf7c982b0f7a4c489412893ed71cef288bf726d3f5a31f20a579\", \"compatibility\": null, \"cpu_budget\": 8, \"executable_workspace\": false, \"execution_sha256\": \"19535fecb35a2498469d9ba0c047b73069cdb337e7c8c66dca04c8121415307d\", \"image_id\": \"sha256:d2e35c1eda377fd987e41298ce114670544b64aaaad4686b024d51bcfe94902b\", \"limits\": {\"cpus\": null, \"memory_mb\": null, \"pids\": null}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"9b933bc54e71316ab48a8e10b794fd94b250a935af791ccb95b4ced255bf407a\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 60.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Fri Oct 23 17:38:14 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_rf]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_rf.inputs]
+circuit = "input:simulation"
+macros = "input:macros"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_rf.outputs]
+op = "ngspice-raw"
+rf = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_rf.parameters.measurements]
+supply_power = "W"
+band_gain = "dB"
+band_transimpedance = "dBohm"
+delay_ripple = "s"
+input_reflection = "1"
+output_reflection = "1"
+
+[task.evaluation.pre_layout.jobs.source_rf.parameters.exports]
+op = "operating_point.raw"
+rf = "frequency_response.raw"
+
+[task.evaluation.pre_layout.jobs.source_rf.input_sha256]
+circuit = "8b410bdf348d3c38be950afa8d164ed0d6ad0f8e919f6c5c5bcb44592216192a"
+macros = "6d44dae9be613e6ba818b1f08e544f3265032e910f57f038e60699bc4fc8c1f2"
+deck = "f0d3f59b09f67f1b9b5d8ee4c5992a8a0aff355186433491ae6e7ea4d316e812"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.band_gain]
+value = 7.647424183214641
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.band_transimpedance]
+value = 40.79613414791278
+unit = "dBohm"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.delay_ripple]
+value = 1.088905614434347e-12
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.input_reflection]
+value = 0.2712106132819635
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.output_reflection]
+value = 0.0926829926945926
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.supply_power]
+value = 0.05366009047290882
+unit = "W"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.parasitics" = "parasitics"
+"circuit.simulate" = "simulation"
+"layout.fixed_macros" = "macros"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 120
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+check = "lvs"
+support = "build/support/to-design1-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 180
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "hbt-models"
+
+[toolchain.backends.simulation.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+support = "build/support/to-design1-models"
+timeout_seconds = 60
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+check = "artifact"
+timeout_seconds = 60
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+check = "drc"
+support = "build/support/to-design1-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.parasitics]
+type = "sg13g2-hbt-rc-docker"
+
+[toolchain.backends.parasitics.support_profiles]
+klayout_support = "klayout"
+magic_support = "magic"
+
+[toolchain.backends.parasitics.settings]
+image = "iclayout-eda-open:local"
+klayout_support = "build/support/to-design1-klayout"
+klayout_profile = "lvs-upstream.json"
+magic_support = "build/support/to-design1-magic"
+technology = "magic/ihp-sg13g2.tech"
+tech_name = "ihp-sg13g2"
+style = "ngspice()"
+timeout_seconds = 600
+
+[toolchain.backends.macros]
+type = "fixed-macros-docker"
+
+[toolchain.backends.macros.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 120
+
+[origin]
+url = "https://github.com/IHP-GmbH/TO_Apr2025/blob/63e203a0eccfb6028a1a0a8364553e4e979b55b3/DC_to_130_GHz_TIA/design_1/design_data/qucs-s/DC_to_130_GHz_TIA.sch"
+
+[presentation]
+category = "Amplifiers & RF"
+summary = "Converts input current to voltage through two direct-coupled SiGe HBT stages with first-stage resistive feedback."

@@ -1,0 +1,38 @@
+* Full upstream RF topology, 50-ohm ports and 5-uF DC blocking.
+.lib /workspace/support/models/cornerHBT.lib hbt_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.include circuit.spice
+.include macros.spice
+.include parameters.spice
+.options rshunt=1e12 reltol=1e-6 abstol=1e-12 vntol=1e-8
+.temp 26.85
+VCC1 vcc1 0 2
+VCC2 vcc2 0 2
+VP1 input_port 0 dc 0 ac 0.632456 portnum 1 z0 50
+VP2 output_port 0 dc 0 ac 0.632456 portnum 2 z0 50
+CBLOCK1 input_port input 5u
+CBLOCK2 output output_port 5u
+XDUT input output vcc1 vcc2 0 RF_DUT
+.control
+set numdgt=15
+op
+let supply_power = -v(vcc1)*i(vcc1)-v(vcc2)*i(vcc2)
+print supply_power
+write operating_point.raw all
+sp lin 551 20G 130G
+let gain = db(s_2_1)
+let tia = db(50*s_2_1/(1-s_1_1))
+let delay = -deriv(cph(s_2_1))/(2*pi)
+let reflection_input = mag(s_1_1)^2
+let reflection_output = mag(s_2_2)^2
+let band_gain = vecmin(gain)
+let band_transimpedance = vecmin(tia)
+let delay_ripple = vecmax(delay)-vecmin(delay)
+let input_reflection = vecmax(reflection_input)
+let output_reflection = vecmax(reflection_output)
+print band_gain band_transimpedance delay_ripple input_reflection output_reflection
+write frequency_response.raw s_1_1 s_1_2 s_2_1 s_2_2
+quit
+.endc
+.end

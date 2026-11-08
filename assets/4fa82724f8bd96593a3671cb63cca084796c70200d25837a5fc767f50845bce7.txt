@@ -1,0 +1,119 @@
+# Ramos PFC Three-Stage Amplifier Layout Task
+
+## Objective
+
+Implement `amp_014_ramos_pfc` with the supplied fixed topology and dimensions. The PMOS input pair drives the cascoded NMOS branches at dm_2/net063; the voutn mirror produces net050. XM10 and the XM21/XM22 mirror drive net049, while XM11/XM23 drive the single-ended output. Both compensation paths remain: 63 pF from net050 to vout and 25 pF from net050 to net049. The vb3/vb4 bias network is retained.
+Do not replace the circuit, delete compensation, or add a servo. The circuit contains 24 logical MOS groups with the upstream W, L, multiplicity
+and four-terminal connections. PMOS groups XM8 and XM9 both have source and body
+on net31; other PMOS bodies connect to vdd, and NMOS bodies connect to vss.
+
+### Optimization objective
+
+Maximize the declared quality score within the solve budget while satisfying all physical and necessary functional requirements. The first passing DRC, LVS and required electrical checks establish a feasible baseline. Continue improving the scored metrics from that baseline; a passing check or `task_success = true` does not mean that the quality objectives have been achieved.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the authoritative logical circuit with native PDK model bindings, `materials/circuit.spice` its simulation representation, `materials/testbench.spice` defines closed-loop observations, and `materials/ac.spice` defines balanced differential AC excitation, and `materials/stability.spice` defines the two-injection external-loop experiment. Ordered ports are `vss vdd vinn vinp vout net1`: ground, supply, negative/positive inputs, single-ended output and an external bias-current pull-down. Bias, input drive, feedback connections and loads are external test fixtures. Implement the compensation capacitors and physical body contacts. Body contacts are layout connectivity and are not additional logical circuit devices.
+
+## Operating Conditions
+
+IHP SG13G2, nominal TT/typical, 27 C, supply 1.5 V, input reference 0.4 V,
+external current sink 2.4e-05 A to vss, and 5, 10 and 20 pF output loads, with the complete source/candidate experiments repeated at each load. Use the fixed IHP LV binding at 1.5 V, adapting the authored 1.8 V stimulus to the LV process rail; retain its bias current and input reference. Round W/L to 5 nm (the supplied integer-micrometre sizes are unchanged).
+The closed-loop deck ties vinn directly to vout, drives vinp with a +100 mV pulse
+starting at 20 us (100 ns rise/fall, 80 us high duration), and runs to 200 us with
+10 ns maximum steps, Gear order 2, reltol=1e-5, abstol=1 pA, vntol=10 nV.
+Transient starts from the solved DC point; this is not a zero-state supply-ramp
+startup test. High and return windows are 80–100 and 180–200 us.
+
+AC sweeps 200 points per decade from 1 Hz to 1 GHz. The differential-mode deck retains output DC feedback through a 1 TH inductor and isolates the bias node from AC through a 1 F capacitor to ground; vinp/vinn use balanced +0.5/-0.5 V small-signal excitation. Input common-mode residual amplitude and DC feedback error must both be <=1 uV. These are external small-signal bias fixtures, not physical compensation; an independent closed-loop deck measures actual follower response and does not call a voltage-transfer estimate a loop return ratio.
+
+## Physical Requirements
+
+Supply a GDS <=64 MiB with top cell `amp_014_ramos_pfc`, within 20000 by 2000 um
+(the task's artifact-size/outline bounds). Native DRC, strict named-interface LVS
+and functional-area measurement must pass; no marker waivers apply. Preserve
+MOS models, gate lengths, parallel-equivalent widths (W*m), logical body connections
+and the two native compensation-capacitor bindings. Electrically equivalent unit
+arrays, multiple gate fingers and shared diffusion are allowed when native LVS
+verifies them. Sharing a well is allowed only for bodies on the same logical net.
+Physically connect each well/substrate region to its declared body net through
+DRC-compliant contacts; contact count, placement and geometry are layout choices.
+No particular reference-array partition or isolated well per unit is required.
+Functional layers in the published task include active, implant, wells, gates,
+contacts, passive plates, vias and routing; annotation/text-only layers are excluded.
+IHP native main and maximal DRC use the pinned PDK block profiles, with chip-level density and antenna disabled. The two native MIM bindings use 51.18 um square plates with m=16 and 48.74 um square plates with m=7, giving nominal 62.9964384 pF and 24.9982586 pF at the stated typical model. LVS connects actual tap regions to their wells/substrate before comparing the four-terminal logical MOS; it does not compare a prescribed tap inventory. Source simulation uses the same logical body boundary and native MIM models as candidate extraction. Magic extracts the candidate devices, junction geometry and distributed interconnect RC. This is not distributed substrate or RF/EM extraction. Candidate-derived Magic distributed RC feeds every post-layout job.
+
+## Electrical Requirements and Scoring
+
+Artifact, geometry, DRC, LVS and declared functional requirements must pass. Parasitic extraction is also mandatory: it must produce a complete, electrically consistent netlist usable by the required post-layout simulations. A completed candidate rejection scores zero; infrastructure errors do not establish candidate failure.
+
+For `layout` scoring, cap every positively weighted raw quality at 1 before aggregation; the score ranges from 0 to 100. Reaching every weighted target scores 100, and no minimum score is required for validity.
+
+Physical checks and the declared functional bounds must pass. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Every electrical scoring anchor is the paired pre-layout measurement under that condition. The score measures preservation of the fixed circuit's performance; it does not require layout to improve intrinsic circuit behavior. Reports retain every paired result.
+
+Let x be the post-layout measurement and b the same-condition pre-layout measurement:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- Target normalization: q = 1/(1+abs(x-b)/s), where s is the declared physical scale. Signed or zero-valued operating points are not divided directly.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical, extraction, or functional rejection scores zero; other missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+`late_error_v`, `return_error_v`, `ripple_v` and `return_ripple_v` use `saturating_ratio`. Candidate error x, paired pre-layout error b and the positive scale s below define q = 2(b+s)/(b+x+2s). Equality to the anchor gives raw q=1; decreasing error approaches raw quality 2, while credited quality stays at 1. The scale retains its declared unit and limits sensitivity near zero. Normalize each condition before taking the worst paired quality; other metrics retain their declared normalization and functional requirements.
+
+| Metric | Definition | Unit | Treatment |
+| --- | --- | --- | --- |
+| gain_db, gain_10khz_db | Balanced differential Vout/(Vinp−Vinn) magnitude at 1 Hz and 10 kHz | dB | Response, source-paired db20 maximize |
+| closed_gain_10khz_db | Actual unity-follower transfer at 10 kHz | dB | Response target, 6 dB scale |
+| output_v | DC follower output | V | Bias target, 1.5 V scale |
+| power_w | DC power drawn from VDD | W | Supply, inverse ratio, 1 pW floor |
+| mean_power_w | Mean supply power over 20–200 us | W | Supply, inverse ratio, 1 pW floor |
+| late_error_v, return_error_v | Mean absolute tracking error in high/return window | V | Saturating quality for late error; return error diagnostic |
+| ripple_v, return_ripple_v | Full output peak-to-peak range in high/return window | V | Diagnostic |
+| high_v, low_v | Window means | V | Diagnostic |
+| bias_v | External bias port DC voltage | V | Diagnostic |
+| output_min_v, output_max_v | Full-transient extrema | V | Diagnostic |
+| dc_feedback_error_v | Absolute DC voltage across the external feedback inductor | V | Measurement-validity check, 0–1 uV |
+| fixture_cm_max | Maximum residual common-mode AC drive | V | Measurement-validity check, 0–1 uV |
+
+All measurements must be finite and complete. Supply power, absolute errors and amplitude ranges must obey their nonnegative physical definitions. The common-mode test-apparatus bound validates differential excitation, rather than DUT common-mode regulation. The DC feedback bound excludes failure of the isolated bias solve. Both apparatus checks apply to source and candidate simulation before scoring. These are this task's hard electrical requirements; upstream paper targets are not acceptance bounds. Window error and ripple do not establish settling or periodic steady state; no phase margin, unity-gain crossing, threshold-crossing settling time, CMRR, noise, PVT or mismatch performance is claimed. The separate two-injection sweep scores the minimum sampled return distance.
+
+Error metrics use saturating normalization `2*(b+s)/(b+x+2*s)`, with the quality anchor and scale declared below. This differs from an unbounded inverse ratio. Zero-weight ripple, return error, bias and closed-loop gain remain diagnostics; the response integral and sampled return distance score dynamic quality. Capability coefficient **7** is independent of the score.
+
+### Quality targets and weights
+
+For a minimizing metric, additional loss is `max(0, x-b)`; for a maximizing metric it is `max(0, b-x)`. Degradation quality is `q = s/(s+loss)`: loss equal to the declared budget halves that metric's quality, while matching or improving the paired source receives full credit. Normalize each condition before taking the worst quality. This formula does not change functional requirements.
+
+The area target is **62000 um2**, with **30%** weight. It is an integration objective rather than an acceptance bound.
+
+The 23 fixed MIM plates occupy 58539.3916 um2 within the 62000 um2 footprint objective. The remaining 3460.6084 um2 accommodates enclosures, spacing and routing with overlap only where native rules permit. Area carries 30%, minimum sampled return-distance preservation 50% and the worst bilateral offset-independent response integral 20%. Return-distance loss uses a budget of 0.05 in normalized loop units. At the source distance of about 0.8, losing 0.05 raises the sampled peak sensitivity 1/min(abs(1+T)) by about 7%; this merits a material quality penalty. The response-integral loss budget is 10 ns, one tenth of the 100 ns input ramp. Both metrics use degradation normalization against each paired source observation; equal or improved observations receive full credit. Tracking error, phase-margin summaries, gain and power remain diagnostics with all measurements and functional requirements retained. The fixed MIM footprint target is unchanged. These quality budgets do not impose acceptance thresholds or claim complete internal-loop stability.
+
+The external-loop fixture inserts VPROBE from VINN (`vm`) to VOUT and IINJ from ground to `vm`, with zero DC value. The first AC sweep sets VPROBE=1 V and IINJ=0; the second sets VPROBE=0 and IINJ=1 A. With B=-I(VPROBE), D=V(vm) from the voltage injection and A=-I(VPROBE), C=V(vm) from the current injection, delta=AD-BC and T=(2*delta-A+D)/(1-2*delta+A-D). Sweep 0.01 Hz-1 GHz at 300 points/decade and measure min(abs(1+T)). The two sweeps retain the same DC circuit, bias and load. This finite external-loop measurement does not prove all internal-loop stability.
+
+The dynamic integral removes each direction's own plateau offset and normalizes absolute error to the 100 mV step. Every electrical score takes the worst paired quality over the three loads, including both dynamic-response directions; load conditions do not split a metric's weight.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.3 |
+| `response_time_s` | 0.2 |
+| `minimum_return_distance` | 0.5 |
+
+All remaining observations have zero quality weight and retain their measurement-validity and functional requirements. Electrical targets are the paired pre-layout observations. The scored dynamic-integral loss budget is 10 ns and the return-distance loss budget is 0.05; neither is an acceptance tolerance. Late tracking error is diagnostic.
+
+## Tools and Submission
+
+Soft solve budget: **2.5 hours**.
+
+Read `/protocol/task.json` for input/output paths, constraints and the `resources` object; `/protocol/harness.json` describes the active check and submission interface.
+
+
+Use reviewed IHP SG13G2 resources and the ngspice 45 environment; see `/protocol/task.json` for frozen requirements and resource bindings. Explicitly submit `/workspace/output/final.gds` through the session tool; writing a file alone is insufficient. Evaluation checks files, native DRC/LVS, geometry, candidate RC, independent source simulation and post-layout simulation; source baselines, reference solutions and the author repository are not solver inputs.
+
+### Solve workflow
+
+1. Read the declared circuit and materials, `/protocol/task.json` for paths, constraints and reviewed resources, and `/protocol/harness.json` for capabilities and helper commands. Task inputs under `/task` and resources under `/resources` are read-only; construct the layout in `/workspace` with the declared tools. With layout MCP, paths and commands refer to the remote EDA workspace. Create your own implementation with real devices, interconnect and pins, using your own tool loop without delegating to other agents; reference layouts and author code are not solver inputs.
+2. Inspect `resources.external` before using external tools. Each command starts a fresh shell: when tool modules are declared, source `/usr/share/Modules/init/bash` and load the selected tool's modules; export its declared `tool_environment` settings in that same command. Repeat as needed and use batch or headless operation. Local manuals, command references, and release notes may be available within the declared EDA installation and PDK resource directories. Locate these resources through `/protocol/task.json` and consult the documentation for the installed tool version when diagnosing unfamiliar syntax or tool failures.
+3. Generate an initial candidate and submit a snapshot early. When `process-feedback` is available, check the current GDS with layout MCP `check` or `python -I /protocol/process_check.py` before the final submission. This runs the final evaluator's complete plan and returns engineering diagnostics and candidate measurements, without scores or normalized quality factors. Checks have no count limit and consume the same wall-clock budget. Inspect the physical and functional results and all scored metrics; successful tool execution alone does not establish requirement satisfaction. Read paginated diagnostics with `report` when using MCP. Local exploratory checks do not replace this complete check.
+4. Use the remaining time for measured improvements to the declared quality objectives. Identify the limiting scored metrics, make targeted layout changes, regenerate and check the candidate, and compare measurements with the previous candidate and the stated scoring targets and trade-offs. Preserve the best valid candidate and revert changes that worsen the overall objective. Repeat while time and useful improvements remain; passing validity checks alone is not a stopping condition.
+5. Stop optimization when the budget expires, all declared quality objectives are achieved, or measured trials support convergence. If stopping early, explain the changes tried, the metric comparisons and the remaining limitations. Track remaining time through session status. At soft-budget expiry, finish or cancel already-started work and submit immediately; do not start another command, check or optimization round. If an MCP execution is running, use `poll` with its `execution_id` and the returned `next_offset` as `offset` until completion, or cancel it and wait for it to stop.
+6. Finish or cancel outstanding work, restore your best candidate to the declared output path, and explicitly submit it before ending the session. With layout MCP `submit`, remove the `/workspace/` prefix from `output.path`; with the container interface, run `python -I /protocol/submit.py`. Wait for the receipt: only the last accepted snapshot is judged, and writing a file alone is not submission. Acceptance confirms delivery; the framework independently evaluates validity and quality after the session.

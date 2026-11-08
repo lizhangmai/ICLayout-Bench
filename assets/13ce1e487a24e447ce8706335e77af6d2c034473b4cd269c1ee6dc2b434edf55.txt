@@ -1,0 +1,36 @@
+** AUTHORED TEMPLATE — ldo/tran_load_step: fast lo->hi load step into Cout; undershoot + recovery.
+** Bindings: DUT PORT_LINE VDD COUT ILOAD_LO ILOAD_HI TSTART TEDGE TPULSE TPER TSTEP TSTOP VTOL
+**   PDK_INCLUDE.
+* Pinned upstream ldo/tran_load_step fixture with the reviewed GF180 bindings.
+.include support/models.spice
+.include dut.spice
+.temp 27
+IBIAS vdd ebias 60u
+VREF vref 0 1.05
+
+
+.param VDD=1.8
+
+Vdd  vdd 0 dc {VDD}
+Vss  vss 0 dc 0
+CLoad vout 0 1u
+Iload vout 0 pulse(1m 10m 5u 10n 10n 20u 40u)
+
+XDUT vdd vout vss ebias vref ldo_007_pmos
+
+.control
+  set filetype=binary
+  set noaskquit
+  tran 50n 30u
+  meas tran vout_min  MIN  v(vout) from=5u to=30u
+  meas tran vout_post FIND v(vout) AT=30u
+  let v_undershoot = vout_post - vout_min
+  * recovery: time after the step for v(vout) to re-enter the +/-VTOL band around its final value
+  let verr = abs(v(vout) - vout_post)
+  meas tran tcross WHEN verr=1m FALL=LAST
+  let t_transient = tcross - 5u
+  print v_undershoot t_transient
+  write transient.raw v(vout) i(Vdd)
+  quit
+.endc
+.end

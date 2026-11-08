@@ -1,0 +1,58 @@
+# 40 GHz TIA with a designed degeneration line
+
+## Objective
+
+Implement the complete three-stage SiGe TIA, four fixed upstream RF networks and a candidate-designed degeneration transmission line. This is an explicitly adapted task; the unavailable original `TL_20_um.s2p` is not required or reconstructed.
+
+### Optimization objective
+
+Maximize the declared quality score within the solve budget while satisfying all physical and necessary functional requirements. The first passing DRC, LVS and required electrical checks establish a feasible baseline. Continue improving the scored metrics from that baseline; a passing check or `task_success = true` does not mean that the quality objectives have been achieved.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` defines the complete physical core: three HBTs with Nx=10/5/10, five resistors and three MIM decoupler banks. Preserve all models, dimensions, multipliers and connectivity. `materials/circuit.spice` is its compact-model interface with the nominal reference-line subcircuit. The public amplifier ports are RFIN, RFOUT, VCC1, VCC2, VCC3 and GND. Additional core terminals expose the fixed choke/peaking networks and the designed degeneration line.
+
+`rf-macros.gds`, `rf-macros.json` and `rf-models.spice` supply three fixed choke cells, a fixed peaking cell and the BEOL ground context. Their model response comes from the original upstream tables, including the original 0.1-ohm peaking series element. Preserve their geometry, unique instance counts, ordered landings and relative pose.
+
+`line-design.json` declares the RF_DEGEN_DESIGN cell and isolated physical design window. The reviewed process resource `rf-line-rlc` defines its calibrated cross-section. `line-reference.spice` provides only the paired source's nominal 40-um electrical line. It is replaced by the evaluator's geometry-derived model during candidate scoring.
+
+## Operating Conditions
+
+Use typical HBT/resistor/capacitor models at 26.85 °C. Physical VCC1=2.1 V, VCC2=2.1 V, VCC3=1.7 V, corresponding to original V3/V2/V1 respectively. Both RF ports have 50-ohm references and 5-uF fixture DC blocks. Front- and back-annotation use the same 157-point linear sweep from 1 to 40 GHz and the same fixture. The three physical decoupler banks are 30x60 um with m=2. The fixture includes 1-Tohm numerical reference shunts.
+
+## Physical Requirements
+
+Submit one top cell `FDM_QNC_00_LN_TIA`, at most 32 MiB, within the declared functional outline. Pass the full native DRC, strict named-port LVS, fixed-macro verification and designed-line geometry checks. Only explicitly enumerated inherited curved RF/package markers have exceptions; functional widths, spacings, enclosures and circuit connections remain checked.
+
+Draw the designed line in exactly one RF_DEGEN_DESIGN cell. In local coordinates it contains one TopMetal2 (134/0) rectangle starting at (0,0), with fixed width 15 um and drawn length equal to the modeled length plus two 2-um terminal landings. The modeled interior length is your design variable, 20–200 um. Supply its complete Metal1 (8/0) return plane: 90-um transverse width, centered below the strip, extending 25 um past each interior model plane. Include the process's mandatory 0.18-um ground slots at its declared 28-um pitch and 14-um offset from the return-plane lower corner. No additional geometry or labels belongs inside this cell.
+
+Place the line and its 10-um isolation guard within the declared window. Only declared terminal/access regions may contain added wiring or vias. Connect the input landing to RF_DEG_INNER, and physically connect the far landing and return plane to GND. The Metal1 return must have a continuous same-layer metal path to the fixed RF_GROUND anchor declared in `line-design.json`; labels do not establish that connection. Every conductor must be drawn in the candidate; the evaluator does not add vias, ground or missing connections. Width changes, bends, branches, duplicated bodies and unmodeled interior conductors are outside this calibrated design space.
+
+The evaluator checks original geometry, then exposes only the existing terminal landings in an extraction copy. Native LVS and KPEX retain the entire candidate core and nominal local coupling capacitance. The designed line is represented by a positive, DC-accurate Foster RLC ladder derived from its measured length; two passive RL branches model conductor skin effects. The cross-section is calibrated against the pinned PDK's two-port 880-um TM2-over-M1 field data. Uniform-length scaling, sparse ground perforations and ladder discretization are explicit approximations, with calibration evidence and numerical limits in the process resource. Independently simulated short-line/bend/width-change accuracy is not claimed. Core free-wire R/L and arbitrary new full-wave interactions with fixed macros are outside the selected model scope.
+
+## Electrical Requirements and Scoring
+
+All operating-point and RF measurements must be finite. Squared reflections and peak-to-peak delay are nonnegative; there is no minimum quality score for feasibility.
+
+| Metric | Weight | Degradation scale |
+| --- | ---: | ---: |
+| `band_transimpedance`: minimum `20 log10(abs(50*S21/(1-S11)))` | 50% | 3 dB |
+| `input_reflection`: maximum input reflected-power fraction `abs(S11)^2` | 30% | 0.05 |
+| `output_reflection`: maximum output reflected-power fraction `abs(S22)^2` | 20% | 0.05 |
+
+For each metric, equal or better performance than the paired source earns quality 1; positive degradation d earns `scale/(scale+d)`. The final score is 100 times the weighted geometric mean after physical and execution validity checks. Band gain, group-delay ripple, supply power and fixed-frame area are diagnostics. Noise is not scored because the inherited deterministic RF tables do not establish complete passive thermal-noise accuracy. A reference establishes feasibility, without a high-performance requirement.
+
+## Tools and Submission
+
+Solve budget: **1 hour**.
+
+Use the existing open EDA image and declared IHP resources. KLayout checks geometry and native circuits, KPEX provides core coupling capacitance and ngspice simulates the full RF network. Submit `output/final.gds`; candidate-supplied electrical models cannot determine the score.
+
+### Solve workflow
+
+1. Read the declared circuit and materials, `/protocol/task.json` for paths, constraints and reviewed resources, and `/protocol/harness.json` for capabilities and helper commands. Task inputs under `/task` and resources under `/resources` are read-only; construct the layout in `/workspace` with the declared tools. With layout MCP, paths and commands refer to the remote EDA workspace. Create your own implementation with real devices, interconnect and pins, using your own tool loop without delegating to other agents; reference layouts and author code are not solver inputs.
+2. Inspect `resources.external` before using external tools. Each command starts a fresh shell: when tool modules are declared, source `/usr/share/Modules/init/bash` and load the selected tool's modules; export its declared `tool_environment` settings in that same command. Repeat as needed and use batch or headless operation. Local manuals, command references, and release notes may be available within the declared EDA installation and PDK resource directories. Locate these resources through `/protocol/task.json` and consult the documentation for the installed tool version when diagnosing unfamiliar syntax or tool failures.
+3. Generate an initial candidate and submit a snapshot early. When `process-feedback` is available, check the current GDS with layout MCP `check` or `python -I /protocol/process_check.py` before the final submission. This runs the final evaluator's complete plan and returns engineering diagnostics and candidate measurements, without scores or normalized quality factors. Checks have no count limit and consume the same wall-clock budget. Inspect the physical and functional results and all scored metrics; successful tool execution alone does not establish requirement satisfaction. Read paginated diagnostics with `report` when using MCP. Local exploratory checks do not replace this complete check.
+4. Use the remaining time for measured improvements to the declared quality objectives. Identify the limiting scored metrics, make targeted layout changes, regenerate and check the candidate, and compare measurements with the previous candidate and the stated scoring targets and trade-offs. Preserve the best valid candidate and revert changes that worsen the overall objective. Repeat while time and useful improvements remain; passing validity checks alone is not a stopping condition.
+5. Stop optimization when the budget expires, all declared quality objectives are achieved, or measured trials support convergence. If stopping early, explain the changes tried, the metric comparisons and the remaining limitations. Track remaining time through session status. At soft-budget expiry, finish or cancel already-started work and submit immediately; do not start another command, check or optimization round. If an MCP execution is running, use `poll` with its `execution_id` and the returned `next_offset` as `offset` until completion, or cancel it and wait for it to stop.
+6. Finish or cancel outstanding work, restore your best candidate to the declared output path, and explicitly submit it before ending the session. With layout MCP `submit`, remove the `/workspace/` prefix from `output.path`; with the container interface, run `python -I /protocol/submit.py`. Wait for the receipt: only the last accepted snapshot is judged, and writing a file alone is not submission. Acceptance confirms delivery; the framework independently evaluates validity and quality after the session.

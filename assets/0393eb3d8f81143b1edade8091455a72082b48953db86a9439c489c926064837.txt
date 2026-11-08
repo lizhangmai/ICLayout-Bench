@@ -1,0 +1,1002 @@
+kind = "layout_case"
+id = "sky130A.sky130_ef_ip__opamp.opamp"
+title = "SKY130 3.3 V Rail-to-Rail Operational Amplifier"
+status = "qualified"
+in_core = false
+
+[origin]
+url = "https://github.com/efabless/sky130_ef_ip__opamp/tree/f0eb5cd47112d90fd6d7792ba68e763beacac8e7"
+
+[task]
+kind = "netlist_to_gds"
+hours = 8
+family = "sky130_opamp"
+coefficient = 3
+environment = "sky130A-tt-rc"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "d2cb7e6de59753b4674486a565f47d6d22f4c914bcae9b0eb272d2c905b6d2dd"
+
+[task.inputs.netlist]
+path = "materials/circuit.spice"
+format = "spice"
+subcircuit = "sky130_ef_ip__opamp"
+sha256 = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "8a445a3cbb29766dbfafa634a369c25f82df226c1d319a7f2aa80ae10f9b4537"
+
+[task.inputs.dynamics]
+path = "materials/dynamics.spice"
+format = "spice"
+sha256 = "0ea3b168acf3a9480990b174f0eb2a8b94cfe51732ace0adca5a2045576131fb"
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "sky130_ef_ip__opamp"
+max_bytes = 10485760
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        64,
+        20,
+    ],
+    [
+        65,
+        20,
+    ],
+    [
+        65,
+        44,
+    ],
+    [
+        66,
+        20,
+    ],
+    [
+        66,
+        44,
+    ],
+    [
+        67,
+        20,
+    ],
+    [
+        67,
+        44,
+    ],
+    [
+        68,
+        20,
+    ],
+    [
+        68,
+        44,
+    ],
+    [
+        69,
+        20,
+    ],
+    [
+        69,
+        44,
+    ],
+    [
+        70,
+        20,
+    ],
+    [
+        70,
+        44,
+    ],
+    [
+        71,
+        20,
+    ],
+    [
+        71,
+        44,
+    ],
+    [
+        72,
+        20,
+    ],
+    [
+        93,
+        44,
+    ],
+    [
+        94,
+        20,
+    ],
+]
+max_width_um = 80
+max_height_um = 100
+
+[task.evaluation]
+mode = "post_layout"
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+netlist = "input:netlist"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.extract_rc"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "vdd",
+    "out",
+    "ena",
+    "vss",
+    "inp",
+    "inm",
+]
+
+[[task.evaluation.jobs]]
+id = "light"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+bias_voltage = "V"
+supply_power = "W"
+gain_low = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.jobs.parameters.values]
+load_capacitance = 1e-13
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.jobs]]
+id = "nominal"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+bias_voltage = "V"
+supply_power = "W"
+gain_low = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.jobs.parameters.values]
+load_capacitance = 5e-13
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.jobs]]
+id = "heavy"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:performance"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+bias_voltage = "V"
+supply_power = "W"
+gain_low = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.jobs.parameters.values]
+load_capacitance = 1e-12
+
+[task.evaluation.jobs.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[[task.evaluation.jobs]]
+id = "slew_0_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:dynamics"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+rise = 0
+load_capacitance = 0
+
+[task.evaluation.jobs.parameters.measurements]
+slew_interval_s = "s"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "slew_0_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:dynamics"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+rise = 0
+load_capacitance = 1e-13
+
+[task.evaluation.jobs.parameters.measurements]
+slew_interval_s = "s"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "slew_0_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:dynamics"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+rise = 0
+load_capacitance = 1e-12
+
+[task.evaluation.jobs.parameters.measurements]
+slew_interval_s = "s"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "slew_1_0"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:dynamics"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+rise = 1
+load_capacitance = 0
+
+[task.evaluation.jobs.parameters.measurements]
+slew_interval_s = "s"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "slew_1_1"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:dynamics"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+rise = 1
+load_capacitance = 1e-13
+
+[task.evaluation.jobs.parameters.measurements]
+slew_interval_s = "s"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.jobs]]
+id = "slew_1_2"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+deck = "input:dynamics"
+dut = "job:parasitics:netlist"
+
+[task.evaluation.jobs.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.values]
+rise = 1
+load_capacitance = 1e-12
+
+[task.evaluation.jobs.parameters.measurements]
+slew_interval_s = "s"
+
+[task.evaluation.jobs.parameters.exports]
+transient = "transient.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "gain_low"
+category = "performance"
+observations = [
+    "light:gain_low",
+    "nominal:gain_low",
+    "heavy:gain_low",
+]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+baseline = [
+    "source_light:gain_low",
+    "source_nominal:gain_low",
+    "source_heavy:gain_low",
+]
+normalization = "db20"
+dimension = "response"
+
+[[task.evaluation.metrics]]
+id = "unity_hz"
+category = "performance"
+observations = [
+    "light:unity_hz",
+    "nominal:unity_hz",
+    "heavy:unity_hz",
+]
+unit = "Hz"
+direction = "maximize"
+aggregation = "min"
+baseline = [
+    "source_light:unity_hz",
+    "source_nominal:unity_hz",
+    "source_heavy:unity_hz",
+]
+normalization = "ratio"
+dimension = "response"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared ordered-event interval or crossing frequency has a nonnegative measurement domain, and its crossing must exist for a usable observation."
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = [
+    "light:supply_power",
+    "nominal:supply_power",
+    "heavy:supply_power",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+baseline = [
+    "source_light:supply_power",
+    "source_nominal:supply_power",
+    "source_heavy:supply_power",
+]
+normalization = "saturating_ratio"
+dimension = "supply"
+scale = 0.0001
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The declared powered circuit must consume nonnegative net energy from its supplies and driven references over the stated observation; power magnitude remains a quality objective."
+
+[[task.evaluation.metrics]]
+id = "phase_margin"
+category = "performance"
+observations = [
+    "light:phase_margin",
+    "nominal:phase_margin",
+    "heavy:phase_margin",
+]
+unit = "deg"
+direction = "target"
+aggregation = "min"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+upper = 180
+rationale = "The declared negative-feedback loop must remain on its measured 0 to 180 degree stable-feedback branch at the specified crossing; the previous 45 degree design margin is not a validity cutoff."
+
+[[task.evaluation.metrics]]
+id = "bias_voltage"
+category = "performance"
+observations = [
+    "light:bias_voltage",
+    "nominal:bias_voltage",
+    "heavy:bias_voltage",
+]
+unit = "V"
+direction = "target"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+lower = 1
+upper = 2.3
+rationale = "The declared output or bias must stay in its specified operating or logic-level interval under the supplied rail, feedback or full-scale reference conditions; an out-of-range output violates that interface."
+
+[[task.evaluation.metrics]]
+id = "fall_slew_s"
+category = "performance"
+observations = [
+    "slew_0_0:slew_interval_s",
+    "slew_0_1:slew_interval_s",
+    "slew_0_2:slew_interval_s",
+]
+baseline = [
+    "source_slew_0_0:slew_interval_s",
+    "source_slew_0_1:slew_interval_s",
+    "source_slew_0_2:slew_interval_s",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+normalization = "saturating_ratio"
+scale = 1e-09
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The elapsed output crossing interval has a nonnegative time domain."
+
+[[task.evaluation.metrics]]
+id = "rise_slew_s"
+category = "performance"
+observations = [
+    "slew_1_0:slew_interval_s",
+    "slew_1_1:slew_interval_s",
+    "slew_1_2:slew_interval_s",
+]
+baseline = [
+    "source_slew_1_0:slew_interval_s",
+    "source_slew_1_1:slew_interval_s",
+    "source_slew_1_2:slew_interval_s",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+normalization = "saturating_ratio"
+scale = 1e-09
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "The elapsed output crossing interval has a nonnegative time domain."
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 1500.0
+rationale = "The 1500 um2 footprint is a 30 by 50 um integration allocation, independent of the feasibility witness. Core dynamic response carries 45% through the upstream CACE output crossing intervals; loaded unity-gain bandwidth carries 25% and area 30%. DC gain and fixed-bias power remain diagnostics. Source-paired slew intervals retain the upstream unloaded fixture and add the existing 0.1/1 pF application loads. The actual 0.5-to-2.8 V interval is measured directly, avoiding the upstream hard-coded 2 V slew numerator."
+
+[task.evaluation.scoring.weights]
+functional_area = 0.3
+gain_low = 0
+unity_hz = 0.25
+supply_power = 0
+rise_slew_s = 0.225
+fall_slew_s = 0.225
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "f8af7d82e6af4210e38a97a24312d9bc593c63e4b48616f4c489be2e8af1bcb5"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"d872114717bdbf7c982b0f7a4c489412893ed71cef288bf726d3f5a31f20a579\", \"compatibility\": \"hsa\", \"cpu_budget\": 8, \"executable_workspace\": false, \"execution_sha256\": \"19535fecb35a2498469d9ba0c047b73069cdb337e7c8c66dca04c8121415307d\", \"image_id\": \"sha256:77418a4514834f14b70c9dcb975d56c0c2171b56c51379f63f65011f959c3830\", \"limits\": {\"cpus\": null, \"memory_mb\": null, \"pids\": null}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"cba8c3811d06b88752a21414d16575ef72011a8b2f05214e29076a9ae90ffb9c\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 240.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Wed Oct  7 12:04:25 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_light]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_light.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_light.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_light.parameters.measurements]
+bias_voltage = "V"
+supply_power = "W"
+gain_low = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.pre_layout.jobs.source_light.parameters.values]
+load_capacitance = 1e-13
+
+[task.evaluation.pre_layout.jobs.source_light.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[task.evaluation.pre_layout.jobs.source_light.input_sha256]
+deck = "8a445a3cbb29766dbfafa634a369c25f82df226c1d319a7f2aa80ae10f9b4537"
+dut = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.evaluation.pre_layout.jobs.source_light.measurements.bias_voltage]
+value = 1.648869
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_light.measurements.gain_low]
+value = 54.34573
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_light.measurements.phase_margin]
+value = 81.74539
+unit = "deg"
+
+[task.evaluation.pre_layout.jobs.source_light.measurements.supply_power]
+value = 0.0003807927
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_light.measurements.unity_hz]
+value = 32851740.0
+unit = "Hz"
+
+[task.evaluation.pre_layout.jobs.source_nominal]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_nominal.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_nominal.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.measurements]
+bias_voltage = "V"
+supply_power = "W"
+gain_low = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.values]
+load_capacitance = 5e-13
+
+[task.evaluation.pre_layout.jobs.source_nominal.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[task.evaluation.pre_layout.jobs.source_nominal.input_sha256]
+deck = "8a445a3cbb29766dbfafa634a369c25f82df226c1d319a7f2aa80ae10f9b4537"
+dut = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.bias_voltage]
+value = 1.648869
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.gain_low]
+value = 54.34573
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.phase_margin]
+value = 75.9951
+unit = "deg"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.supply_power]
+value = 0.0003807927
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_nominal.measurements.unity_hz]
+value = 32396710.0
+unit = "Hz"
+
+[task.evaluation.pre_layout.jobs.source_heavy]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_heavy.inputs]
+deck = "input:performance"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_heavy.outputs]
+op = "ngspice-raw"
+ac = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_heavy.parameters.measurements]
+bias_voltage = "V"
+supply_power = "W"
+gain_low = "dB"
+unity_hz = "Hz"
+phase_margin = "deg"
+
+[task.evaluation.pre_layout.jobs.source_heavy.parameters.values]
+load_capacitance = 1e-12
+
+[task.evaluation.pre_layout.jobs.source_heavy.parameters.exports]
+op = "op.raw"
+ac = "ac.raw"
+
+[task.evaluation.pre_layout.jobs.source_heavy.input_sha256]
+deck = "8a445a3cbb29766dbfafa634a369c25f82df226c1d319a7f2aa80ae10f9b4537"
+dut = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.evaluation.pre_layout.jobs.source_heavy.measurements.bias_voltage]
+value = 1.648869
+unit = "V"
+
+[task.evaluation.pre_layout.jobs.source_heavy.measurements.gain_low]
+value = 54.34573
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_heavy.measurements.phase_margin]
+value = 69.55286
+unit = "deg"
+
+[task.evaluation.pre_layout.jobs.source_heavy.measurements.supply_power]
+value = 0.0003807927
+unit = "W"
+
+[task.evaluation.pre_layout.jobs.source_heavy.measurements.unity_hz]
+value = 31488070.0
+unit = "Hz"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_0.inputs]
+deck = "input:dynamics"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_0.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_0.parameters.values]
+rise = 0
+load_capacitance = 0
+
+[task.evaluation.pre_layout.jobs.source_slew_0_0.parameters.measurements]
+slew_interval_s = "s"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_0.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_0.input_sha256]
+deck = "0ea3b168acf3a9480990b174f0eb2a8b94cfe51732ace0adca5a2045576131fb"
+dut = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_0.measurements.slew_interval_s]
+value = 6.46959e-08
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_1.inputs]
+deck = "input:dynamics"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_1.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_1.parameters.values]
+rise = 0
+load_capacitance = 1e-13
+
+[task.evaluation.pre_layout.jobs.source_slew_0_1.parameters.measurements]
+slew_interval_s = "s"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_1.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_1.input_sha256]
+deck = "0ea3b168acf3a9480990b174f0eb2a8b94cfe51732ace0adca5a2045576131fb"
+dut = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_1.measurements.slew_interval_s]
+value = 6.43787e-08
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_2]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_2.inputs]
+deck = "input:dynamics"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_2.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_2.parameters.values]
+rise = 0
+load_capacitance = 1e-12
+
+[task.evaluation.pre_layout.jobs.source_slew_0_2.parameters.measurements]
+slew_interval_s = "s"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_2.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_2.input_sha256]
+deck = "0ea3b168acf3a9480990b174f0eb2a8b94cfe51732ace0adca5a2045576131fb"
+dut = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.evaluation.pre_layout.jobs.source_slew_0_2.measurements.slew_interval_s]
+value = 6.18298e-08
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_0]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_0.inputs]
+deck = "input:dynamics"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_0.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_0.parameters.values]
+rise = 1
+load_capacitance = 0
+
+[task.evaluation.pre_layout.jobs.source_slew_1_0.parameters.measurements]
+slew_interval_s = "s"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_0.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_0.input_sha256]
+deck = "0ea3b168acf3a9480990b174f0eb2a8b94cfe51732ace0adca5a2045576131fb"
+dut = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_0.measurements.slew_interval_s]
+value = 1.035789e-07
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_1]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_1.inputs]
+deck = "input:dynamics"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_1.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_1.parameters.values]
+rise = 1
+load_capacitance = 1e-13
+
+[task.evaluation.pre_layout.jobs.source_slew_1_1.parameters.measurements]
+slew_interval_s = "s"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_1.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_1.input_sha256]
+deck = "0ea3b168acf3a9480990b174f0eb2a8b94cfe51732ace0adca5a2045576131fb"
+dut = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_1.measurements.slew_interval_s]
+value = 1.052325e-07
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_2]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_2.inputs]
+deck = "input:dynamics"
+dut = "input:netlist"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_2.outputs]
+transient = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_2.parameters.values]
+rise = 1
+load_capacitance = 1e-12
+
+[task.evaluation.pre_layout.jobs.source_slew_1_2.parameters.measurements]
+slew_interval_s = "s"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_2.parameters.exports]
+transient = "transient.raw"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_2.input_sha256]
+deck = "0ea3b168acf3a9480990b174f0eb2a8b94cfe51732ace0adca5a2045576131fb"
+dut = "12b9a110d6e630c1d51f61891154997f19672dce63c6d65883c740d4ae67882a"
+
+[task.evaluation.pre_layout.jobs.source_slew_1_2.measurements.slew_interval_s]
+value = 1.143819e-07
+unit = "s"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.extract_rc" = "rc"
+"circuit.simulate" = "simulation"
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "artifact"
+
+[toolchain.backends.drc]
+type = "magic-physical-docker"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "drc"
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "drc(full)"
+grid_subdivision = 2
+support = "external-cache/physical"
+
+[toolchain.backends.drc.support_profiles]
+support = "physical"
+
+[toolchain.backends.lvs]
+type = "magic-physical-docker"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+check = "lvs"
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "ngspice()"
+setup = "sky130A_setup.tcl"
+grid_subdivision = 2
+support = "external-cache/physical"
+
+[toolchain.backends.lvs.support_profiles]
+support = "physical"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+
+[toolchain.backends.rc]
+type = "magic-rc-docker"
+
+[toolchain.backends.rc.settings]
+gds_readonly = false
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+technology = "sky130A.tech"
+tech_name = "sky130A"
+style = "ngspice()"
+grid_subdivision = 2
+support = "external-cache/magic"
+
+[toolchain.backends.rc.support_profiles]
+support = "magic"
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+timeout_seconds = 240
+compatibility = "hsa"
+support = "external-cache/models"
+
+[toolchain.backends.simulation.support_profiles]
+support = "models"
+
+[presentation]
+category = "Amplifiers & RF"
+summary = "Amplifies differential inputs with a 3.3 V rail-to-rail operational amplifier under the declared capacitive loads."

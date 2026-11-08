@@ -1,0 +1,40 @@
+** AUTHORED TEMPLATE — ldo/tran_load_step: fast lo->hi load step into Cout; undershoot + recovery.
+** Bindings: DUT PORT_LINE VDD COUT ILOAD_LO ILOAD_HI TSTART TEDGE TPULSE TPER TSTEP TSTOP VTOL
+**   PDK_INCLUDE.
+* Pinned upstream LDO fixture; existing IHP LV circuit and external bias.
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include dut.spice
+.temp 27
+.option rshunt=1e12 reltol=1e-5 abstol=1e-14 vntol=1e-8 method=gear maxord=2
+IBIAS vdd nbias 20u
+VREF vref 0 0.5
+VFB sense fb 0
+
+
+.param VDD=1.2
+
+Vdd  vdd 0 dc {VDD}
+Vss  vss 0 dc 0
+CLoad vout 0 1u
+Iload vout 0 pulse(0.1m 1m 5u 10n 10n 20u 40u)
+
+XDUT vdd vout vss nbias vref fb sense ldo_008_fer_mirror_ota
+
+.control
+  set filetype=binary
+  set noaskquit
+  tran 50n 30u
+  meas tran vout_min  MIN  v(vout) from=5u to=30u
+  meas tran vout_post FIND v(vout) AT=30u
+  let v_undershoot = vout_post - vout_min
+  * recovery: time after the step for v(vout) to re-enter the +/-VTOL band around its final value
+  let verr = abs(v(vout) - vout_post)
+  meas tran tcross WHEN verr=1m FALL=LAST
+  let t_transient = tcross - 5u
+  print v_undershoot t_transient
+  write transient.raw all
+  quit
+.endc
+.end

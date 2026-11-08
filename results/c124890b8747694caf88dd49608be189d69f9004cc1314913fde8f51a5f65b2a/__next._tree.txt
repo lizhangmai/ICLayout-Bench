@@ -1,0 +1,3 @@
+:HL["/ICLayout-Bench/_next/static/chunks/3sa54_ghi1h2h.css","style"]
+:HL["/ICLayout-Bench/brand/iclayout-bench.svg","image"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"path","param":{"type":"oc","key":"results/c124890b8747694caf88dd49608be189d69f9004cc1314913fde8f51a5f65b2a","siblings":[]},"prefetchHints":4192,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}},"staleTime":300,"buildId":"2hqB741EA4j7xWQVg6hu-"}

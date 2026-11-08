@@ -1,0 +1,39 @@
+* Two-injection external-loop return difference; SPDX-License-Identifier: MIT
+.lib /workspace/support/models/cornerMOSlv.lib mos_tt
+.lib /workspace/support/models/cornerCAP.lib cap_typ
+.lib /workspace/support/models/cornerRES.lib res_typ
+.include parameters.spice
+.include dut.spice
+.temp 27
+.option klu reltol=1e-5 abstol=1e-12 vntol=1e-8
+VDD vdd 0 1.5
+VIN vp 0 dc 0.4 ac 0
+IBIAS net1 0 2.4e-5
+VPROBE vm vout dc 0 ac 1
+IINJ 0 vm dc 0 ac 0
+XDUT 0 vdd vm vp vout net1 amp_014_ramos_pfc
+CLOAD vout 0 {load_f}
+.control
+set noaskquit
+set numdgt=15
+set measdgt=15
+ac dec 300 0.01 1g
+let bv=-i(VPROBE)
+let dv=v(vm)
+write voltage.raw frequency v(vm) v(vout) i(VPROBE)
+alter VPROBE acmag=0
+alter IINJ acmag=1
+ac dec 300 0.01 1g
+let aa=-i(VPROBE)
+let cc=v(vm)
+let bb=ac1.bv
+let dd=ac1.dv
+let delta=aa*dd-bb*cc
+let transfer=(2*delta-aa+dd)/(1-2*delta+aa-dd)
+let return_distance=mag(1+transfer)
+let minimum_return_distance=vecmin(return_distance)
+print minimum_return_distance
+write ac.raw frequency aa bb cc dd transfer return_distance
+quit
+.endc
+.end

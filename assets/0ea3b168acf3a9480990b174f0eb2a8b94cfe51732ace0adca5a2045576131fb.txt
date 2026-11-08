@@ -1,0 +1,33 @@
+* Reuse the pinned CACE slew_rise/slew_fall apparatus and crossing levels.
+* Report the measured interval, avoiding the source's hard-coded 2 V numerator
+* (the actual 0.5-to-(3.3-0.5) V interval spans 2.3 V).
+.include /workspace/support/models.spice
+.include dut.spice
+.include parameters.spice
+.temp 27
+.option klu rshunt=1e12 method=gear
+VDD vdd 0 3.3
+VENA ena 0 1.8
+VIN inp 0 PWL(0 {3.3*(1-rise)} 100n {3.3*(1-rise)} 100.1n {3.3*rise})
+EFB inm 0 out 0 1
+XDUT vdd out ena 0 inp inm sky130_ef_ip__opamp
+CLOAD out 0 {load_capacitance}
+.csparam rising={rise}
+.save v(inp) v(inm) v(out)
+.control
+set noaskquit
+tran 2n 10u 0 2n
+if $&rising
+  meas tran tlow WHEN v(out)=0.5 RISE=LAST
+  meas tran thigh WHEN v(out)=2.8 RISE=LAST
+  let slew_interval_s=thigh-tlow
+else
+  meas tran thigh WHEN v(out)=2.8 FALL=LAST
+  meas tran tlow WHEN v(out)=0.5 FALL=LAST
+  let slew_interval_s=tlow-thigh
+end
+print slew_interval_s
+write transient.raw v(inp) v(inm) v(out)
+quit
+.endc
+.end

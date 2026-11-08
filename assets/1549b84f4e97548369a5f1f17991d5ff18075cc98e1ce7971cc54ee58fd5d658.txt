@@ -1,0 +1,64 @@
+* Fixed native OTA measurement; all device parameters belong to dut.spice.
+.include "parameters.spice"
+.include "models.spice"
+.include "dut.spice"
+.temp {temperature_c}
+.options reltol=1e-6 abstol=1e-15 vntol=1e-9
+VDD vdd 0 {supply_v}
+IBIAS_S vdd ib_s {bias_a}
+IBIAS_L vdd ib_l {bias_a}
+VIN_S in_s 0 PWL(0 {common_v-.01} 0.5u {common_v-.01} 0.5001u {common_v+.01} 1.5u {common_v+.01} 1.5001u {common_v-.01})
+VIN_L in_l 0 PWL(0 {common_v-.25} 0.5u {common_v-.25} 0.5001u {common_v+.25} 1.5u {common_v+.25} 1.5001u {common_v-.25})
+CL_S out_s 0 {load_f}
+CL_L out_l 0 {load_f}
+XD_S vdd out_s in_s out_s ib_s 0 ota_5t
+XD_L vdd out_l in_l out_l ib_l 0 ota_5t
+.control
+set noaskquit
+set numdgt=12
+setcs sparse
+save v(in_s) v(out_s) v(in_l) v(out_l)
+tran 50p 2.5u 0 50p
+let small_error=v(out_s)-v(in_s)
+let large_error=v(out_l)-v(in_l)
+let common=v(in_s)[0]+.01
+meas tran small_initial_error avg small_error from=.25u to=.45u
+meas tran small_high_error avg small_error from=1.25u to=1.45u
+meas tran small_final_error avg small_error from=2.25u to=2.45u
+meas tran large_initial_error avg large_error from=.25u to=.45u
+meas tran large_high_error avg large_error from=1.25u to=1.45u
+meas tran large_final_error avg large_error from=2.25u to=2.45u
+let small_initial_v=small_initial_error+common-0.01
+let small_high_v=small_high_error+common+0.01
+let small_final_v=small_final_error+common-0.01
+let large_initial_v=large_initial_error+common-0.25
+let large_high_v=large_high_error+common+0.25
+let large_final_v=large_final_error+common-0.25
+let small_step_gain=(small_high_v-small_initial_v)/.02
+let large_step_gain=(large_high_v-large_initial_v)/.5
+let static_tracking_v=abs(small_high_error)
+let bad_rise_1pct=(abs(v(out_s)-small_high_v) gt 0.01*abs(small_high_v-small_initial_v)) * (time ge 5e-07) * (time le 1.25e-06)
+let settle_rise_1pct_s=vecmax(bad_rise_1pct*(time-5e-07))
+let bad_rise_01pct=(abs(v(out_s)-small_high_v) gt 0.001*abs(small_high_v-small_initial_v)) * (time ge 5e-07) * (time le 1.25e-06)
+let settle_rise_01pct_s=vecmax(bad_rise_01pct*(time-5e-07))
+let final_bad=(abs(v(out_s)-small_high_v) gt .001*abs(small_high_v-small_initial_v)) * (time ge 1.2000000000000002e-06) * (time le 1.25e-06)
+let settled_rise=1-vecmax(final_bad)
+let bad_fall_1pct=(abs(v(out_s)-small_final_v) gt 0.01*abs(small_final_v-small_high_v)) * (time ge 1.5e-06) * (time le 2.25e-06)
+let settle_fall_1pct_s=vecmax(bad_fall_1pct*(time-1.5e-06))
+let bad_fall_01pct=(abs(v(out_s)-small_final_v) gt 0.001*abs(small_final_v-small_high_v)) * (time ge 1.5e-06) * (time le 2.25e-06)
+let settle_fall_01pct_s=vecmax(bad_fall_01pct*(time-1.5e-06))
+let final_bad=(abs(v(out_s)-small_final_v) gt .001*abs(small_final_v-small_high_v)) * (time ge 2.2e-06) * (time le 2.25e-06)
+let settled_fall=1-vecmax(final_bad)
+let normalized_rise=(v(out_l)-large_initial_v)/(large_high_v-large_initial_v)
+meas tran rise_t20 when normalized_rise=.2 rise=1 td=5e-07
+meas tran rise_t80 when normalized_rise=.8 rise=1 td=5e-07
+let slew_rise_v_s=.6*abs(large_high_v-large_initial_v)/(rise_t80-rise_t20)
+let normalized_fall=(v(out_l)-large_high_v)/(large_final_v-large_high_v)
+meas tran fall_t20 when normalized_fall=.2 rise=1 td=1.5e-06
+meas tran fall_t80 when normalized_fall=.8 rise=1 td=1.5e-06
+let slew_fall_v_s=.6*abs(large_final_v-large_high_v)/(fall_t80-fall_t20)
+print small_step_gain large_step_gain static_tracking_v settle_rise_1pct_s settle_fall_1pct_s settle_rise_01pct_s settle_fall_01pct_s settled_rise settled_fall slew_rise_v_s slew_fall_v_s
+write waveform.raw
+quit
+.endc
+.end

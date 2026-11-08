@@ -1,0 +1,56 @@
+# 160 GHz SiGe Low-Noise Amplifier
+
+## Objective
+
+Implement the supplied four-stage common-emitter LNA in IHP SG13G2. Preserve the complete circuit and supplied fixed RF passives. Optimize worst in-band gain and input/output matching against the paired source simulation. A physically valid reference establishes feasibility; it need not meet a performance target.
+
+### Optimization objective
+
+Maximize the declared quality score within the solve budget while satisfying all physical and necessary functional requirements. The first passing DRC, LVS and required electrical checks establish a feasible baseline. Continue improving the scored metrics from that baseline; a passing check or `task_success = true` does not mean that the quality objectives have been achieved.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the complete physical core with four HBTs, eight resistors, three MIM decoupler banks and nine three-terminal RF MIM capacitors. Preserve every model, dimension, multiplier, connection and ordered top-level terminal. `materials/circuit.spice` is its declared simulation representation. Native `rfcmim` is an explicit parameter-preserving alias of the PDK `cap_rfcmim`, including each capacitor's actual feed width.
+
+`materials/rf-macros.gds`, `rf-macros.json` and `rf-models.spice` supply twelve fixed transmission-line cells, the BEOL ground context and the pinned upstream S2P conversions. The public amplifier ports are RF_INPUT, RF_OUTPUT, VCC, VBB1, VBB2 and GND; the core additionally exposes four choke, four emitter-degeneration and four shunt matching terminals named in its subcircuit declaration. Connect only at the declared physical landings.
+
+## Operating Conditions
+
+Use typical HBT/resistor/capacitor models at 26.85 °C, VCC=1.35 V, VBB1=0.90 V and VBB2=0.93 V. Both ports have a 50 Ω reference and 5 µF fixture DC blocks. The paired source and candidate use the same 109-point linear sweep from 146 to 173 GHz, inside the supplied model coverage. The original independent sources with equal voltage are grouped onto the physical rails; all physical decouplers remain present. The fixture supplies a 1 TΩ numerical reference shunt.
+
+## Physical Requirements
+
+Submit a single GDS top cell `FMD_QNC_04_160GHz_LNA`, at most 32 MiB, within a 1200×1200 µm functional outline. Native DRC, strict circuit/port LVS and fixed-macro checks must pass. Only individually enumerated inherited curved-edge and recommended package-exit markers are excepted; core spacing, enclosure and functional rules remain enforced. Exceptions retain their declared cell and coordinate scope, so a relocated assembly must still satisfy the complete DRC plan.
+
+Place exactly one instance of every supplied protected cell, preserving its per-layer geometry and the assembly's relative pose. A common grid-aligned translation, 90-degree rotation or mirror is allowed. Make free-core connections at declared landings; do not modify, duplicate, flatten-copy or bypass fixed RF bodies. Matching lines are shunt networks, not series replacements.
+
+The evaluator verifies macro geometry, then replaces each RF body with its existing terminal landings for native extraction. It retains all native devices and extracts nominal 2.5D coupling capacitance from candidate geometry using KPEX. Fixed RF line response comes from the upstream S2P models. This co-simulation includes candidate capacitance; it does not model free-wire R/L or new full-wave interactions. Physical boundaries were reconstructed from upstream GDS and native terminals; independent upstream EM port-plane calibration is unavailable. The task does not claim that additional accuracy.
+
+## Electrical Requirements and Scoring
+
+Finite completed operating-point and RF measurements are required. Squared reflections and peak-to-peak delay must be nonnegative; no quality-score floor or reference-relative performance cutoff determines feasibility.
+
+For each metric, degradation is measured against the frozen source under the same conditions. Quality is 1 for equal or better performance and `1/(1+d/s)` for positive degradation `d` at scale `s`. The final score is 100 times the weighted geometric mean, after physical and execution validity checks.
+
+| Metric | Reduction over 146–173 GHz | Scale | Weight |
+| --- | --- | --- | --- |
+| `band_gain` | Minimum `20 log10(abs(S21))` | 3 dB loss | 60% |
+| `input_reflection` | Maximum `abs(S11)^2` | 0.05 increase | 25% |
+| `output_reflection` | Maximum `abs(S22)^2` | 0.05 increase | 15% |
+
+Group-delay ripple, DC power and functional area are diagnostics. Noise is not scored: the upstream pi and S2P implementations have not established equivalent noise accuracy. There are no easy bias, supply or area credits. Invalid physical or circuit submissions receive zero.
+
+## Tools and Submission
+
+Solve budget: **1.5 hours**.
+
+Use the declared open EDA environment and reviewed IHP resources. The supported flow uses KLayout for native DRC/LVS and layout work, KPEX for candidate capacitance and ngspice for the complete RF simulation. Submit `output/final.gds`; the evaluator freezes and independently checks it. Source code and author reference assets are not needed at evaluation time.
+
+### Solve workflow
+
+1. Read the declared circuit and materials, `/protocol/task.json` for paths, constraints and reviewed resources, and `/protocol/harness.json` for capabilities and helper commands. Task inputs under `/task` and resources under `/resources` are read-only; construct the layout in `/workspace` with the declared tools. With layout MCP, paths and commands refer to the remote EDA workspace. Create your own implementation with real devices, interconnect and pins, using your own tool loop without delegating to other agents; reference layouts and author code are not solver inputs.
+2. Inspect `resources.external` before using external tools. Each command starts a fresh shell: when tool modules are declared, source `/usr/share/Modules/init/bash` and load the selected tool's modules; export its declared `tool_environment` settings in that same command. Repeat as needed and use batch or headless operation. Local manuals, command references, and release notes may be available within the declared EDA installation and PDK resource directories. Locate these resources through `/protocol/task.json` and consult the documentation for the installed tool version when diagnosing unfamiliar syntax or tool failures.
+3. Generate an initial candidate and submit a snapshot early. When `process-feedback` is available, check the current GDS with layout MCP `check` or `python -I /protocol/process_check.py` before the final submission. This runs the final evaluator's complete plan and returns engineering diagnostics and candidate measurements, without scores or normalized quality factors. Checks have no count limit and consume the same wall-clock budget. Inspect the physical and functional results and all scored metrics; successful tool execution alone does not establish requirement satisfaction. Read paginated diagnostics with `report` when using MCP. Local exploratory checks do not replace this complete check.
+4. Use the remaining time for measured improvements to the declared quality objectives. Identify the limiting scored metrics, make targeted layout changes, regenerate and check the candidate, and compare measurements with the previous candidate and the stated scoring targets and trade-offs. Preserve the best valid candidate and revert changes that worsen the overall objective. Repeat while time and useful improvements remain; passing validity checks alone is not a stopping condition.
+5. Stop optimization when the budget expires, all declared quality objectives are achieved, or measured trials support convergence. If stopping early, explain the changes tried, the metric comparisons and the remaining limitations. Track remaining time through session status. At soft-budget expiry, finish or cancel already-started work and submit immediately; do not start another command, check or optimization round. If an MCP execution is running, use `poll` with its `execution_id` and the returned `next_offset` as `offset` until completion, or cancel it and wait for it to stop.
+6. Finish or cancel outstanding work, restore your best candidate to the declared output path, and explicitly submit it before ending the session. With layout MCP `submit`, remove the `/workspace/` prefix from `output.path`; with the container interface, run `python -I /protocol/submit.py`. Wait for the receipt: only the last accepted snapshot is judged, and writing a file alone is not submission. Acceptance confirms delivery; the framework independently evaluates validity and quality after the session.

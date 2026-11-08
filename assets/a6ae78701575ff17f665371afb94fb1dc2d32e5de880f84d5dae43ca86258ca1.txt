@@ -1,0 +1,1184 @@
+kind = "layout_case"
+id = "TO_Apr2025.160GHz_LNA"
+title = "160 GHz four-stage SiGe LNA with fixed upstream RF passives"
+status = "qualified"
+in_core = false
+
+[task]
+hours = 1.5
+coefficient = 6
+kind = "netlist_to_gds"
+family = "ihp_sg13g2_hbt_lna_physical"
+environment = "ihp-sg13g2-rf"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "0e68fad2eaec7b35aeef4cea062d52895c8f3310a1191721ba1687e65a2acc7c"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+subcircuit = "FMD_QNC_04_160GHz_LNA"
+sha256 = "00e866300b2c9d1018953b42777a5bc4ededde075018d3ad27a5dc5281110cbd"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "3b387c0ffbf0dad0c5f21f112664e6a256a2254e7309747dfe8cc3e1992472f4"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "01f68e8b01aacc4d71fd875b19bc6d25c7e26c5ecbd0fb7998a706104abe2d77"
+
+[task.inputs.macrolibrary]
+path = "materials/rf-macros.gds"
+format = "gds"
+sha256 = "9e0ed664452aa800d1c053b08a136735a28bfd721c61f66eabeb44ebd28b4f2b"
+
+[task.inputs.macrospec]
+path = "materials/rf-macros.json"
+format = "json"
+sha256 = "40b82bb91749d4dc168326c7f685068a99ffb3838a72c6c504281288675e5039"
+
+[task.inputs.macros]
+path = "materials/rf-models.spice"
+format = "spice"
+sha256 = "3e859f58343179cb7b030bb691ec887dbc1895e10c2fc8e3ba5749b7a8c445aa"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 1200
+max_height_um = 1200
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "FMD_QNC_04_160GHz_LNA"
+max_bytes = 33554432
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 1440000
+rationale = "Worst in-band gain and the two port reflections assess RF quality against the same-condition source, with 3 dB and 0.05 reflected-power scales. Delay, bias, power and fixed-frame area are diagnostics. Quality does not impose a feasibility cutoff. Noise is excluded until model accuracy is established."
+
+[task.evaluation.scoring.weights]
+functional_area = 0
+band_gain = 0.6
+input_reflection = 0.25
+output_reflection = 0.15
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "'Pad.fR_M1'"
+cell = "FMD_QNC_04_160GHz_LNA"
+markers = [
+    "polygon: (373.56,252.84;373.56,253.02;373.74,253.02;373.74,252.84)",
+    "polygon: (373.56,283.02;373.56,283.2;373.74,283.2;373.74,283.02)",
+    "polygon: (373.56,524.46;373.56,524.64;373.74,524.64;373.74,524.46)",
+    "polygon: (373.56,554.64;373.56,554.82;373.74,554.82;373.74,554.64)",
+    "polygon: (373.56,675.36;373.56,675.54;373.74,675.54;373.74,675.36)",
+    "polygon: (373.56,705.54;373.56,705.72;373.74,705.72;373.74,705.54)",
+    "polygon: (373.56,946.98;373.56,947.16;373.74,947.16;373.74,946.98)",
+    "polygon: (403.74,916.8;403.74,916.98;403.92,916.98;403.92,916.8)",
+    "polygon: (403.74,977.16;403.74,977.34;403.92,977.34;403.92,977.16)",
+    "polygon: (494.28,916.8;494.28,916.98;494.46,916.98;494.46,916.8)",
+    "polygon: (494.28,977.16;494.28,977.34;494.46,977.34;494.46,977.16)",
+    "polygon: (524.46,916.8;524.46,916.98;524.64,916.98;524.64,916.8)",
+    "polygon: (524.46,977.16;524.46,977.34;524.64,977.34;524.64,977.16)",
+    "polygon: (584.82,916.8;584.82,916.98;585,916.98;585,916.8)",
+    "polygon: (584.82,977.16;584.82,977.34;585,977.34;585,977.16)",
+    "polygon: (615,916.8;615,916.98;615.18,916.98;615.18,916.8)",
+    "polygon: (615,977.16;615,977.34;615.18,977.34;615.18,977.16)",
+    "polygon: (675.36,252.84;675.36,253.02;675.54,253.02;675.54,252.84)",
+    "polygon: (675.36,283.02;675.36,283.2;675.54,283.2;675.54,283.02)",
+    "polygon: (675.36,946.98;675.36,947.16;675.54,947.16;675.54,946.98)",
+    "polygon: (705.54,916.8;705.54,916.98;705.72,916.98;705.72,916.8)",
+    "polygon: (705.54,977.16;705.54,977.34;705.72,977.34;705.72,977.16)",
+    "polygon: (796.08,916.8;796.08,916.98;796.26,916.98;796.26,916.8)",
+    "polygon: (796.08,977.16;796.08,977.34;796.26,977.34;796.26,977.16)",
+    "polygon: (826.26,916.8;826.26,916.98;826.44,916.98;826.44,916.8)",
+    "polygon: (826.26,977.16;826.26,977.34;826.44,977.34;826.44,977.16)",
+]
+reason = "Exact inherited curved fixed-RF edges or recommended package-exit markers. Core geometry, spacing, enclosure and functional checks remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "metal2_drw_Angle45"
+cell = "FMD_QNC_04_160GHz_LNA"
+markers = [
+    "edge: (502.56,394.705;518.15,367.705)",
+    "edge: (516.42,364.705;500.83,391.705)",
+    "edge: (526.16,387.125;530.53,394.705)",
+    "edge: (526.59,386.375;526.16,387.125)",
+    "edge: (529.62,387.125;533.04,381.205)",
+    "edge: (529.625,372.275;532.26,367.705)",
+    "edge: (530.53,364.705;526.625,371.465)",
+    "edge: (531.3,378.205;526.59,386.375)",
+    "edge: (532.26,391.705;529.62,387.125)",
+    "edge: (545.135,367.705;548.165,372.955)",
+    "edge: (546.865,381.205;551.625,372.955)",
+    "edge: (546.865,394.705;551.16,387.26)",
+    "edge: (548.16,386.45;545.125,391.705)",
+    "edge: (548.165,372.955;545.135,378.205)",
+    "edge: (551.055,371.965;546.865,364.705)",
+    "edge: (551.625,372.955;551.055,371.965)",
+]
+reason = "Exact inherited curved fixed-RF edges or recommended package-exit markers. Core geometry, spacing, enclosure and functional checks remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "metal3_drw_Angle45"
+cell = "FMD_QNC_04_160GHz_LNA"
+markers = [
+    "edge: (502.56,394.705;518.15,367.705)",
+    "edge: (516.42,364.705;500.83,391.705)",
+    "edge: (526.16,387.125;530.53,394.705)",
+    "edge: (526.59,386.375;526.16,387.125)",
+    "edge: (529.62,387.125;533.04,381.205)",
+    "edge: (529.625,372.275;532.26,367.705)",
+    "edge: (530.53,364.705;526.625,371.465)",
+    "edge: (531.3,378.205;526.59,386.375)",
+    "edge: (532.26,391.705;529.62,387.125)",
+    "edge: (545.135,367.705;548.165,372.955)",
+    "edge: (546.865,381.205;551.625,372.955)",
+    "edge: (546.865,394.705;551.16,387.26)",
+    "edge: (548.16,386.45;545.125,391.705)",
+    "edge: (548.165,372.955;545.135,378.205)",
+    "edge: (551.055,371.965;546.865,364.705)",
+    "edge: (551.625,372.955;551.055,371.965)",
+]
+reason = "Exact inherited curved fixed-RF edges or recommended package-exit markers. Core geometry, spacing, enclosure and functional checks remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "metal4_drw_Angle45"
+cell = "FMD_QNC_04_160GHz_LNA"
+markers = [
+    "edge: (502.56,394.705;518.15,367.705)",
+    "edge: (516.42,364.705;500.83,391.705)",
+    "edge: (526.16,387.125;530.53,394.705)",
+    "edge: (526.59,386.375;526.16,387.125)",
+    "edge: (529.62,387.125;533.04,381.205)",
+    "edge: (529.625,372.275;532.26,367.705)",
+    "edge: (530.53,364.705;526.625,371.465)",
+    "edge: (531.3,378.205;526.59,386.375)",
+    "edge: (532.26,391.705;529.62,387.125)",
+    "edge: (545.135,367.705;548.165,372.955)",
+    "edge: (546.865,381.205;551.625,372.955)",
+    "edge: (546.865,394.705;551.16,387.26)",
+    "edge: (548.16,386.45;545.125,391.705)",
+    "edge: (548.165,372.955;545.135,378.205)",
+    "edge: (551.055,371.965;546.865,364.705)",
+    "edge: (551.625,372.955;551.055,371.965)",
+]
+reason = "Exact inherited curved fixed-RF edges or recommended package-exit markers. Core geometry, spacing, enclosure and functional checks remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "metal5_drw_Angle45"
+cell = "FMD_QNC_04_160GHz_LNA"
+markers = [
+    "edge: (502.56,394.705;518.15,367.705)",
+    "edge: (516.42,364.705;500.83,391.705)",
+    "edge: (526.16,387.125;530.53,394.705)",
+    "edge: (526.59,386.375;526.16,387.125)",
+    "edge: (529.62,387.125;533.04,381.205)",
+    "edge: (529.625,372.275;532.26,367.705)",
+    "edge: (530.53,364.705;526.625,371.465)",
+    "edge: (531.3,378.205;526.59,386.375)",
+    "edge: (532.26,391.705;529.62,387.125)",
+    "edge: (545.135,367.705;548.165,372.955)",
+    "edge: (546.865,381.205;551.625,372.955)",
+    "edge: (546.865,394.705;551.16,387.26)",
+    "edge: (548.16,386.45;545.125,391.705)",
+    "edge: (548.165,372.955;545.135,378.205)",
+    "edge: (551.055,371.965;546.865,364.705)",
+    "edge: (551.625,372.955;551.055,371.965)",
+]
+reason = "Exact inherited curved fixed-RF edges or recommended package-exit markers. Core geometry, spacing, enclosure and functional checks remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal1_drw_Angle45"
+cell = "FMD_QNC_04_160GHz_LNA"
+markers = [
+    "edge: (502.56,394.705;518.15,367.705)",
+    "edge: (516.42,364.705;500.83,391.705)",
+    "edge: (526.16,387.125;530.53,394.705)",
+    "edge: (526.59,386.375;526.16,387.125)",
+    "edge: (529.62,387.125;533.04,381.205)",
+    "edge: (529.625,372.275;532.26,367.705)",
+    "edge: (530.53,364.705;526.625,371.465)",
+    "edge: (531.3,378.205;526.59,386.375)",
+    "edge: (532.26,391.705;529.62,387.125)",
+    "edge: (545.135,367.705;548.165,372.955)",
+    "edge: (546.865,381.205;551.625,372.955)",
+    "edge: (546.865,394.705;551.16,387.26)",
+    "edge: (548.16,386.45;545.125,391.705)",
+    "edge: (548.165,372.955;545.135,378.205)",
+    "edge: (551.055,371.965;546.865,364.705)",
+    "edge: (551.625,372.955;551.055,371.965)",
+]
+reason = "Exact inherited curved fixed-RF edges or recommended package-exit markers. Core geometry, spacing, enclosure and functional checks remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal2_drw_Angle45"
+cell = "FMD_QNC_04_160GHz_LNA"
+markers = [
+    "edge: (502.56,394.705;518.15,367.705)",
+    "edge: (516.42,364.705;500.83,391.705)",
+    "edge: (526.16,387.125;530.53,394.705)",
+    "edge: (526.59,386.375;526.16,387.125)",
+    "edge: (529.62,387.125;533.04,381.205)",
+    "edge: (529.625,372.275;532.26,367.705)",
+    "edge: (530.53,364.705;526.625,371.465)",
+    "edge: (531.3,378.205;526.59,386.375)",
+    "edge: (532.26,391.705;529.62,387.125)",
+    "edge: (545.135,367.705;548.165,372.955)",
+    "edge: (546.865,381.205;551.625,372.955)",
+    "edge: (546.865,394.705;551.16,387.26)",
+    "edge: (548.16,386.45;545.125,391.705)",
+    "edge: (548.165,372.955;545.135,378.205)",
+    "edge: (551.055,371.965;546.865,364.705)",
+    "edge: (551.625,372.955;551.055,371.965)",
+]
+reason = "Exact inherited curved fixed-RF edges or recommended package-exit markers. Core geometry, spacing, enclosure and functional checks remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal2_drw_Angle45"
+cell = "RF_MATCH1"
+markers = [
+    "edge: (10.345,82.485;10.825,82.575)",
+    "edge: (10.825,82.575;11.305,82.64)",
+    "edge: (11.305,82.64;11.79,82.675)",
+    "edge: (11.79,82.675;12.275,82.69)",
+    "edge: (12.005,73.46;12,73.445)",
+    "edge: (12.02,73.515;12.005,73.47)",
+    "edge: (12.025,73.525;12.02,73.515)",
+    "edge: (12.03,73.54;12.025,73.525)",
+    "edge: (12.035,73.55;12.03,73.54)",
+    "edge: (12.045,73.565;12.035,73.55)",
+    "edge: (12.06,73.59;12.055,73.575)",
+    "edge: (12.115,73.635;12.1,73.63)",
+    "edge: (12.14,73.655;12.125,73.645)",
+    "edge: (12.15,73.66;12.14,73.655)",
+    "edge: (12.165,73.665;12.15,73.66)",
+    "edge: (12.175,73.67;12.165,73.665)",
+    "edge: (12.22,73.685;12.175,73.67)",
+    "edge: (12.245,73.69;12.23,73.685)",
+    "edge: (16.305,82.69;16.32,82.695)",
+    "edge: (16.33,82.695;16.375,82.71)",
+    "edge: (16.375,82.71;16.385,82.715)",
+    "edge: (16.385,82.715;16.4,82.72)",
+    "edge: (16.4,82.72;16.41,82.725)",
+    "edge: (16.41,82.725;16.425,82.735)",
+    "edge: (16.435,82.745;16.45,82.75)",
+    "edge: (16.49,82.79;16.495,82.805)",
+    "edge: (16.505,82.815;16.515,82.83)",
+    "edge: (16.515,82.83;16.52,82.84)",
+    "edge: (16.52,82.84;16.525,82.855)",
+    "edge: (16.525,82.855;16.53,82.865)",
+    "edge: (16.53,82.865;16.545,82.91)",
+    "edge: (16.545,82.92;16.55,82.935)",
+    "edge: (16.76,73.705;16.275,73.69)",
+    "edge: (17.245,73.74;16.76,73.705)",
+    "edge: (17.725,73.805;17.245,73.74)",
+    "edge: (18.205,73.895;17.725,73.805)",
+    "edge: (18.675,74.005;18.205,73.895)",
+    "edge: (19.14,74.145;18.675,74.005)",
+    "edge: (19.6,74.305;19.14,74.145)",
+    "edge: (20.045,74.49;19.6,74.305)",
+    "edge: (20.485,74.7;20.045,74.49)",
+    "edge: (20.91,74.935;20.485,74.7)",
+    "edge: (21.325,75.185;20.91,74.935)",
+    "edge: (21.725,75.46;21.325,75.185)",
+    "edge: (22.11,75.755;21.725,75.46)",
+    "edge: (22.48,76.075;22.11,75.755)",
+    "edge: (22.835,76.405;22.48,76.075)",
+    "edge: (23.165,76.76;22.835,76.405)",
+    "edge: (23.485,77.13;23.165,76.76)",
+    "edge: (23.78,77.515;23.485,77.13)",
+    "edge: (24.055,77.915;23.78,77.515)",
+    "edge: (24.305,78.33;24.055,77.915)",
+    "edge: (24.54,78.755;24.305,78.33)",
+    "edge: (24.75,79.195;24.54,78.755)",
+    "edge: (24.935,79.64;24.75,79.195)",
+    "edge: (25.095,80.1;24.935,79.64)",
+    "edge: (25.235,80.565;25.095,80.1)",
+    "edge: (25.345,81.035;25.235,80.565)",
+    "edge: (25.435,81.515;25.345,81.035)",
+    "edge: (25.5,81.995;25.435,81.515)",
+    "edge: (25.535,82.48;25.5,81.995)",
+    "edge: (25.55,82.965;25.535,82.48)",
+    "edge: (3,73.415;3.015,73.9)",
+    "edge: (3.015,73.9;3.05,74.385)",
+    "edge: (3.05,74.385;3.115,74.865)",
+    "edge: (3.115,74.865;3.205,75.345)",
+    "edge: (3.205,75.345;3.315,75.815)",
+    "edge: (3.315,75.815;3.455,76.28)",
+    "edge: (3.455,76.28;3.615,76.74)",
+    "edge: (3.615,76.74;3.8,77.185)",
+    "edge: (3.8,77.185;4.01,77.625)",
+    "edge: (4.01,77.625;4.245,78.05)",
+    "edge: (4.245,78.05;4.495,78.465)",
+    "edge: (4.495,78.465;4.77,78.865)",
+    "edge: (4.77,78.865;5.065,79.25)",
+    "edge: (5.065,79.25;5.385,79.62)",
+    "edge: (5.385,79.62;5.715,79.975)",
+    "edge: (5.715,79.975;6.07,80.305)",
+    "edge: (6.07,80.305;6.44,80.625)",
+    "edge: (6.44,80.625;6.825,80.92)",
+    "edge: (6.825,80.92;7.225,81.195)",
+    "edge: (7.225,81.195;7.64,81.445)",
+    "edge: (7.64,81.445;8.065,81.68)",
+    "edge: (8.065,81.68;8.505,81.89)",
+    "edge: (8.505,81.89;8.95,82.075)",
+    "edge: (8.95,82.075;9.41,82.235)",
+    "edge: (9.41,82.235;9.875,82.375)",
+    "edge: (9.875,82.375;10.345,82.485)",
+]
+reason = "Exact inherited curved fixed-RF edges or recommended package-exit markers. Core geometry, spacing, enclosure and functional checks remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal2_drw_Angle45"
+cell = "RF_MATCH2"
+markers = [
+    "edge: (10.345,110.485;10.825,110.575)",
+    "edge: (10.825,110.575;11.305,110.64)",
+    "edge: (11.305,110.64;11.79,110.675)",
+    "edge: (11.79,110.675;12.275,110.69)",
+    "edge: (12.005,101.46;12,101.445)",
+    "edge: (12.02,101.515;12.005,101.47)",
+    "edge: (12.025,101.525;12.02,101.515)",
+    "edge: (12.03,101.54;12.025,101.525)",
+    "edge: (12.035,101.55;12.03,101.54)",
+    "edge: (12.045,101.565;12.035,101.55)",
+    "edge: (12.06,101.59;12.055,101.575)",
+    "edge: (12.115,101.635;12.1,101.63)",
+    "edge: (12.14,101.655;12.125,101.645)",
+    "edge: (12.15,101.66;12.14,101.655)",
+    "edge: (12.165,101.665;12.15,101.66)",
+    "edge: (12.175,101.67;12.165,101.665)",
+    "edge: (12.22,101.685;12.175,101.67)",
+    "edge: (12.245,101.69;12.23,101.685)",
+    "edge: (16.305,110.69;16.32,110.695)",
+    "edge: (16.33,110.695;16.375,110.71)",
+    "edge: (16.375,110.71;16.385,110.715)",
+    "edge: (16.385,110.715;16.4,110.72)",
+    "edge: (16.4,110.72;16.41,110.725)",
+    "edge: (16.41,110.725;16.425,110.735)",
+    "edge: (16.435,110.745;16.45,110.75)",
+    "edge: (16.49,110.79;16.495,110.805)",
+    "edge: (16.505,110.815;16.515,110.83)",
+    "edge: (16.515,110.83;16.52,110.84)",
+    "edge: (16.52,110.84;16.525,110.855)",
+    "edge: (16.525,110.855;16.53,110.865)",
+    "edge: (16.53,110.865;16.545,110.91)",
+    "edge: (16.545,110.92;16.55,110.935)",
+    "edge: (16.76,101.705;16.275,101.69)",
+    "edge: (17.245,101.74;16.76,101.705)",
+    "edge: (17.725,101.805;17.245,101.74)",
+    "edge: (18.205,101.895;17.725,101.805)",
+    "edge: (18.675,102.005;18.205,101.895)",
+    "edge: (19.14,102.145;18.675,102.005)",
+    "edge: (19.6,102.305;19.14,102.145)",
+    "edge: (20.045,102.49;19.6,102.305)",
+    "edge: (20.485,102.7;20.045,102.49)",
+    "edge: (20.91,102.935;20.485,102.7)",
+    "edge: (21.325,103.185;20.91,102.935)",
+    "edge: (21.725,103.46;21.325,103.185)",
+    "edge: (22.11,103.755;21.725,103.46)",
+    "edge: (22.48,104.075;22.11,103.755)",
+    "edge: (22.835,104.405;22.48,104.075)",
+    "edge: (23.165,104.76;22.835,104.405)",
+    "edge: (23.485,105.13;23.165,104.76)",
+    "edge: (23.78,105.515;23.485,105.13)",
+    "edge: (24.055,105.915;23.78,105.515)",
+    "edge: (24.305,106.33;24.055,105.915)",
+    "edge: (24.54,106.755;24.305,106.33)",
+    "edge: (24.75,107.195;24.54,106.755)",
+    "edge: (24.935,107.64;24.75,107.195)",
+    "edge: (25.095,108.1;24.935,107.64)",
+    "edge: (25.235,108.565;25.095,108.1)",
+    "edge: (25.345,109.035;25.235,108.565)",
+    "edge: (25.435,109.515;25.345,109.035)",
+    "edge: (25.5,109.995;25.435,109.515)",
+    "edge: (25.535,110.48;25.5,109.995)",
+    "edge: (25.55,110.965;25.535,110.48)",
+    "edge: (3,101.415;3.015,101.9)",
+    "edge: (3.015,101.9;3.05,102.385)",
+    "edge: (3.05,102.385;3.115,102.865)",
+    "edge: (3.115,102.865;3.205,103.345)",
+    "edge: (3.205,103.345;3.315,103.815)",
+    "edge: (3.315,103.815;3.455,104.28)",
+    "edge: (3.455,104.28;3.615,104.74)",
+    "edge: (3.615,104.74;3.8,105.185)",
+    "edge: (3.8,105.185;4.01,105.625)",
+    "edge: (4.01,105.625;4.245,106.05)",
+    "edge: (4.245,106.05;4.495,106.465)",
+    "edge: (4.495,106.465;4.77,106.865)",
+    "edge: (4.77,106.865;5.065,107.25)",
+    "edge: (5.065,107.25;5.385,107.62)",
+    "edge: (5.385,107.62;5.715,107.975)",
+    "edge: (5.715,107.975;6.07,108.305)",
+    "edge: (6.07,108.305;6.44,108.625)",
+    "edge: (6.44,108.625;6.825,108.92)",
+    "edge: (6.825,108.92;7.225,109.195)",
+    "edge: (7.225,109.195;7.64,109.445)",
+    "edge: (7.64,109.445;8.065,109.68)",
+    "edge: (8.065,109.68;8.505,109.89)",
+    "edge: (8.505,109.89;8.95,110.075)",
+    "edge: (8.95,110.075;9.41,110.235)",
+    "edge: (9.41,110.235;9.875,110.375)",
+    "edge: (9.875,110.375;10.345,110.485)",
+]
+reason = "Exact inherited curved fixed-RF edges or recommended package-exit markers. Core geometry, spacing, enclosure and functional checks remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal2_drw_Angle45"
+cell = "RF_MATCH3"
+markers = [
+    "edge: (10.345,105.985;10.825,106.075)",
+    "edge: (10.825,106.075;11.305,106.14)",
+    "edge: (11.305,106.14;11.79,106.175)",
+    "edge: (11.79,106.175;12.275,106.19)",
+    "edge: (12.005,96.96;12,96.945)",
+    "edge: (12.02,97.015;12.005,96.97)",
+    "edge: (12.025,97.025;12.02,97.015)",
+    "edge: (12.03,97.04;12.025,97.025)",
+    "edge: (12.035,97.05;12.03,97.04)",
+    "edge: (12.045,97.065;12.035,97.05)",
+    "edge: (12.06,97.09;12.055,97.075)",
+    "edge: (12.115,97.135;12.1,97.13)",
+    "edge: (12.14,97.155;12.125,97.145)",
+    "edge: (12.15,97.16;12.14,97.155)",
+    "edge: (12.165,97.165;12.15,97.16)",
+    "edge: (12.175,97.17;12.165,97.165)",
+    "edge: (12.22,97.185;12.175,97.17)",
+    "edge: (12.245,97.19;12.23,97.185)",
+    "edge: (16.305,106.19;16.32,106.195)",
+    "edge: (16.33,106.195;16.375,106.21)",
+    "edge: (16.375,106.21;16.385,106.215)",
+    "edge: (16.385,106.215;16.4,106.22)",
+    "edge: (16.4,106.22;16.41,106.225)",
+    "edge: (16.41,106.225;16.425,106.235)",
+    "edge: (16.435,106.245;16.45,106.25)",
+    "edge: (16.49,106.29;16.495,106.305)",
+    "edge: (16.505,106.315;16.515,106.33)",
+    "edge: (16.515,106.33;16.52,106.34)",
+    "edge: (16.52,106.34;16.525,106.355)",
+    "edge: (16.525,106.355;16.53,106.365)",
+    "edge: (16.53,106.365;16.545,106.41)",
+    "edge: (16.545,106.42;16.55,106.435)",
+    "edge: (16.76,97.205;16.275,97.19)",
+    "edge: (17.245,97.24;16.76,97.205)",
+    "edge: (17.725,97.305;17.245,97.24)",
+    "edge: (18.205,97.395;17.725,97.305)",
+    "edge: (18.675,97.505;18.205,97.395)",
+    "edge: (19.14,97.645;18.675,97.505)",
+    "edge: (19.6,97.805;19.14,97.645)",
+    "edge: (20.045,97.99;19.6,97.805)",
+    "edge: (20.485,98.2;20.045,97.99)",
+    "edge: (20.91,98.435;20.485,98.2)",
+    "edge: (21.325,98.685;20.91,98.435)",
+    "edge: (21.725,98.96;21.325,98.685)",
+    "edge: (22.11,99.255;21.725,98.96)",
+    "edge: (22.48,99.575;22.11,99.255)",
+    "edge: (22.835,99.905;22.48,99.575)",
+    "edge: (23.165,100.26;22.835,99.905)",
+    "edge: (23.485,100.63;23.165,100.26)",
+    "edge: (23.78,101.015;23.485,100.63)",
+    "edge: (24.055,101.415;23.78,101.015)",
+    "edge: (24.305,101.83;24.055,101.415)",
+    "edge: (24.54,102.255;24.305,101.83)",
+    "edge: (24.75,102.695;24.54,102.255)",
+    "edge: (24.935,103.14;24.75,102.695)",
+    "edge: (25.095,103.6;24.935,103.14)",
+    "edge: (25.235,104.065;25.095,103.6)",
+    "edge: (25.345,104.535;25.235,104.065)",
+    "edge: (25.435,105.015;25.345,104.535)",
+    "edge: (25.5,105.495;25.435,105.015)",
+    "edge: (25.535,105.98;25.5,105.495)",
+    "edge: (25.55,106.465;25.535,105.98)",
+    "edge: (3,96.915;3.015,97.4)",
+    "edge: (3.015,97.4;3.05,97.885)",
+    "edge: (3.05,97.885;3.115,98.365)",
+    "edge: (3.115,98.365;3.205,98.845)",
+    "edge: (3.205,98.845;3.315,99.315)",
+    "edge: (3.315,99.315;3.455,99.78)",
+    "edge: (3.455,99.78;3.615,100.24)",
+    "edge: (3.615,100.24;3.8,100.685)",
+    "edge: (3.8,100.685;4.01,101.125)",
+    "edge: (4.01,101.125;4.245,101.55)",
+    "edge: (4.245,101.55;4.495,101.965)",
+    "edge: (4.495,101.965;4.77,102.365)",
+    "edge: (4.77,102.365;5.065,102.75)",
+    "edge: (5.065,102.75;5.385,103.12)",
+    "edge: (5.385,103.12;5.715,103.475)",
+    "edge: (5.715,103.475;6.07,103.805)",
+    "edge: (6.07,103.805;6.44,104.125)",
+    "edge: (6.44,104.125;6.825,104.42)",
+    "edge: (6.825,104.42;7.225,104.695)",
+    "edge: (7.225,104.695;7.64,104.945)",
+    "edge: (7.64,104.945;8.065,105.18)",
+    "edge: (8.065,105.18;8.505,105.39)",
+    "edge: (8.505,105.39;8.95,105.575)",
+    "edge: (8.95,105.575;9.41,105.735)",
+    "edge: (9.41,105.735;9.875,105.875)",
+    "edge: (9.875,105.875;10.345,105.985)",
+]
+reason = "Exact inherited curved fixed-RF edges or recommended package-exit markers. Core geometry, spacing, enclosure and functional checks remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal2_drw_Angle45"
+cell = "RF_MATCH4"
+markers = [
+    "edge: (10.345,79.985;10.825,80.075)",
+    "edge: (10.825,80.075;11.305,80.14)",
+    "edge: (11.305,80.14;11.79,80.175)",
+    "edge: (11.79,80.175;12.275,80.19)",
+    "edge: (12.005,70.96;12,70.945)",
+    "edge: (12.02,71.015;12.005,70.97)",
+    "edge: (12.025,71.025;12.02,71.015)",
+    "edge: (12.03,71.04;12.025,71.025)",
+    "edge: (12.035,71.05;12.03,71.04)",
+    "edge: (12.045,71.065;12.035,71.05)",
+    "edge: (12.06,71.09;12.055,71.075)",
+    "edge: (12.115,71.135;12.1,71.13)",
+    "edge: (12.14,71.155;12.125,71.145)",
+    "edge: (12.15,71.16;12.14,71.155)",
+    "edge: (12.165,71.165;12.15,71.16)",
+    "edge: (12.175,71.17;12.165,71.165)",
+    "edge: (12.22,71.185;12.175,71.17)",
+    "edge: (12.245,71.19;12.23,71.185)",
+    "edge: (16.305,80.19;16.32,80.195)",
+    "edge: (16.33,80.195;16.375,80.21)",
+    "edge: (16.375,80.21;16.385,80.215)",
+    "edge: (16.385,80.215;16.4,80.22)",
+    "edge: (16.4,80.22;16.41,80.225)",
+    "edge: (16.41,80.225;16.425,80.235)",
+    "edge: (16.435,80.245;16.45,80.25)",
+    "edge: (16.49,80.29;16.495,80.305)",
+    "edge: (16.505,80.315;16.515,80.33)",
+    "edge: (16.515,80.33;16.52,80.34)",
+    "edge: (16.52,80.34;16.525,80.355)",
+    "edge: (16.525,80.355;16.53,80.365)",
+    "edge: (16.53,80.365;16.545,80.41)",
+    "edge: (16.545,80.42;16.55,80.435)",
+    "edge: (16.76,71.205;16.275,71.19)",
+    "edge: (17.245,71.24;16.76,71.205)",
+    "edge: (17.725,71.305;17.245,71.24)",
+    "edge: (18.205,71.395;17.725,71.305)",
+    "edge: (18.675,71.505;18.205,71.395)",
+    "edge: (19.14,71.645;18.675,71.505)",
+    "edge: (19.6,71.805;19.14,71.645)",
+    "edge: (20.045,71.99;19.6,71.805)",
+    "edge: (20.485,72.2;20.045,71.99)",
+    "edge: (20.91,72.435;20.485,72.2)",
+    "edge: (21.325,72.685;20.91,72.435)",
+    "edge: (21.725,72.96;21.325,72.685)",
+    "edge: (22.11,73.255;21.725,72.96)",
+    "edge: (22.48,73.575;22.11,73.255)",
+    "edge: (22.835,73.905;22.48,73.575)",
+    "edge: (23.165,74.26;22.835,73.905)",
+    "edge: (23.485,74.63;23.165,74.26)",
+    "edge: (23.78,75.015;23.485,74.63)",
+    "edge: (24.055,75.415;23.78,75.015)",
+    "edge: (24.305,75.83;24.055,75.415)",
+    "edge: (24.54,76.255;24.305,75.83)",
+    "edge: (24.75,76.695;24.54,76.255)",
+    "edge: (24.935,77.14;24.75,76.695)",
+    "edge: (25.095,77.6;24.935,77.14)",
+    "edge: (25.235,78.065;25.095,77.6)",
+    "edge: (25.345,78.535;25.235,78.065)",
+    "edge: (25.435,79.015;25.345,78.535)",
+    "edge: (25.5,79.495;25.435,79.015)",
+    "edge: (25.535,79.98;25.5,79.495)",
+    "edge: (25.55,80.465;25.535,79.98)",
+    "edge: (3,70.915;3.015,71.4)",
+    "edge: (3.015,71.4;3.05,71.885)",
+    "edge: (3.05,71.885;3.115,72.365)",
+    "edge: (3.115,72.365;3.205,72.845)",
+    "edge: (3.205,72.845;3.315,73.315)",
+    "edge: (3.315,73.315;3.455,73.78)",
+    "edge: (3.455,73.78;3.615,74.24)",
+    "edge: (3.615,74.24;3.8,74.685)",
+    "edge: (3.8,74.685;4.01,75.125)",
+    "edge: (4.01,75.125;4.245,75.55)",
+    "edge: (4.245,75.55;4.495,75.965)",
+    "edge: (4.495,75.965;4.77,76.365)",
+    "edge: (4.77,76.365;5.065,76.75)",
+    "edge: (5.065,76.75;5.385,77.12)",
+    "edge: (5.385,77.12;5.715,77.475)",
+    "edge: (5.715,77.475;6.07,77.805)",
+    "edge: (6.07,77.805;6.44,78.125)",
+    "edge: (6.44,78.125;6.825,78.42)",
+    "edge: (6.825,78.42;7.225,78.695)",
+    "edge: (7.225,78.695;7.64,78.945)",
+    "edge: (7.64,78.945;8.065,79.18)",
+    "edge: (8.065,79.18;8.505,79.39)",
+    "edge: (8.505,79.39;8.95,79.575)",
+    "edge: (8.95,79.575;9.41,79.735)",
+    "edge: (9.41,79.735;9.875,79.875)",
+    "edge: (9.875,79.875;10.345,79.985)",
+]
+reason = "Exact inherited curved fixed-RF edges or recommended package-exit markers. Core geometry, spacing, enclosure and functional checks remain enforced."
+
+[[task.evaluation.jobs]]
+id = "macros"
+stage = "check"
+operation = "layout.fixed_macros"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+library = "input:macrolibrary"
+specification = "input:macrospec"
+
+[task.evaluation.jobs.outputs]
+layout = "gds"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "job:macros:layout"
+original = "candidate"
+binding = "job:macros:binding"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.parasitics"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "job:macros:layout"
+original = "candidate"
+binding = "job:lvs:binding"
+task = "task"
+derivation = "job:macros:binding"
+database = "job:lvs:database"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "RF_INPUT",
+    "RF_OUTPUT",
+    "VCC",
+    "VBB1",
+    "VBB2",
+    "GND",
+    "RF_CHOKE1_INNER",
+    "RF_CHOKE2_INNER",
+    "RF_CHOKE3_INNER",
+    "RF_CHOKE4_INNER",
+    "RF_DEG1_INNER",
+    "RF_DEG2_INNER",
+    "RF_DEG3_INNER",
+    "RF_DEG4_INNER",
+    "RF_MATCH1_INNER",
+    "RF_MATCH2_INNER",
+    "RF_MATCH3_INNER",
+    "RF_MATCH4_INNER",
+]
+substrate = "GND"
+
+[[task.evaluation.jobs]]
+id = "rf"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "job:parasitics:netlist"
+macros = "input:macros"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+rf = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+supply_power = "W"
+band_gain = "dB"
+delay_ripple = "s"
+input_reflection = "1"
+output_reflection = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+rf = "frequency_response.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "delay_ripple"
+category = "performance"
+observations = [
+    "rf:delay_ripple",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "A squared magnitude or peak-to-peak range must be nonnegative; its size is a quality target or diagnostic without a feasibility upper bound."
+
+[[task.evaluation.metrics]]
+id = "input_reflection"
+category = "performance"
+observations = [
+    "rf:input_reflection",
+]
+unit = "1"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_rf:input_reflection",
+]
+normalization = "degradation"
+scale = 0.05
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "A squared magnitude or peak-to-peak range must be nonnegative; its size is a quality target or diagnostic without a feasibility upper bound."
+
+[[task.evaluation.metrics]]
+id = "output_reflection"
+category = "performance"
+observations = [
+    "rf:output_reflection",
+]
+unit = "1"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_rf:output_reflection",
+]
+normalization = "degradation"
+scale = 0.05
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "A squared magnitude or peak-to-peak range must be nonnegative; its size is a quality target or diagnostic without a feasibility upper bound."
+
+[[task.evaluation.metrics]]
+id = "band_gain"
+category = "performance"
+observations = [
+    "rf:band_gain",
+]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_rf:band_gain",
+]
+normalization = "degradation"
+scale = 3.0
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = [
+    "rf:supply_power",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "27dc38a872e59f74dae7a7c24b8eba25887bb212ccc0bc38383d36638c9e3908"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"d872114717bdbf7c982b0f7a4c489412893ed71cef288bf726d3f5a31f20a579\", \"compatibility\": null, \"cpu_budget\": 8, \"executable_workspace\": false, \"execution_sha256\": \"19535fecb35a2498469d9ba0c047b73069cdb337e7c8c66dca04c8121415307d\", \"image_id\": \"sha256:d2e35c1eda377fd987e41298ce114670544b64aaaad4686b024d51bcfe94902b\", \"limits\": {\"cpus\": null, \"memory_mb\": null, \"pids\": null}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"9b933bc54e71316ab48a8e10b794fd94b250a935af791ccb95b4ced255bf407a\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 600.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Fri Oct 23 17:38:14 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_rf]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_rf.inputs]
+circuit = "input:simulation"
+macros = "input:macros"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_rf.outputs]
+op = "ngspice-raw"
+rf = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_rf.parameters.measurements]
+supply_power = "W"
+band_gain = "dB"
+delay_ripple = "s"
+input_reflection = "1"
+output_reflection = "1"
+
+[task.evaluation.pre_layout.jobs.source_rf.parameters.exports]
+op = "operating_point.raw"
+rf = "frequency_response.raw"
+
+[task.evaluation.pre_layout.jobs.source_rf.input_sha256]
+circuit = "3b387c0ffbf0dad0c5f21f112664e6a256a2254e7309747dfe8cc3e1992472f4"
+macros = "3e859f58343179cb7b030bb691ec887dbc1895e10c2fc8e3ba5749b7a8c445aa"
+deck = "01f68e8b01aacc4d71fd875b19bc6d25c7e26c5ecbd0fb7998a706104abe2d77"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.band_gain]
+value = 9.829888337554074
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.delay_ripple]
+value = 1.017120257709794e-11
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.input_reflection]
+value = 0.1030770815948009
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.output_reflection]
+value = 0.4956834272585623
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.supply_power]
+value = 0.01832757149096348
+unit = "W"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.parasitics" = "parasitics"
+"circuit.simulate" = "simulation"
+"layout.fixed_macros" = "macros"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 120
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+check = "drc"
+support = "build/support/lna160-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+check = "lvs"
+support = "build/support/lna160-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+check = "artifact"
+timeout_seconds = 60
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "hbt-models"
+
+[toolchain.backends.simulation.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+support = "build/support/lna160-hbt-models"
+timeout_seconds = 600
+
+[toolchain.backends.parasitics]
+type = "kpex-cc-docker"
+
+[toolchain.backends.parasitics.support_profiles]
+support = "kpex-lna"
+
+[toolchain.backends.parasitics.settings]
+image = "iclayout-eda-open:local"
+support = "build/support/lna160-kpex"
+profile = "kpex-interface.json"
+timeout_seconds = 600
+
+[toolchain.backends.macros]
+type = "fixed-macros-docker"
+
+[toolchain.backends.macros.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 120
+
+[origin]
+url = "https://github.com/IHP-GmbH/TO_Apr2025/blob/63e203a0eccfb6028a1a0a8364553e4e979b55b3/160GHz_LNA/design_data/qucs-s/160GHz_LNA(MAIN).sch"
+
+[presentation]
+category = "Amplifiers & RF"
+summary = "Four-stage common-emitter RF amplifier with native RF capacitors and twelve fixed upstream transmission-line models."

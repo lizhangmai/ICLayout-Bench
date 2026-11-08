@@ -1,0 +1,142 @@
+# Broadband SiGe PAM4 Driver Layout Task
+
+## Objective
+
+Lay out the upstream inductorless, three-cell current-steering PAM4 driver as
+`pam4drv_pam4_lay`. One LSB cell and two parallel MSB cells contain twelve
+three-finger `npn13G2` HBTs, twelve physical `rsil` resistors and three physical
+MIM degeneration capacitors. Preserve the supplied topology and dimensions.
+The task coefficient is 4.
+
+### Optimization objective
+
+Maximize the declared quality score within the solve budget while satisfying all physical and necessary functional requirements. The first passing DRC, LVS and required electrical checks establish a feasible baseline. Continue improving the scored metrics from that baseline; a passing check or `task_success = true` does not mean that the quality objectives have been achieved.
+
+## Inputs and Interface
+
+`materials/circuit.cdl` is the native LVS authority;
+`materials/circuit.spice` is its simulator representation;
+`materials/testbench.spice` defines the electrical measurements.
+
+Ordered ports: `lsbp lsbn msbp msbn outp outn vcc vcasc vcmb tmsb0 tlsb0 tmsb1 sub`.
+The first four ports are differential LSB/MSB inputs, `outp/outn` are differential
+outputs, `vcc` is the supply, `vcasc` biases the cascode bases, `vcmb` is the input
+termination reference, the three tail ports connect to external current sinks,
+and `sub` is the ideal substrate reference. The three testbench VCCS tails are
+external bias apparatus, not missing physical transistors.
+
+## Operating Conditions
+
+Use the upstream **layout signoff point**, not its separate static sizing point:
+4 V supply, 3.35 V cascode bias, 1.9 V input common mode and 15 mA per cell.
+The nominal corners are `hbt_typ`, `res_typ` and `cap_typ` at 27 °C. HBTs have
+`Nx=3`. Physical dimensions are fixed by the netlists; the nominal targets are
+50 Ω collector loads, 48 Ω input terminations, 3.2 Ω degeneration and 16 fF
+bridging capacitance. PDK geometry models determine their actual values.
+
+Both RF ports use 50 Ω per side (100 Ω differential). AC gain is differential
+power-wave S21 = `2*Vout/Vsrc`, measured at 1 GHz; bandwidth is checked by the
+50 GHz gain relative to 1 GHz. S11 is evaluated at **32 GHz**, and S22 at
+**50 GHz**, using the testbench's 20 points/decade sweep and interpolation.
+Do not substitute the preceding sweep samples for these endpoints.
+
+The large-signal test drives LSB and MSB in phase at 1 GHz through the same
+source impedances, with ±0.8 V per source around 1.9 V. Supplies and bias ramp
+from zero over 8 ns; sine excitation starts at 9 ns. The 16–21 ns measurement
+window contains five periods. Swing is twice the fundamental phasor amplitude, calculated by time-integrating Vdiff times sine/cosine over 16-21 ns and dividing by the 5 ns window. The exported adaptive time samples are not equally weighted.
+
+## Physical Requirements
+
+Submit GDS with the exact top-cell name, all thirteen labeled ports, and at most
+10 MiB. Native SG13G2 DRC checks main and extra maximal rules without density or
+antenna; no marker waivers apply. Native LVS compares devices, dimensions,
+connectivity and named ports. Functional width/height must not exceed 160/120 µm.
+The published `outline` layer list covers HBT, resistor, MIM, substrate-contact,
+seven-metal and via geometry; pin/text and presentation layers are excluded.
+
+Post-layout simulation follows the upstream kpex 2.5D CC extraction and ngspice flow. Candidate-derived native devices retain their models, physical dimensions, connections and ordered ports; extraction adds wiring capacitance. Missing candidate geometry or devices are not reconstructed from the source netlist. The substrate reference is the declared ideal `sub` node. This scoring model does not include wiring resistance, self/mutual inductance or a full-wave network.
+
+## Electrical Requirements and Scoring
+
+Artifact, geometry, DRC, LVS and declared functional requirements must pass. Parasitic extraction is also mandatory: it must produce a complete, electrically consistent netlist usable by the required post-layout simulations. A completed candidate rejection scores zero; infrastructure errors do not establish candidate failure.
+
+For `layout` scoring, cap every positively weighted raw quality at 1 before aggregation; the score ranges from 0 to 100. Reaching every weighted target scores 100, and no minimum score is required for validity.
+
+Physical checks and the declared functional bounds must pass. Quality scoring imposes no fixed degradation allowance. Each `source_*` job and its corresponding candidate extracted circuit use exactly the same testbench, model resources, parameters, loads and measurement windows. Independent source observations provide every electrical scoring anchor. Reports retain every paired result.
+
+Let x be the post-layout measurement and b the declared quality target, or the same-condition source measurement when no target is declared:
+
+- Ratio normalization: maximize with q = x/b and minimize with q = b/x. When a numerical scale s is declared, use (x+s)/(b+s) and its reciprocal, respectively. The scale handles zero values as a normalization floor; it is neither an allowed degradation nor an acceptance bound.
+- Amplitude in dB: maximize with q = 10^((x-b)/20) and minimize with its reciprocal.
+- One-sided degradation normalization: loss = max(0, b-x) for maximize, or max(0, x-b) for minimize; q = s/(s+loss). The physical quality scale s is a degradation budget: a loss equal to s gives q = 0.5. An improvement gives q = 1. This scale is not an acceptance cutoff.
+
+Use `layout` scoring. First compute each metric's raw quality q from the worst paired condition, with raw area quality q_area = area_target / candidate_functional_area. Credit c_i = min(1, q_i) for every positively weighted metric, then compute S = 100 * product(c_i ** w_i). The weights sum to 1 and the score is bounded by 100. An improvement beyond one target cannot compensate for missing another target. Physical, extraction, or functional rejection scores zero; other missing or invalid measurements leave the score unknown, and zero-weight observations must also be valid. Reaching every positively weighted target scores 100; a feasible reference may score far below 100. Weights express quality tradeoffs, not acceptance bounds.
+
+All measurements and their paired source observations must be finite and usable.
+Performance is scored continuously against the declared quality anchors;
+upstream data-sheet targets are not acceptance thresholds. Supply consumption
+and output swing must be nonnegative; zero or otherwise unusable ratio baselines
+cannot establish a score. Physical checks remain mandatory.
+
+| Metric | Definition | Unit | Quality normalization | Functional range |
+| --- | --- | --- | --- | --- |
+| `lsb_gain_db` | LSB S21 at 1 GHz | dB | maximize / db20 | None |
+| `msb_gain_db` | MSB S21 at 1 GHz | dB | maximize / db20 | None |
+| `dac_weight_db` | MSB minus LSB gain | dB | source-paired diagnostic | None |
+| `lsb_rel50_db` | LSB S21(50 GHz) minus S21(1 GHz) | dB | maximize / db20 | None |
+| `msb_rel50_db` | MSB S21(50 GHz) minus S21(1 GHz) | dB | maximize / db20 | None |
+| `s11_32g_db` | MSB input reflection coefficient, 20 log10(abs(S11)), at 32 GHz | dB | minimize / degradation, s = 0.5 dB | None |
+| `s22_50g_db` | Output reflection coefficient, 20 log10(abs(S22)), at 50 GHz | dB | minimize / degradation, s = 1 dB | None |
+| `power_mw` | Power drawn from the 4 V rail at OP | mW | minimize / ratio | ≥ 0 |
+| `swing_vpp` | Differential output fundamental swing | V | maximize / ratio | ≥ 0 |
+
+| `lsb_g50_db` | Absolute LSB S21 at 50 GHz | dB | maximize / degradation, s = 0.5 dB | None |
+| `msb_g50_db` | Absolute MSB S21 at 50 GHz | dB | maximize / degradation, s = 0.5 dB | None |
+
+Independent source simulation uses the same deck, conditions and models. Electrical quality anchors are its actual observations. The fixed circuit's ideal 2:1 weighting is not a scoring target. Reflection-coefficient dB is the negative of positive return loss, so smaller values improve matching.
+
+The area target is **700 um2**. Area and electrical targets are quality anchors, not acceptance cutoffs. The reference only demonstrates feasibility.
+
+S11/S22 carry the largest weights because the upstream layout study identifies input/output matching as limiting objectives. Absolute S21 at 50 GHz preserves delivered signal, so flat attenuation cannot improve matching without a score cost. Fixed-bias power, LF gain, DAC weight, relative rolloff and the 1 GHz tone swing remain diagnostics.
+
+A 0.5 dB gain budget represents about 5.6% amplitude loss. The 0.5 dB input-matching budget resolves the source's roughly 1 dB return-loss margin; the 1 dB output budget resolves degradation within its roughly 4 dB margin. A plain amplitude-ratio conversion would still credit a 1 dB degradation at about 0.89, hiding that margin consumption. These scales define quality sensitivity and impose no functional pass/fail threshold.
+
+### Score weights
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.15 |
+| `dac_weight_db` | 0 |
+| `lsb_rel50_db` | 0 |
+| `msb_rel50_db` | 0 |
+| `s11_32g_db` | 0.25 |
+| `s22_50g_db` | 0.35 |
+| `lsb_gain_db` | 0 |
+| `msb_gain_db` | 0 |
+| `swing_vpp` | 0 |
+| `power_mw` | 0 |
+| `lsb_g50_db` | 0.1 |
+| `msb_g50_db` | 0.15 |
+
+## Tools and Submission
+
+Soft solve budget: **1.5 hours**.
+
+Read `/protocol/task.json` for input/output paths, constraints and the `resources` object; `/protocol/harness.json` describes the active check and submission interface.
+
+
+Use the reviewed SG13G2 resources and the runtime task/protocol metadata.
+Ngspice must be ≥45 with `ngbehavior=hsa`, compiled R3_CMC support and the
+specified HBT/capacitor models. The toolchain provides native KLayout checks,
+candidate-derived kpex coupling-capacitance extraction and ngspice feedback. Write
+`/workspace/output/final.gds` and explicitly submit it through the runtime
+submission interface. Reference and maintainer material is not a solver input.
+
+### Solve workflow
+
+1. Read the declared circuit and materials, `/protocol/task.json` for paths, constraints and reviewed resources, and `/protocol/harness.json` for capabilities and helper commands. Task inputs under `/task` and resources under `/resources` are read-only; construct the layout in `/workspace` with the declared tools. With layout MCP, paths and commands refer to the remote EDA workspace. Create your own implementation with real devices, interconnect and pins, using your own tool loop without delegating to other agents; reference layouts and author code are not solver inputs.
+2. Inspect `resources.external` before using external tools. Each command starts a fresh shell: when tool modules are declared, source `/usr/share/Modules/init/bash` and load the selected tool's modules; export its declared `tool_environment` settings in that same command. Repeat as needed and use batch or headless operation. Local manuals, command references, and release notes may be available within the declared EDA installation and PDK resource directories. Locate these resources through `/protocol/task.json` and consult the documentation for the installed tool version when diagnosing unfamiliar syntax or tool failures.
+3. Generate an initial candidate and submit a snapshot early. When `process-feedback` is available, check the current GDS with layout MCP `check` or `python -I /protocol/process_check.py` before the final submission. This runs the final evaluator's complete plan and returns engineering diagnostics and candidate measurements, without scores or normalized quality factors. Checks have no count limit and consume the same wall-clock budget. Inspect the physical and functional results and all scored metrics; successful tool execution alone does not establish requirement satisfaction. Read paginated diagnostics with `report` when using MCP. Local exploratory checks do not replace this complete check.
+4. Use the remaining time for measured improvements to the declared quality objectives. Identify the limiting scored metrics, make targeted layout changes, regenerate and check the candidate, and compare measurements with the previous candidate and the stated scoring targets and trade-offs. Preserve the best valid candidate and revert changes that worsen the overall objective. Repeat while time and useful improvements remain; passing validity checks alone is not a stopping condition.
+5. Stop optimization when the budget expires, all declared quality objectives are achieved, or measured trials support convergence. If stopping early, explain the changes tried, the metric comparisons and the remaining limitations. Track remaining time through session status. At soft-budget expiry, finish or cancel already-started work and submit immediately; do not start another command, check or optimization round. If an MCP execution is running, use `poll` with its `execution_id` and the returned `next_offset` as `offset` until completion, or cancel it and wait for it to stop.
+6. Finish or cancel outstanding work, restore your best candidate to the declared output path, and explicitly submit it before ending the session. With layout MCP `submit`, remove the `/workspace/` prefix from `output.path`; with the container interface, run `python -I /protocol/submit.py`. Wait for the receipt: only the last accepted snapshot is judged, and writing a file alone is not submission. Acceptance confirms delivery; the framework independently evaluates validity and quality after the session.

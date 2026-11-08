@@ -1,0 +1,631 @@
+{
+  "macros": [
+    {
+      "cell": "RF_INPUT",
+      "ports": [
+        {
+          "name": "RFIN",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": false,
+          "box_dbu": [
+            20860,
+            48415,
+            30860,
+            58415
+          ]
+        },
+        {
+          "name": "RF_INPUT_INNER",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            164230,
+            54695,
+            182810,
+            57595
+          ]
+        }
+      ],
+      "translation_dbu": [
+        430605,
+        545235
+      ],
+      "clearance_dbu": 0,
+      "abstract": true,
+      "contact_layers": [
+        {
+          "body": [
+            134,
+            0
+          ],
+          "contacts": [
+            [
+              134,
+              0
+            ],
+            [
+              133,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "cell": "RF_OUTPUT",
+      "ports": [
+        {
+          "name": "RFOUT",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": false,
+          "box_dbu": [
+            72560,
+            18650,
+            82560,
+            28650
+          ]
+        },
+        {
+          "name": "RF_OUTPUT_INNER",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            -400,
+            20610,
+            2500,
+            29390
+          ]
+        }
+      ],
+      "translation_dbu": [
+        667695,
+        575000
+      ],
+      "clearance_dbu": 0,
+      "abstract": true,
+      "contact_layers": [
+        {
+          "body": [
+            134,
+            0
+          ],
+          "contacts": [
+            [
+              134,
+              0
+            ],
+            [
+              133,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "cell": "RF_CHOKE1",
+      "ports": [
+        {
+          "name": "RF_CHOKE1_INNER",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            3110,
+            -500,
+            11890,
+            2400
+          ]
+        },
+        {
+          "name": "VCC1",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            0,
+            164135,
+            15000,
+            175000
+          ]
+        }
+      ],
+      "translation_dbu": [
+        598515,
+        633660
+      ],
+      "clearance_dbu": 0,
+      "abstract": true,
+      "contact_layers": [
+        {
+          "body": [
+            134,
+            0
+          ],
+          "contacts": [
+            [
+              134,
+              0
+            ],
+            [
+              133,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "cell": "RF_CHOKE2",
+      "ports": [
+        {
+          "name": "RF_CHOKE2_INNER",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            3110,
+            79500,
+            11890,
+            82400
+          ]
+        },
+        {
+          "name": "VCC2",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            0,
+            0,
+            15000,
+            6000
+          ]
+        }
+      ],
+      "translation_dbu": [
+        625155,
+        535800
+      ],
+      "clearance_dbu": 0,
+      "abstract": true,
+      "contact_layers": [
+        {
+          "body": [
+            134,
+            0
+          ],
+          "contacts": [
+            [
+              134,
+              0
+            ],
+            [
+              133,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "cell": "RF_CHOKE3",
+      "ports": [
+        {
+          "name": "RF_CHOKE3_INNER",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            6050,
+            -450,
+            8950,
+            4410
+          ]
+        },
+        {
+          "name": "VCC1",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            0,
+            65280,
+            15000,
+            71280
+          ]
+        }
+      ],
+      "translation_dbu": [
+        636275,
+        627470
+      ],
+      "clearance_dbu": 0,
+      "abstract": true,
+      "contact_layers": [
+        {
+          "body": [
+            134,
+            0
+          ],
+          "contacts": [
+            [
+              134,
+              0
+            ],
+            [
+              133,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "cell": "RF_CHOKE4",
+      "ports": [
+        {
+          "name": "RF_CHOKE4_INNER",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            -500,
+            231015,
+            20040,
+            233915
+          ]
+        },
+        {
+          "name": "VCC2",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            31115,
+            0,
+            80115,
+            6000
+          ]
+        }
+      ],
+      "translation_dbu": [
+        658885,
+        345205
+      ],
+      "clearance_dbu": 0,
+      "abstract": true,
+      "contact_layers": [
+        {
+          "body": [
+            134,
+            0
+          ],
+          "contacts": [
+            [
+              134,
+              0
+            ],
+            [
+              133,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "cell": "RF_DEG1",
+      "ports": [
+        {
+          "name": "RF_DEG1_INNER",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            34595,
+            -330,
+            38495,
+            15330
+          ]
+        },
+        {
+          "name": "GND",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            -330,
+            56515,
+            15330,
+            60415
+          ]
+        }
+      ],
+      "translation_dbu": [
+        549035,
+        595890
+      ],
+      "clearance_dbu": 0,
+      "abstract": true,
+      "contact_layers": [
+        {
+          "body": [
+            134,
+            0
+          ],
+          "contacts": [
+            [
+              134,
+              0
+            ],
+            [
+              133,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "cell": "RF_DEG4",
+      "ports": [
+        {
+          "name": "RF_DEG4_INNER",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            -950,
+            -950,
+            18630,
+            2950
+          ]
+        },
+        {
+          "name": "GND",
+          "layer": [
+            134,
+            0
+          ],
+          "text_layers": [
+            [
+              134,
+              2
+            ],
+            [
+              134,
+              25
+            ]
+          ],
+          "extract": true,
+          "box_dbu": [
+            1010,
+            20680,
+            16670,
+            24580
+          ]
+        }
+      ],
+      "translation_dbu": [
+        664615,
+        680625
+      ],
+      "clearance_dbu": 0,
+      "abstract": true,
+      "contact_layers": [
+        {
+          "body": [
+            134,
+            0
+          ],
+          "contacts": [
+            [
+              134,
+              0
+            ],
+            [
+              133,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "cell": "RF_GROUND",
+      "ports": [],
+      "translation_dbu": [
+        0,
+        0
+      ],
+      "clearance_dbu": 0,
+      "abstract": false,
+      "contact_layers": []
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+# FreePDK45 NOR2_X1 Layout Task
+
+## Objective
+
+Implement the fixed-size two-input NOR gate `NOR2_X1` in FreePDK45, preserving ports A1 A2 ZN VDD VSS, four-terminal connections, VTL models and fixed sizes, implementing 00→1, 01→0, 11→0, 10→0.
+
+### Optimization objective
+
+Maximize the declared quality score within the solve budget while satisfying all physical and necessary functional requirements. The first passing DRC, LVS and required electrical checks establish a feasible baseline. Continue improving the scored metrics from that baseline; a passing check or `task_success = true` does not mean that the quality objectives have been achieved.
+
+## Inputs and Interface
+
+Declared inputs are this description, `materials/circuit.spice` and `materials/testbench.spice`. The evaluation environment supplies model, extraction, DRC and LVS resources; reference GDS and qualification evidence are maintainer-only.
+
+## Operating Conditions
+
+Nominal FreePDK45 BSIM4, 1.0 V, 27 °C, ZN load 5 fF. Nine 500 ps slots drive (A1,A2)=(0,0),(0,1),(1,1),(1,0),(0,0),(1,0),(1,1),(0,1),(0,0) with 10 ps edges; sample +110 ps after each slot starts. Transient ends at 4.5 ns with 0.5 ps sampling steps; average power over 0–4.4 ns. Only the nominal condition is scored.
+
+## Physical Requirements
+
+Submit nonempty `output/final.gds` with top cell `NOR2_X1`, at most 10 MiB. Pass FreePDK45 KLayout DRC and strict named-port LVS without waivers, checking body terminals, MOS models and W/L. Research rules do not constitute manufacturing signoff.
+
+The functional bounding-box width and height on drawing layers 1/0–29/0 must each be at most 100 µm. The standard-cell frame has fixed height 1.63 µm and width on a 0.01 µm grid. Relative to its lower-left corner, continuous metal1 VDD/VSS rails have centers at y=1.515/0.115 µm and connect to the corresponding ports; thickness is at least 0.07 µm, extending from x=0.115 µm to the right boundary minus 0.030 µm. Electrical labels lie on poly or metal drawing layers. Global translation, equivalent hierarchy, internal renaming and source/drain exchange are allowed if all physical and electrical checks pass.
+
+## Electrical Requirements and Scoring
+
+Artifact, geometry, DRC, LVS and declared functional requirements must pass. Parasitic extraction is also mandatory: it must produce a complete, electrically consistent netlist usable by the required post-layout simulations. A completed candidate rejection scores zero; infrastructure errors do not establish candidate failure.
+
+At every sample, ZN must satisfy the expected CMOS logic level: high at least 0.9 V, low at most 0.1 V.
+
+| State | Sample time | A1 | A2 | Expected ZN |
+| --- | --- | --- | --- | --- |
+| state_0 | 0.110 ns | 0 | 0 | high |
+| state_1 | 0.610 ns | 0 | 1 | low |
+| state_2 | 1.110 ns | 1 | 1 | low |
+| state_3 | 1.610 ns | 1 | 0 | low |
+| state_4 | 2.110 ns | 0 | 0 | high |
+| state_5 | 2.610 ns | 1 | 0 | low |
+| state_6 | 3.110 ns | 1 | 1 | low |
+| state_7 | 3.610 ns | 0 | 1 | low |
+| state_8 | 4.110 ns | 0 | 0 | high |
+
+Measure each of the 4 input edges that change the output: propagation delay runs from the input 0.5 V crossing to the output 0.5 V crossing; output rise transition is 0.2→0.8 V and fall transition is 0.8→0.2 V. Independent source simulation with the same testbench defines electrical baselines; compare delay and transition per edge, taking the worst source/candidate quality ratio. Average supply power is paired with the source using a 1 pW normalization floor.
+
+The functional-area target is 1.343120 µm², 80% of the verified reference area 1.678900 µm², and is only a quality target. q_area=target/candidate area; q_delay is the minimum source/candidate delay ratio over 4 edges, q_transition is the minimum source/candidate transition-time ratio, and q_supply is the source/candidate average-power ratio with a 1 pW floor.
+
+| Metric | Weight |
+| --- | ---: |
+| `functional_area` | 0.2 |
+| `propagation_delay` | 0.48 |
+| `output_transition` | 0.16 |
+| `supply` | 0.16 |
+
+Supply quality q_supply = (P_source + 1 pW)/(P_candidate + 1 pW), using the declared 1 pW normalization offset. Total score is 100 × min(1, q_area)^0.20 × min(1, q_delay)^0.48 × min(1, q_transition)^0.16 × min(1, q_supply)^0.16; propagation delay, output transition, power and area weights are 48%, 16%, 16%, 20%, respectively. Area at target with source-equivalent electrical behavior scores 100; each metric is capped at quality 1, so scores cannot exceed 100. Physical or functional failure scores zero; after validity checks, there are no additional timing, power or area performance rejection thresholds.
+
+## Tools and Submission
+
+Soft solve budget: **3 hours**.
+
+Read `/protocol/task.json` for input/output paths, constraints and the `resources` object; `/protocol/harness.json` describes the active check and submission interface.
+
+Use declared FreePDK45 KLayout DRC/LVS, Magic RC and ngspice models, and submit only `output/final.gds` with top cell `NOR2_X1`. Coverage is limited to nominal tests and supply-rail geometry, excluding cell-array integration, PVT, mismatch and manufacturing signoff.
+
+### Solve workflow
+
+1. Read the declared circuit and materials, `/protocol/task.json` for paths, constraints and reviewed resources, and `/protocol/harness.json` for capabilities and helper commands. Task inputs under `/task` and resources under `/resources` are read-only; construct the layout in `/workspace` with the declared tools. With layout MCP, paths and commands refer to the remote EDA workspace. Create your own implementation with real devices, interconnect and pins, using your own tool loop without delegating to other agents; reference layouts and author code are not solver inputs.
+2. Inspect `resources.external` before using external tools. Each command starts a fresh shell: when tool modules are declared, source `/usr/share/Modules/init/bash` and load the selected tool's modules; export its declared `tool_environment` settings in that same command. Repeat as needed and use batch or headless operation. Local manuals, command references, and release notes may be available within the declared EDA installation and PDK resource directories. Locate these resources through `/protocol/task.json` and consult the documentation for the installed tool version when diagnosing unfamiliar syntax or tool failures.
+3. Generate an initial candidate and submit a snapshot early. When `process-feedback` is available, check the current GDS with layout MCP `check` or `python -I /protocol/process_check.py` before the final submission. This runs the final evaluator's complete plan and returns engineering diagnostics and candidate measurements, without scores or normalized quality factors. Checks have no count limit and consume the same wall-clock budget. Inspect the physical and functional results and all scored metrics; successful tool execution alone does not establish requirement satisfaction. Read paginated diagnostics with `report` when using MCP. Local exploratory checks do not replace this complete check.
+4. Use the remaining time for measured improvements to the declared quality objectives. Identify the limiting scored metrics, make targeted layout changes, regenerate and check the candidate, and compare measurements with the previous candidate and the stated scoring targets and trade-offs. Preserve the best valid candidate and revert changes that worsen the overall objective. Repeat while time and useful improvements remain; passing validity checks alone is not a stopping condition.
+5. Stop optimization when the budget expires, all declared quality objectives are achieved, or measured trials support convergence. If stopping early, explain the changes tried, the metric comparisons and the remaining limitations. Track remaining time through session status. At soft-budget expiry, finish or cancel already-started work and submit immediately; do not start another command, check or optimization round. If an MCP execution is running, use `poll` with its `execution_id` and the returned `next_offset` as `offset` until completion, or cancel it and wait for it to stop.
+6. Finish or cancel outstanding work, restore your best candidate to the declared output path, and explicitly submit it before ending the session. With layout MCP `submit`, remove the `/workspace/` prefix from `output.path`; with the container interface, run `python -I /protocol/submit.py`. Wait for the receipt: only the last accepted snapshot is judged, and writing a file alone is not submission. Acceptance confirms delivery; the framework independently evaluates validity and quality after the session.

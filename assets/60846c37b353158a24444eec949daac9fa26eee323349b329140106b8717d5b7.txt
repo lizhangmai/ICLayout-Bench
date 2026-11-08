@@ -1,0 +1,86 @@
+{
+  "cell": "RF_DEGEN_DESIGN",
+  "subcircuit": "RF_DESIGNED_LINE",
+  "signal_layer": [
+    134,
+    0
+  ],
+  "ground_layer": [
+    8,
+    0
+  ],
+  "landing_um": 2.0,
+  "window_um": [
+    650,
+    400,
+    930,
+    550
+  ],
+  "ports": [
+    "RF_DEG_INNER",
+    "GND",
+    "GND"
+  ],
+  "conductor_layers": [
+    [
+      8,
+      0
+    ],
+    [
+      10,
+      0
+    ],
+    [
+      19,
+      0
+    ],
+    [
+      29,
+      0
+    ],
+    [
+      30,
+      0
+    ],
+    [
+      49,
+      0
+    ],
+    [
+      50,
+      0
+    ],
+    [
+      66,
+      0
+    ],
+    [
+      67,
+      0
+    ],
+    [
+      125,
+      0
+    ],
+    [
+      126,
+      0
+    ],
+    [
+      133,
+      0
+    ],
+    [
+      134,
+      0
+    ]
+  ],
+  "guard_um": 10.0,
+  "ground_anchor": {
+    "cell": "RF_GROUND",
+    "point_um": [
+      640,
+      480
+    ]
+  }
+}

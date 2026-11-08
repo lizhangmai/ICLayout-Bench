@@ -1,0 +1,156 @@
+* DC range by output-current nulling with a fixed external output clamp.
+.include "parameters.spice"
+.include "models.spice"
+.include "dut.spice"
+.temp {temperature_c}
+.options reltol=1e-6 abstol=1e-15 vntol=1e-9
+VDD vdd 0 {supply_v}
+IBIAS vdd ib {bias_a}
+VCM cm 0 {common_v}
+VCLAMP out 0 {common_v}
+VOFF diff 0 DC 0 AC 1
+EP inp cm diff 0 .5
+EN inn cm diff 0 -.5
+CLOAD out 0 {load_f}
+XDUT vdd out inp inn ib 0 ota_5t
+.control
+set noaskquit
+set numdgt=12
+setcs sparse
+setplot const
+let fixed_cm=0
+let supply=0
+let coordinate=0
+let low_offset=0
+let high_offset=0
+let low_current=0
+let high_current=0
+let trial_offset=0
+let trial_current=0
+let gm=0
+let conductance=0
+let point_gain=0
+let point_valid=0
+let sample_count=55
+let cm_axis=vector(sample_count)
+let out_axis=vector(sample_count)
+let cm_gain=vector(sample_count)
+let out_gain=vector(sample_count)
+let cm_valid=vector(sample_count)
+let out_valid=vector(sample_count)
+let sample_index=0
+let phase=0
+let iteration=0
+op
+let const.fixed_cm=v(cm)
+let const.supply=v(vdd)
+while sample_index lt sample_count
+  let const.coordinate=.3+.05*const.sample_index
+  let const.phase=0
+  while phase lt 2
+    if phase eq 0
+      alter VCM dc = $&const.coordinate
+      alter VCLAMP dc = $&const.fixed_cm
+    else
+      alter VCM dc = $&const.fixed_cm
+      alter VCLAMP dc = $&const.coordinate
+    end
+    let const.low_offset=-.2
+    let const.high_offset=.2
+    alter VOFF dc = $&const.low_offset
+    op
+    let const.low_current=i(VCLAMP)
+    alter VOFF dc = $&const.high_offset
+    op
+    let const.high_current=i(VCLAMP)
+    let const.point_gain=0
+    let const.point_valid=0
+    if const.low_current*const.high_current le 0
+      let const.iteration=0
+      while iteration lt 24
+        let const.trial_offset=(const.low_offset+const.high_offset)/2
+        if abs(const.high_current-const.low_current) gt 1e-15
+          let const.trial_offset=(const.low_offset*const.high_current-const.high_offset*const.low_current)/(const.high_current-const.low_current)
+        end
+        if const.trial_offset le const.low_offset
+          let const.trial_offset=(const.low_offset+const.high_offset)/2
+        end
+        if const.trial_offset ge const.high_offset
+          let const.trial_offset=(const.low_offset+const.high_offset)/2
+        end
+        alter VOFF dc = $&const.trial_offset
+        op
+        let const.trial_current=i(VCLAMP)
+        if abs(const.trial_current) lt 1e-10
+          break
+        end
+        if const.low_current*const.trial_current le 0
+          let const.high_offset=const.trial_offset
+          let const.high_current=const.trial_current
+        else
+          let const.low_offset=const.trial_offset
+          let const.low_current=const.trial_current
+        end
+        let const.iteration=const.iteration+1
+      end
+      let const.point_valid=(abs(i(VCLAMP)) lt 1e-10) * (abs(v(diff)) lt .2) * (v(inp) ge 0) * (v(inn) ge 0) * (v(inp) le const.supply) * (v(inn) le const.supply) * (v(out) ge 0) * (v(out) le const.supply)
+      tf i(VCLAMP) VOFF
+      let const.gm=transfer_function
+      tf i(VCLAMP) VCLAMP
+      let const.conductance=transfer_function
+      if abs(const.conductance) gt 1e-15
+        let const.point_gain=abs(const.gm/const.conductance)
+      end
+      let const.point_valid=const.point_valid*(const.point_gain ge 10)
+    end
+    if phase eq 0
+      let const.cm_axis[$&const.sample_index]=const.coordinate
+      let const.cm_gain[$&const.sample_index]=const.point_gain
+      let const.cm_valid[$&const.sample_index]=const.point_valid
+    else
+      let const.out_axis[$&const.sample_index]=const.coordinate
+      let const.out_gain[$&const.sample_index]=const.point_gain
+      let const.out_valid[$&const.sample_index]=const.point_valid
+    end
+    let const.phase=const.phase+1
+  end
+  let const.sample_index=const.sample_index+1
+end
+setplot const
+let middle=floor((fixed_cm-.3)/.05+.5)
+let low=middle
+let high=middle
+while low gt 0
+  if cm_valid[low-1] lt .5
+    break
+  end
+  let low=low-1
+end
+while high lt sample_count-1
+  if cm_valid[high+1] lt .5
+    break
+  end
+  let high=high+1
+end
+let icmr_span_v=.05*(high-low)*cm_valid[middle]
+let low=middle
+let high=middle
+while low gt 0
+  if out_valid[low-1] lt .5
+    break
+  end
+  let low=low-1
+end
+while high lt sample_count-1
+  if out_valid[high+1] lt .5
+    break
+  end
+  let high=high+1
+end
+let output_span_v=.05*(high-low)*out_valid[middle]
+print icmr_span_v output_span_v
+setscale cm_axis
+write waveform.raw cm_axis out_axis cm_gain out_gain cm_valid out_valid
+quit
+.endc
+.end

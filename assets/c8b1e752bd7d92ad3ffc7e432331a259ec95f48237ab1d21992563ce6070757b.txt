@@ -1,0 +1,1240 @@
+kind = "layout_case"
+id = "TO_Apr2025.97_GHZ_LINEAR_TIA"
+title = "97 GHz SiGe linear TIA with fixed upstream RF passives"
+status = "qualified"
+in_core = true
+core_order = 16
+
+[task]
+hours = 1.5
+coefficient = 6
+kind = "netlist_to_gds"
+family = "ihp_sg13g2_hbt_tia_physical"
+environment = "ihp-sg13g2-rf"
+
+[task.inputs.description]
+path = "problem.md"
+format = "text"
+sha256 = "ace7fa9e3216d77bdf2c16912ea411896ed7b4276fee4949e9f93cc186611be7"
+
+[task.inputs.netlist]
+path = "materials/circuit.cdl"
+format = "spice"
+subcircuit = "FMD_QNC_01_LIN_TIA"
+sha256 = "a800da94fdddc248fa99d5c1db78dba66cff45958fd81db2b5503575a6c50f74"
+
+[task.inputs.simulation]
+path = "materials/circuit.spice"
+format = "spice"
+sha256 = "07e66c038341379841da4ff8a1e33b9d3e8c72425ec587c2b2e4b42ae922419e"
+
+[task.inputs.performance]
+path = "materials/testbench.spice"
+format = "spice"
+sha256 = "2725ce9ef01ab0f5335701ff9ebf006f5af0c59dc11799d2ed66abc71901c27d"
+
+[task.inputs.macrolibrary]
+path = "materials/rf-macros.gds"
+format = "gds"
+sha256 = "37589e24147922515cf3f11437f410495f394d6ed27aa924f2ff9652a6b786a5"
+
+[task.inputs.macrospec]
+path = "materials/rf-macros.json"
+format = "json"
+sha256 = "7d1c91ed9e5b58127c02a60415136dd9f077275f1fc9d26ee2221dbc0f132e36"
+
+[task.inputs.macros]
+path = "materials/rf-models.spice"
+format = "spice"
+sha256 = "718812a76b74697de7e2af9d66da99b7e27e2772893a90ce044aa1884251415d"
+
+[task.constraints]
+quality = [
+    { id = "area", type = "functional_bbox_area", layers_from = "outline" },
+]
+
+[[task.constraints.hard]]
+id = "outline"
+type = "bbox_max"
+functional_layers = [
+    [
+        1,
+        0,
+    ],
+    [
+        3,
+        0,
+    ],
+    [
+        5,
+        0,
+    ],
+    [
+        6,
+        0,
+    ],
+    [
+        7,
+        0,
+    ],
+    [
+        8,
+        0,
+    ],
+    [
+        10,
+        0,
+    ],
+    [
+        11,
+        0,
+    ],
+    [
+        13,
+        0,
+    ],
+    [
+        14,
+        0,
+    ],
+    [
+        19,
+        0,
+    ],
+    [
+        24,
+        0,
+    ],
+    [
+        26,
+        0,
+    ],
+    [
+        28,
+        0,
+    ],
+    [
+        29,
+        0,
+    ],
+    [
+        30,
+        0,
+    ],
+    [
+        31,
+        0,
+    ],
+    [
+        32,
+        0,
+    ],
+    [
+        33,
+        0,
+    ],
+    [
+        35,
+        0,
+    ],
+    [
+        36,
+        0,
+    ],
+    [
+        40,
+        0,
+    ],
+    [
+        44,
+        0,
+    ],
+    [
+        46,
+        0,
+    ],
+    [
+        49,
+        0,
+    ],
+    [
+        50,
+        0,
+    ],
+    [
+        51,
+        0,
+    ],
+    [
+        52,
+        0,
+    ],
+    [
+        53,
+        0,
+    ],
+    [
+        55,
+        0,
+    ],
+    [
+        58,
+        0,
+    ],
+    [
+        66,
+        0,
+    ],
+    [
+        67,
+        0,
+    ],
+    [
+        90,
+        0,
+    ],
+    [
+        101,
+        0,
+    ],
+    [
+        111,
+        0,
+    ],
+    [
+        125,
+        0,
+    ],
+    [
+        126,
+        0,
+    ],
+    [
+        128,
+        0,
+    ],
+    [
+        129,
+        0,
+    ],
+    [
+        133,
+        0,
+    ],
+    [
+        134,
+        0,
+    ],
+    [
+        139,
+        0,
+    ],
+    [
+        152,
+        0,
+    ],
+]
+max_width_um = 1100
+max_height_um = 1100
+
+[task.output]
+path = "output/final.gds"
+format = "gds"
+top_cell = "FMD_QNC_01_LIN_TIA"
+max_bytes = 33554432
+
+[task.evaluation]
+mode = "post_layout"
+
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 1210000
+rationale = "Band transimpedance carries 50%, input matching 15% and the harder output matching 35%. The actual loaded layout reduces delay ripple while losing over 16 dB of gain, so delay flatness is a diagnostic, not an easy source of 20% credit. Bias, power and fixed-frame area remain diagnostics. Scales are 3 dB and 0.05 reflected-power fraction, with no quality-score feasibility cutoff."
+
+[task.evaluation.scoring.weights]
+functional_area = 0
+band_transimpedance = 0.5
+input_reflection = 0.15
+output_reflection = 0.35
+
+[[task.evaluation.jobs]]
+id = "artifact"
+stage = "check"
+operation = "layout.artifact"
+gate = "artifact"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs]]
+id = "drc"
+stage = "check"
+operation = "layout.drc"
+gate = "drc"
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "'Pad.fR_M1'"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "polygon: (433.92,584.82;433.92,585;434.1,585;434.1,584.82)",
+    "polygon: (433.92,615;433.92,615.18;434.1,615.18;434.1,615)",
+    "polygon: (494.28,222.66;494.28,222.84;494.46,222.84;494.46,222.66)",
+    "polygon: (494.28,977.16;494.28,977.34;494.46,977.34;494.46,977.16)",
+    "polygon: (524.46,222.66;524.46,222.84;524.64,222.84;524.64,222.66)",
+    "polygon: (524.46,977.16;524.46,977.34;524.64,977.34;524.64,977.16)",
+    "polygon: (584.82,222.66;584.82,222.84;585,222.84;585,222.66)",
+    "polygon: (584.82,977.16;584.82,977.34;585,977.34;585,977.16)",
+    "polygon: (615,222.66;615,222.84;615.18,222.84;615.18,222.66)",
+    "polygon: (615,977.16;615,977.34;615.18,977.34;615.18,977.16)",
+    "polygon: (675.36,222.66;675.36,222.84;675.54,222.84;675.54,222.66)",
+    "polygon: (675.36,977.16;675.36,977.34;675.54,977.34;675.54,977.16)",
+    "polygon: (705.54,222.66;705.54,222.84;705.72,222.84;705.72,222.66)",
+    "polygon: (705.54,977.16;705.54,977.34;705.72,977.34;705.72,977.16)",
+    "polygon: (765.9,584.82;765.9,585;766.08,585;766.08,584.82)",
+    "polygon: (765.9,615;765.9,615.18;766.08,615.18;766.08,615)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "'Pad.fR_M2'"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "polygon: (487,475;487,525;487.605,525;487.605,475)",
+    "polygon: (487,675;487,725;487.605,725;487.605,675)",
+    "polygon: (569.685,237.375;569.685,237.585;569.895,237.585;569.895,237.375)",
+    "polygon: (569.685,267.585;569.685,267.795;569.895,267.795;569.895,267.585)",
+    "polygon: (569.685,932.205;569.685,932.415;569.895,932.415;569.895,932.205)",
+    "polygon: (569.685,962.415;569.685,962.625;569.895,962.625;569.895,962.415)",
+    "polygon: (630.105,237.375;630.105,237.585;630.315,237.585;630.315,237.375)",
+    "polygon: (630.105,267.585;630.105,267.795;630.315,267.795;630.315,267.585)",
+    "polygon: (630.105,932.205;630.105,932.415;630.315,932.415;630.315,932.205)",
+    "polygon: (630.105,962.415;630.105,962.625;630.315,962.625;630.315,962.415)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "'Pad.fR_M3'"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "polygon: (487,475;487,525;487.605,525;487.605,475)",
+    "polygon: (487,675;487,725;487.605,725;487.605,675)",
+    "polygon: (569.685,237.375;569.685,237.585;569.895,237.585;569.895,237.375)",
+    "polygon: (569.685,267.585;569.685,267.795;569.895,267.795;569.895,267.585)",
+    "polygon: (569.685,932.205;569.685,932.415;569.895,932.415;569.895,932.205)",
+    "polygon: (569.685,962.415;569.685,962.625;569.895,962.625;569.895,962.415)",
+    "polygon: (630.105,237.375;630.105,237.585;630.315,237.585;630.315,237.375)",
+    "polygon: (630.105,267.585;630.105,267.795;630.315,267.795;630.315,267.585)",
+    "polygon: (630.105,932.205;630.105,932.415;630.315,932.415;630.315,932.205)",
+    "polygon: (630.105,962.415;630.105,962.625;630.315,962.625;630.315,962.415)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "'Pad.fR_M4'"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "polygon: (487,475;487,525;487.605,525;487.605,475)",
+    "polygon: (487,675;487,725;487.605,725;487.605,675)",
+    "polygon: (569.685,237.375;569.685,237.585;569.895,237.585;569.895,237.375)",
+    "polygon: (569.685,267.585;569.685,267.795;569.895,267.795;569.895,267.585)",
+    "polygon: (569.685,932.205;569.685,932.415;569.895,932.415;569.895,932.205)",
+    "polygon: (569.685,962.415;569.685,962.625;569.895,962.625;569.895,962.415)",
+    "polygon: (630.105,237.375;630.105,237.585;630.315,237.585;630.315,237.375)",
+    "polygon: (630.105,267.585;630.105,267.795;630.315,267.795;630.315,267.585)",
+    "polygon: (630.105,932.205;630.105,932.415;630.315,932.415;630.315,932.205)",
+    "polygon: (630.105,962.415;630.105,962.625;630.315,962.625;630.315,962.415)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "'Pad.fR_M5'"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "polygon: (487,475;487,525;487.605,525;487.605,475)",
+    "polygon: (487,675;487,725;487.605,725;487.605,675)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "'Pad.fR_TM1'"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "polygon: (425.14,488.46;425.14,490.1;426.78,490.1;426.78,488.46)",
+    "polygon: (425.14,520.1;425.14,521.74;426.78,521.74;426.78,520.1)",
+    "polygon: (425.14,678.3;425.14,679.94;426.78,679.94;426.78,678.3)",
+    "polygon: (425.14,709.94;425.14,711.58;426.78,711.58;426.78,709.94)",
+    "polygon: (487,475;487,525;487.605,525;487.605,475)",
+    "polygon: (487,675;487,725;487.605,725;487.605,675)",
+    "polygon: (684.765,280.985;684.765,282;725,282;725,280.985)",
+    "polygon: (773.18,488.46;773.18,490.1;774.82,490.1;774.82,488.46)",
+    "polygon: (773.18,520.1;773.18,521.74;774.82,521.74;774.82,520.1)",
+    "polygon: (773.18,678.3;773.18,679.94;774.82,679.94;774.82,678.3)",
+    "polygon: (773.18,709.94;773.18,711.58;774.82,711.58;774.82,709.94)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "'Pad.fR_TM2'"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "polygon: (423.605,487;423.605,489;425,489;425,487)",
+    "polygon: (423.605,519;423.605,521;425,521;425,519)",
+    "polygon: (423.605,679;423.605,681;425,681;425,679)",
+    "polygon: (423.605,711;423.605,713;425,713;425,711)",
+    "polygon: (487,475;487,525;487.605,525;487.605,475)",
+    "polygon: (487,675;487,725;487.605,725;487.605,675)",
+    "polygon: (684.765,280.985;684.765,282;725,282;725,280.985)",
+    "polygon: (712.395,487;712.395,489;713,489;713,487)",
+    "polygon: (712.395,519;712.395,521;713,521;713,519)",
+    "polygon: (712.395,679;712.395,681;713,681;713,679)",
+    "polygon: (712.395,711;712.395,713;713,713;713,711)",
+    "polygon: (775,487;775,489;776.395,489;776.395,487)",
+    "polygon: (775,519;775,521;776.395,521;776.395,519)",
+    "polygon: (775,679;775,681;776.395,681;776.395,679)",
+    "polygon: (775,711;775,713;776.395,713;776.395,711)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "metal1_drw_Angle45"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "edge: (493.605,389.445;509.195,362.445)",
+    "edge: (507.465,359.445;491.875,386.445)",
+    "edge: (517.205,381.865;521.575,389.445)",
+    "edge: (517.635,381.115;517.205,381.865)",
+    "edge: (520.665,381.865;524.085,375.945)",
+    "edge: (520.67,367.015;523.305,362.445)",
+    "edge: (521.575,359.445;517.67,366.205)",
+    "edge: (522.345,372.945;517.635,381.115)",
+    "edge: (523.305,386.445;520.665,381.865)",
+    "edge: (536.18,362.445;539.21,367.695)",
+    "edge: (537.91,375.945;542.67,367.695)",
+    "edge: (537.91,389.445;542.205,382)",
+    "edge: (539.205,381.19;536.17,386.445)",
+    "edge: (539.21,367.695;536.18,372.945)",
+    "edge: (542.1,366.705;537.91,359.445)",
+    "edge: (542.67,367.695;542.1,366.705)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "metal2_drw_Angle45"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "edge: (493.605,389.445;509.195,362.445)",
+    "edge: (507.465,359.445;491.875,386.445)",
+    "edge: (517.205,381.865;521.575,389.445)",
+    "edge: (517.635,381.115;517.205,381.865)",
+    "edge: (520.665,381.865;524.085,375.945)",
+    "edge: (520.67,367.015;523.305,362.445)",
+    "edge: (521.575,359.445;517.67,366.205)",
+    "edge: (522.345,372.945;517.635,381.115)",
+    "edge: (523.305,386.445;520.665,381.865)",
+    "edge: (536.18,362.445;539.21,367.695)",
+    "edge: (537.91,375.945;542.67,367.695)",
+    "edge: (537.91,389.445;542.205,382)",
+    "edge: (539.205,381.19;536.17,386.445)",
+    "edge: (539.21,367.695;536.18,372.945)",
+    "edge: (542.1,366.705;537.91,359.445)",
+    "edge: (542.67,367.695;542.1,366.705)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "metal3_drw_Angle45"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "edge: (493.605,389.445;509.195,362.445)",
+    "edge: (507.465,359.445;491.875,386.445)",
+    "edge: (517.205,381.865;521.575,389.445)",
+    "edge: (517.635,381.115;517.205,381.865)",
+    "edge: (520.665,381.865;524.085,375.945)",
+    "edge: (520.67,367.015;523.305,362.445)",
+    "edge: (521.575,359.445;517.67,366.205)",
+    "edge: (522.345,372.945;517.635,381.115)",
+    "edge: (523.305,386.445;520.665,381.865)",
+    "edge: (536.18,362.445;539.21,367.695)",
+    "edge: (537.91,375.945;542.67,367.695)",
+    "edge: (537.91,389.445;542.205,382)",
+    "edge: (539.205,381.19;536.17,386.445)",
+    "edge: (539.21,367.695;536.18,372.945)",
+    "edge: (542.1,366.705;537.91,359.445)",
+    "edge: (542.67,367.695;542.1,366.705)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "metal4_drw_Angle45"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "edge: (493.605,389.445;509.195,362.445)",
+    "edge: (507.465,359.445;491.875,386.445)",
+    "edge: (517.205,381.865;521.575,389.445)",
+    "edge: (517.635,381.115;517.205,381.865)",
+    "edge: (520.665,381.865;524.085,375.945)",
+    "edge: (520.67,367.015;523.305,362.445)",
+    "edge: (521.575,359.445;517.67,366.205)",
+    "edge: (522.345,372.945;517.635,381.115)",
+    "edge: (523.305,386.445;520.665,381.865)",
+    "edge: (536.18,362.445;539.21,367.695)",
+    "edge: (537.91,375.945;542.67,367.695)",
+    "edge: (537.91,389.445;542.205,382)",
+    "edge: (539.205,381.19;536.17,386.445)",
+    "edge: (539.21,367.695;536.18,372.945)",
+    "edge: (542.1,366.705;537.91,359.445)",
+    "edge: (542.67,367.695;542.1,366.705)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "metal5_drw_Angle45"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "edge: (493.605,389.445;509.195,362.445)",
+    "edge: (507.465,359.445;491.875,386.445)",
+    "edge: (517.205,381.865;521.575,389.445)",
+    "edge: (517.635,381.115;517.205,381.865)",
+    "edge: (520.665,381.865;524.085,375.945)",
+    "edge: (520.67,367.015;523.305,362.445)",
+    "edge: (521.575,359.445;517.67,366.205)",
+    "edge: (522.345,372.945;517.635,381.115)",
+    "edge: (523.305,386.445;520.665,381.865)",
+    "edge: (536.18,362.445;539.21,367.695)",
+    "edge: (537.91,375.945;542.67,367.695)",
+    "edge: (537.91,389.445;542.205,382)",
+    "edge: (539.205,381.19;536.17,386.445)",
+    "edge: (539.21,367.695;536.18,372.945)",
+    "edge: (542.1,366.705;537.91,359.445)",
+    "edge: (542.67,367.695;542.1,366.705)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal1_drw_Angle45"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "edge: (493.605,389.445;509.195,362.445)",
+    "edge: (507.465,359.445;491.875,386.445)",
+    "edge: (517.205,381.865;521.575,389.445)",
+    "edge: (517.635,381.115;517.205,381.865)",
+    "edge: (520.665,381.865;524.085,375.945)",
+    "edge: (520.67,367.015;523.305,362.445)",
+    "edge: (521.575,359.445;517.67,366.205)",
+    "edge: (522.345,372.945;517.635,381.115)",
+    "edge: (523.305,386.445;520.665,381.865)",
+    "edge: (536.18,362.445;539.21,367.695)",
+    "edge: (537.91,375.945;542.67,367.695)",
+    "edge: (537.91,389.445;542.205,382)",
+    "edge: (539.205,381.19;536.17,386.445)",
+    "edge: (539.21,367.695;536.18,372.945)",
+    "edge: (542.1,366.705;537.91,359.445)",
+    "edge: (542.67,367.695;542.1,366.705)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal2_drw_Angle45"
+cell = "FMD_QNC_01_LIN_TIA"
+markers = [
+    "edge: (493.605,389.445;509.195,362.445)",
+    "edge: (507.465,359.445;491.875,386.445)",
+    "edge: (517.205,381.865;521.575,389.445)",
+    "edge: (517.635,381.115;517.205,381.865)",
+    "edge: (520.665,381.865;524.085,375.945)",
+    "edge: (520.67,367.015;523.305,362.445)",
+    "edge: (521.575,359.445;517.67,366.205)",
+    "edge: (522.345,372.945;517.635,381.115)",
+    "edge: (523.305,386.445;520.665,381.865)",
+    "edge: (536.18,362.445;539.21,367.695)",
+    "edge: (537.91,375.945;542.67,367.695)",
+    "edge: (537.91,389.445;542.205,382)",
+    "edge: (539.205,381.19;536.17,386.445)",
+    "edge: (539.21,367.695;536.18,372.945)",
+    "edge: (542.1,366.705;537.91,359.445)",
+    "edge: (542.67,367.695;542.1,366.705)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal2_drw_Angle45"
+cell = "RF_INPUT"
+markers = [
+    "edge: (157.605,15;158.155,15.02)",
+    "edge: (158.155,15.02;158.705,15.07)",
+    "edge: (158.705,15.07;159.245,15.16)",
+    "edge: (159.135,0.05;157.605,0)",
+    "edge: (159.245,15.16;159.785,15.285)",
+    "edge: (159.785,15.285;160.31,15.445)",
+    "edge: (160.31,15.445;160.825,15.64)",
+    "edge: (160.66,0.2;159.135,0.05)",
+    "edge: (160.825,15.64;161.325,15.865)",
+    "edge: (161.325,15.865;161.815,16.125)",
+    "edge: (161.815,16.125;162.28,16.42)",
+    "edge: (162.175,0.45;160.66,0.2)",
+    "edge: (162.28,16.42;162.73,16.74)",
+    "edge: (162.73,16.74;163.155,17.09)",
+    "edge: (163.155,17.09;163.555,17.465)",
+    "edge: (163.555,17.465;163.93,17.865)",
+    "edge: (163.665,0.795;162.175,0.45)",
+    "edge: (163.93,17.865;164.28,18.29)",
+    "edge: (164.28,18.29;164.6,18.74)",
+    "edge: (164.6,18.74;164.895,19.205)",
+    "edge: (164.895,19.205;165.155,19.695)",
+    "edge: (165.13,1.24;163.665,0.795)",
+    "edge: (165.155,19.695;165.38,20.195)",
+    "edge: (165.38,20.195;165.575,20.71)",
+    "edge: (165.575,20.71;165.735,21.235)",
+    "edge: (165.735,21.235;165.86,21.775)",
+    "edge: (165.86,21.775;165.95,22.315)",
+    "edge: (165.95,22.315;166,22.865)",
+    "edge: (166,22.865;166.02,23.415)",
+    "edge: (166.565,1.78;165.13,1.24)",
+    "edge: (167.96,2.415;166.565,1.78)",
+    "edge: (169.315,3.135;167.96,2.415)",
+    "edge: (170.615,3.945;169.315,3.135)",
+    "edge: (171.86,4.84;170.615,3.945)",
+    "edge: (173.045,5.81;171.86,4.84)",
+    "edge: (174.16,6.86;173.045,5.81)",
+    "edge: (175.21,7.975;174.16,6.86)",
+    "edge: (176.18,9.16;175.21,7.975)",
+    "edge: (177.075,10.405;176.18,9.16)",
+    "edge: (177.885,11.705;177.075,10.405)",
+    "edge: (178.605,13.06;177.885,11.705)",
+    "edge: (179.24,14.455;178.605,13.06)",
+    "edge: (179.78,15.89;179.24,14.455)",
+    "edge: (180.225,17.355;179.78,15.89)",
+    "edge: (180.57,18.845;180.225,17.355)",
+    "edge: (180.82,20.36;180.57,18.845)",
+    "edge: (180.97,21.885;180.82,20.36)",
+    "edge: (181.02,23.415;180.97,21.885)",
+    "edge: (64.79,62.265;66.32,62.215)",
+    "edge: (65.34,47.245;64.79,47.265)",
+    "edge: (65.89,47.195;65.34,47.245)",
+    "edge: (66.32,62.215;67.845,62.065)",
+    "edge: (66.43,47.105;65.89,47.195)",
+    "edge: (66.97,46.98;66.43,47.105)",
+    "edge: (67.495,46.82;66.97,46.98)",
+    "edge: (67.845,62.065;69.36,61.815)",
+    "edge: (68.01,46.625;67.495,46.82)",
+    "edge: (68.51,46.4;68.01,46.625)",
+    "edge: (69,46.14;68.51,46.4)",
+    "edge: (69.36,61.815;70.85,61.47)",
+    "edge: (69.465,45.845;69,46.14)",
+    "edge: (69.915,45.525;69.465,45.845)",
+    "edge: (70.34,45.175;69.915,45.525)",
+    "edge: (70.74,44.8;70.34,45.175)",
+    "edge: (70.85,61.47;72.315,61.025)",
+    "edge: (71.115,44.4;70.74,44.8)",
+    "edge: (71.465,43.975;71.115,44.4)",
+    "edge: (71.785,43.525;71.465,43.975)",
+    "edge: (72.08,43.06;71.785,43.525)",
+    "edge: (72.315,61.025;73.75,60.485)",
+    "edge: (72.34,42.57;72.08,43.06)",
+    "edge: (72.565,42.07;72.34,42.57)",
+    "edge: (72.76,41.555;72.565,42.07)",
+    "edge: (72.92,41.03;72.76,41.555)",
+    "edge: (73.045,40.49;72.92,41.03)",
+    "edge: (73.135,39.95;73.045,40.49)",
+    "edge: (73.185,39.4;73.135,39.95)",
+    "edge: (73.205,38.85;73.185,39.4)",
+    "edge: (73.255,21.885;73.205,23.415)",
+    "edge: (73.405,20.36;73.255,21.885)",
+    "edge: (73.655,18.845;73.405,20.36)",
+    "edge: (73.75,60.485;75.145,59.85)",
+    "edge: (74,17.355;73.655,18.845)",
+    "edge: (74.445,15.89;74,17.355)",
+    "edge: (74.985,14.455;74.445,15.89)",
+    "edge: (75.145,59.85;76.5,59.13)",
+    "edge: (75.62,13.06;74.985,14.455)",
+    "edge: (76.34,11.705;75.62,13.06)",
+    "edge: (76.5,59.13;77.8,58.32)",
+    "edge: (77.15,10.405;76.34,11.705)",
+    "edge: (77.8,58.32;79.045,57.425)",
+    "edge: (78.045,9.16;77.15,10.405)",
+    "edge: (79.015,7.975;78.045,9.16)",
+    "edge: (79.045,57.425;80.23,56.455)",
+    "edge: (80.065,6.86;79.015,7.975)",
+    "edge: (80.23,56.455;81.345,55.405)",
+    "edge: (81.18,5.81;80.065,6.86)",
+    "edge: (81.345,55.405;82.395,54.29)",
+    "edge: (82.365,4.84;81.18,5.81)",
+    "edge: (82.395,54.29;83.365,53.105)",
+    "edge: (83.365,53.105;84.26,51.86)",
+    "edge: (83.61,3.945;82.365,4.84)",
+    "edge: (84.26,51.86;85.07,50.56)",
+    "edge: (84.91,3.135;83.61,3.945)",
+    "edge: (85.07,50.56;85.79,49.205)",
+    "edge: (85.79,49.205;86.425,47.81)",
+    "edge: (86.265,2.415;84.91,3.135)",
+    "edge: (86.425,47.81;86.965,46.375)",
+    "edge: (86.965,46.375;87.41,44.91)",
+    "edge: (87.41,44.91;87.755,43.42)",
+    "edge: (87.66,1.78;86.265,2.415)",
+    "edge: (87.755,43.42;88.005,41.905)",
+    "edge: (88.005,41.905;88.155,40.38)",
+    "edge: (88.155,40.38;88.205,38.85)",
+    "edge: (88.205,23.415;88.225,22.865)",
+    "edge: (88.225,22.865;88.275,22.315)",
+    "edge: (88.275,22.315;88.365,21.775)",
+    "edge: (88.365,21.775;88.49,21.235)",
+    "edge: (88.49,21.235;88.65,20.71)",
+    "edge: (88.65,20.71;88.845,20.195)",
+    "edge: (88.845,20.195;89.07,19.695)",
+    "edge: (89.07,19.695;89.33,19.205)",
+    "edge: (89.095,1.24;87.66,1.78)",
+    "edge: (89.33,19.205;89.625,18.74)",
+    "edge: (89.625,18.74;89.945,18.29)",
+    "edge: (89.945,18.29;90.295,17.865)",
+    "edge: (90.295,17.865;90.67,17.465)",
+    "edge: (90.56,0.795;89.095,1.24)",
+    "edge: (90.67,17.465;91.07,17.09)",
+    "edge: (91.07,17.09;91.495,16.74)",
+    "edge: (91.495,16.74;91.945,16.42)",
+    "edge: (91.945,16.42;92.41,16.125)",
+    "edge: (92.05,0.45;90.56,0.795)",
+    "edge: (92.41,16.125;92.9,15.865)",
+    "edge: (92.9,15.865;93.4,15.64)",
+    "edge: (93.4,15.64;93.915,15.445)",
+    "edge: (93.565,0.2;92.05,0.45)",
+    "edge: (93.915,15.445;94.44,15.285)",
+    "edge: (94.44,15.285;94.98,15.16)",
+    "edge: (94.98,15.16;95.52,15.07)",
+    "edge: (95.09,0.05;93.565,0.2)",
+    "edge: (95.52,15.07;96.07,15.02)",
+    "edge: (96.07,15.02;96.62,15)",
+    "edge: (96.62,0;95.09,0.05)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal2_drw_Angle45"
+cell = "RF_CHOKE4"
+markers = [
+    "edge: (10.245,91.095;9.13,92.145)",
+    "edge: (11.43,90.125;10.245,91.095)",
+    "edge: (12.675,89.23;11.43,90.125)",
+    "edge: (13.975,88.42;12.675,89.23)",
+    "edge: (15.33,87.7;13.975,88.42)",
+    "edge: (16.725,87.065;15.33,87.7)",
+    "edge: (17.27,108.7;17.29,108.15)",
+    "edge: (17.29,108.15;17.34,107.6)",
+    "edge: (17.34,107.6;17.43,107.06)",
+    "edge: (17.43,107.06;17.555,106.52)",
+    "edge: (17.555,106.52;17.715,105.995)",
+    "edge: (17.715,105.995;17.91,105.48)",
+    "edge: (17.91,105.48;18.135,104.98)",
+    "edge: (18.135,104.98;18.395,104.49)",
+    "edge: (18.16,86.525;16.725,87.065)",
+    "edge: (18.395,104.49;18.69,104.025)",
+    "edge: (18.69,104.025;19.01,103.575)",
+    "edge: (19.01,103.575;19.36,103.15)",
+    "edge: (19.36,103.15;19.735,102.75)",
+    "edge: (19.625,86.08;18.16,86.525)",
+    "edge: (19.735,102.75;20.135,102.375)",
+    "edge: (2.32,107.17;2.27,108.7)",
+    "edge: (2.47,105.645;2.32,107.17)",
+    "edge: (2.72,104.13;2.47,105.645)",
+    "edge: (20.135,102.375;20.56,102.025)",
+    "edge: (20.56,102.025;21.01,101.705)",
+    "edge: (21.01,101.705;21.475,101.41)",
+    "edge: (21.115,85.735;19.625,86.08)",
+    "edge: (21.475,101.41;21.965,101.15)",
+    "edge: (21.965,101.15;22.465,100.925)",
+    "edge: (22.465,100.925;22.98,100.73)",
+    "edge: (22.63,85.485;21.115,85.735)",
+    "edge: (22.98,100.73;23.505,100.57)",
+    "edge: (23.505,100.57;24.045,100.445)",
+    "edge: (24.045,100.445;24.585,100.355)",
+    "edge: (24.155,85.335;22.63,85.485)",
+    "edge: (24.585,100.355;25.135,100.305)",
+    "edge: (25.135,100.305;25.685,100.285)",
+    "edge: (25.685,85.285;24.155,85.335)",
+    "edge: (3.065,102.64;2.72,104.13)",
+    "edge: (3.51,101.175;3.065,102.64)",
+    "edge: (4.05,99.74;3.51,101.175)",
+    "edge: (4.685,98.345;4.05,99.74)",
+    "edge: (5.405,96.99;4.685,98.345)",
+    "edge: (55.535,100.285;57.065,100.235)",
+    "edge: (56.085,85.265;55.535,85.285)",
+    "edge: (56.635,85.215;56.085,85.265)",
+    "edge: (57.065,100.235;58.59,100.085)",
+    "edge: (57.175,85.125;56.635,85.215)",
+    "edge: (57.715,85;57.175,85.125)",
+    "edge: (58.24,84.84;57.715,85)",
+    "edge: (58.59,100.085;60.105,99.835)",
+    "edge: (58.755,84.645;58.24,84.84)",
+    "edge: (59.255,84.42;58.755,84.645)",
+    "edge: (59.745,84.16;59.255,84.42)",
+    "edge: (6.215,95.69;5.405,96.99)",
+    "edge: (60.105,99.835;61.595,99.49)",
+    "edge: (60.21,83.865;59.745,84.16)",
+    "edge: (60.66,83.545;60.21,83.865)",
+    "edge: (61.085,83.195;60.66,83.545)",
+    "edge: (61.485,82.82;61.085,83.195)",
+    "edge: (61.595,99.49;63.06,99.045)",
+    "edge: (61.86,82.42;61.485,82.82)",
+    "edge: (62.21,81.995;61.86,82.42)",
+    "edge: (62.53,81.545;62.21,81.995)",
+    "edge: (62.825,81.08;62.53,81.545)",
+    "edge: (63.06,99.045;64.495,98.505)",
+    "edge: (63.085,80.59;62.825,81.08)",
+    "edge: (63.31,80.09;63.085,80.59)",
+    "edge: (63.505,79.575;63.31,80.09)",
+    "edge: (63.665,79.05;63.505,79.575)",
+    "edge: (63.79,78.51;63.665,79.05)",
+    "edge: (63.88,77.97;63.79,78.51)",
+    "edge: (63.93,77.42;63.88,77.97)",
+    "edge: (63.95,76.87;63.93,77.42)",
+    "edge: (64.495,98.505;65.89,97.87)",
+    "edge: (65.89,97.87;67.245,97.15)",
+    "edge: (67.245,97.15;68.545,96.34)",
+    "edge: (68.545,96.34;69.79,95.445)",
+    "edge: (69.79,95.445;70.975,94.475)",
+    "edge: (7.11,94.445;6.215,95.69)",
+    "edge: (70.975,94.475;72.09,93.425)",
+    "edge: (72.09,93.425;73.14,92.31)",
+    "edge: (73.14,92.31;74.11,91.125)",
+    "edge: (74.11,91.125;75.005,89.88)",
+    "edge: (75.005,89.88;75.815,88.58)",
+    "edge: (75.815,88.58;76.535,87.225)",
+    "edge: (76.535,87.225;77.17,85.83)",
+    "edge: (77.17,85.83;77.71,84.395)",
+    "edge: (77.71,84.395;78.155,82.93)",
+    "edge: (78.155,82.93;78.5,81.44)",
+    "edge: (78.5,81.44;78.75,79.925)",
+    "edge: (78.75,79.925;78.9,78.4)",
+    "edge: (78.9,78.4;78.95,76.87)",
+    "edge: (8.08,93.26;7.11,94.445)",
+    "edge: (9.13,92.145;8.08,93.26)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs.parameters.waivers]]
+category = "topmetal2_drw_Angle45"
+cell = "RF_DEG1"
+markers = [
+    "edge: (0.05,21.885;0,23.415)",
+    "edge: (0.2,20.36;0.05,21.885)",
+    "edge: (0.45,18.845;0.2,20.36)",
+    "edge: (0.795,17.355;0.45,18.845)",
+    "edge: (1.24,15.89;0.795,17.355)",
+    "edge: (1.78,14.455;1.24,15.89)",
+    "edge: (10.405,3.945;9.16,4.84)",
+    "edge: (11.705,3.135;10.405,3.945)",
+    "edge: (13.06,2.415;11.705,3.135)",
+    "edge: (14.455,1.78;13.06,2.415)",
+    "edge: (15,23.415;15.02,22.865)",
+    "edge: (15.02,22.865;15.07,22.315)",
+    "edge: (15.07,22.315;15.16,21.775)",
+    "edge: (15.16,21.775;15.285,21.235)",
+    "edge: (15.285,21.235;15.445,20.71)",
+    "edge: (15.445,20.71;15.64,20.195)",
+    "edge: (15.64,20.195;15.865,19.695)",
+    "edge: (15.865,19.695;16.125,19.205)",
+    "edge: (15.89,1.24;14.455,1.78)",
+    "edge: (16.125,19.205;16.42,18.74)",
+    "edge: (16.42,18.74;16.74,18.29)",
+    "edge: (16.74,18.29;17.09,17.865)",
+    "edge: (17.09,17.865;17.465,17.465)",
+    "edge: (17.355,0.795;15.89,1.24)",
+    "edge: (17.465,17.465;17.865,17.09)",
+    "edge: (17.865,17.09;18.29,16.74)",
+    "edge: (18.29,16.74;18.74,16.42)",
+    "edge: (18.74,16.42;19.205,16.125)",
+    "edge: (18.845,0.45;17.355,0.795)",
+    "edge: (19.205,16.125;19.695,15.865)",
+    "edge: (19.695,15.865;20.195,15.64)",
+    "edge: (2.415,13.06;1.78,14.455)",
+    "edge: (20.195,15.64;20.71,15.445)",
+    "edge: (20.36,0.2;18.845,0.45)",
+    "edge: (20.71,15.445;21.235,15.285)",
+    "edge: (21.235,15.285;21.775,15.16)",
+    "edge: (21.775,15.16;22.315,15.07)",
+    "edge: (21.885,0.05;20.36,0.2)",
+    "edge: (22.315,15.07;22.865,15.02)",
+    "edge: (22.865,15.02;23.415,15)",
+    "edge: (23.415,0;21.885,0.05)",
+    "edge: (3.135,11.705;2.415,13.06)",
+    "edge: (3.945,10.405;3.135,11.705)",
+    "edge: (4.84,9.16;3.945,10.405)",
+    "edge: (5.81,7.975;4.84,9.16)",
+    "edge: (6.86,6.86;5.81,7.975)",
+    "edge: (7.975,5.81;6.86,6.86)",
+    "edge: (9.16,4.84;7.975,5.81)",
+]
+reason = "Exact inherited curved RF geometry or recommended package exit. Required passive geometry and ground context are immutable; core spacing and enclosure rules remain enforced."
+
+[[task.evaluation.jobs]]
+id = "macros"
+stage = "check"
+operation = "layout.fixed_macros"
+requires = [
+    "artifact",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+library = "input:macrolibrary"
+specification = "input:macrospec"
+
+[task.evaluation.jobs.outputs]
+layout = "gds"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "lvs"
+stage = "check"
+operation = "layout.lvs"
+gate = "lvs"
+
+[task.evaluation.jobs.inputs]
+layout = "job:macros:layout"
+original = "candidate"
+binding = "job:macros:binding"
+task = "task"
+netlist = "input:netlist"
+
+[task.evaluation.jobs.outputs]
+database = "klayout-lvs"
+binding = "json"
+
+[[task.evaluation.jobs]]
+id = "geometry"
+stage = "check"
+operation = "layout.geometry"
+gate = "constraint"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "candidate"
+task = "task"
+constraints = "input:constraints"
+
+[[task.evaluation.jobs]]
+id = "parasitics"
+stage = "extract"
+operation = "layout.parasitics"
+requires = [
+    "artifact",
+    "drc",
+    "lvs",
+    "geometry",
+]
+
+[task.evaluation.jobs.inputs]
+layout = "job:macros:layout"
+original = "candidate"
+binding = "job:lvs:binding"
+task = "task"
+derivation = "job:macros:binding"
+database = "job:lvs:database"
+
+[task.evaluation.jobs.outputs]
+netlist = "spice"
+
+[task.evaluation.jobs.parameters]
+ports = [
+    "VCC1",
+    "VCC2",
+    "GND",
+    "RF_INPUT_INNER",
+    "RF_OUTPUT_INNER",
+    "RF_CHOKE1_INNER",
+    "RF_CHOKE2_INNER",
+    "RF_CHOKE3_INNER",
+    "RF_CHOKE4_INNER",
+    "RF_DEG1_INNER",
+    "RF_DEG4_INNER",
+]
+substrate = "GND"
+
+[[task.evaluation.jobs]]
+id = "rf"
+stage = "simulate"
+operation = "circuit.simulate"
+
+[task.evaluation.jobs.inputs]
+circuit = "job:parasitics:netlist"
+macros = "input:macros"
+deck = "input:performance"
+
+[task.evaluation.jobs.outputs]
+op = "ngspice-raw"
+rf = "ngspice-raw"
+
+[task.evaluation.jobs.parameters.measurements]
+supply_power = "W"
+band_gain = "dB"
+band_transimpedance = "dBohm"
+delay_ripple = "s"
+input_reflection = "1"
+output_reflection = "1"
+
+[task.evaluation.jobs.parameters.exports]
+op = "operating_point.raw"
+rf = "frequency_response.raw"
+
+[[task.evaluation.metrics]]
+id = "functional_area"
+category = "physical"
+observations = [
+    "geometry:area",
+]
+unit = "um2"
+direction = "minimize"
+aggregation = "max"
+
+[[task.evaluation.metrics]]
+id = "band_transimpedance"
+category = "performance"
+observations = [
+    "rf:band_transimpedance",
+]
+unit = "dBohm"
+direction = "maximize"
+aggregation = "min"
+dimension = "response"
+baseline = [
+    "source_rf:band_transimpedance",
+]
+normalization = "degradation"
+scale = 3.0
+
+[[task.evaluation.metrics]]
+id = "delay_ripple"
+category = "performance"
+observations = [
+    "rf:delay_ripple",
+]
+unit = "s"
+direction = "minimize"
+aggregation = "max"
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "A squared reflection magnitude or peak-to-peak delay range is nonnegative; its size is scored continuously."
+
+[[task.evaluation.metrics]]
+id = "input_reflection"
+category = "performance"
+observations = [
+    "rf:input_reflection",
+]
+unit = "1"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_rf:input_reflection",
+]
+normalization = "degradation"
+scale = 0.05
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "A squared reflection magnitude or peak-to-peak delay range is nonnegative; its size is scored continuously."
+
+[[task.evaluation.metrics]]
+id = "output_reflection"
+category = "performance"
+observations = [
+    "rf:output_reflection",
+]
+unit = "1"
+direction = "minimize"
+aggregation = "max"
+dimension = "response"
+baseline = [
+    "source_rf:output_reflection",
+]
+normalization = "degradation"
+scale = 0.05
+
+[task.evaluation.metrics.requirement]
+lower = 0
+rationale = "A squared reflection magnitude or peak-to-peak delay range is nonnegative; its size is scored continuously."
+
+[[task.evaluation.metrics]]
+id = "band_gain"
+category = "performance"
+observations = [
+    "rf:band_gain",
+]
+unit = "dB"
+direction = "maximize"
+aggregation = "min"
+
+[[task.evaluation.metrics]]
+id = "supply_power"
+category = "performance"
+observations = [
+    "rf:supply_power",
+]
+unit = "W"
+direction = "minimize"
+aggregation = "max"
+
+[task.evaluation.pre_layout]
+source_report_sha256 = "31e5c35c0893d3a31f1b98dd14924d614d18e3a1dd33a09d5255e71d87683ece"
+
+[task.evaluation.pre_layout.backends]
+"circuit.simulate" = "{\"adapter\": \"ngspice-docker\", \"adapter_sha256\": \"d872114717bdbf7c982b0f7a4c489412893ed71cef288bf726d3f5a31f20a579\", \"compatibility\": null, \"cpu_budget\": 8, \"executable_workspace\": false, \"execution_sha256\": \"19535fecb35a2498469d9ba0c047b73069cdb337e7c8c66dca04c8121415307d\", \"image_id\": \"sha256:d2e35c1eda377fd987e41298ce114670544b64aaaad4686b024d51bcfe94902b\", \"limits\": {\"cpus\": null, \"memory_mb\": null, \"pids\": null}, \"max_parallel_jobs\": 8, \"resistor_formulation\": \"conductance\", \"support_sha256\": \"9b933bc54e71316ab48a8e10b794fd94b250a935af791ccb95b4ced255bf407a\", \"thread_environment\": {\"OMP_NUM_THREADS\": \"1\", \"OMP_THREAD_LIMIT\": \"1\"}, \"threads\": 1, \"timeout_seconds\": 600.0, \"tool_version\": \"******\\n** ngspice-45 : Circuit level simulation program\\n** Compiled with KLU Direct Linear Solver\\n** The U. C. Berkeley CAD Group\\n** Copyright 1985-1994, Regents of the University of California.\\n** Copyright 2001-2025, The ngspice team.\\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\\n** Creation Date: Fri Oct 23 17:38:14 UTC 2026\\n******\"}"
+
+[task.evaluation.pre_layout.jobs.source_rf]
+operation = "circuit.simulate"
+
+[task.evaluation.pre_layout.jobs.source_rf.inputs]
+circuit = "input:simulation"
+macros = "input:macros"
+deck = "input:performance"
+
+[task.evaluation.pre_layout.jobs.source_rf.outputs]
+op = "ngspice-raw"
+rf = "ngspice-raw"
+
+[task.evaluation.pre_layout.jobs.source_rf.parameters.measurements]
+supply_power = "W"
+band_gain = "dB"
+band_transimpedance = "dBohm"
+delay_ripple = "s"
+input_reflection = "1"
+output_reflection = "1"
+
+[task.evaluation.pre_layout.jobs.source_rf.parameters.exports]
+op = "operating_point.raw"
+rf = "frequency_response.raw"
+
+[task.evaluation.pre_layout.jobs.source_rf.input_sha256]
+circuit = "07e66c038341379841da4ff8a1e33b9d3e8c72425ec587c2b2e4b42ae922419e"
+macros = "718812a76b74697de7e2af9d66da99b7e27e2772893a90ce044aa1884251415d"
+deck = "2725ce9ef01ab0f5335701ff9ebf006f5af0c59dc11799d2ed66abc71901c27d"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.band_gain]
+value = 19.03918358549083
+unit = "dB"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.band_transimpedance]
+value = 51.06615352667511
+unit = "dBohm"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.delay_ripple]
+value = 7.748127989173231e-12
+unit = "s"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.input_reflection]
+value = 0.1266786213313951
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.output_reflection]
+value = 0.6507438449296773
+unit = "1"
+
+[task.evaluation.pre_layout.jobs.source_rf.measurements.supply_power]
+value = 0.09579871619537414
+unit = "W"
+
+[toolchain.bindings]
+"layout.artifact" = "artifact"
+"layout.drc" = "drc"
+"layout.lvs" = "lvs"
+"layout.geometry" = "geometry"
+"layout.parasitics" = "parasitics"
+"circuit.simulate" = "simulation"
+"layout.fixed_macros" = "macros"
+
+[toolchain.backends.geometry]
+type = "klayout-geometry-docker"
+
+[toolchain.backends.geometry.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 120
+
+[toolchain.backends.drc]
+type = "klayout-docker"
+
+[toolchain.backends.drc.support_profiles]
+support = "klayout"
+
+[toolchain.backends.drc.settings]
+image = "iclayout-eda-open:local"
+check = "drc"
+support = "build/support/tia97-klayout"
+profile = "drc-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.lvs]
+type = "klayout-docker"
+
+[toolchain.backends.lvs.support_profiles]
+support = "klayout"
+
+[toolchain.backends.lvs.settings]
+image = "iclayout-eda-open:local"
+check = "lvs"
+support = "build/support/tia97-klayout"
+profile = "lvs-upstream.json"
+timeout_seconds = 600
+
+[toolchain.backends.artifact]
+type = "klayout-docker"
+
+[toolchain.backends.artifact.settings]
+image = "iclayout-eda-open:local"
+check = "artifact"
+timeout_seconds = 60
+
+[toolchain.backends.simulation]
+type = "ngspice-docker"
+
+[toolchain.backends.simulation.support_profiles]
+support = "hbt-models"
+
+[toolchain.backends.simulation.settings]
+max_parallel_jobs = 8
+threads = 1
+cpu_budget = 8
+image = "iclayout-eda-open:local"
+support = "build/support/tia97-hbt-models"
+timeout_seconds = 600
+
+[toolchain.backends.parasitics]
+type = "kpex-cc-docker"
+
+[toolchain.backends.parasitics.support_profiles]
+support = "kpex-rf"
+
+[toolchain.backends.parasitics.settings]
+image = "iclayout-eda-open:local"
+support = "build/support/tia97-kpex"
+profile = "kpex-interface.json"
+timeout_seconds = 600
+
+[toolchain.backends.macros]
+type = "fixed-macros-docker"
+
+[toolchain.backends.macros.settings]
+image = "iclayout-eda-open:local"
+timeout_seconds = 120
+
+[origin]
+url = "https://github.com/IHP-GmbH/TO_Apr2025/blob/63e203a0eccfb6028a1a0a8364553e4e979b55b3/97_GHZ_LINEAR_TIA/design_data/qucs-s/97_GHZ_LINEAR_TIA.sch"
+
+[presentation]
+category = "Amplifiers & RF"
+summary = "Four-stage SiGe linear TIA with two complete bias clamps, eight fixed upstream RF passives and candidate-derived coupling capacitance."
+
+[screening]
+decision = "include"
+reason = "Complete four-stage twelve-HBT linear TIA with two bias clamps, eight fixed upstream RF networks and candidate-derived coupling capacitance. Replaces the smaller three-HBT TIA in the core while preserving source-paired wideband transimpedance and matching measurements."

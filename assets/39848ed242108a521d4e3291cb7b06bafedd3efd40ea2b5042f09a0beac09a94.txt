@@ -1,0 +1,29 @@
+* Standardized projected-sheet immunity: zero-DC, 100 uA AC, unity feedback.
+.include "support/models.spice"
+.include "parameters.spice"
+.param lb_sheet_drive_0={noise_a*(source_index==0)}
+.param lb_sheet_drive_1={noise_a*(source_index==1)}
+.param lb_sheet_drive_2={noise_a*(source_index==2)}
+.param lb_sheet_drive_3={noise_a*(source_index==3)}
+.param lb_sheet_drive_4={noise_a*(source_index==4)}
+.param lb_sheet_drive_5={noise_a*(source_index==5)}
+.param lb_sheet_drive_6={noise_a*(source_index==6)}
+.param lb_sheet_drive_7={noise_a*(source_index==7)}
+.include "dut.spice"
+.options reltol=1e-8 abstol=1e-16 vntol=1e-11
+.temp 27
+VDD vdd 0 3.3
+IBIAS vdd ib 10u
+VIN inp 0 DC 1.65
+CLOAD out 0 1p
+XDUT vdd out inp out ib 0 ota_5t
+.control
+op
+ac dec 4 1k 1Meg
+let interference_mag=mag(v(out))
+meas ac interference_v find interference_mag at=1000
+meas ac band_interference_v max interference_mag
+write waveform.raw v(out)
+quit
+.endc
+.end
