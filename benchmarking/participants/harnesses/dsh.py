@@ -204,9 +204,11 @@ def prepare(context: LaunchContext) -> list[str]:
         {"id": "session-persistence-jsonl", "config": {"root": str(home / 'sessions')}},
         {"id": "storage-json", "config": {"root": str(home / 'storages')}},
         {"insert": [{"id": "mcp-layout", "name": "@deepseek-ai/dsh-mcp-client", "config": {
-            "serverName": "layout", "transport": "stdio", "command": sys.executable,
-            "args": ["-I", str(bridge)], "toolCallTimeoutMs": int(env["ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS"]) * 1000, "failOnStartupError": True,
-            "env": {k: v for k, v in env.items() if k.startswith("ICLAYOUT_BENCH_")},
+            "serverName": "layout", "transport": "stdio",
+            **settings.get("mcp_servers", {}).get("layout", {
+                "command": sys.executable, "args": ["-I", str(bridge)],
+                "env": {k: v for k, v in env.items() if k.startswith("ICLAYOUT_BENCH_")}}),
+            "toolCallTimeoutMs": int(env["ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS"]) * 1000, "failOnStartupError": True,
         }}]},
     ]
     if native_executor:
@@ -215,6 +217,8 @@ def prepare(context: LaunchContext) -> list[str]:
         # Older DSH versions select the executor on the tools service itself.
         patch.append({"id": "tools", "config": {"mode": "native"}})
     for name, spec in settings.get("mcp_servers", {}).items():
+        if name == "layout":
+            continue
         patch.append({"insert": [{"id": "mcp-" + name, "name": "@deepseek-ai/dsh-mcp-client", "config": {
             "serverName": name, "transport": "stdio", **spec,
             "toolCallTimeoutMs": int(env["ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS"]) * 1000,

@@ -651,6 +651,33 @@ MCP servers receive the scoped session environment so they can use the Bench
 HTTP client. No creation credential is forwarded. Native host shell tools remain
 disabled; Python/CLI tools installed in the solver run through layout MCP.
 
+#### Explicit layout MCP adapters
+
+To wrap the normal layout tools with participant-side memory or instrumentation,
+declare an explicit `scheme.layout_mcp` launch using the same `command`, `files`
+and `env_vars` format. The reserved `layout` entry remains unavailable inside
+`scheme.mcp`; this separate declaration distinguishes an intentional adapter
+from an additional tool server:
+
+```toml
+[scheme.layout_mcp]
+command = ["python", "-m", "participant_layout_adapter"]
+files = ["requirements.lock"]
+env_vars = []
+```
+
+The adapter replaces the participant-facing `layout` MCP process. Omitting it
+uses the bundled bridge. Its launch and declared files enter the participant
+condition identity and are checked before and after execution. Native adapters
+keep their normal host-tool restrictions and MCP approval policy.
+
+A delegating adapter can launch `python -I -m benchmarking.participants.mcp`
+as its upstream stdio server. Preserve its original tool responses and label any
+added history or summaries as participant-derived. Record only this session's
+allowed inputs, workspace files and public feedback. The scoped HTTP service
+continues to enforce workspace operations, candidate freezing and solve budgets;
+the operator's independent evaluator and final scores remain authoritative.
+
 For an existing control program, select `harness = "command"` and declare:
 
 ```toml

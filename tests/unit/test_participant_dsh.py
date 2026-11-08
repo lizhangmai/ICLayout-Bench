@@ -138,6 +138,21 @@ def test_dsh_old_cli_is_rejected_before_model_dispatch(monkeypatch):
         configuration({})
 
 
+def test_declared_layout_adapter_replaces_one_dsh_server(tmp_path):
+    settings = {'rows': [], 'settings': {}, 'mcp_servers': {
+        'layout': {'command': '/tools/memory-proxy', 'args': ['serve'],
+                   'env': {'ICLAYOUT_BENCH_TOKEN': 'scoped-fixture-token'}}}}
+    condition = {'harness': 'dsh', 'provider': 'deepseek-official', 'model': 'fixture', 'effort_resolved': 'high'}
+    env = {'ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS': '120'}
+    prepare(LaunchContext(ParticipantSelection(condition, env, settings), tmp_path / 'mcp.json',
+                          tmp_path, tmp_path / 'output', tmp_path / 'bridge.py', 'task'))
+    overlay = json.loads((tmp_path / 'dsh.patch.json').read_text())
+    servers = [row for operation in overlay for row in operation.get('insert', []) if row.get('id') == 'mcp-layout']
+    assert len(servers) == 1
+    assert servers[0]['config']['command'] == '/tools/memory-proxy'
+    assert servers[0]['config']['env']['ICLAYOUT_BENCH_TOKEN'] == 'scoped-fixture-token'
+
+
 class DshPatchTests(unittest.TestCase):
     def test_default_effort_is_omitted_and_host_tools_are_disabled(self):
         with tempfile.TemporaryDirectory() as directory:

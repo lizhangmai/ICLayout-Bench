@@ -36,7 +36,7 @@ def launch_spec(value, base):
 
 
 def resolve_scheme(value, base, harness):
-    if not isinstance(value, dict) or set(value) - {"instructions", "solver_image", "launch", "version", "mcp"}:
+    if not isinstance(value, dict) or set(value) - {"instructions", "solver_image", "launch", "version", "mcp", "layout_mcp"}:
         raise ValueError("Unknown participant scheme fields")
     result = dict(value)
     if not isinstance(value.get("instructions", ""), str):
@@ -50,6 +50,8 @@ def resolve_scheme(value, base, harness):
         result["launch"] = launch_spec(value.get("launch"), base)
     elif "launch" in value or "version" in value:
         raise ValueError("scheme.launch and version belong to command participants")
+    if "layout_mcp" in value:
+        result["layout_mcp"] = launch_spec(value["layout_mcp"], base)
     mcp = value.get("mcp", {})
     if not isinstance(mcp, dict):
         raise TypeError("scheme.mcp must be a table of stdio tools")
@@ -62,7 +64,8 @@ def resolve_scheme(value, base, harness):
 
 
 def check(scheme):
-    for spec in [*scheme.get("mcp", {}).values(), *([scheme["launch"]] if "launch" in scheme else [])]:
+    for spec in [*scheme.get("mcp", {}).values(),
+                 *[scheme[key] for key in ("launch", "layout_mcp") if key in scheme]]:
         missing = set(spec["env_vars"]) - os.environ.keys()
         if missing:
             raise ValueError("Missing participant environment variables: " + ", ".join(sorted(missing)))
@@ -75,7 +78,10 @@ def check(scheme):
 def mcp_servers(scheme, session_env):
     check(scheme)
     servers = {}
-    for name, spec in scheme.get("mcp", {}).items():
+    declared = dict(scheme.get("mcp", {}))
+    if "layout_mcp" in scheme:
+        declared["layout"] = scheme["layout_mcp"]
+    for name, spec in declared.items():
         servers[name] = {"command": spec["command"][0], "args": spec["command"][1:],
                          "env": {**{k: os.environ[k] for k in spec["env_vars"]}, **session_env}}
     return servers

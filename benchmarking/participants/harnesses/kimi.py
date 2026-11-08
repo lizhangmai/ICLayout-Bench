@@ -125,7 +125,7 @@ def prepare(context: LaunchContext) -> list[str]:
             del env[key]
     env.update(credential_env)
     env.update(KIMI_CODE_HOME=str(home.resolve()), KIMI_DISABLE_TELEMETRY="1")
-    tools = ["mcp__" + name + "__*" for name in ["layout", *settings.get("mcp_servers", {})]]
+    tools = ["mcp__" + name + "__*" for name in dict.fromkeys(["layout", *settings.get("mcp_servers", {})])]
     config = copy.deepcopy(settings["config"])
     config.update(thinking={"enabled": True, "effort": condition["effort_resolved"]},
                   telemetry=False, auto_session_title=False,

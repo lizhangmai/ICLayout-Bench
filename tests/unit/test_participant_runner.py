@@ -1857,7 +1857,8 @@ def test_default_case_storage_retains_blocked_dispatch_without_batch_summary(tmp
     assert not (case_run(root, 'second') / '.runtime').exists()
 
 
-def test_command_participant_receives_problem_and_keeps_one_identity_across_tasks(tmp_path, monkeypatch):
+@pytest.mark.parametrize('layout_override', [False, True])
+def test_command_participant_receives_problem_and_keeps_one_identity_across_tasks(tmp_path, monkeypatch, layout_override):
     """Exercise the new launcher using a real subprocess and existing HTTP double.
 
     The problem, optional scheme instructions and scoped credential are separate inputs.
@@ -1870,6 +1871,8 @@ def test_command_participant_receives_problem_and_keeps_one_identity_across_task
     from benchmarking.participants.harnesses.scheme import resolve_scheme
 
     script = tmp_path / 'participant.py'
+    wrapper = tmp_path / 'wrapper.py'
+    wrapper.write_text('print("declared wrapper")\n')
     script.write_text('import json, os, sys\n'
                       'task = json.load(open(os.environ["ICLAYOUT_BENCH_TASK_FILE"]))\n'
                       'assert "session_token" not in task\n'
@@ -1879,8 +1882,14 @@ def test_command_participant_receives_problem_and_keeps_one_identity_across_task
                       'scheme_instructions = open(os.environ["ICLAYOUT_BENCH_INSTRUCTIONS_FILE"]).read()\n'
                       'print(json.dumps({"scheme_instructions": scheme_instructions}))\n'
                       'assert "layout" in json.load(open(os.environ["ICLAYOUT_BENCH_MCP_CONFIG"]))["mcpServers"]\n'
+                      + ('server = json.load(open(os.environ["ICLAYOUT_BENCH_MCP_CONFIG"]))["mcpServers"]["layout"]\n'
+                         'assert server["args"] == ' + repr([str(wrapper)]) + '\n'
+                         'assert server["env"]["ICLAYOUT_BENCH_TOKEN"] == "scoped-fixture-token"\n'
+                         if layout_override else '') +
                       'print("contract received")\n')
     raw = {'version': 'test-1', 'launch': {'command': [sys.executable, 'participant.py'], 'files': ['participant.py']}}
+    if layout_override:
+        raw['layout_mcp'] = {'command': [sys.executable, 'wrapper.py'], 'files': ['wrapper.py']}
     identities = []
     for index, (task, instructions) in enumerate([('one', ''), ('two', ''), ('one', 'Use tool A')]):
         scheme = resolve_scheme(dict(raw, instructions=instructions), tmp_path, 'command')
@@ -1901,19 +1910,20 @@ def test_command_participant_receives_problem_and_keeps_one_identity_across_task
 
 
 @pytest.mark.parametrize('harness', ['codex', 'claude-code'])
-def test_declared_mcp_tool_is_enabled_without_putting_its_credentials_on_argv(tmp_path, harness):
+@pytest.mark.parametrize('server', ['a', 'layout'])
+def test_declared_mcp_tool_is_enabled_without_putting_its_credentials_on_argv(tmp_path, harness, server):
     from benchmarking.participants.harnesses.registry import prepare
 
     selected = {'harness': harness, 'model': 'fixture-model', 'effort_requested': 'medium', 'effort_resolved': 'medium'}
-    settings = {'mcp_servers': {'a': {'command': '/tools/a', 'args': ['serve'], 'env': {'A_API_KEY': 'private-key'}}}}
+    settings = {'mcp_servers': {server: {'command': '/tools/a', 'args': ['serve'], 'env': {'A_API_KEY': 'private-key'}}}}
     env = {'ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS': '60'}
     argv = prepare(LaunchContext(ParticipantSelection(selected, env, settings), tmp_path / 'mcp.json', tmp_path, tmp_path, tmp_path / 'bridge.py', 'task'))
     assert 'private-key' not in ' '.join(argv)
     if harness == 'codex':
-        assert 'mcp_servers.a.command="/tools/a"' in argv
-        assert 'mcp_servers.a.env_vars=["A_API_KEY"]' in argv
+        assert f'mcp_servers.{server}.command="/tools/a"' in argv
+        assert f'mcp_servers.{server}.env_vars=["A_API_KEY"]' in argv
     else:
-        assert 'mcp__a' in argv[argv.index('--allowedTools') + 1]
+        assert 'mcp__' + server in argv[argv.index('--allowedTools') + 1]
         assert 'mcp_servers' not in json.loads(argv[argv.index('--settings') + 1])
 
 

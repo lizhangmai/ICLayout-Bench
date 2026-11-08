@@ -68,9 +68,9 @@ class ParticipantLaunch:
         settings = dict(settings, mcp_servers=extra_servers)
         if "launch" in scheme:
             settings["launch"] = scheme["launch"]
-        save(mcp, {"mcpServers": {**extra_servers, "layout": {"command": sys.executable,
+        save(mcp, {"mcpServers": {"layout": {"command": sys.executable,
              "args": ["-I", str(ROOT / "mcp.py")],
-             "env": {k: v for k, v in env.items() if k.startswith("ICLAYOUT_BENCH_")}}}})
+             "env": {k: v for k, v in env.items() if k.startswith("ICLAYOUT_BENCH_")}}, **extra_servers}})
         env["ICLAYOUT_BENCH_MCP_CONFIG"] = str(mcp.resolve())
         return LaunchContext(ParticipantSelection(self.condition, env, settings), mcp,
                              directory, self.output, ROOT / "mcp.py", problem)

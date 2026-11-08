@@ -22,8 +22,9 @@ PROCESS_FEEDBACK_CAPABILITY = "process-feedback"
 
 def scheme_identity(scheme):
     """Project declared participant tools into their portable measurement identity."""
-    return {**{k: v for k, v in scheme.items() if k not in {'launch', 'mcp'}},
+    return {**{k: v for k, v in scheme.items() if k not in {'launch', 'mcp', 'layout_mcp'}},
             **({'launch': scheme['launch']['identity']} if 'launch' in scheme else {}),
+            **({'layout_mcp': scheme['layout_mcp']['identity']} if 'layout_mcp' in scheme else {}),
             'mcp': {k: v['identity'] for k, v in scheme.get('mcp', {}).items()}}
 
 

@@ -111,7 +111,7 @@ def prepare(context: LaunchContext) -> list[str]:
         "",
         "--allowedTools",
         ",".join(
-            "mcp__" + name for name in ["layout", *settings.get("mcp_servers", {})]
+            "mcp__" + name for name in dict.fromkeys(["layout", *settings.get("mcp_servers", {})])
         ),
         "--permission-mode",
         "dontAsk",

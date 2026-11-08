@@ -851,3 +851,28 @@ def test_tool_schemes_freeze_files_and_keep_contrasts_in_distinct_outputs(tmp_pa
     config.write_text(config.read_text().replace('instructions="Use tool A."', 'solver_image="mutable:latest"'))
     with pytest.raises(ValueError, match='immutable'):
         read_matrix(config)
+
+
+def test_explicit_layout_mcp_is_frozen_and_gets_only_the_scoped_session(tmp_path):
+    import sys
+
+    from benchmarking.participants.harnesses.scheme import (
+        check,
+        identity,
+        mcp_servers,
+        resolve_scheme,
+    )
+
+    script = tmp_path / 'wrapper.py'
+    script.write_text('print("wrapper version one")\n')
+    scheme = resolve_scheme({'layout_mcp': {'command': [sys.executable, 'wrapper.py'],
+                                          'files': ['wrapper.py']}}, tmp_path, 'codex')
+    baseline = resolve_scheme({}, tmp_path, 'codex')
+    assert identity(scheme) != identity(baseline)
+    scoped = {'ICLAYOUT_BENCH_TOKEN': 'fixture-session-token', 'ICLAYOUT_BENCH_SESSION': 'fixture-session'}
+    servers = mcp_servers(scheme, scoped)
+    assert servers['layout']['args'] == [str(script)]
+    assert servers['layout']['env'] == scoped
+    script.write_text('print("wrapper version two")\n')
+    with pytest.raises(ValueError, match='files changed'):
+        check(scheme)
