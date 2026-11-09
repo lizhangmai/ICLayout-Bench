@@ -624,6 +624,26 @@ procedure needs additional usage guidance. Task requirements, acceptance rules a
 entirely when there are no participant customizations. Tool/image/launch fields
 can be declared without instructions.
 
+Reusable participant methods can own a separate scheme TOML. Select it from an
+experiment configuration or a matrix run:
+
+```toml
+[scheme]
+source = "methods/with-memory.toml"
+```
+
+The source file contains scheme fields directly, such as `instructions` and
+`[mcp.layout]`, without an outer `[scheme]` table. Its relative executable,
+asset and runtime paths resolve from that file's directory. Fields declared
+beside `source` override source fields; MCP entries merge by server name, with
+each local server declaration replacing that server in full and resolving paths
+from the experiment TOML. Sources cannot include another source and execute no
+configuration code. The runner expands the scheme before freezing the condition:
+instructions, launch arguments, executable identity and declared file digests
+are retained independently of the source path or later source edits. Participant
+methods maintain their own instructions and reviewed resource inventories;
+Bench only resolves the generic declaration.
+
 To compare `Codex + model` with `Codex + A + model`, keep the Dataset case,
 model, effort, repetitions and trusted toolchain fixed. Declare two schemes in
 one matrix. Save the following as `contrast.toml`, after installing A as a stdio
@@ -686,7 +706,8 @@ that asset directory (the TOML directory by default);
 other arguments are passed literally. Executable and declared file bytes are
 checked before/after launch. Declare the files needed to identify A; dependency
 locks record intent but do not attest every installed host dependency. Use a
-pinned image when a complete runtime identity is needed. `layout` is reserved.
+pinned image when a complete runtime identity is needed. The `layout` server
+uses the bundled bridge unless explicitly declared in `scheme.mcp.layout`.
 MCP servers also receive `ICLAYOUT_BENCH_TOOL_FILES`, a JSON map of their declared
 absolute file paths to SHA-256 values, for restricting resource-serving tools.
 It contains declarations, not credentials or access to arbitrary host paths.
@@ -697,13 +718,11 @@ disabled; Python/CLI tools installed in the solver run through layout MCP.
 #### Explicit layout MCP adapters
 
 To wrap the normal layout tools with participant-side memory or instrumentation,
-declare an explicit `scheme.layout_mcp` launch using the same `command`, `files`
-and `env_vars` format. The reserved `layout` entry remains unavailable inside
-`scheme.mcp`; this separate declaration distinguishes an intentional adapter
-from an additional tool server:
+declare `scheme.mcp.layout` using the same `command`, `files` and `env_vars`
+format as every other MCP server:
 
 ```toml
-[scheme.layout_mcp]
+[scheme.mcp.layout]
 command = ["python", "-m", "participant_layout_adapter"]
 files = ["requirements.lock"]
 env_vars = []

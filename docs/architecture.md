@@ -96,12 +96,17 @@ configures native or custom decision loops. Installing a layout library in a
 solver image does not itself require a new harness. The framework supplies the
 workspace and tools while each participant controls its next action.
 
-A declared participant-side layout MCP adapter may wrap the bundled bridge to
+A declared `scheme.mcp.layout` adapter may wrap the bundled bridge to
 record trials or supply context. It is part of the participant condition, uses
 only scoped session access and labels derived information separately from the
 original feedback. [Tool schemes](running.md#explicit-layout-mcp-adapters)
 defines this optional launch. It does not replace trusted evaluation or alter
 the service's budgets and candidate semantics.
+
+Participant methods can maintain reusable scheme TOML files selected through
+`scheme.source`. Bench resolves the generic declaration and freezes the expanded
+participant condition; method-specific prompts, MCP composition and reviewed
+resource inventories remain with the method's owner.
 
 The bundled server binds to loopback and supports one case and one active
 session. Operators provide production authentication, TLS, capacity and task

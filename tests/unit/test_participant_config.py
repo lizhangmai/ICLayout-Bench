@@ -865,18 +865,91 @@ def test_explicit_layout_mcp_is_frozen_and_gets_only_the_scoped_session(tmp_path
 
     script = tmp_path / 'wrapper.py'
     script.write_text('print("wrapper version one")\n')
-    scheme = resolve_scheme({'layout_mcp': {'command': [sys.executable, 'wrapper.py'],
-                                          'files': ['wrapper.py']}}, tmp_path, 'codex')
+    scheme = resolve_scheme({'mcp': {'layout': {'command': [sys.executable, 'wrapper.py'],
+                                              'files': ['wrapper.py']}}}, tmp_path, 'codex')
     baseline = resolve_scheme({}, tmp_path, 'codex')
+    assert 'layout' not in mcp_servers(baseline, {})
     assert identity(scheme) != identity(baseline)
     scoped = {'ICLAYOUT_BENCH_TOKEN': 'fixture-session-token', 'ICLAYOUT_BENCH_SESSION': 'fixture-session'}
     servers = mcp_servers(scheme, scoped)
     assert servers['layout']['args'] == [str(script)]
     assert {k: servers['layout']['env'][k] for k in scoped} == scoped
-    assert json.loads(servers['layout']['env']['ICLAYOUT_BENCH_TOOL_FILES']) == scheme['layout_mcp']['files']
+    assert json.loads(servers['layout']['env']['ICLAYOUT_BENCH_TOOL_FILES']) == scheme['mcp']['layout']['files']
     script.write_text('print("wrapper version two")\n')
     with pytest.raises(ValueError, match='files changed'):
         check(scheme)
+
+
+@pytest.mark.parametrize('matrix', [False, True])
+def test_reusable_scheme_resolves_each_declaration_at_its_source_and_freezes_expanded_content(tmp_path, matrix):
+    import sys
+
+    import tomli_w
+
+    from benchmarking.participants.harnesses.scheme import check, identity, mcp_servers
+
+    tools, configs = tmp_path / 'tools', tmp_path / 'configs'
+    tools.mkdir()
+    configs.mkdir()
+    (tools / 'wrapper.py').write_text('source layout wrapper')
+    (tools / 'guide.py').write_text('source guide')
+    (configs / 'guide.py').write_text('experiment guide override')
+    source = {'instructions': 'Shared method instructions', 'mcp': {
+        'layout': {'command': [sys.executable, 'wrapper.py'], 'files': ['wrapper.py']},
+        'guide': {'command': [sys.executable, 'guide.py'], 'files': ['guide.py']}}}
+    preset = tools / 'method.toml'
+    preset.write_text(tomli_w.dumps(source))
+    row = {'name': 'fixture', 'harness': 'codex', 'model': 'fixture', 'effort': 'high',
+           'tasks': ['fixture'], 'concurrency': 1, 'repetitions': 1, 'scheme': {
+               'source': '../tools/method.toml', 'mcp': {
+                   'guide': {'command': [sys.executable, 'guide.py'], 'files': ['guide.py']}}}}
+    path = configs / 'experiment.toml'
+    path.write_text(tomli_w.dumps({'defaults': row, 'runs': [{}]} if matrix else row))
+    read = read_matrix if matrix else lambda path: read_configs([path])
+    selected, = read(path)
+    scheme = selected['scheme']
+    assert scheme['instructions'] == 'Shared method instructions'
+    assert 'source' not in scheme
+    servers = mcp_servers(scheme, {'ICLAYOUT_BENCH_SESSION': 'fixture'})
+    assert servers['layout']['args'] == [str(tools / 'wrapper.py')]
+    assert servers['guide']['args'] == [str(configs / 'guide.py')]
+    recorded = identity(scheme)
+    source['instructions'] = 'Revised method instructions'
+    preset.write_text(tomli_w.dumps(source))
+    changed, = read(path)
+    assert changed['scheme']['instructions'] == 'Revised method instructions'
+    assert identity(changed['scheme']) != recorded
+    assert scheme['instructions'] == 'Shared method instructions'
+    (tools / 'wrapper.py').write_text('changed layout wrapper')
+    with pytest.raises(ValueError, match='files changed'):
+        check(scheme)
+
+
+@pytest.mark.parametrize('reference', ['', 1, ['method.toml']])
+def test_scheme_source_requires_an_explicit_file_path(tmp_path, reference):
+    from benchmarking.participants.harnesses.scheme import resolve_scheme
+
+    with pytest.raises(ValueError, match='scheme.source'):
+        resolve_scheme({'source': reference}, tmp_path, 'codex')
+
+
+def test_scheme_sources_are_data_and_do_not_chain_other_sources(tmp_path):
+    from benchmarking.participants.harnesses.scheme import resolve_scheme
+
+    source = tmp_path / 'method.toml'
+    source.write_text('source = "method.toml"\n')
+    with pytest.raises(ValueError, match='without another source'):
+        resolve_scheme({'source': 'method.toml'}, tmp_path, 'codex')
+    with pytest.raises(ValueError, match='Unknown participant scheme'):
+        resolve_scheme({'layout_mcp': {}}, tmp_path, 'codex')
+
+
+def test_historical_layout_adapter_identity_remains_readable():
+    from benchmarking.participants.harnesses.scheme import identity
+
+    recorded = {'command': ['python', 'wrapper.py'], 'files': {'wrapper.py': 'fixed-digest'},
+                'executable': 'fixed-python', 'env_vars': []}
+    assert identity({'layout_mcp': {'identity': recorded}}) == {'layout_mcp': recorded, 'mcp': {}}
 
 
 def test_declared_tool_assets_use_a_selected_root_without_discovering_its_other_files(tmp_path):

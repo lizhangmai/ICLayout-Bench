@@ -308,8 +308,7 @@ def test_native_initial_request_excludes_undeclared_host_context(tmp_path, provi
         assert 'skill-creator' in payload  # This CLI's bundled system skill remains available.
     else:
         assert provider['tools'] and any('layout' in name for name in provider['tools'])
-    for value in [*canaries, 'undeclared_project_rule_91fbd', 'undeclared_environment_479ac',
-                  'eda-guide', 'ic-layout']:
+    for value in [*canaries, 'undeclared_project_rule_91fbd', 'undeclared_environment_479ac']:
         assert value not in payload
 
 

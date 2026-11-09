@@ -1891,7 +1891,7 @@ def test_command_participant_receives_problem_and_keeps_one_identity_across_task
                       'print("contract received")\n')
     raw = {'version': 'test-1', 'launch': {'command': [sys.executable, 'participant.py'], 'files': ['participant.py']}}
     if layout_override:
-        raw['layout_mcp'] = {'command': [sys.executable, 'wrapper.py'], 'files': ['wrapper.py']}
+        raw['mcp'] = {'layout': {'command': [sys.executable, 'wrapper.py'], 'files': ['wrapper.py']}}
     identities = []
     for index, (task, instructions) in enumerate([('one', ''), ('two', ''), ('one', 'Use tool A')]):
         scheme = resolve_scheme(dict(raw, instructions=instructions), tmp_path, 'command')

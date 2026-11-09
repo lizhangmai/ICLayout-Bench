@@ -5,12 +5,16 @@ import json
 import os
 import re
 import shutil
+import tomllib
 from pathlib import Path
 
 from benchmarking.execution.harness import scheme_identity as identity
 from benchmarking.files import read_file
 
 __all__ = ["check", "identity", "mcp_servers", "resolve_scheme"]
+
+FIELDS = {"instructions", "solver_image", "launch", "version", "mcp", "runtime_paths"}
+
 
 def launch_spec(value, base):
     """Freeze an argv executable and explicitly declared local files."""
@@ -41,8 +45,22 @@ def launch_spec(value, base):
 
 
 def resolve_scheme(value, base, harness):
-    if not isinstance(value, dict) or set(value) - {"instructions", "solver_image", "launch", "version", "mcp", "layout_mcp", "runtime_paths"}:
+    if not isinstance(value, dict) or set(value) - (FIELDS | {"source"}):
         raise ValueError("Unknown participant scheme fields")
+    overrides, source, source_base = value, {}, base
+    if "source" in value:
+        reference = value["source"]
+        if not isinstance(reference, str) or not reference.strip() or "\x00" in reference:
+            raise ValueError("scheme.source must name a TOML file")
+        path = (base / reference).resolve(strict=True)
+        source = tomllib.loads(path.read_text(encoding="utf-8"))
+        if set(source) - FIELDS:
+            raise ValueError("Scheme source must contain scheme fields without another source")
+        source_base = path.parent
+    for declaration in (source, overrides):
+        if not isinstance(declaration.get("mcp", {}), dict):
+            raise TypeError("scheme.mcp must be a table of stdio tools")
+    value = {**source, **{k: v for k, v in overrides.items() if k != "source"}}
     result = dict(value)
     if not isinstance(value.get("instructions", ""), str):
         raise TypeError("scheme.instructions must be text")
@@ -52,7 +70,8 @@ def resolve_scheme(value, base, harness):
             raise ValueError('scheme.runtime_paths must list reviewed native program dependencies')
         result['runtime_paths'] = []
         for raw in paths:
-            path = (base / raw).resolve(strict=True)
+            root = base if "runtime_paths" in overrides else source_base
+            path = (root / raw).resolve(strict=True)
             if Path.home().is_relative_to(path) or base.resolve().is_relative_to(path) or (path.is_dir() and
                     any((path / name).exists() for name in ('.agents', '.git', 'AGENTS.md'))):
                 raise ValueError('Native runtime dependencies must not expose a host home or project root')
@@ -63,25 +82,22 @@ def resolve_scheme(value, base, harness):
     if harness == "command":
         if not isinstance(value.get("version"), str) or not value["version"]:
             raise ValueError("Command participants must declare scheme.version")
-        result["launch"] = launch_spec(value.get("launch"), base)
+        result["launch"] = launch_spec(value.get("launch"), base if "launch" in overrides else source_base)
     elif "launch" in value or "version" in value:
         raise ValueError("scheme.launch and version belong to command participants")
-    if "layout_mcp" in value:
-        result["layout_mcp"] = launch_spec(value["layout_mcp"], base)
-    mcp = value.get("mcp", {})
-    if not isinstance(mcp, dict):
-        raise TypeError("scheme.mcp must be a table of stdio tools")
+    mcp = {**source.get("mcp", {}), **overrides.get("mcp", {})}
     result["mcp"] = {}
     for name, spec in mcp.items():
-        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", name) or name == "layout":
-            raise ValueError("Invalid or reserved MCP name: " + name)
-        result["mcp"][name] = launch_spec(spec, base)
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", name):
+            raise ValueError("Invalid MCP name: " + name)
+        root = base if name in overrides.get("mcp", {}) else source_base
+        result["mcp"][name] = launch_spec(spec, root)
     return result
 
 
 def check(scheme):
     for spec in [*scheme.get("mcp", {}).values(),
-                 *[scheme[key] for key in ("launch", "layout_mcp") if key in scheme]]:
+                 *[scheme[key] for key in ("launch",) if key in scheme]]:
         missing = set(spec["env_vars"]) - os.environ.keys()
         if missing:
             raise ValueError("Missing participant environment variables: " + ", ".join(sorted(missing)))
@@ -94,10 +110,7 @@ def check(scheme):
 def mcp_servers(scheme, session_env):
     check(scheme)
     servers = {}
-    declared = dict(scheme.get("mcp", {}))
-    if "layout_mcp" in scheme:
-        declared["layout"] = scheme["layout_mcp"]
-    for name, spec in declared.items():
+    for name, spec in scheme.get("mcp", {}).items():
         servers[name] = {"command": spec["command"][0], "args": spec["command"][1:],
                          "env": {**{k: os.environ[k] for k in spec["env_vars"]}, **session_env,
                                  'ICLAYOUT_BENCH_TOOL_FILES': json.dumps(spec['files'])}}
