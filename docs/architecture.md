@@ -69,6 +69,13 @@ state. Derived tool-specific circuit representations retain the authoritative
 circuit semantics; their run hashes record evidence integrity rather than task
 freshness. Authors verify that semantic agreement.
 
+All registered native harnesses share a filesystem and environment allowlist,
+independent of vendor discovery switches. Their bundled skills belong to the
+selected harness distribution; external user/project context is absent unless
+explicitly supplied by a participant tool. Reviewed MCP implementations use
+scoped stdio relays outside the native namespace. See
+[shared native isolation](running.md#shared-native-isolation).
+
 ## Execution entry points
 
 Run these modules with `python -m` in the environment where Bench is installed.

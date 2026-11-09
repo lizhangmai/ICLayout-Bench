@@ -1,6 +1,7 @@
 """Resolve declared participant tools and commands without importing user code."""
 
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -13,7 +14,7 @@ __all__ = ["check", "identity", "mcp_servers", "resolve_scheme"]
 
 def launch_spec(value, base):
     """Freeze an argv executable and explicitly declared local files."""
-    if not isinstance(value, dict) or set(value) - {"command", "files", "env_vars"}:
+    if not isinstance(value, dict) or set(value) - {"command", "files", "env_vars", "files_root"}:
         raise ValueError("Launch needs command, files and optional env_vars")
     argv = value.get("command")
     files = value.get("files")
@@ -28,19 +29,34 @@ def launch_spec(value, base):
     executable = str((base / argv[0]).absolute()) if "/" in argv[0] else shutil.which(argv[0])
     if not executable or not Path(executable).is_file():
         raise ValueError("Participant executable not found: " + argv[0])
-    contents = {name: hashlib.sha256(read_file(base, name)).hexdigest() for name in files}
-    resolved = [executable, *[str(base / arg) if arg in contents else arg for arg in argv[1:]]]
-    return {"command": resolved, "files": {str(base / name): sha for name, sha in contents.items()},
+    root = value.get('files_root', '.')
+    if not isinstance(root, str) or not root.strip():
+        raise ValueError('files_root must name an explicitly selected asset directory')
+    root = (base / root).resolve(strict=True)
+    contents = {name: hashlib.sha256(read_file(root, name)).hexdigest() for name in files}
+    resolved = [executable, *[str(root / arg) if arg in contents else arg for arg in argv[1:]]]
+    return {"command": resolved, "files": {str(root / name): sha for name, sha in contents.items()},
             "env_vars": variables, "identity": {"command": argv, "files": contents,
             "executable": hashlib.sha256(Path(executable).read_bytes()).hexdigest(), "env_vars": variables}}
 
 
 def resolve_scheme(value, base, harness):
-    if not isinstance(value, dict) or set(value) - {"instructions", "solver_image", "launch", "version", "mcp", "layout_mcp"}:
+    if not isinstance(value, dict) or set(value) - {"instructions", "solver_image", "launch", "version", "mcp", "layout_mcp", "runtime_paths"}:
         raise ValueError("Unknown participant scheme fields")
     result = dict(value)
     if not isinstance(value.get("instructions", ""), str):
         raise TypeError("scheme.instructions must be text")
+    if "runtime_paths" in value:
+        paths = value['runtime_paths']
+        if not isinstance(paths, list) or any(not isinstance(p, str) or not p for p in paths):
+            raise ValueError('scheme.runtime_paths must list reviewed native program dependencies')
+        result['runtime_paths'] = []
+        for raw in paths:
+            path = (base / raw).resolve(strict=True)
+            if Path.home().is_relative_to(path) or base.resolve().is_relative_to(path) or (path.is_dir() and
+                    any((path / name).exists() for name in ('.agents', '.git', 'AGENTS.md'))):
+                raise ValueError('Native runtime dependencies must not expose a host home or project root')
+            result['runtime_paths'].append(str(path))
     image = value.get("solver_image")
     if image is not None and (not isinstance(image, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", image)):
         raise ValueError("scheme.solver_image must be an immutable Docker image ID (sha256:...)")
@@ -83,5 +99,6 @@ def mcp_servers(scheme, session_env):
         declared["layout"] = scheme["layout_mcp"]
     for name, spec in declared.items():
         servers[name] = {"command": spec["command"][0], "args": spec["command"][1:],
-                         "env": {**{k: os.environ[k] for k in spec["env_vars"]}, **session_env}}
+                         "env": {**{k: os.environ[k] for k in spec["env_vars"]}, **session_env,
+                                 'ICLAYOUT_BENCH_TOOL_FILES': json.dumps(spec['files'])}}
     return servers

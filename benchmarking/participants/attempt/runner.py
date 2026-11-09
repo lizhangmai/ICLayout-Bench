@@ -36,6 +36,7 @@ from benchmarking.participants.attempt.state import (
 from benchmarking.participants.harnesses import registry as adapters
 from benchmarking.participants.harnesses.contracts import ParticipantSelection
 from benchmarking.participants.harnesses.scheme import check as check_scheme
+from benchmarking.participants.isolation import NativeRuntime
 from benchmarking.protocol import evaluation_mode
 
 CONTINUE_PROMPT = (
@@ -129,6 +130,11 @@ def run_participant(access, row, output, selection: ParticipantSelection):
     try:
         observers.enter_context(adapters.observe_usage(row["harness"], output, env))
         context = launch.prepare(access.endpoint, settings_policy, attempt, instructions)
+        runtime = observers.enter_context(NativeRuntime(
+            context, harness=row['harness'], runtime_paths=scheme.get('runtime_paths', ()),
+            files=scheme.get('launch', {}).get('files', ()),
+            env_vars=scheme.get('launch', {}).get('env_vars', ())))
+        context = runtime.context
         if state.launches:
             context = replace(context, prompt=continuation_prompt)
         args = adapters.prepare(context)
@@ -151,7 +157,8 @@ def run_participant(access, row, output, selection: ParticipantSelection):
             first_launch = False
             with (output / "harness.jsonl").open("w") as out, (output / "harness.stderr").open("w") as err:
                 try:
-                    exit_code, timed_out = execute(args, cwd=context.directory, env=env, stdout=out, stderr=err,
+                    isolated_args, isolated_env = runtime.command(args)
+                    exit_code, timed_out = execute(isolated_args, cwd=context.directory, env=isolated_env, stdout=out, stderr=err,
                                                   prompt=context.prompt, timeout=participant_timeout(created, {'remaining_seconds': remaining}),
                                                   pass_fds=tuple(int(env[k]) for k in ["ICLAYOUT_BENCH_LEASE_FD"] if k in env),
                                                   expired=participant_expiry(client, sid, remaining))

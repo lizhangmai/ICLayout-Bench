@@ -872,7 +872,27 @@ def test_explicit_layout_mcp_is_frozen_and_gets_only_the_scoped_session(tmp_path
     scoped = {'ICLAYOUT_BENCH_TOKEN': 'fixture-session-token', 'ICLAYOUT_BENCH_SESSION': 'fixture-session'}
     servers = mcp_servers(scheme, scoped)
     assert servers['layout']['args'] == [str(script)]
-    assert servers['layout']['env'] == scoped
+    assert {k: servers['layout']['env'][k] for k in scoped} == scoped
+    assert json.loads(servers['layout']['env']['ICLAYOUT_BENCH_TOOL_FILES']) == scheme['layout_mcp']['files']
     script.write_text('print("wrapper version two")\n')
     with pytest.raises(ValueError, match='files changed'):
         check(scheme)
+
+
+def test_declared_tool_assets_use_a_selected_root_without_discovering_its_other_files(tmp_path):
+    import sys
+
+    from benchmarking.participants.harnesses.scheme import mcp_servers, resolve_scheme
+
+    config = tmp_path / 'configs'
+    config.mkdir()
+    assets = tmp_path / 'reviewed-skills'
+    (assets / 'example').mkdir(parents=True)
+    (assets / 'example/SKILL.md').write_text('explicit skill bytes')
+    (assets / 'example/unreviewed.md').write_text('unreviewed bytes')
+    resolved = resolve_scheme({'mcp': {'guide': {
+        'command': [sys.executable, '-m', 'example', '--skill', 'example/SKILL.md'],
+        'files_root': '../reviewed-skills', 'files': ['example/SKILL.md']}}}, config, 'codex')
+    spec = mcp_servers(resolved, {})['guide']
+    assert spec['args'][-1] == str(assets / 'example/SKILL.md')
+    assert set(json.loads(spec['env']['ICLAYOUT_BENCH_TOOL_FILES'])) == {str(assets / 'example/SKILL.md')}

@@ -18,6 +18,7 @@ from benchmarking.participants.attempt.evidence import read_traces
 from benchmarking.participants.attempt.state import AttemptState
 from benchmarking.participants.harnesses import registry as adapters
 from benchmarking.participants.harnesses.contracts import LaunchContext
+from benchmarking.participants.isolation import NativeRuntime
 from benchmarking.protocol import PROTOCOL
 
 pytestmark = pytest.mark.integration
@@ -47,8 +48,12 @@ def provider():
                 state['writes'] = state.get('writes', 0) + 1
                 self.service_reply({'path': request['path'], 'written': 4})
                 return
+            if 'model' not in request:
+                self.service_reply({})
+                return
             state['authenticated'] = any('fixture-provider-secret' in self.headers.get(name, '')
                                          for name in ('Authorization', 'x-api-key'))
+            state.setdefault('payloads', []).append(request)
             state['tools'] = [tool.get('name') for tool in request.get('tools', [])]
             state['model'] = request.get('model')
             state['request_path'] = self.path
@@ -247,10 +252,20 @@ def test_zcode_selected_proxy_routes_model_requests_and_keeps_local_mcp(tmp_path
 
 def launch(context):
     with adapters.observe_usage(context.selection.condition['harness'], context.output, context.selection.environment):
-        return _launch(context)
+        dependencies = []
+        if context.selection.condition['harness'] == 'zcode':
+            # This installation uses a reviewed shell launcher for a separate
+            # bundled JS program. Expose that program, never its project root.
+            import shlex
+            launcher = Path(shutil.which('zcode')).read_text()
+            entry = next((word for word in shlex.split(launcher) if word.endswith('.cjs')), None)
+            if entry:
+                dependencies.append(str(Path(entry).parent))
+        with NativeRuntime(context, runtime_paths=dependencies) as runtime:
+            return _launch(runtime.context, runtime)
 
 
-def _launch(context):
+def _launch(context, runtime):
     argv = adapters.prepare(context)
     if context.selection.condition['harness'] == 'codex' and 'codex_connection' not in context.selection.settings:
         # Replace only the provider I/O boundary, leaving the public adapter real.
@@ -261,8 +276,41 @@ def _launch(context):
         for key, value in config.items():
             argv[-1:-1] = ['-c', key + '=' + json.dumps(value)]
     with (context.output / 'harness.jsonl').open('w') as out, (context.output / 'harness.stderr').open('w') as err:
-        return execute(argv, cwd=context.directory, env=context.selection.environment, stdout=out, stderr=err,
+        argv, env = runtime.command(argv)
+        return execute(argv, cwd=context.directory, env=env, stdout=out, stderr=err,
                        timeout=20, prompt=context.prompt if context.selection.condition['harness'] != 'dsh' else None)
+
+
+@pytest.mark.parametrize('harness', ['codex', 'claude-code', 'dsh', 'kimi-code', 'zcode'])
+def test_native_initial_request_excludes_undeclared_host_context(tmp_path, provider, harness):
+    provider.update(status=200)
+    context = native_context(tmp_path, harness, provider['url'])
+    # Both home discovery and walking ancestors of the working directory must
+    # be isolated, even if a vendor adds another automatic discovery mechanism.
+    canaries = ['undeclared_home_skill_948ad', 'undeclared_project_skill_72bf9']
+    host_home = tmp_path / 'unreviewed-home'
+    for root, name in zip([host_home, tmp_path], canaries, strict=True):
+        skill = root / '.agents/skills' / name
+        skill.mkdir(parents=True)
+        (skill / 'SKILL.md').write_text(
+            f'---\nname: {name}\ndescription: {name} automatic discovery probe\n---\n{name}\n')
+    (tmp_path / '.git').mkdir()
+    (tmp_path / 'AGENTS.md').write_text('undeclared_project_rule_91fbd\n')
+    context.selection.environment.update(HOME=str(host_home),
+                                         UNDECLARED_CONTEXT_HINT='undeclared_environment_479ac')
+    assert launch(context) == (0, False)
+    assert provider.get('payloads'), (tmp_path / 'harness.stderr').read_text()
+    payload = json.dumps(provider['payloads'], ensure_ascii=False)
+    if harness == 'codex':
+        # Newer Responses clients declare tools in input.additional_tools and
+        # deferred namespace messages rather than the top-level tools field.
+        assert 'mcp__layout' in payload
+        assert 'skill-creator' in payload  # This CLI's bundled system skill remains available.
+    else:
+        assert provider['tools'] and any('layout' in name for name in provider['tools'])
+    for value in [*canaries, 'undeclared_project_rule_91fbd', 'undeclared_environment_479ac',
+                  'eda-guide', 'ic-layout']:
+        assert value not in payload
 
 
 @pytest.mark.parametrize('harness', ['codex', 'claude-code', 'dsh', 'kimi-code', 'zcode'])

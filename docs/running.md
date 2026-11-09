@@ -332,6 +332,42 @@ delivered Datasets are sufficient for participant runs and candidate evaluation.
 
 ## Harness configuration
 
+### Shared native isolation
+
+Every registered harness, including `command`, runs through the same Linux
+Bubblewrap (`bwrap`) filesystem allowlist. Install Bubblewrap on the participant
+host. Missing or unusable isolation fails the launch; there is no direct-host
+fallback. This policy applies to initial launches and continuations.
+An older native history without this isolation origin cannot be resumed under
+the new policy: its existing prompt may already contain undeclared context.
+Retain that attempt and use a new run instead of rewriting its history.
+
+The native CLI sees system runtime files, its installed program dependencies,
+the selected Python environment and its private attempt directory. Host homes,
+project ancestors, other runs and undeclared files are absent. HOME, XDG
+directories and the passwd home refer to private storage. Only selected provider
+settings, transport settings, scoped session variables and explicitly declared
+command variables survive; arbitrary inherited environment variables do not.
+Skills bundled with the harness distribution may initialize in its private home.
+External user/project skills, rules, memories and plugins are not copied or
+mounted. Additional professional knowledge must be explicitly declared as a
+participant tool resource. Vendor-specific tool and discovery switches remain
+additional restrictions inside the common filesystem policy.
+
+Reviewed MCP servers run outside the native CLI namespace. The CLI receives
+per-attempt stdio relays, not access to the server's host files. MCP servers keep
+their declared files/environment and scoped session access. Native model
+connections retain networking; this policy isolates filesystem discovery, not
+model-provider traffic or the implementation of a reviewed MCP server. Solver EDA
+operations remain in the separately isolated EDA workspace.
+
+For a launcher whose additional program dependencies are outside its installation,
+declare only those read-only files or package directories in
+`scheme.runtime_paths`. Do not expose a home or project root. The generic
+launcher does not infer dependencies by opening arbitrary host directories.
+`native/isolation.json` in terminal evidence records the configured policy,
+program paths, environment names and MCP server names, without credential values.
+
 ### Native harness configuration
 
 Set `harness_home` in an experiment TOML or matrix row to select a native
@@ -352,7 +388,8 @@ of the launch working directory. Each condition can select a different home in
 the same invocation. The directory and the native configuration file must exist;
 an explicit selection never falls back to the caller's default home. Authenticate
 the chosen directory with the vendor CLI before running. Omitting `harness_home`
-retains the caller's existing native home/environment behavior. This field applies
+selects connection/authentication from the caller's native profile; the launched
+process still uses the shared isolation policy. This field applies
 to native harnesses; a custom `command` owns its declared launch configuration.
 
 | Harness | Home variable used for the selected directory | Required native configuration |
@@ -642,11 +679,17 @@ participant. The participant cannot replace an operator's evaluator.
 
 MCP `command` is an argv list, `files` lists config-relative scripts and dependency
 locks, and `env_vars` names runtime variables; never put credentials in argv or
-TOML. Arguments equal to declared filenames resolve relative to the TOML;
+TOML. Optional `files_root` selects a different reviewed asset directory relative
+to the TOML; only explicitly listed files are included, without discovering other
+files below that directory. Arguments equal to declared filenames resolve from
+that asset directory (the TOML directory by default);
 other arguments are passed literally. Executable and declared file bytes are
 checked before/after launch. Declare the files needed to identify A; dependency
 locks record intent but do not attest every installed host dependency. Use a
 pinned image when a complete runtime identity is needed. `layout` is reserved.
+MCP servers also receive `ICLAYOUT_BENCH_TOOL_FILES`, a JSON map of their declared
+absolute file paths to SHA-256 values, for restricting resource-serving tools.
+It contains declarations, not credentials or access to arbitrary host paths.
 MCP servers receive the scoped session environment so they can use the Bench
 HTTP client. No creation credential is forwarded. Native host shell tools remain
 disabled; Python/CLI tools installed in the solver run through layout MCP.
