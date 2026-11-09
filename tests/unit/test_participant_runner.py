@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from helpers.harness import codex_tool_reply, native_session
+from helpers.harness import FixtureRuntime, codex_tool_reply, native_session
 from helpers.participant import InFlightService, ServiceFixture, terminal_files
 
 from benchmarking.client import ClientError
@@ -29,21 +29,6 @@ def external_runtime_boundaries(monkeypatch):
     monkeypatch.setattr("benchmarking.participants.batch.worker.supervise_slot", execute_owned_slot)
     monkeypatch.setattr("benchmarking.participants.batch.plan.DockerSession", lambda image: SimpleNamespace(image_id=image))
     monkeypatch.setattr("benchmarking.participants.batch.plan.harness_version", lambda _: ("1.2.3", "fixture-cli 1.2.3"))
-
-    # These tests replace native execution with lifecycle fixtures. Filesystem
-    # isolation itself is exercised against real subprocesses in integration.
-    class FixtureRuntime:
-        def __init__(self, context, **kwargs):
-            self.context = context
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            pass
-
-        def command(self, argv):
-            return argv, self.context.selection.environment
 
     monkeypatch.setattr('benchmarking.participants.attempt.runner.NativeRuntime', FixtureRuntime)
 

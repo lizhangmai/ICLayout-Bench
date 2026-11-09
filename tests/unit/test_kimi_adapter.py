@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 import tomli_w
+from helpers.harness import FixtureRuntime
 
 from benchmarking.participants.attempt.state import AttemptState
 from benchmarking.participants.harnesses import registry as adapters
@@ -286,6 +287,7 @@ def test_native_reasoning_and_logs_survive_export_without_credentials(tmp_path):
     assert 'native/kimi/logs/kimi-code.log' in files
 
 
+@pytest.mark.parametrize('native_tools', ['inherited', 'absent'])
 @pytest.mark.parametrize('terminal_error,stop', [
     ('provider.rate_limit: 429 The engine is currently overloaded', 'success'),
     (CONCURRENT_REQUEST_LIMIT, 'success'),
@@ -295,13 +297,19 @@ def test_native_reasoning_and_logs_survive_export_without_credentials(tmp_path):
     *[(CONCURRENT_REQUEST_LIMIT, stop) for stop in
       ('mixed_failure', 'signal', 'resume_disabled', 'quota', 'retry_after')],
 ])
-def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_wire(tmp_path, kimi_config, monkeypatch, terminal_error, stop):
+def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_wire(tmp_path, kimi_config, monkeypatch, terminal_error, stop, native_tools):
+    import shutil
     import zipfile
     from unittest.mock import patch
 
     from helpers.participant import ServiceFixture
 
     from benchmarking.participants.attempt.runner import run_participant
+
+    if native_tools == 'absent':
+        lookup = shutil.which
+        monkeypatch.setattr(shutil, 'which', lambda name, *args, **kwargs:
+                            None if name in {'bwrap', 'kimi'} else lookup(name, *args, **kwargs))
 
     home, config = kimi_config
     config['loop_control'] = {'max_attempts_per_step': 3}
@@ -354,6 +362,7 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
         return 0, False
 
     monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', execute)
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.NativeRuntime', FixtureRuntime)
     with patch.object(service, 'create', wraps=service.create) as create:
         result, error = run_participant(service, row, output, selected)
         assert create.call_count == 1

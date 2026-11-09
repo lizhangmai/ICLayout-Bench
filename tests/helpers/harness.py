@@ -4,6 +4,26 @@ import json
 import sqlite3
 
 
+class FixtureRuntime:
+    """Native process boundary for lifecycle tests that replace execution.
+
+    Real filesystem isolation belongs to native integration tests; lifecycle
+    fixtures must not depend on installed vendor CLIs or Bubblewrap.
+    """
+
+    def __init__(self, context, **kwargs):
+        self.context = context
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        pass
+
+    def command(self, argv):
+        return argv, self.context.selection.environment
+
+
 def zcode_session(output, session='sess_fixture', *, cwd=None, selection=None):
     """Minimal SQLite records from the supported ZCode 0.16.9 schema."""
     path = output / '.private/native-home/.zcode/cli/db/db.sqlite'
