@@ -380,7 +380,14 @@ class LifecycleTests(unittest.TestCase):
     def test_default_batch_groups_local_and_remote_outputs_per_run(self):
         import sys
 
+        from benchmarking.files import read_file
         from benchmarking.run import main
+
+        participant_code = ('import os, pathlib\n'
+                            'root = pathlib.Path(os.environ["ICLAYOUT_BENCH_TOOL_ARTIFACTS"])\n'
+                            '(root / "fixture").mkdir(parents=True, exist_ok=True)\n'
+                            '(root / "fixture/checkpoint.bin").write_bytes(b"native checkpoint" * 1000)\n'
+                            'print("done")\n')
         for local in (False, True):
             with self.subTest(local=local), tempfile.TemporaryDirectory() as directory:
                 batch = Path(directory) / 'results/generated'
@@ -403,7 +410,7 @@ class LifecycleTests(unittest.TestCase):
                         patch('benchmarking.participants.attempt.service.service', side_effect=local_service), \
                         patch('benchmarking.participants.attempt.runner.Client', return_value=fixture), \
                         patch('benchmarking.participants.attempt.runner.subprocess.check_output', return_value='fixture-cli 1.2.3'), \
-                        patch('benchmarking.participants.harnesses.registry.prepare', return_value=[sys.executable, '-c', 'print("done")']), \
+                        patch('benchmarking.participants.harnesses.registry.prepare', return_value=[sys.executable, '-c', participant_code]), \
                         patch.dict('os.environ', {'ICLAYOUT_BENCH_ENDPOINT': ''}), \
                         patch('builtins.print'):
                     mode = ['--dataset', directory] if local else ['--endpoint', fixture.endpoint]
@@ -415,6 +422,10 @@ class LifecycleTests(unittest.TestCase):
                 self.assertEqual(result['evaluation']['outcome'], 'no_submission')
                 self.assertTrue((batch / case_path / 'agent.jsonl').exists())
                 self.assertFalse((batch / case_path / '.runtime').exists())
+                artifact = 'tool-artifacts/fixture/checkpoint.bin'
+                self.assertIn(artifact, result['files'])
+                self.assertEqual(read_file(batch / case_path, artifact), b'native checkpoint' * 1000)
+                self.assertTrue((batch / case_path / artifact).is_file())
                 self.assertFalse((batch / 'fixture-local').exists())
 
     def test_remote_rejects_local_budget_override(self):
@@ -1884,14 +1895,18 @@ def test_command_participant_receives_problem_and_keeps_one_identity_across_task
                       'scheme_instructions = open(os.environ["ICLAYOUT_BENCH_INSTRUCTIONS_FILE"]).read()\n'
                       'print(json.dumps({"scheme_instructions": scheme_instructions}))\n'
                       'assert "layout" in json.load(open(os.environ["ICLAYOUT_BENCH_MCP_CONFIG"]))["mcpServers"]\n'
+                      'servers = json.load(open(os.environ["ICLAYOUT_BENCH_MCP_CONFIG"]))["mcpServers"]\n'
+                      'assert servers["a"]["env"]["ICLAYOUT_BENCH_TOOL_ARTIFACTS"] == os.environ["ICLAYOUT_BENCH_TOOL_ARTIFACTS"]\n'
                       + ('server = json.load(open(os.environ["ICLAYOUT_BENCH_MCP_CONFIG"]))["mcpServers"]["layout"]\n'
                          'assert server["args"] == ' + repr([str(wrapper)]) + '\n'
                          'assert server["env"]["ICLAYOUT_BENCH_TOKEN"] == "scoped-fixture-token"\n'
+                         'assert server["env"]["ICLAYOUT_BENCH_TOOL_ARTIFACTS"] == servers["a"]["env"]["ICLAYOUT_BENCH_TOOL_ARTIFACTS"]\n'
                          if layout_override else '') +
                       'print("contract received")\n')
-    raw = {'version': 'test-1', 'launch': {'command': [sys.executable, 'participant.py'], 'files': ['participant.py']}}
+    raw = {'version': 'test-1', 'launch': {'command': [sys.executable, 'participant.py'], 'files': ['participant.py']},
+           'mcp': {'a': {'command': [sys.executable, 'wrapper.py'], 'files': ['wrapper.py']}}}
     if layout_override:
-        raw['mcp'] = {'layout': {'command': [sys.executable, 'wrapper.py'], 'files': ['wrapper.py']}}
+        raw['mcp']['layout'] = {'command': [sys.executable, 'wrapper.py'], 'files': ['wrapper.py']}
     identities = []
     for index, (task, instructions) in enumerate([('one', ''), ('two', ''), ('one', 'Use tool A')]):
         scheme = resolve_scheme(dict(raw, instructions=instructions), tmp_path, 'command')

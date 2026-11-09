@@ -45,6 +45,9 @@ class ParticipantLaunch:
         if command_limit is not None:
             env['ICLAYOUT_BENCH_COMMAND_SECONDS'] = str(command_limit)
         env["ICLAYOUT_BENCH_TASK_FILE"] = str((output / "session.json").resolve())
+        artifacts = Path(env.get("ICLAYOUT_BENCH_TOOL_ARTIFACTS", output / "tool-artifacts")).resolve()
+        artifacts.mkdir(mode=0o700, parents=True, exist_ok=True)
+        env["ICLAYOUT_BENCH_TOOL_ARTIFACTS"] = str(artifacts)
         env["ICLAYOUT_BENCH_MODEL"] = condition["model"]
         env["ICLAYOUT_BENCH_EFFORT"] = condition.get("effort_resolved") or ""
         env["MCP_TOOL_TIMEOUT"] = str(int(env["ICLAYOUT_BENCH_TOOL_TIMEOUT_SECONDS"]) * 1000)

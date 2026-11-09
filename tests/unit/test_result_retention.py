@@ -3,6 +3,7 @@
 import hashlib
 import json
 import shutil
+import sqlite3
 
 import pytest
 
@@ -50,12 +51,24 @@ def archive(root, *, success=True, error=False):
 def test_compaction_preserves_final_evidence_and_feedback_and_is_portable(tmp_path):
     root = tmp_path / 'run'
     refs = archive(root)
+    tools = root / 'tool-artifacts/fixture'
+    tools.mkdir(parents=True)
+    with sqlite3.connect(tools / 'history.sqlite3') as db:
+        db.execute('CREATE TABLE trials (decision TEXT)')
+        db.execute('INSERT INTO trials VALUES (?)', ('saved design decision',))
+    (tools / 'checkpoint.bin').write_bytes(b'native tool checkpoint\n' * 10000)
+    (tools / ('0' * 64)).write_bytes(b'opaque tool filename, not a content digest')
     original = {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob('*') if p.is_file()}
     plan = inventory(root)
     assert plan['prunable_bytes'] == refs['feedback/check-1'][0]['bytes']
     assert (root / 'feedback/check-1' / refs['feedback/check-1'][0]['path']).exists()
     compact(root, objects=tmp_path / 'shared')
     verify_archive(root)
+    assert (tools / 'checkpoint.bin').read_bytes() == b'native tool checkpoint\n' * 10000
+    assert (tools / ('0' * 64)).read_bytes() == b'opaque tool filename, not a content digest'
+    assert (tools / 'history.sqlite3').is_file()
+    with sqlite3.connect(tools / 'history.sqlite3') as db:
+        assert db.execute('SELECT decision FROM trials').fetchone() == ('saved design decision',)
     for name, raw in original.items():
         if name == 'feedback/check-1/' + refs['feedback/check-1'][0]['path']:
             with pytest.raises(EvidenceUnavailable, match='successful_process_check'):

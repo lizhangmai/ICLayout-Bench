@@ -108,6 +108,12 @@ Participant methods can maintain reusable scheme TOML files selected through
 participant condition; method-specific prompts, MCP composition and reviewed
 resource inventories remain with the method's owner.
 
+The runner supplies `ICLAYOUT_BENCH_TOOL_ARTIFACTS` as a shared persistent output
+directory for participant tools. In managed runs it belongs to the task/repetition
+result, outside the private runtime. Terminal exports register its files as
+participant-produced attachments and retain their native layout. These files
+are tool state and supporting records; independent evaluation remains authoritative.
+
 The bundled server binds to loopback and supports one case and one active
 session. Operators provide production authentication, TLS, capacity and task
 admission. Native model credentials stay with the participant host or its

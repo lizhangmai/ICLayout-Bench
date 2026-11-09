@@ -715,6 +715,17 @@ MCP servers receive the scoped session environment so they can use the Bench
 HTTP client. No creation credential is forwarded. Native host shell tools remain
 disabled; Python/CLI tools installed in the solver run through layout MCP.
 
+`ICLAYOUT_BENCH_TOOL_ARTIFACTS` names an absolute, persistent host directory shared
+by the participant's tool processes. In managed experiments it is
+`tool-artifacts/` inside the task/repetition result directory, outside `.runtime`.
+Tools use their own subdirectory for databases, checkpoints and call journals;
+the directory does not grant access to other tasks or evaluator-private data.
+Terminal exports list these files as participant-produced attachments and retain
+their original file layout so native readers can open them after runtime cleanup.
+Keep credentials and private launcher state in their existing private locations.
+Standalone launchers may select this directory in the participant environment;
+otherwise it defaults to `tool-artifacts/` below their participant output.
+
 #### Explicit layout MCP adapters
 
 To wrap the normal layout tools with participant-side memory or instrumentation,
@@ -757,6 +768,8 @@ provide scoped HTTP access; `ICLAYOUT_BENCH_TASK_FILE` points to session metadat
 `ICLAYOUT_BENCH_MCP_CONFIG` to the private MCP config,
 `ICLAYOUT_BENCH_INSTRUCTIONS_FILE` to optional operator-declared `scheme.instructions` (empty when absent), and
 `ICLAYOUT_BENCH_MODEL` / `ICLAYOUT_BENCH_EFFORT` record requested settings.
+`ICLAYOUT_BENCH_TOOL_ARTIFACTS` provides the persistent tool output directory shared
+with the declared MCP servers.
 The command starts in a fresh private directory. A container/remote launcher
 must explicitly forward these inputs and preserve its own version identity.
 The original `problem.md` owns the solver goals, optimization workflow and
@@ -1082,6 +1095,7 @@ results/my-condition/
     layout.png                 # optional preview
     agent.jsonl                # native launches in order, known secrets redacted
     native/                    # selected native histories and diagnostics
+    tool-artifacts/            # participant-tool databases, checkpoints and journals
     evaluation/                # plan, measurements, logs and diagnostic outputs
     worker-events.jsonl        # worker lifecycle, when available
     service-http.jsonl         # operation/status/timing, when available
@@ -1133,7 +1147,8 @@ maps their original logical paths to uncompressed SHA-256 identities and records
 intentional omissions. The archive contains local object files, so copying one
 archive does not require a shared external store. A result scope's `.objects/`
 pool deduplicates identical compressed objects using hard links. Final GDS and PNG
-files remain directly readable. Read archived attachments through
+files and the native files under `tool-artifacts/` remain directly readable.
+Read other archived attachments through
 `benchmarking.files.read_file`; direct filesystem existence checks do not describe
 the availability of compressed evidence. Declared result transfer and import use
 this same reader.

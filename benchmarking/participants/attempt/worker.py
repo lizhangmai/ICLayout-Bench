@@ -82,6 +82,11 @@ def _finish_case(record, state):
                   'summary': dict(summary, result='result.json'), 'files': []}
         files = result['files']
         export_run(root, read_participant_evidence(runtime), result)
+        for path in sorted((root / 'tool-artifacts').rglob('*')):
+            if path.is_symlink() or not (path.is_file() or path.is_dir()):
+                raise ValueError('Tool artifacts must be regular files: ' + str(path))
+            if path.is_file():
+                files.append(path.relative_to(root).as_posix())
         # These journals contain fixed lifecycle/HTTP fields, never credentials
         # or request bodies. Keep them before removing private runtime stores.
         journals = [('worker-events.jsonl', 'worker-events.jsonl'),
@@ -156,7 +161,10 @@ def execute_owned_slot(request: SlotRequest, row, selection, repetition, name, o
                                      retry_policy=settings))
     interrupted = False
     try:
-        selection = selection.with_environment(ICLAYOUT_BENCH_LEASE_FD=str(lease.fileno()))
+        artifacts = record.root / 'tool-artifacts'
+        artifacts.mkdir(mode=0o700, exist_ok=True)
+        selection = selection.with_environment(ICLAYOUT_BENCH_LEASE_FD=str(lease.fileno()),
+                                               ICLAYOUT_BENCH_TOOL_ARTIFACTS=str(artifacts.resolve()))
         with context as access:
             summary = runner.run_one(access, row, run_dir / "participant", selection)
         summary["repetition"] = repetition

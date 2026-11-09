@@ -170,6 +170,7 @@ def inventory(root, *, keep_checks=()):
     for path in _sources(root):
         name, size = path.relative_to(root).as_posix(), path.stat().st_size
         action = ('omit' if name in omitted else 'compress' if size >= MIN_BYTES
+                  and not name.startswith('tool-artifacts/')
                   and name not in {'run.json', 'result.json'} and path.suffix not in {'.gds', '.png'}
                   and not (path.suffix == '.json' and size < 16 * 1024 * 1024) else 'keep')
         files.append({'path': name, 'bytes': size, 'action': action})
@@ -285,7 +286,8 @@ def compact(root, *, objects=None, keep_checks=()):
     pending, omitted = [], _prunable(root, set(keep_checks))
     for item in plan['files']:
         path = root / item['path']
-        if (item['action'] == 'keep' and re.fullmatch('[0-9a-f]{64}', path.name)
+        if (item['action'] == 'keep' and not item['path'].startswith('tool-artifacts/')
+                and re.fullmatch('[0-9a-f]{64}', path.name)
                 and _identity(path)['sha256'] != path.name):
             raise EvidenceError('Content-addressed evidence changed: ' + item['path'])
     # Validate omissions before writing the manifest. A corrupt source never
