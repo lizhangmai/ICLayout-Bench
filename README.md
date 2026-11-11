@@ -79,11 +79,13 @@ In a fresh Python 3.12+ virtual environment:
 
 ```bash
 python -m pip install iclayout-bench
-docker pull docker.io/lizhangmai/iclayout-bench-tools:latest
+docker pull "$(python -m benchmarking.eda image)"
 ```
 
 The package contains the framework only; tasks come from the Dataset and EDA
-tools from the image. Check the host before the first run:
+tools from the image. Each release uses the tools image published with it
+(`iclayout-bench-tools:v<version>`), so a pinned package keeps the same toolchain.
+Check the host before the first run:
 
 ```bash
 python -m benchmarking.eda doctor                                 # Linux, Python, Git, Docker

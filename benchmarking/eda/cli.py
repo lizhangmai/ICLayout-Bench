@@ -244,6 +244,7 @@ def main():
     parser.add_argument("--offline", action="store_true")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("doctor")
+    commands.add_parser("image", help="Print the default tool image, after ICLAYOUT_BENCH_IMAGE")
     commands.add_parser("list", help="List declared tasks without requiring reference layouts")
     command = commands.add_parser("fetch", help="Fetch pinned PDK installations")
     command.add_argument("--case", required=True)
@@ -257,7 +258,9 @@ def main():
     command.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
-        if args.command == "doctor":
+        if args.command == "image":
+            print(tool_image())
+        elif args.command == "doctor":
             doctor()
         elif args.command == "build":
             doctor()

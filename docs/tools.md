@@ -20,12 +20,16 @@ image and a Dataset.
 
 ### Prebuilt images and local builds
 
-The published open EDA image is
-`docker.io/lizhangmai/iclayout-bench-tools:latest` and supports `linux/amd64`.
-Tasks and PDKs are resolved separately. Pull it before running EDA:
+The open EDA image `docker.io/lizhangmai/iclayout-bench-tools` supports
+`linux/amd64`. Each Bench release publishes `v<version>` from the same commit,
+and a released package uses that tag by default, so pinning the package also pins
+the toolchain. Development installs default to `latest`, which follows the checked
+head of `main`. Tasks and PDKs are resolved separately. Print the default and pull
+it before running EDA:
 
 ```bash
-docker pull docker.io/lizhangmai/iclayout-bench-tools:latest
+python -m benchmarking.eda image
+docker pull "$(python -m benchmarking.eda image)"
 ```
 
 The runner uses this image by default. Select another compatible image directly
@@ -51,7 +55,7 @@ frozen image identities; each operation retains its own isolation. Harness CLIs
 are installed on the participant host separately.
 
 Open EDA resource loading uses an explicit image, then `ICLAYOUT_BENCH_IMAGE`,
-then the published open image. Commercial evaluators run directly on the
+then the default open image above. Commercial evaluators run directly on the
 operator host and do not resolve or inspect a Docker image.
 `scheme.solver_image` or the service's `--solver-image` can choose a distinct
 participant image while trusted evaluator bindings remain separate.

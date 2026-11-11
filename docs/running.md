@@ -80,10 +80,10 @@ Dry-run resolves configuration, local connections and Dataset bindings without
 model calls or Docker execution. It does not test credentials, quota or electrical
 qualification.
 
-Pull the published tools image, then run the same condition:
+Pull the default tools image, then run the same condition:
 
 ```bash
-docker pull docker.io/lizhangmai/iclayout-bench-tools:latest
+docker pull "$(python -m benchmarking.eda image)"
 python -m benchmarking.run --config experiment.toml --case NAND2_X1
 ```
 
@@ -91,8 +91,9 @@ The runner creates the local service, isolated workspace and harness process,
 then independently evaluates the submitted candidate and exports the result.
 PDK installation and derived resource binding are automatic. This command makes
 real model calls. Omit `--case` to execute the complete configured selection.
-The runner defaults to the published tools image; use `--image IMAGE` or
-`ICLAYOUT_BENCH_IMAGE` to select another compatible image.
+The runner defaults to the tools image published with the installed release
+([image selection](tools.md#prebuilt-images-and-local-builds)); use `--image IMAGE`
+or `ICLAYOUT_BENCH_IMAGE` to select another compatible image.
 Results default to `results/experiment/<task-id>/<timestamp>/`; add
 `--output /path/to/results` to select an output root. See
 [output selection](#output-selection-and-scheduling) for reuse and scheduling.

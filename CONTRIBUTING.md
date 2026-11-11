@@ -251,9 +251,10 @@ The public [Dockerfile](Dockerfile) is the single open EDA image recipe. It pins
 tool sources, archive digests and patches and installs the locked Python `eda`
 dependencies, including its `agent-tools` group of scientific and scripting
 packages. Update those pins only when changing a tool version or source
-intentionally. The published image is
-`docker.io/lizhangmai/iclayout-bench-tools:latest`; development builds can use any
-explicit tag. Select the image with `--image` or `ICLAYOUT_BENCH_IMAGE`, and use
+intentionally. Releases publish
+`docker.io/lizhangmai/iclayout-bench-tools:v<version>`, which released packages
+select by default; `latest` follows the checked head of `main` and is the default
+for development installs. Development builds can use any explicit tag. Select the image with `--image` or `ICLAYOUT_BENCH_IMAGE`, and use
 `ICLAYOUT_BENCH_TEST_IMAGE` for container tests.
 
 Choose the smallest image change that covers the work:

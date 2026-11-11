@@ -73,10 +73,11 @@ flowchart LR
 
 ```bash
 python -m pip install iclayout-bench
-docker pull docker.io/lizhangmai/iclayout-bench-tools:latest
+docker pull "$(python -m benchmarking.eda image)"
 ```
 
-安装包只包含框架；题目来自题库，EDA 工具来自镜像。首次运行前检查主机环境：
+安装包只包含框架；题目来自题库，EDA 工具来自镜像。每个发布版本使用与之同时发布的工具镜像
+（`iclayout-bench-tools:v<版本号>`），固定包版本即可固定工具链。首次运行前检查主机环境：
 
 ```bash
 python -m benchmarking.eda doctor                                 # Linux、Python、Git、Docker

@@ -14,6 +14,7 @@ import tomli_w
 from helpers.catalog import CASES, read_case
 from helpers.protocol import write_protocol_task
 
+from benchmarking.eda.images import DEFAULT_IMAGE
 from benchmarking.eda.runtime import load_case, load_case_inputs
 from benchmarking.tasks.contract import load_task
 
@@ -63,7 +64,7 @@ def preview():
 
 
 @pytest.mark.parametrize('override,environment,expected', [
-    (None, None, 'docker.io/lizhangmai/iclayout-bench-tools:latest'),
+    (None, None, DEFAULT_IMAGE),
     (None, 'registry.example/eda:reviewed', 'registry.example/eda:reviewed'),
     ('selected-image', 'registry.example/eda:reviewed', 'selected-image'),
 ])
