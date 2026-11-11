@@ -52,7 +52,7 @@ flowchart LR
 | 你想要 | 从这里开始 |
 | --- | --- |
 | 在自己的机器上评测模型或 Agent | [快速开始](#快速开始) |
-| 评测自己的 Agent 程序，或添加 MCP 服务器等工具 | [自定义控制器与工具方案](docs/running.md#participant-tool-schemes) |
+| 评测自己的 Agent 程序，或添加 MCP 服务器等工具 | [自定义控制器](docs/running.md#custom-controllers)与[工具方案](docs/running.md#participant-tool-schemes) |
 | 不调用模型，直接为已有 GDS 评分 | [独立评测](docs/running.md#standalone-evaluation) |
 
 ## 环境要求
@@ -99,7 +99,7 @@ Bench 本身不调用模型 API，而是启动与模型通信的 Agent CLI，并
 | BigModel 或 Z.AI 编程套餐 | `zcode` | `account:<套餐>/<模型>` | 在专用 profile 中 `zcode login`；见 [ZCode](docs/running.md#zcode) |
 | 任意 OpenAI 或 Anthropic 兼容 API | `zcode` | `<provider>/<模型>` | 在 profile 的 `config.json` 中声明 endpoint 和密钥变量；见 [ZCode](docs/running.md#zcode) |
 | DSH | `dsh` | DSH 接受的模型 ID | 在其 home 中配置 `settings.yaml`；见 [DSH](docs/running.md#claude-code-and-dsh) |
-| 自己的 Agent 程序 | `command` | 随结果记录的标签 | 声明 `[scheme.launch]`；见[自定义控制器](docs/running.md#participant-tool-schemes) |
+| 自己的 Agent 程序 | `command` | 随结果记录的标签 | 声明 `[scheme.launch]`；见[自定义控制器](docs/running.md#custom-controllers) |
 
 原生 harness 默认使用 CLI 的常规登录状态。若要隔离评测凭据，可在专用 profile
 目录中登录，并用 `harness_home` 指向该目录（[详细说明](docs/running.md#native-harness-configuration)）。

@@ -1,15 +1,18 @@
 # Task Contract and Scoring
 
 This reference defines the files and fields accepted by the engine, how submitted
-layouts are evaluated, and how scores and result states are interpreted. Use the
-scoring and result sections to read an experiment; use the configuration and
-qualification sections when supplying your own Dataset.
+layouts are evaluated, and how scores and result states are interpreted. Read
+[how a submission is scored](#task-scoring) to interpret an experiment; use
+[authoring a task](#authoring-a-task) and [qualification](#qualification) when
+supplying your own Dataset. Terms such as witness, qualification and settlement
+are defined in [architecture terms](architecture.md#terms), and the operator role
+in [system roles](architecture.md#system-roles-and-boundaries).
 
 - [Task files](#task-design)
-- [Scoring](#task-scoring)
-- [Evaluation results](#evaluation)
-- [Configuration reference](#task-configuration)
-- [Input isolation](#input-isolation)
+- [How a submission is scored](#task-scoring): gates, formula, run outcomes and
+  [evaluation results](#evaluation)
+- [Authoring a task](#authoring-a-task): problem statements, scoring rules, the
+  [configuration reference](#task-configuration) and [input isolation](#input-isolation)
 - [Qualification](#qualification)
 
 See [running](running.md) for commands, [tools](tools.md) for PDK/backend setup,
@@ -49,129 +52,30 @@ cases; they do not change task requirements or scoring.
 and `summary` must be nonempty strings; they support browsing and do not alter
 requirements or scoring. Case-specific explanations belong in `problem.md`.
 
-### Problem statement structure
-
-Declare the complete solver instructions through `inputs.description`, normally
-as `problem.md`. Its original text becomes the Agent's initial task prompt.
-Include the circuit interface, operating conditions, physical and electrical
-requirements, quality objectives, budget, available tools and submission path.
-Requirements must be understandable from the declared solver inputs without
-access to the private evaluation plan.
-
-For structured rendering, `benchmarking.tasks.documents.parse_task_description`
-accepts six nonempty level-two sections in this order. Use level-three headings
-for additional detail within a section.
-
-| Heading | Content |
-| --- | --- |
-| Objective | Circuit function, quality maximization and the role of a feasible baseline |
-| Inputs and Interface | Declared files, devices and ordered ports |
-| Operating Conditions | Stimuli, loads, corners and measurements |
-| Physical Requirements | Artifact, geometry, DRC and LVS requirements |
-| Electrical Requirements and Scoring | Functional bounds, quality metrics, weights and rationale |
-| Tools and Submission | Prepared resources, solve budget, optimization workflow, stopping criteria and final submission |
-
-The parser returns the original section Markdown under the English section keys.
-Missing, duplicate, reordered or empty sections fail explicitly. Example headings
-inside fenced code blocks do not delimit sections. This is a presentation
-interface: the task loader accepts declared description files independently of
-this structure. Executable requirements and scoring come from `case.toml`.
-
-When describing the solver objective, distinguish feasibility from quality:
-passing DRC, LVS and required functional checks establishes a valid candidate;
-the score measures its quality. Explain how to inspect resources, use available
-process checks, compare improvements and submit the best candidate within budget.
-Publish the budget, metric weights and quality targets consistently with the
-task contract. The runner uses the supplied problem text rather than adding a
-general optimization workflow of its own.
-
-`status = "candidate"` or `"qualified"` is declared metadata, not proof produced
-by loading a file. The qualification commands verify actual witness evidence.
-A missing witness cannot pass witness qualification; normal solver sessions
-never receive a reference layout.
-
-<a id="task-coefficient"></a>
-
-`coefficient` is an integer from 1 to 10 used in cross-task aggregation. It is
-separate from the individual task's metric weights. Dataset authors own the
-capability rubric and each assigned value; result consumers preserve the
-recorded coefficient. See [aggregation](running.md#comparisons).
-The default is 1 when `task.coefficient` is omitted.
-
-<a id="asset-rights"></a>
-
-### Asset rights
-
-Case visibility is declared by `distribution = "public"` or `distribution = "private"`.
-Both classifications can be loaded and evaluated locally. The default is
-`public` when the field is omitted. This delivery classification does not assert
-that a design is unpublished or qualified, and it does not grant rights to any asset.
-Source owners must classify cases before delivery; the loader cannot infer
-licenses from filenames or tool names. Operator-managed local resources need not
-be redistributed with a case.
-
-The engine's MIT license does not relicense supplied materials, PDKs or tools.
-Consult their own licenses and notices. Solver materialization is an isolated
-input projection, not a redistribution bundle. Dataset maintainers own public-file enumeration, authorization and publication
-decisions. Bench reads the explicitly supplied [static Dataset](running.md#static-dataset-inputs).
-
 <a id="task-scoring"></a>
+<a id="scoring"></a>
 
-## Scoring
+## How a submission is scored
 
-### Validity and quality
+Hard gates decide whether a candidate is valid; the score then measures the
+quality of a valid candidate from its declared metrics and area.
 
-Task qualification establishes that the task has a complete, valid and
-reproducible solution under its declared conditions. The reference layout is a
-feasibility witness; it need not achieve a high score or the source circuit's
-performance. Scores distinguish the quality of valid solutions.
+### Validity gates
 
-Use hard gates for artifact integrity, DRC, named-interface LVS, prescribed
-parasitic extraction, required circuit function and explicit implementation
-constraints. For each electrical or geometry
-bound, explain what makes a solution outside it invalid or unable to perform the
-required function. Frequency response, delay, power, area and precision are scored
-objectives by default. A preferred operating point, source-matching tolerance or
-application performance budget alone does not justify a hard gate. State and
-justify any functional limit separately from its quality target in `problem.md`.
+Artifact, DRC, named-interface LVS, prescribed parasitic extraction, hard geometry
+and electrical requirements must pass. A completed rejection, including an
+unusable candidate extraction, scores zero. Missing, nonfinite, wrong-unit or
+unusable source measurements produce an unknown (`null`) score. An independently
+established physical rejection remains zero if an unrelated tool errors.
+Physical-only and characterization runs do not produce benchmark scores.
 
-Classify each measurement before setting thresholds or developing the reference:
-validity gate, scored quality, or diagnostic evidence. Keep the required stimuli,
-corners and measurements when removing a quality target from the gates; use their
-source-paired values to measure degradation. A completed analysis that explicitly
-establishes the absence of a required measurement event rejects the candidate;
-an unexplained missing scalar or unusable report remains an evaluation error.
-Authors must validate that the declared event is required for valid solutions.
-A low finite score by itself does not fail qualification.
+The candidate must produce a complete, electrically consistent extracted netlist
+usable by the declared post-layout simulations. Use check/report feedback to
+repair and resubmit within the solve budget. Qualification establishes
+feasibility of the prescribed flow; a participant's claim that a rejection is
+caused by the tool does not waive the gate or change the score.
 
-Negative controls follow the same distinction. Invalid artifacts, connectivity
-faults and loss of required function must be rejected. A valid but slower, less
-accurate or less efficient candidate should remain valid and receive a lower
-quality score. Validate both behaviors. Once a reference proves feasibility and
-the measurements and scoring are validated, further reference optimization is
-optional rather than a qualification prerequisite.
-
-Declare a necessary functional bound in a metric's explicit `requirement`
-table, with `lower` and/or `upper` and a nonempty `rationale` explaining the
-loss of function outside the bound. Keep quality in `quality_target`, `baseline`, `normalization`,
-`scale` and scoring weights. The same observation may serve both purposes, but
-the requirement must have its own functional justification. Neither a zero
-weight nor `category = "performance"` disables a requirement.
-
-```toml
-# Within a metric: correct response polarity, not an amplitude budget.
-requirement = { lower = 0.0, rationale = "A negative response reverses the required output polarity." }
-```
-
-Bounds are declared only in `requirement`; top-level metric `lower`/`upper` are
-rejected when the plan loads. Use `python -m benchmarking.evaluation qualify audit`
-to list requirements, weighted quality and unweighted diagnostics; the audit
-validates structure, not the truth of the author's rationale. Review each
-rationale against the circuit intent. Do not move an arbitrary performance budget
-into `requirement` merely to pass the audit. No minimum score is imposed.
-
-An unavailable measurement, such as a missing crossing in a finite observation
-window, is not proof that a performance budget is required.
+### Score formula
 
 The only scoring method is `layout`. Electrical quality uses declared engineering targets,
 with source simulation under the same conditions retained as evidence. Without
@@ -188,22 +92,9 @@ S = 100 * G * product(c_i ** w_i)  # positive weights, including area
 
 `G` is the gate factor: 1 when every gate, job and requirement passes, 0 after
 any completed rejection, and `null` (unknown score) when an evaluation error
-prevents a judgment.
-
-Artifact, DRC, named-interface LVS, prescribed parasitic extraction, hard geometry
-and electrical requirements must pass. A completed rejection, including an
-unusable candidate extraction, scores zero. Missing, nonfinite, wrong-unit or
-unusable source measurements produce an unknown (`null`) score. An independently
-established physical rejection remains zero if an unrelated tool errors.
-Physical-only and characterization runs do not produce benchmark scores.
-
-Every problem statement must describe extraction as a mandatory acceptance gate
-alongside DRC and LVS. The candidate must produce a complete, electrically
-consistent extracted netlist usable by the declared post-layout simulations.
-Use check/report feedback to repair and resubmit within the solve budget.
-Qualification establishes feasibility of the prescribed flow; a participant's
-claim that a rejection is caused by the tool does not waive the gate or change
-the score.
+prevents a judgment. Reports also include `E` and `Q` components. `E` is the
+weighted geometric mean of capped electrical qualities, normalized by total
+electrical weight. `Q` is the capped area quality `min(1, q_area)`.
 
 ### Electrical quality
 
@@ -218,42 +109,9 @@ come from the frozen task, never from candidate report jobs.
 A metric may declare `quality_target = { value = ..., rationale = "..." }`.
 Its finite value, in the metric's unit, replaces `b` in the normalization formulas
 below for every paired condition. Source measurements and pairing checks remain
-required and are reported separately. The rationale explains the circuit-specific
-quality goal, independently of the current reference layout. This target changes
-the continuous score only; it does not introduce an acceptance cutoff. Choose a
-challenging goal that the permitted circuit and layout changes can influence.
-Do not apply an arbitrary common multiplier to all cases. A target must satisfy
-any functional bounds; ratio targets must be nonnegative, and an unscaled
-`ratio` target must be positive. When omitted, each condition uses its own source
-value.
-
-```toml
-# Example within a settling-time metric measured in seconds.
-quality_target = { value = 2e-9, rationale = "Reserve 2 ns of the 10 ns sample period for settling." }
-```
-
-Each baseline pair must use the same operation, parameters and external fixture.
-The reserved `netlist` and optional `simulation` input roles identify the source
-DUT (the latter may supply a simulation-dialect version); never use them for a
-testbench or fixed fixture. Only these source circuit inputs can be replaced by
-an extraction-stage SPICE output in a candidate pair. Fixed testbenches, stimuli
-and models use their own declared roles and must match exactly.
-Changing source inputs invalidates calibration: task loading and evaluation
-reject stale input digests before invoking tools. Model/toolchain changes require
-review and recalibration of the affected source jobs. Source-only simulations
-belong in a standalone `characterization` plan; they are rejected in a
-`post_layout` plan.
-
-Frozen source jobs may consume `job:<source-id>:<output>` artifacts produced by
-other frozen source jobs. This source-only DAG must be acyclic and rooted in the
-declared source circuit; it cannot reference executable candidate jobs. Producers
-record `output_sha256` for consumed outputs, and consumers' `input_sha256` must
-match. These artifacts are provenance records, not solver inputs or files copied
-into candidate execution. For example, source and candidate can independently
-calibrate their own circuits before measuring PVT response. Baseline pairing
-recursively requires identical producer operations, parameters, output formats
-and non-circuit inputs; their selected values may differ. The candidate reruns
-its own calibration algorithm and never receives the frozen source selection.
+required and are reported separately. This target changes the continuous score
+only; it does not introduce an acceptance cutoff. When omitted, each condition
+uses its own source value.
 
 | Normalization | Quality q | Use |
 | --- | --- | --- |
@@ -281,14 +139,10 @@ values. Each condition retains its paired source anchor (or the explicit
 continuous objective; the budget introduces no functional rejection.
 
 `saturating_ratio` requires minimizing nonnegative observations and a positive
-`scale` in the metric's units. Authors should justify that scale against the
-required accuracy or stimulus amplitude, rather than numerical zero avoidance
-alone. It is equivalent to `2*r/(1+r)` for `r=(b+s)/(x+s)`; it bounds both the
-improvement reward and the penalty relative to the unbounded ratio. Apply the
-normalization to each source/candidate pair before selecting its worst quality.
-Static offset and transient recovery should be separate measurements: dynamic
-recovery is measured relative to the corresponding steady operating point, so
-one offset improvement does not receive repeated rewards in multiple windows.
+`scale` in the metric's units. It is equivalent to `2*r/(1+r)` for
+`r=(b+s)/(x+s)`; it bounds both the improvement reward and the penalty relative
+to the unbounded ratio. Apply the normalization to each source/candidate pair
+before selecting its worst quality.
 
 A metric's quality is the worst of its paired observations, regardless of its
 summary `aggregation`. Scored metrics are grouped into three dimensions:
@@ -306,60 +160,17 @@ Every metric is checked in every required condition, including zero-weight
 metrics. A zero quality with positive weight makes the score zero; a zero-weight
 metric contributes no quality but still requires valid evidence and passing bounds.
 
+A larger weight gives stronger relative influence among remaining shortfalls.
+Exceeding a target earns no additional credit; functional bounds separately
+determine validity. Cross-task coefficients do not affect an individual task score.
+
 Dimensions organize report summaries; moving a metric between dimensions does not
-change its weight. `E` is the weighted geometric mean of capped electrical qualities,
-normalized by total electrical weight. Each dimension is summarized the same way
-using its own positive weights; a dimension with no positive weight is `null`.
+change its weight. Each dimension is summarized like `E`, using its own positive
+weights; a dimension with no positive weight is `null`.
 Functional-only checks and unpaired diagnostics add no quality points. `target`
 quality cannot exceed one; raw directional and area qualities can, but their
 credited factors stop at one. Exceeding one target cannot compensate for missing
 another target. Improvements beyond a target remain visible as raw measurements.
-
-### Operating-condition coverage and robustness
-
-The evaluation plan tests only the conditions it declares. To measure sensitivity
-to a process corner, temperature, supply, load, input slew, initial state or other
-operating condition, define an explicit job for that condition and include its
-observation in the corresponding metric. Each scored candidate observation must
-be paired with a frozen source observation from the same operation, parameters
-and external fixture. The metric's quality is then the worst normalized quality
-across those pairs. This makes the tested envelope visible and reproducible; it
-does not establish behavior outside the declared conditions or model coverage.
-
-Use a functional bound when a circuit must pass at every declared condition.
-Additional corners can also contribute to a source-paired quality metric when
-degradation within the passing range matters. A dimension label does not itself
-measure robustness, and a single nominal observation should not be described as
-corner-robust evaluation.
-
-### Metric weights
-
-Each task publishes its weights and their rationale in `problem.md`. The same
-values are stored under `[task.evaluation.scoring]`. For example, a delay-focused
-comparator can assign 70% to delay, 20% to power and 10% to area:
-
-```toml
-[task.evaluation.scoring]
-method = "layout"
-area_metric = "functional_area"
-area_target = 1000.0
-rationale = "Delay is the main objective; power and area are secondary costs."
-
-[task.evaluation.scoring.weights]
-worst_delay = 0.7
-supply_power = 0.2
-functional_area = 0.1
-```
-
-The example assumes these are the plan's only source-paired metrics. The weight
-table must name every source-paired metric and the area metric exactly once;
-unpaired diagnostics cannot have weights. The area target and weights for a
-particular task come from its configuration, not from this example.
-
-A larger weight gives stronger relative influence among remaining shortfalls.
-Exceeding a target earns no additional credit; functional bounds separately
-determine validity. Dataset authors own metric budgets and
-their rationale. Cross-task coefficients do not affect an individual task score.
 
 ### Area
 
@@ -371,18 +182,6 @@ not infer a minimum footprint from the circuit type. It is a soft scoring target
 `area_target / candidate_functional_area` is retained as raw quality and capped
 at one for scoring. Exceeding the target footprint does not fail the task by
 itself. Declare a separate hard geometry limit when the application imposes one.
-
-### Score reports
-
-Reports include the raw source/candidate observations, metric qualities,
-weights, dimension summaries, area and `G/E/Q` components. `metrics` retains raw
-worst-condition qualities; `credited_metrics` contains their capped scoring factors.
-`area.Q` retains the raw area ratio and `area.credited_quality` its capped factor.
-`E`, `Q` and dimension summaries use capped factors. The score envelope uses
-`method="layout"`, `reference=100` and `maximum=100`.
-Conclusive zero scores use the same envelope. Evaluation errors remain unknown.
-Result imports accept only this 0–100 score contract. The task definition and
-evaluator digests bind each result to its scoring configuration.
 
 <a id="run-outcomes"></a>
 
@@ -404,9 +203,21 @@ terminates as `budget_exhausted`. An `infrastructure_error` termination leaves
 the score unknown (`null`). The independent evaluation report keeps the
 candidate's own quality score.
 
+### Score reports
+
+Reports include the raw source/candidate observations, metric qualities,
+weights, dimension summaries, area and `G/E/Q` components. `metrics` retains raw
+worst-condition qualities; `credited_metrics` contains their capped scoring factors.
+`area.Q` retains the raw area ratio and `area.credited_quality` its capped factor.
+`E`, `Q` and dimension summaries use capped factors. The score envelope uses
+`method="layout"`, `reference=100` and `maximum=100`.
+Conclusive zero scores use the same envelope. Evaluation errors remain unknown.
+Result imports accept only this 0–100 score contract. The task definition and
+evaluator digests bind each result to its scoring configuration.
+
 <a id="evaluation"></a>
 
-## Evaluation results
+### Evaluation results
 
 Evaluation uses an immutable submitted GDS with trusted task materials and a
 read-only PDK view. It does not use the participant's writable directory or
@@ -457,7 +268,7 @@ For witness verification, see [qualification](#qualification).
 
 <a id="interpretation-limits"></a>
 
-### Interpretation limits
+#### Interpretation limits
 
 Electrical coverage is limited to each task's declared measurements. Source-paired
 quality alone does not establish noise, mismatch, process-corner robustness or
@@ -470,9 +281,208 @@ missing measurement evidence is an evaluation error. Inspect the selected plan,
 metric observations and raw job status to distinguish these outcomes; see
 [evaluation results](#evaluation).
 
+## Authoring a task
+
+This part is for Dataset authors: writing the problem statement, separating
+validity gates from scored quality, and declaring the case configuration.
+
+### Problem statement structure
+
+Declare the complete solver instructions through `inputs.description`, normally
+as `problem.md`. Its original text becomes the Agent's initial task prompt.
+Include the circuit interface, operating conditions, physical and electrical
+requirements, quality objectives, budget, available tools and submission path.
+Requirements must be understandable from the declared solver inputs without
+access to the private evaluation plan.
+
+For structured rendering, `benchmarking.tasks.documents.parse_task_description`
+accepts six nonempty level-two sections in this order. Use level-three headings
+for additional detail within a section.
+
+| Heading | Content |
+| --- | --- |
+| Objective | Circuit function, quality maximization and the role of a feasible baseline |
+| Inputs and Interface | Declared files, devices and ordered ports |
+| Operating Conditions | Stimuli, loads, corners and measurements |
+| Physical Requirements | Artifact, geometry, DRC and LVS requirements |
+| Electrical Requirements and Scoring | Functional bounds, quality metrics, weights and rationale |
+| Tools and Submission | Prepared resources, solve budget, optimization workflow, stopping criteria and final submission |
+
+The parser returns the original section Markdown under the English section keys.
+Missing, duplicate, reordered or empty sections fail explicitly. Example headings
+inside fenced code blocks do not delimit sections. This is a presentation
+interface: the task loader accepts declared description files independently of
+this structure. Executable requirements and scoring come from `case.toml`.
+
+When describing the solver objective, distinguish feasibility from quality:
+passing DRC, LVS and required functional checks establishes a valid candidate;
+the score measures its quality. Explain how to inspect resources, use available
+process checks, compare improvements and submit the best candidate within budget.
+Publish the budget, metric weights and quality targets consistently with the
+task contract. The runner uses the supplied problem text rather than adding a
+general optimization workflow of its own.
+
+<a id="asset-rights"></a>
+
+### Asset rights
+
+Case visibility is declared by `distribution = "public"` or `distribution = "private"`.
+Both classifications can be loaded and evaluated locally. The default is
+`public` when the field is omitted. This delivery classification does not assert
+that a design is unpublished or qualified, and it does not grant rights to any asset.
+Source owners must classify cases before delivery; the loader cannot infer
+licenses from filenames or tool names. Operator-managed local resources need not
+be redistributed with a case.
+
+The engine's MIT license does not relicense supplied materials, PDKs or tools.
+Consult their own licenses and notices. Solver materialization is an isolated
+input projection, not a redistribution bundle. Dataset maintainers own public-file enumeration, authorization and publication
+decisions. Bench reads the explicitly supplied [static Dataset](running.md#static-dataset-inputs).
+
+### Validity and quality
+
+Task qualification establishes that the task has a complete, valid and
+reproducible solution under its declared conditions. The reference layout is a
+feasibility witness; it need not achieve a high score or the source circuit's
+performance. Scores distinguish the quality of valid solutions.
+
+Use hard gates for artifact integrity, DRC, named-interface LVS, prescribed
+parasitic extraction, required circuit function and explicit implementation
+constraints. For each electrical or geometry
+bound, explain what makes a solution outside it invalid or unable to perform the
+required function. Frequency response, delay, power, area and precision are scored
+objectives by default. A preferred operating point, source-matching tolerance or
+application performance budget alone does not justify a hard gate. State and
+justify any functional limit separately from its quality target in `problem.md`.
+Every problem statement must describe extraction as a mandatory acceptance gate
+alongside DRC and LVS.
+
+Classify each measurement before setting thresholds or developing the reference:
+validity gate, scored quality, or diagnostic evidence. Keep the required stimuli,
+corners and measurements when removing a quality target from the gates; use their
+source-paired values to measure degradation. A completed analysis that explicitly
+establishes the absence of a required measurement event rejects the candidate;
+an unexplained missing scalar or unusable report remains an evaluation error.
+Authors must validate that the declared event is required for valid solutions.
+A low finite score by itself does not fail qualification.
+
+Negative controls follow the same distinction. Invalid artifacts, connectivity
+faults and loss of required function must be rejected. A valid but slower, less
+accurate or less efficient candidate should remain valid and receive a lower
+quality score. Validate both behaviors. Once a reference proves feasibility and
+the measurements and scoring are validated, further reference optimization is
+optional rather than a qualification prerequisite.
+
+Declare a necessary functional bound in a metric's explicit `requirement`
+table, with `lower` and/or `upper` and a nonempty `rationale` explaining the
+loss of function outside the bound. Keep quality in `quality_target`, `baseline`, `normalization`,
+`scale` and scoring weights. The same observation may serve both purposes, but
+the requirement must have its own functional justification. Neither a zero
+weight nor `category = "performance"` disables a requirement.
+
+```toml
+# Within a metric: correct response polarity, not an amplitude budget.
+requirement = { lower = 0.0, rationale = "A negative response reverses the required output polarity." }
+```
+
+Bounds are declared only in `requirement`; top-level metric `lower`/`upper` are
+rejected when the plan loads. Use `python -m benchmarking.evaluation qualify audit`
+to list requirements, weighted quality and unweighted diagnostics; the audit
+validates structure, not the truth of the author's rationale. Review each
+rationale against the circuit intent. Do not move an arbitrary performance budget
+into `requirement` merely to pass the audit. No minimum score is imposed.
+
+An unavailable measurement, such as a missing crossing in a finite observation
+window, is not proof that a performance budget is required.
+
+### Source pairing and quality targets
+
+The `quality_target` rationale explains the circuit-specific quality goal,
+independently of the current reference layout. Choose a challenging goal that
+the permitted circuit and layout changes can influence. Do not apply an
+arbitrary common multiplier to all cases. A target must satisfy any functional
+bounds; ratio targets must be nonnegative, and an unscaled `ratio` target must
+be positive.
+
+```toml
+# Example within a settling-time metric measured in seconds.
+quality_target = { value = 2e-9, rationale = "Reserve 2 ns of the 10 ns sample period for settling." }
+```
+
+Each baseline pair must use the same operation, parameters and external fixture.
+The reserved `netlist` and optional `simulation` input roles identify the source
+DUT (the latter may supply a simulation-dialect version); never use them for a
+testbench or fixed fixture. Only these source circuit inputs can be replaced by
+an extraction-stage SPICE output in a candidate pair. Fixed testbenches, stimuli
+and models use their own declared roles and must match exactly.
+Changing source inputs invalidates calibration: task loading and evaluation
+reject stale input digests before invoking tools. Model/toolchain changes require
+review and recalibration of the affected source jobs. Source-only simulations
+belong in a standalone `characterization` plan; they are rejected in a
+`post_layout` plan.
+
+Frozen source jobs may consume `job:<source-id>:<output>` artifacts produced by
+other frozen source jobs. This source-only DAG must be acyclic and rooted in the
+declared source circuit; it cannot reference executable candidate jobs. Producers
+record `output_sha256` for consumed outputs, and consumers' `input_sha256` must
+match. These artifacts are provenance records, not solver inputs or files copied
+into candidate execution. For example, source and candidate can independently
+calibrate their own circuits before measuring PVT response. Baseline pairing
+recursively requires identical producer operations, parameters, output formats
+and non-circuit inputs; their selected values may differ. The candidate reruns
+its own calibration algorithm and never receives the frozen source selection.
+
+Authors should justify a `saturating_ratio` scale against the required accuracy
+or stimulus amplitude, rather than numerical zero avoidance alone. Static offset
+and transient recovery should be separate measurements: dynamic recovery is
+measured relative to the corresponding steady operating point, so one offset
+improvement does not receive repeated rewards in multiple windows.
+
+### Operating-condition coverage and robustness
+
+The evaluation plan tests only the conditions it declares. To measure sensitivity
+to a process corner, temperature, supply, load, input slew, initial state or other
+operating condition, define an explicit job for that condition and include its
+observation in the corresponding metric. Each scored candidate observation must
+be paired with a frozen source observation from the same operation, parameters
+and external fixture. The metric's quality is then the worst normalized quality
+across those pairs. This makes the tested envelope visible and reproducible; it
+does not establish behavior outside the declared conditions or model coverage.
+
+Use a functional bound when a circuit must pass at every declared condition.
+Additional corners can also contribute to a source-paired quality metric when
+degradation within the passing range matters. A dimension label does not itself
+measure robustness, and a single nominal observation should not be described as
+corner-robust evaluation.
+
+### Metric weights
+
+Each task publishes its weights and their rationale in `problem.md`. The same
+values are stored under `[task.evaluation.scoring]`. For example, a delay-focused
+comparator can assign 70% to delay, 20% to power and 10% to area:
+
+```toml
+[task.evaluation.scoring]
+method = "layout"
+area_metric = "functional_area"
+area_target = 1000.0
+rationale = "Delay is the main objective; power and area are secondary costs."
+
+[task.evaluation.scoring.weights]
+worst_delay = 0.7
+supply_power = 0.2
+functional_area = 0.1
+```
+
+The example assumes these are the plan's only source-paired metrics. The weight
+table must name every source-paired metric and the area metric exactly once;
+unpaired diagnostics cannot have weights. The area target and weights for a
+particular task come from its configuration, not from this example. Dataset
+authors own metric budgets and their rationale.
+
 <a id="task-configuration"></a>
 
-## Configuration reference
+### Configuration reference
 
 A case uses `kind = "layout_case"`, with the executable
 task under `[task]` with `kind = "netlist_to_gds"`. The loader takes `id`, `title`
@@ -498,7 +508,36 @@ outer level and the remaining task settings under `[task]`.
 | `output` | Workspace-relative `path`, `format = "gds"`, `top_cell`, and positive-integer `max_bytes` |
 | `provenance` | Optional preparation-source record with `path` and `sha256`; readable by maintainers but not materialized for the Agent |
 
-### Input paths and snapshots
+<a id="task-coefficient"></a>
+
+`coefficient` is an integer from 1 to 10 used in cross-task aggregation. It is
+separate from the individual task's metric weights. Dataset authors own the
+capability rubric and each assigned value; result consumers preserve the
+recorded coefficient. See [aggregation](running.md#comparisons).
+The default is 1 when `task.coefficient` is omitted.
+
+The outer case accepts these fields; unknown fields are rejected:
+
+| Case field | Meaning |
+|---|---|
+| `kind`, `id`, `title`, `status` | Required. `status` is `candidate`, `qualified`, `source-only` or `supporting-source`; only `candidate` and `qualified` cases with a `[task]` load as executable tasks |
+| `[origin]` | Required `url` for source attribution |
+| `[task]` | The executable task fields above |
+| `distribution` | `public` (default) or `private`; see [asset rights](#asset-rights) |
+| `in_core`, `core_order` | Boolean core membership and optional positive order; see [task files](#task-design) |
+| `[presentation]` | Nonempty `category` and `summary` strings for browsing |
+| `[toolchain]` | Backend settings and operation bindings; see [tool bindings](#tool-bindings-and-drc-waivers) |
+| `[qualification]` | Optional `reference`: case-relative path of the author's reference GDS; see [qualification](#qualification) |
+| `[[assets]]` | Author asset records, each with `path`, `role`, `visibility` (`agent`, `evaluator` or `maintainer`), `format` and lowercase `sha256`. Qualification checks the reference against the entry with the same `path`; evaluation reads no other asset record, and `visibility` grants no solver access |
+| `[screening]` | Author metadata with `decision` (`include`, `defer` or `exclude`) and a nonempty `reason`; not used by evaluation |
+| `role` | Author metadata; not used by evaluation |
+
+`status = "candidate"` or `"qualified"` is declared metadata, not proof produced
+by loading a file. The qualification commands verify actual witness evidence.
+A missing witness cannot pass witness qualification; normal solver sessions
+never receive a reference layout.
+
+#### Input paths and snapshots
 
 Each input declares a delivered `path` and SHA-256 digest. By default, the same
 path locates the source relative to the case directory. `source` selects a
@@ -548,7 +587,7 @@ url = "https://github.com/owner/repository/tree/revision/path/to/circuit"
 This URL does not require an upstream checkout at runtime. Inputs and reference
 assets have their own digests; PDK resources are pinned in `pdk.toml`.
 
-### Geometry constraints
+#### Geometry constraints
 
 Declare exactly one of `[task.constraints]` or `inputs.constraints`. Inline
 constraints contain `hard` and `quality` arrays. They are
@@ -568,7 +607,7 @@ exclusions. See the [geometry backend](tools.md#geometry) for supported checks.
 
 <a id="evaluation-plan"></a>
 
-### Evaluation plan
+#### Evaluation plan
 
 Declare `[task.evaluation]` or a digest-bound TOML file at `inputs.evaluation`,
 but not both. Inline and file plans use the same schema. The runtime protocol
@@ -598,7 +637,7 @@ Core cases (`in_core = true`) must be `qualified` and declare a scored
 | `parameters` | A parameter table interpreted by the backend, such as measurement names and units, load, temperature, seed, or output filename. The core only checks that it can freeze the table as JSON; it does not interpret EDA syntax |
 | `metrics[]` | Unique `id`, `category` (`physical` / `performance`), `observations` (`<job>:<measurement>`), `unit`, `direction` (`minimize` / `maximize` / `target`), and `aggregation` (`min` / `max`); optional `requirement = { lower/upper, rationale }` for justified functional bounds |
 | `metrics[].dimension` | For every source-paired metric: `response`, `bias` or `supply` |
-| `metrics[].baseline`, `normalization`, `scale` | Same-condition source observations paired with `observations`, normalization rule and optional scale as defined under [scoring](#task-scoring) |
+| `metrics[].baseline`, `normalization`, `scale` | Same-condition source observations paired with `observations`, normalization rule and optional scale as defined under [electrical quality](#electrical-quality) |
 | `metrics[].quality_target` | Optional finite `value` and engineering `rationale` for quality 1; retains source pairing and does not impose an acceptance bound |
 | `scoring` | `method = "layout"`, `area_metric`, positive fixed `area_target`, complete `weights` table and nonempty `rationale`; see [metric weights](#metric-weights) |
 
@@ -622,7 +661,7 @@ provides fields such as `output.top_cell` and `netlist_subcircuit`, without refe
 layouts or preparation sources. Inline plans and constraints are available through
 `input:evaluation` and `input:constraints`.
 
-### Tool bindings and DRC waivers
+#### Tool bindings and DRC waivers
 
 A case may include `[toolchain]` with backend
 `type`/`settings` under `[toolchain.backends.<id>]` and operation bindings under
@@ -641,8 +680,7 @@ plan. The shared PDK deck and archived native report remain unchanged.
 
 <a id="input-isolation"></a>
 
-
-## Input isolation
+### Input isolation
 
 Load only the declared task inputs and reviewed resource profiles into a solver
 session. Keep witnesses, development probes, other cases, model/website/session credentials
@@ -660,6 +698,22 @@ when defining that plan: qualification proves feasibility, while the score recor
 solution quality. A low finite reference score is not a qualification failure.
 Qualification follows the default [EDA time-limit policy](tools.md#eda-backend-contract):
 started jobs may finish without a per-job deadline.
+
+Declare the reference in the author's `case.toml`. When an `[[assets]]` entry has
+the same `path`, the reference bytes must match its `sha256`:
+
+```toml
+[qualification]
+reference = "reference/CASE.gds"
+
+[[assets]]
+path = "reference/CASE.gds"
+role = "reference"
+visibility = "maintainer"
+format = "gds"
+sha256 = "<SHA-256 of the reference GDS>"
+```
+
 Run it to establish feasibility for a selected reference and evaluation plan:
 
 ```bash
@@ -672,6 +726,11 @@ python -m benchmarking.evaluation qualify verify \
   --dataset /path/to/dataset --case CASE_ID \
   --output /path/to/new-qualification
 ```
+
+`audit` takes no `--output`. `run` creates a new `--output` directory and accepts
+`--image` to override the tool image; `verify` reads an existing one.
+`--revision` selects an HF Dataset revision; for an HF Dataset, `qualify` also
+downloads the snapshot's `reference/` files.
 
 A passing run leaves one compact, portable `qualification.json`. Waveforms, logs and other
 run files are scratch by default. Add `--retain-evaluation` to `run` to keep them

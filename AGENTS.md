@@ -1,8 +1,10 @@
 # ICLayout-Bench Repository Conventions
 
-This repository owns the standalone evaluation framework, participant interfaces,
+This public repository owns the standalone evaluation framework, participant interfaces,
 shared scoring, EDA adapters, HTTP evaluation service and result interfaces.
-Start with [README](README.md), run `git status --short --branch`, and preserve unrelated changes.
+Tracked files and commit messages stay free of private task material, internal
+paths and credentials. Start with [README](README.md), run `git status --short --branch`,
+and preserve unrelated changes.
 
 ## Read for the Change
 
@@ -14,7 +16,8 @@ Start with [README](README.md), run `git status --short --branch`, and preserve 
 | Statistics, archives or presentation assets | [Results and analysis](docs/running.md#results-and-analysis) and [archive verification](CONTRIBUTING.md#result-archive-verification) |
 | Shared execution, frozen evidence or result finalization | [Shared interfaces](docs/architecture.md#shared-execution-and-evidence-interfaces) |
 | Images, PDKs, adapters or measurements | [Tools](docs/tools.md) and [image development](CONTRIBUTING.md#image-development) |
-| Result delivery, review or disclosure | [Handoff boundaries](docs/architecture.md#result-handoff-and-storage-ownership) and [controlled runs](docs/architecture.md#verified-reruns-and-disclosure) |
+| Result handoff or evaluation mode | [Handoff](docs/architecture.md#result-handoff-and-storage-ownership) and [evaluation mode](docs/architecture.md#evaluation-mode) |
+| Result packages or upload | `benchmarking/results/transfer.py` docstring and `--help` (unreleased; kept out of `docs/`) |
 | Tests or fixtures | [Test conventions](tests/AGENTS.md) |
 
 ## Implementation Boundaries
@@ -32,29 +35,37 @@ Start with [README](README.md), run `git status --short --branch`, and preserve 
   resources and author validation. Before changing extraction or netlist adapters,
   read [evaluator responsibilities](docs/architecture.md#system-roles-and-boundaries).
 - Own shared participant lifecycle, single-run evidence verification, machine-readable
-  results, usage semantics, shared statistical interfaces and EDA layout preview assets.
-  The consuming website owns secondary aggregation, weighting, ranking, charts,
-  interactive comparisons and report presentation; analysis commands export JSON/CSV.
-- Keep original scores, usage, identities and verification levels when archiving or
-  delivering results, and distinguish derived aggregates from original results.
-  Website review and publication belong to the operator.
-- README introduces the project and owns documentation navigation; `docs/`
-  contains user guides and public contracts. Links inside `docs/` stay within that
-  directory; explain required behavior locally instead of referring readers to
-  repository-root documents or upstream websites.
-  CONTRIBUTING owns development and verification workflows. Keep plans, review logs
-  and local validation evidence out of `docs/`. Public guides must be usable from
-  this repository alone and must not link to local evidence or sibling repositories.
-  Update the owning guide when behavior changes. Architecture owns the HTTP
-  contract, responsibilities and extension boundaries.
+  results, usage semantics, shared statistical interfaces and EDA layout preview assets;
+  analysis commands export JSON/CSV. Keep original scores, usage, identities and
+  verification levels when archiving or delivering results, and distinguish derived
+  aggregates from original results. Consuming applications own secondary aggregation,
+  weighting, ranking, charts, interactive comparisons and report presentation; review
+  and publication belong to the operator.
 - Set up development dependencies from the project declarations and lockfile using
   [development setup](CONTRIBUTING.md#development-setup). Keep generated results,
   credentials and machine-specific settings out of tracked source. Document commands
   that work from a fresh clone or an installed package; accept explicit Dataset,
   image and output selections without requiring a maintainer's workspace layout.
 - For PDK manifests, resource adapters or runtime control files, follow
-  [PDK manifest organization](docs/tools.md#pdk-manifests). Keep native content in
-  referenced files and cover preparation, Agent relocation and portable file inventory.
+  [PDK resource manifests](docs/tools.md#pdk-resource-manifests-for-dataset-authors).
+  Keep native content in referenced files and cover preparation, Agent relocation
+  and portable file inventory.
+
+## Documentation
+
+- README is the user quick start and owns documentation navigation; edit
+  `README.md` and `README_CN.md` together. `docs/` holds English user guides and
+  public contracts; CONTRIBUTING owns development and verification workflows.
+- Document released behavior for users, in the present tense. Features not yet
+  open to users, such as hosted remote participation and website result
+  delivery, stay in code and docstrings until release. Incident notes, version
+  history and migration steps belong in commit messages; plans, review logs and
+  local validation evidence stay out of `docs/`.
+- Make each guide usable from this repository alone: links in `docs/` stay inside
+  it, and required behavior is explained locally rather than through root
+  documents, upstream websites, local evidence or sibling repositories.
+- When behavior changes, update the owning guide and keep existing anchors
+  resolvable; add an explicit `<a id>` when renaming a heading.
 
 ## Completion
 

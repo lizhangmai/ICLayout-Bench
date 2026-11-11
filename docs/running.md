@@ -6,10 +6,13 @@ requirements/scores and [Tools](tools.md) to prepare local EDA resources. The
 [architecture and HTTP contract](architecture.md) defines isolation and service
 integration.
 
-- [Start an experiment](#start-an-experiment): installation, configuration and run commands.
-- [Harness configuration](#harness-configuration): native connections, credentials and participant tools.
+- [Start an experiment](#start-an-experiment): installation, first run, configuration, conditions and scheduling.
+- [Standalone evaluation](#standalone-evaluation): inspect a case or score your own GDS without a model.
+- [Harness configuration](#harness-configuration): per-harness sign-in profiles, credentials and isolation.
+- [Participant tool schemes](#participant-tool-schemes): instructions, MCP servers, solver images and layout adapters.
+- [Custom controllers](#custom-controllers): benchmark your own agent program with `harness = "command"`.
 - [Failure recovery](#failure-recovery): inspect, stop, continue, collect or replace unfinished work.
-- [Results and analysis](#results-and-analysis): output files, token/cost statistics, archives and delivery.
+- [Results and analysis](#results-and-analysis): output files, usage/cost statistics, previews and archives.
 
 ## Start an experiment
 
@@ -115,7 +118,7 @@ names do not imply equal computation.
 | `[dataset]` | Explicit Dataset source and row selection. |
 | `pricing_file` or `[pricing]` | Optional explicit [model price snapshot](#pricing); use one source. |
 | `[recovery]` | Optional overrides of [recovery defaults](#recovery-settings). |
-| `[scheme]` | Optional declared [participant tools or custom controller](#participant-tool-schemes). |
+| `[scheme]` | Optional declared [participant tools](#participant-tool-schemes) or [custom controller](#custom-controllers). |
 | `results_data` | Optional [local archive](#automatic-indexing-and-recovery) directory. |
 | `archive_objects` | Optional shared compressed object directory, relative to the configuration file. Storage location is not part of the model condition. |
 
@@ -249,40 +252,16 @@ terminal. Inspect `.scheduler/runner.log`, `owner.json` and `events.jsonl` for
 progress. [Recovery](#failure-recovery) explains shutdown, resumed scheduling and
 collection without model calls.
 
-### Solve budget and process checks
+<a id="solve-budget-and-process-checks"></a>
+
+### Solve budget
 
 The case's positive `[task].hours` is authoritative. Participant configuration and
 service CLI cannot override it. Each repetition receives its own budget; a
 continuation keeps the original deadline. Model calls, provider retries, HTTP
 waits, EDA work and downtime all consume that budget.
-
-The HTTP service freezes the solve, command and settlement budgets when creating
-a session. Independent final judging has no automatic time limit:
-
-| Phase | Budget and allowed work |
-| --- | --- |
-| `solving` | The case's solve deadline; new commands, checks and writes are allowed. |
-| `draining` | Only an already-started command/check continues. No automatic command or EDA deadline; an explicitly requested timeout is honored. |
-| `settling` | 60 seconds after solve expiry or the last command's end, whichever is later, for reading, final submission and close. No new optimization work. |
-| `evaluating` | Independent final judging; no automatic EDA or collection deadline. |
-
-Polling, retries and reconnection never renew the solve, command or settlement
-deadlines. A command started before solve expiry may finish after expiry.
-Feedback and final judging do not impose individual backend timeouts. Feedback
-retains an explicitly requested enclosing command deadline; by default both feedback
-and final judging wait for EDA completion. Model processes are still stopped at
-service expiry after any active command has drained and settlement has ended.
-Late submission and elapsed overrun are recorded.
-The service retains the last accepted candidate when the workspace closes.
-[Lifecycle and budgets](architecture.md#lifecycle-and-budgets) defines the protocol.
-
-Use `check` when `process-feedback` is advertised. It evaluates the current GDS
-with the final plan and returns physical/electrical diagnostics without a score.
-It consumes solve time and creates no submission. `execute` and `check` may return
-`running`; poll their execution IDs until terminal and drained, or cancel them.
-Only one workspace operation can run at a time. Submit the declared output
-explicitly after checking. [Protocol](architecture.md#process-feedback) defines
-pagination, candidate snapshots and result semantics.
+[Session budgets](#session-budgets) describes command draining and settlement
+after the deadline; [custom controllers](#custom-controllers) describes process checks.
 
 ### Standalone evaluation
 
@@ -306,38 +285,9 @@ sufficient for participant runs and candidate evaluation.
 
 ## Harness configuration
 
-### Shared native isolation
-
-Every registered harness, including `command`, runs through the same Linux
-Bubblewrap (`bwrap`) filesystem allowlist. Install Bubblewrap on the participant
-host. Missing or unusable isolation fails the launch; there is no direct-host
-fallback. This policy applies to initial launches and continuations.
-
-The native CLI sees system runtime files, its installed program dependencies,
-the selected Python environment and its private attempt directory. Host homes,
-project ancestors, other runs and undeclared files are absent. HOME, XDG
-directories and the passwd home refer to private storage. Only selected provider
-settings, transport settings, scoped session variables and explicitly declared
-command variables survive; arbitrary inherited environment variables do not.
-Skills bundled with the harness distribution may initialize in its private home.
-External user/project skills, rules, memories and plugins are not copied or
-mounted. Additional professional knowledge must be explicitly declared as a
-participant tool resource. Vendor-specific tool and discovery switches remain
-additional restrictions inside the common filesystem policy.
-
-Reviewed MCP servers run outside the native CLI namespace. The CLI receives
-per-attempt stdio relays, not access to the server's host files. MCP servers keep
-their declared files/environment and scoped session access. Native model
-connections retain networking; this policy isolates filesystem discovery, not
-model-provider traffic or the implementation of a reviewed MCP server. Solver EDA
-operations remain in the separately isolated EDA workspace.
-
-For a launcher whose additional program dependencies are outside its installation,
-declare only those read-only files or package directories in
-`scheme.runtime_paths`. Do not expose a home or project root. The generic
-launcher does not infer dependencies by opening arbitrary host directories.
-`native/isolation.json` in terminal evidence records the configured policy,
-program paths, environment names and MCP server names, without credential values.
+Each native harness runs a vendor CLI that you install and sign in to separately.
+Set up its profile first; [shared native isolation](#shared-native-isolation)
+describes what the launched CLI can see.
 
 ### Native harness configuration
 
@@ -361,7 +311,8 @@ an explicit selection never falls back to the caller's default home. Authenticat
 the chosen directory with the vendor CLI before running. Omitting `harness_home`
 selects connection/authentication from the caller's native profile; the launched
 process still uses the shared isolation policy. This field applies
-to native harnesses; a custom `command` owns its declared launch configuration.
+to native harnesses; a [custom `command`](#custom-controllers) owns its declared
+launch configuration.
 
 | Harness | Home variable used for the selected directory | Required native configuration |
 | --- | --- | --- |
@@ -392,6 +343,19 @@ validates model and effort capabilities before dispatch.
 
 #### Codex
 
+To keep benchmark credentials in a dedicated profile, create the directory with a
+`config.toml` that selects file credential storage, then sign in with that
+`CODEX_HOME`:
+
+```bash
+mkdir -p /absolute/path/to/codex-profile
+printf 'cli_auth_credentials_store = "file"\n' > /absolute/path/to/codex-profile/config.toml
+CODEX_HOME=/absolute/path/to/codex-profile codex login
+```
+
+`codex login --with-api-key` reads an API key from stdin instead. Bench then reads
+the native `auth.json` from that directory; set `harness_home` to it.
+
 An explicit Codex home accepts connection settings only: `model_provider`,
 `model_providers`, `cli_auth_credentials_store`, `forced_login_method`,
 `forced_chatgpt_workspace_id` and `chatgpt_base_url`. File credential storage is
@@ -418,11 +382,27 @@ permission fields are not experiment TOML options.
 
 #### Claude Code and DSH
 
+To use a dedicated Claude profile, create the directory with a `settings.json`
+and sign in with that `CLAUDE_CONFIG_DIR`:
+
+```bash
+mkdir -p /absolute/path/to/claude-profile
+printf '{}\n' > /absolute/path/to/claude-profile/settings.json
+CLAUDE_CONFIG_DIR=/absolute/path/to/claude-profile claude auth login
+```
+
+`claude auth login` uses a Claude subscription by default; set `harness_home` to
+the directory.
+
 An explicit Claude home uses its `settings.json` provider environment or key
 helper, or its native `.credentials.json`. Inherited Anthropic/Claude provider
-settings do not select a different authentication method. DSH composes its native
-headless configuration with the selected `DSH_HOME`; its credential store and
-native `.env` fallback come from that directory.
+settings do not select a different authentication method.
+
+DSH is the DeepSeek Harness `dsh` CLI, which boots plugin-bundle profiles; Bench
+runs its `headless` profile and requires headless `--json` and `--session-id`
+support (0.2.0-rc.2 or newer). DSH composes its native headless configuration
+with the selected `DSH_HOME`; its credential store and native `.env` fallback
+come from that directory.
 DSH runs with the headless profile and native tool execution; no interactive mode
 selection is needed. Bench retains the required execution plugins while disabling
 host tools and unrelated MCP servers.
@@ -589,6 +569,39 @@ native diagnostics and removes the private runtime home. Configuration and
 credential stores are excluded from exported native traces. Arbitrary generated
 text still requires review before transfer.
 
+### Shared native isolation
+
+Every registered harness, including `command`, runs through the same Linux
+Bubblewrap (`bwrap`) filesystem allowlist. Install Bubblewrap on the participant
+host. Missing or unusable isolation fails the launch; there is no direct-host
+fallback. This policy applies to initial launches and continuations.
+
+The native CLI sees system runtime files, its installed program dependencies,
+the selected Python environment and its private attempt directory. Host homes,
+project ancestors, other runs and undeclared files are absent. HOME, XDG
+directories and the passwd home refer to private storage. Only selected provider
+settings, transport settings, scoped session variables and explicitly declared
+command variables survive; arbitrary inherited environment variables do not.
+Skills bundled with the harness distribution may initialize in its private home.
+External user/project skills, rules, memories and plugins are not copied or
+mounted. Additional professional knowledge must be explicitly declared as a
+participant tool resource. Vendor-specific tool and discovery switches remain
+additional restrictions inside the common filesystem policy.
+
+Reviewed MCP servers run outside the native CLI namespace. The CLI receives
+per-attempt stdio relays, not access to the server's host files. MCP servers keep
+their declared files/environment and scoped session access. Native model
+connections retain networking; this policy isolates filesystem discovery, not
+model-provider traffic or the implementation of a reviewed MCP server. Solver EDA
+operations remain in the separately isolated EDA workspace.
+
+For a launcher whose additional program dependencies are outside its installation,
+declare only those read-only files or package directories in
+`scheme.runtime_paths`. Do not expose a home or project root. The generic
+launcher does not infer dependencies by opening arbitrary host directories.
+`native/isolation.json` in terminal evidence records the configured policy,
+program paths, environment names and MCP server names, without credential values.
+
 ### Participant tool schemes
 
 Include `scheme.instructions` only when a participant tool or experimental
@@ -668,17 +681,20 @@ if the experiment deliberately measures enabling its use; record that choice.
 ID before dispatch. Each scheme may override it. The Dataset case's trusted
 EDA images/resources and the independent evaluator remain unchanged.
 
-MCP `command` is an argv list, `files` lists config-relative scripts and dependency
-locks, and `env_vars` names runtime variables; never put credentials in argv or
-TOML. Optional `files_root` selects a different reviewed asset directory relative
-to the TOML; only explicitly listed files are included, without discovering other
-files below that directory. Arguments equal to declared filenames resolve from
-that asset directory (the TOML directory by default);
-other arguments are passed literally. Executable and declared file bytes are
-checked before/after launch. Declare the files needed to identify A; dependency
-locks record intent but do not attest every installed host dependency. Use a
-pinned image when a complete runtime identity is needed. The `layout` server
-uses the bundled bridge unless explicitly declared in `scheme.mcp.layout`.
+**Never put credentials in argv or TOML;** name their environment variables in
+`env_vars`. Each MCP server declaration accepts:
+
+| Field | Meaning |
+| --- | --- |
+| `command` | Required argv list. Arguments equal to declared filenames resolve from the asset directory; other arguments are passed literally. |
+| `files` | Required list of config-relative scripts and dependency locks. Executable and declared file bytes are checked before/after launch. |
+| `env_vars` | Optional names of runtime variables. |
+| `files_root` | Optional reviewed asset directory relative to the TOML (default: the TOML directory). Only explicitly listed files are included, without discovering other files below that directory. |
+
+Declare the files needed to identify A; dependency locks record intent but do not
+attest every installed host dependency. Use a pinned image when a complete runtime
+identity is needed. The `layout` server uses the bundled bridge unless explicitly
+declared in `scheme.mcp.layout`.
 MCP servers also receive `ICLAYOUT_BENCH_TOOL_FILES`, a JSON map of their declared
 absolute file paths to SHA-256 values, for restricting resource-serving tools.
 It contains declarations, not credentials or access to arbitrary host paths.
@@ -696,6 +712,14 @@ their original file layout so native readers can open them after runtime cleanup
 Keep credentials and private launcher state in their existing private locations.
 Standalone launchers may select this directory in the participant environment;
 otherwise it defaults to `tool-artifacts/` below their participant output.
+
+Schemes do not change the condition path: distinguish them by configuration file
+name or matrix run name. Changed declared tools, instructions or images cannot
+reuse an old case.
+Archive comparisons distinguish schemes while matching the service's evaluator
+identity, limits and evaluation mode. Result records include the scheme name and
+digest so consumers can distinguish tool configurations.
+Unknown usage stays unknown, and adding tools grants no new time or repetitions.
 
 #### Explicit layout MCP adapters
 
@@ -722,6 +746,8 @@ allowed inputs, workspace files and public feedback. The scoped HTTP service
 continues to enforce workspace operations, candidate freezing and solve budgets;
 the independent evaluator and final scores remain authoritative.
 
+### Custom controllers
+
 For an existing control program, select `harness = "command"` and declare:
 
 ```toml
@@ -733,6 +759,9 @@ files = ["controller.py", "requirements.lock"]
 env_vars = ["MODEL_API_KEY"]
 ```
 
+`[scheme.launch]` uses the same `command`, `files`, `env_vars` and `files_root`
+fields as an MCP server declaration in [participant tool schemes](#participant-tool-schemes).
+
 The process receives only the original problem document on stdin. Environment variables
 `ICLAYOUT_BENCH_ENDPOINT`, `ICLAYOUT_BENCH_TOKEN` and `ICLAYOUT_BENCH_SESSION`
 provide scoped HTTP access; `ICLAYOUT_BENCH_TASK_FILE` points to session metadata,
@@ -743,6 +772,7 @@ provide scoped HTTP access; `ICLAYOUT_BENCH_TASK_FILE` points to session metadat
 with the declared MCP servers.
 The command starts in a fresh private directory. A container/remote launcher
 must explicitly forward these inputs and preserve its own version identity.
+
 The original `problem.md` owns the solver goals, optimization workflow and
 completion criteria, following the shared [problem structure](tasks.md#problem-statement-structure).
 The runner adds no general solver instructions. Native MCP clients receive only
@@ -751,10 +781,14 @@ field; tool descriptions are independent of the scheme and describe their own
 calls. Read `/protocol/task.json` in the EDA workspace for the compact solver
 manifest and `/protocol/harness.json` for capabilities, budget and available
 helper commands; the full evaluation plan is held by the framework.
-The runner follows the service's budget policy, captures stdout/stderr, cleans up
-its process group and collects the terminal result. Same-session continuation is
-unavailable for custom commands; their recovery defaults already disable it, and
-enabling `resume_session`, `network_resumes` or `capacity_resumes` is rejected.
+
+Use `check` when `process-feedback` is advertised. It evaluates the current GDS
+with the final plan and returns physical/electrical diagnostics without a score.
+It consumes solve time and creates no submission. `execute` and `check` may return
+`running`; poll their execution IDs until terminal and drained, or cancel them.
+Only one workspace operation can run at a time. Submit the declared output
+explicitly after checking. [Protocol](architecture.md#process-feedback) defines
+pagination, candidate snapshots and result semantics.
 
 To report model usage, print one JSON object per line on stdout with
 `"type": "model.usage"`. Its `usage` object may contain `input_tokens`,
@@ -764,13 +798,10 @@ To report model usage, print one JSON object per line on stdout with
 with a time zone) and `currency` (default `USD`) describe the request. Without
 these records, usage remains unknown.
 
-Schemes do not change the condition path: distinguish them by configuration file
-name or matrix run name. Changed declared tools, instructions or images cannot
-reuse an old case.
-Archive comparisons distinguish schemes while matching the service's evaluator
-identity, limits and evaluation mode. Result records include the scheme name and
-digest so consumers can distinguish tool configurations.
-Unknown usage stays unknown, and adding tools grants no new time or repetitions.
+The runner follows the service's [budget policy](#session-budgets), captures stdout/stderr, cleans up
+its process group and collects the terminal result. Same-session continuation is
+unavailable for custom commands; their recovery defaults already disable it, and
+enabling `resume_session`, `network_resumes` or `capacity_resumes` is rejected.
 
 <a id="failures-retry-ownership-and-recovery"></a>
 
@@ -985,6 +1016,29 @@ are recorded on the new attempt. Prior attempts keep their candidates, traces,
 failures and original price snapshots; pending cases keep unused plans. An
 interrupted replacement move completes when the same command is repeated.
 
+### Session budgets
+
+Each session's solve deadline comes from the case's [solve budget](#solve-budget).
+The HTTP service freezes the solve, command and settlement budgets when creating
+a session. Independent final judging has no automatic time limit:
+
+| Phase | Budget and allowed work |
+| --- | --- |
+| `solving` | The case's solve deadline; new commands, checks and writes are allowed. |
+| `draining` | Only an already-started command/check continues. No automatic command or EDA deadline; an explicitly requested timeout is honored. |
+| `settling` | 60 seconds after solve expiry or the last command's end, whichever is later, for reading, final submission and close. No new optimization work. |
+| `evaluating` | Independent final judging; no automatic EDA or collection deadline. |
+
+Polling, retries and reconnection never renew the solve, command or settlement
+deadlines. A command started before solve expiry may finish after expiry.
+Feedback and final judging do not impose individual backend timeouts. Feedback
+retains an explicitly requested enclosing command deadline; by default both feedback
+and final judging wait for EDA completion. Model processes are still stopped at
+service expiry after any active command has drained and settlement has ended.
+Late submission and elapsed overrun are recorded.
+The service retains the last accepted candidate when the workspace closes.
+[Lifecycle and budgets](architecture.md#lifecycle-and-budgets) defines the protocol.
+
 ### Settlement and failure interpretation
 
 After a participant stops, the runner drains already-started service executions,
@@ -1099,40 +1153,6 @@ before transfer. Compact exports do not provide post-export tamper detection.
 
 Keep results outside disposable build/cache storage and back them up. Prepared
 resources are rebuildable; experiment evidence and checkpoints are persistent.
-
-### Evidence retention
-
-Terminal archives preserve identities, original scores and measurements, observed
-model traces and usage, every check's candidate and exact available participant
-reply, and final evaluation evidence. Task inputs and evaluation plans are frozen
-with the result. Raw text and waveform attachments are separate files, never
-unbounded inline JSON strings.
-
-Only ordinary process checks with explicit functional success and successful job
-and metric states may omit full waveforms, verbose successful-tool logs and
-temporary native databases. Rejections, tool errors, ambiguous checks and final
-evaluations retain their original attachments. Omitted attachments are explicitly
-identified as `successful_process_check`; they cannot be independently remeasured
-after collection. Their recorded measurements, candidate, report and reply remain.
-
-Large retained files use lossless Zstandard objects. `.retained/manifest.json`
-maps their original logical paths to uncompressed SHA-256 identities and records
-intentional omissions. The archive contains local object files, so copying one
-archive does not require a shared external store. A result scope's `.objects/`
-pool deduplicates identical compressed objects using hard links. Final GDS and PNG
-files and the native files under `tool-artifacts/` remain directly readable.
-Read other archived attachments through
-`benchmarking.files.read_file`; direct filesystem existence checks do not describe
-the availability of compressed evidence. Result import uses this same reader.
-
-Terminal export applies this retention automatically. It does not invoke models
-or EDA, change recorded scores, or upgrade the result's verification level. Native
-credential homes and active recovery state remain outside the archived file set.
-Verify a terminal run's compressed evidence without changing it:
-
-```bash
-python -m benchmarking.results.retention /path/to/terminal-run --verify
-```
 
 ### Read a run
 
@@ -1308,6 +1328,40 @@ mode `0600` and appear in the result's artifact list for import.
 Each failure gets an immutable artifact; retries retain earlier diagnostics,
 including after a successful preview. If diagnostics cannot be written, the image
 status records `diagnostics_error_type` instead of a file reference.
+
+### Evidence retention
+
+Terminal archives preserve identities, original scores and measurements, observed
+model traces and usage, every check's candidate and exact available participant
+reply, and final evaluation evidence. Task inputs and evaluation plans are frozen
+with the result. Raw text and waveform attachments are separate files, never
+unbounded inline JSON strings.
+
+Only ordinary process checks with explicit functional success and successful job
+and metric states may omit full waveforms, verbose successful-tool logs and
+temporary native databases. Rejections, tool errors, ambiguous checks and final
+evaluations retain their original attachments. Omitted attachments are explicitly
+identified as `successful_process_check`; they cannot be independently remeasured
+after collection. Their recorded measurements, candidate, report and reply remain.
+
+Large retained files use lossless Zstandard objects. `.retained/manifest.json`
+maps their original logical paths to uncompressed SHA-256 identities and records
+intentional omissions. The archive contains local object files, so copying one
+archive does not require a shared external store. A result scope's `.objects/`
+pool deduplicates identical compressed objects using hard links. Final GDS and PNG
+files and the native files under `tool-artifacts/` remain directly readable.
+Read other archived attachments through
+`benchmarking.files.read_file`; direct filesystem existence checks do not describe
+the availability of compressed evidence. Result import uses this same reader.
+
+Terminal export applies this retention automatically. It does not invoke models
+or EDA, change recorded scores, or upgrade the result's verification level. Native
+credential homes and active recovery state remain outside the archived file set.
+Verify a terminal run's compressed evidence without changing it:
+
+```bash
+python -m benchmarking.results.retention /path/to/terminal-run --verify
+```
 
 ### Result archive
 

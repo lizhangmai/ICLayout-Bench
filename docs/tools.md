@@ -2,16 +2,21 @@
 
 Local evaluation needs Linux x86-64, Python 3.12+, Git, Docker and a compatible
 EDA image. The participant host runs the model CLI; isolated solver/evaluator
-environments run EDA. [Running](running.md) supplies experiment commands. Use the setup
-sections for local runs and the backend reference when configuring a Dataset's
-evaluation tools.
+environments run EDA. [Running](running.md) supplies experiment commands.
 
-- [Environment and resources](#environment-and-resources): image selection, PDK mounts, caches and common execution rules.
-- [Open EDA and geometry backends](#open-eda-and-geometry-backends): simulator, physical checks and layout measurements.
-- [External commercial runtimes](#external-commercial-runtimes): installed tools, licenses and extraction/simulation adapters.
-- [Spectre measurement profiles](#spectre-measurement-profiles): AC/DC/transient observations and calibration.
+This guide has four parts:
 
-## Environment and resources
+- [Setup for users](#setup-for-users): images, Dataset loading, caches, the Agent's PDK view, prepared Python tools and troubleshooting.
+- [Evaluation backends](#evaluation-backends): what evaluation guarantees, how open EDA backends judge a layout, process notes and Spectre measurement profiles.
+- [PDK resource manifests](#pdk-resource-manifests-for-dataset-authors): process manifests and support preparation for Dataset authors.
+- [Commercial runtimes](#commercial-runtimes-for-operators): installed vendor tools, licenses and adapters for operators.
+
+<a id="environment-and-resources"></a>
+
+## Setup for users
+
+This part covers what you need to run evaluations locally with the published
+image and a Dataset.
 
 ### Prebuilt images and local builds
 
@@ -108,51 +113,6 @@ native cache and are read in place. Caches contain rebuildable inputs; results,
 recovery checkpoints and archive databases use explicit persistent paths.
 Per-job scratch is disposable tmpfs.
 
-Dataset `pdk.toml` pins process releases, repositories/commits and selected
-profiles. Ciel-managed and Git installations retain their source notices.
-`support_profiles` selects derived Magic/model/KLayout resources before backend
-construction. Case preparation binds paths instead of copying PDK installations.
-Frozen support bundles are not updated in place; a changed declaration resolves
-to a new binding.
-
-### PDK manifests
-
-`pdk.toml` is an index of reviewed process resources. Keep release identities,
-module and mount selections, environment settings, profile selection and file
-references in the manifest. Maintain JSON configuration, SPICE entries, native
-rules, program text and license/attribution text as separate files in
-`resources/` beside it, including content that could fit on one line. Reuse
-one file for identical content serving the same purpose. Existing vendor
-files remain in their pinned installation rather than being copied into this
-directory. Project resources must not contain task solutions or complete DUTs.
-
-| Declaration | Path base | Meaning |
-| --- | --- | --- |
-| `profiles.<name>.files` / `compile_files` | Pinned installation | Existing tool/PDK files and compiler inputs. |
-| `profiles.<name>.local_files.<target>` | Manifest directory | Project-owned file with `path` and `format`, prepared at the named support target. |
-| `replace[].old_file` / `new_file` | Manifest directory | Exact-match replacement fragments. Short single-line `old` / `new` literals are also supported. |
-| `agent.local_files.<target>` | Manifest directory | Reviewed Agent resource with `path` and `format`, exposed at `/resources/<target>`. |
-| `runtime.control_files.<target>.path` | Manifest directory | Native control file staged at `process/<target>` and selected through the existing `@<target>` interface. |
-| `notices.<name>.path` | Manifest directory | Preserved license or attribution file. |
-
-For example, a process can declare an independent native control fragment:
-
-```toml
-[runtime.control_files."strict-lvs.tvf"]
-path = "resources/strict-lvs.tvf"
-```
-
-Paths are explicit normalized relative paths. Keep local files regular and
-declared; each support target has one owner. Preparation includes their actual
-bytes in its resource identity and preserves native syntax. Agent preparation
-relocates project-owned support files from `/workspace/support` to their
-`/resources/support/<profile>` view. Checks invoke declared scripts or installed
-commands rather than embedded `python -c` or shell programs.
-
-Portable snapshots and publication inventories carry every declared local
-file, preserving its relative path, and exclude undeclared files. They do not
-copy external installations or credentials.
-
 ### Agent PDK resources
 
 For each selected process, runtime loading exposes the declared PDK roots and
@@ -180,56 +140,8 @@ generated layouts, simulator decks and tool caches under `/workspace` or `/tmp`.
 For ngspice, copy the selected support profile's `.spiceinit` into the working
 directory before invoking the simulator; it loads compiled models where needed.
 
-An `[agent]` table in `pdk.toml` declares process
-`id`, `sources`, `environment`, `checks`, and optional `support_profiles`.
-Each source declares a pinned `repository` and `commit`, or `installation = true`
-for the manifest's installation. Optional `path` selects the PDK root within
-that checkout or installation. Optional `paths` is a nonempty list of normalized,
-nonoverlapping paths below that root. Use it to expose technology files, device
-models and licenses while omitting reference cells and example layouts. Paths
-are bound directly from the installation; preparation does not copy the PDK.
-Changing this selection produces a new resource binding.
-Each support profile names an evaluator preparation profile. `checks` is a
-nonempty list of executable argument lists run inside the Agent container.
 Additional participant tools can be installed in a custom solver image selected
 through [participant tool schemes](running.md#participant-tool-schemes).
-
-| Resource | Runtime behavior |
-|---|---|
-| PDK resources | The selected `pdk.toml` declares roots and container settings; selected roots are mounted read-only. |
-| Tool support bundle | Declared profiles select Magic, MOS models and KLayout rules; generated models are compiled in a separate container. |
-| PDK resource view | `resource.json` binds shared preparation; containers mount installed roots and derived files read-only. Sessions detect the selected PDK; `/protocol/task.json` → `resources` publishes its container-local import paths and a preflight import command without adding task or reference files |
-
-Keep upstream files byte-for-byte and register generated startup settings
-separately in the manifest. Preserve component license notices, including those
-for PSP models, PyCell and pypreprocessor.
-
-Resource preflight runs the process's declared `checks` and any selected
-support-profile checks. A passing command establishes only the functionality it
-exercises; successful imports do not certify every device parameter or process
-rule. Physical and electrical coverage comes from the selected task's declared
-evaluation scope, as described under [qualification](tasks.md#qualification).
-
-### Manual support preparation
-
-Normal case loading prepares declared profiles automatically. Standalone
-configurations can explicitly prepare a profile from their chosen Dataset:
-
-```bash
-export DATASET_ROOT=/path/to/dataset
-python -m benchmarking.eda.resources.support \
-  "$DATASET_ROOT/tasks/ihp-sg13g2/pdk.toml#magic" build/support/sg13g2-magic
-python -m benchmarking.eda.resources.support \
-  "$DATASET_ROOT/tasks/ihp-sg13g2/pdk.toml#mos-models" build/support/sg13g2-mos-models
-python -m benchmarking.eda.resources.support \
-  "$DATASET_ROOT/tasks/ihp-sg13g2/pdk.toml#klayout" build/support/sg13g2-klayout
-```
-
-The IHP `mixed-mos-models` profile adds the pinned HV PSP closure to LV MOS
-support. Use the same preparation command with that profile when explicitly
-needed. Relative standalone backend `settings.support` paths resolve from the
-backend launch directory; evaluation-plan paths resolve from the plan file.
-[Task tool bindings](tasks.md#tool-bindings-and-drc-waivers) define those declarations.
 
 ### Prepared Python tools
 
@@ -254,6 +166,38 @@ The image also provides `rg`, `jq`, text/shell utilities, Git, Make, patch tools
 archive tools, process inspection and bounded execution utilities. Dependencies
 are installed at image build time; solve scripts use the prepared environment.
 
+### Startup troubleshooting
+
+| Symptom | Action |
+| --- | --- |
+| Docker missing or daemon unreachable | Check `docker version` and the current user's access; run `python -m benchmarking.eda doctor`, which also checks Linux x86-64, Python 3.12+ and Git. |
+| Unsupported host architecture | Use Linux x86-64 for the maintained amd64 image. |
+| Missing image | Pull/build a compatible image and select it explicitly. |
+| Pinned PDK file absent | Run `python -m benchmarking.eda --dataset SOURCE fetch --case ID` and inspect the selected release. |
+| Derived support missing | Reload the case to rebuild its content-addressed support binding. |
+| Existing evaluation output directory | Choose a new output path; retain the old diagnostics. |
+| Image build download failure | Check build connectivity and declared source digests. Forward proxy settings with the build arguments shown under [local builds](#prebuilt-images-and-local-builds); add `--network host` to `docker build` for a host loopback proxy. |
+| Model authentication or endpoint failure | Inspect the selected [harness profile](running.md#native-harness-configuration); dry-run does not validate credentials. |
+
+## Evaluation backends
+
+This part is the public measurement contract: how evaluation judges a frozen
+layout and what its reports mean.
+
+### What evaluation guarantees
+
+Evaluation judges a frozen candidate with trusted task materials and the
+backends bound by the task toolchain. [Evaluation results](tasks.md#evaluation)
+defines step statuses and scoring precedence; the sections below give details.
+
+| Topic | Guarantee |
+| --- | --- |
+| Results | Each job is `passed`, `failed` (a completed candidate rejection, which scores zero) or `error` (evaluation could not judge it; the score is unknown). Jobs whose prerequisites did not pass are `blocked`. |
+| Exit status | Standalone `evaluate` exits 0 when evaluation passes, 1 for a completed rejection and 2 for an error, an incomplete result or invalid configuration. |
+| Time limits | EDA jobs have no automatic time limit; see [time limits](#evaluation-time-limits-and-cancellation). |
+| Retries | At most three attempts, only for explicit tool crashes and transient license checkout failures; rejections are never retried. See [retries](#automatic-tool-retries). |
+| Evidence | A new output directory holds `report.json` and content-addressed `artifacts/`. Each job entry in `report.json` records its status, reason, measurements, outputs and evidence; a retried job adds `tool-attempts.json` and `tool-attempts/N/…` evidence. |
+
 ### EDA backend contract
 
 A [task toolchain](tasks.md#tool-bindings-and-drc-waivers) binds logical operations
@@ -264,9 +208,6 @@ or an external runtime, these commands prepare and bind those resources through
 the same loader as participant sessions. They do not require author-prepared
 support directories or reference layouts. `--image` and `ICLAYOUT_BENCH_IMAGE`
 override the selected tool image.
-Evaluation writes `report.json` and declared artifacts: exit 0 means passed,
-1 means completed rejection and 2 means configuration/execution error.
-[Tasks](tasks.md#evaluation) defines failure and scoring precedence.
 
 #### Isolation and resource limits
 
@@ -344,25 +285,12 @@ or replay arbitrary solver workspace commands.
 Native tools record process/thread states before termination without retaining
 command arguments or environment values in those snapshots.
 
-### Startup troubleshooting
-
-| Symptom | Action |
-| --- | --- |
-| Docker missing or daemon unreachable | Check `docker version` and the current user's access; run `python -m benchmarking.eda doctor`, which also checks Linux x86-64, Python 3.12+ and Git. |
-| Unsupported host architecture | Use Linux x86-64 for the maintained amd64 image. |
-| Missing image | Pull/build a compatible image and select it explicitly. |
-| Pinned PDK file absent | Run `python -m benchmarking.eda --dataset SOURCE fetch --case ID` and inspect the selected release. |
-| Derived support missing | Reload the case to rebuild its content-addressed support binding. |
-| Existing evaluation output directory | Choose a new output path; retain the old diagnostics. |
-| Image build download failure | Check build connectivity and declared source digests. Forward proxy settings with the build arguments shown under [local builds](#prebuilt-images-and-local-builds); add `--network host` to `docker build` for a host loopback proxy. |
-| Model authentication or endpoint failure | Inspect the selected [harness profile](running.md#native-harness-configuration); dry-run does not validate credentials. |
-
-## Open EDA and geometry backends
+### Open EDA and geometry backends
 
 Bind logical operations using the [task toolchain contract](tasks.md#tool-bindings-and-drc-waivers).
 Each backend below defines its settings, required evidence and failure behavior.
 
-### ngspice and Magic
+#### ngspice and Magic
 
 The tools image provides Ngspice with XSPICE, OSDI and KLU support. Its
 `/opt/ngspice/bin` executable takes precedence over a distribution copy that
@@ -392,7 +320,7 @@ this backend's job/thread allocation, not all simultaneous sessions. Concurrent
 jobs may have explicit container memory limits; by default they are uncapped.
 Operators must also account for aggregate CPU and memory use across sessions.
 
-#### Simulation inputs
+##### Simulation inputs
 
 ngspice writes each input role as `<role>.spice` and uses `deck.spice` as its entry
 point. The declared testbench selects analyses and measurements:
@@ -424,7 +352,13 @@ resistor thermal noise, so noise analysis is rejected in branch mode. Changing
 matrix formulation does not establish convergence or permit relaxed validity
 checks. Internal current sensors are excluded from external power/KCL ports.
 
-#### Magic extraction
+For upstream flows requiring HSPICE-style syntax, `ngspice-docker` accepts
+`compatibility = "hsa"`. The effective `.spiceinit` is archived and the choice
+is part of backend identity. The default remains the prepared model profile's
+startup. Use ngspice 45 or later for the
+[SG13G2 HBT flow](#hbt-core-simulation-support).
+
+##### Magic extraction
 
 Magic takes the top cell and ordered `ports` from trusted configuration. Match
 that interface to the authoritative netlist; later jobs consume the exported
@@ -432,6 +366,13 @@ netlist as-is. `magic-capacitance-docker` extracts capacitance only and records
 `wire_resistance=false`. `magic-rc-docker` adds distributed resistance and
 capacitance and can bind to `layout.extract_rc`.
 
+Magic's SPICE export rewrites some characters in port names. Before Magic
+extraction, interface names that are not simple identifiers (letters, digits and
+underscores, not starting with a digit), such as `!CONTROL`, receive unique
+aliases on an isolated GDS copy. The adapter preserves the original candidate
+and mapping evidence, and then uses the native SPICE reader to check the count,
+names, and order of exported ports. It does not rewrite the original task
+netlist; simulation connects through the declared port order.
 
 Magic import can be configured with `gds_readonly=false` when a technology must
 rescale its native import grid to represent the candidate DBU exactly. This does
@@ -472,14 +413,6 @@ connections already present in the topology remain allowed. This guard does
 not prove internal device-terminal graph equivalence or substrate accuracy;
 case-specific physical mapping and electrical calibration are still required.
 
-SG13G2 Magic extraction treats well/substrate ties as ideal connections;
-it does not preserve the finite `ntap1`/`ptap1` resistance cards used by the
-source simulator netlists. Physical LVS can still
-check explicit tap geometry. Cases using this RC boundary must disclose the
-idealization and calibrate its effect on their declared nominal measurements.
-It does not establish distributed well/substrate resistance or substrate-noise
-accuracy.
-
 Native network reduction can vary in low-level ordering, so byte-identical RC
 netlists are not guaranteed across tool versions or runs. Compare extracted
 results against the declared task measurements and tolerances.
@@ -492,7 +425,7 @@ zero score; its same-conductor reason is exposed in process feedback. Case-speci
 extraction warnings, models and calibration still require review against the
 selected contract.
 
-### Projected substrate and well sheets
+#### Projected substrate and well sheets
 
 `substrate-sheet-docker` can bind to `layout.extract_substrate`. It accepts
 `layout`, the authoritative `netlist`, `constraints` and optional `task`, and
@@ -554,7 +487,7 @@ collection, latch-up or silicon-calibrated isolation. Evaluate ordinary wire-RC
 performance in a separate declared branch. Coefficients, convergence, electrical
 loading and useful degraded-layout controls require author qualification.
 
-### Magic and Netgen Physical Checks
+#### Magic and Netgen Physical Checks
 
 `magic-physical-docker` binds independently to `layout.drc` or `layout.lvs`.
 Trusted settings select `check`, `technology`, `tech_name`, `style`, the frozen
@@ -582,13 +515,7 @@ PDK-specific unit conventions and any reviewed technology transformations belong
 to the task resource manifest. They are included in the support digest; the
 adapter does not silently repair source parameters or waive native rules.
 
-The `klayout-geometry-docker` backend can evaluate `bbox_max` and functional
-area objectives directly from GDS after independent physical gates. Tasks using
-this mode omit `database` and `binding`. Connectivity-dependent constraints still
-require both the native KLayout LVS database and its exact candidate binding;
-omitting either cannot bypass connectivity validation.
-
-### KLayout Physical Checks
+#### KLayout Physical Checks
 
 `klayout-docker` selects `check = "artifact"`, `"drc"` or `"lvs"`. A job supplies
 `layout` and `task`; LVS also supplies the authoritative `netlist`. Standalone
@@ -617,31 +544,9 @@ A missing report, skipped run, crash or timeout is `error`; a completed check wi
 unwaived violations is `failed`. LVS database output is diagnostic evidence;
 post-layout simulation uses a separate extraction job from the same candidate.
 
-### IHP physical-check profiles
-
-IHP resources come from one pinned ciel release with `sg13g2_pr` and common
-technology files. The model, KLayout, Magic and PCell selections use that release's
-native contents. PSP and passive Verilog-A sources are compiled with the selected
-tools image during support preparation. Agent resources include the required
-PCell Python dependencies from the prebuilt package; no nested Git initialization
-or local open-pdks build is needed. The per-file PCell view uses the same cache.
-
-Prepare support from the `klayout` profile in `tasks/ihp-sg13g2/pdk.toml`.
-Frozen bundles are not updated in place; prepare a new bundle when the manifest
-changes. Cases select their check profiles through `[toolchain]`.
-
-| Profile | Scope |
-|---|---|
-| `drc-upstream.json` | Pinned PDK GUI defaults: main plus extra `sg13g2_maximal.drc`, deep mode, density and antenna off. |
-| `lvs-upstream.json` | Pinned PDK GUI defaults: explicit taps, native simplification and strict named ports. |
-
-Evaluate the maintained circuit and candidate using the case's declared task
-plan. See the [evaluation command](running.md#standalone-evaluation) and each case problem
-for reference results and reproduction instructions.
-
 <a id="geometry"></a>
 
-### Geometry and Port Correspondence
+#### Geometry and Port Correspondence
 
 `klayout-geometry-docker` interprets the geometry constraints, supplied as a JSON
 snapshot from either `[task.constraints]` or a declared constraints file.
@@ -654,36 +559,19 @@ An area objective alone needs no size limit and may use an empty `hard` list.
 An explicit `bbox_max` remains a validity gate; use it only for a justified
 implementation envelope, following [validity and quality](tasks.md#validity-and-quality).
 
-For [commercial runtimes](#external-commercial-runtimes), `virtuoso-geometry-native` accepts `runtime`, `check`
-(`artifact` or `geometry`) and `timeout_seconds`. XStream imports the frozen GDS
-into an isolated OA library; Virtuoso queries hierarchy and arrays and measures
-each non-text shape under its native occurrence transform, without building a
-flattened copy of the design. The geometry check supports `bbox_max` and
-`functional_bbox_area` with the same layer/datatype semantics above. It does not
-support connectivity constraints. Import logs and native geometry measurements
-are retained as evaluation evidence.
+The `klayout-geometry-docker` backend can evaluate `bbox_max` and functional
+area objectives directly from GDS after independent physical gates. Tasks using
+this mode omit `database` and `binding`. Connectivity-dependent constraints still
+require both the native KLayout LVS database and its exact candidate binding;
+omitting either cannot bypass connectivity validation.
 
-Both native geometry adapters check stream record lengths, directory/precision
-and TEXT record syntax before importing the submitted bytes. In particular, a
-TEXT label requires TEXTTYPE and ordered XY/STRING records; permissive OA import
-does not establish validity for malformed labels. A confirmed format violation
-fails the artifact gate and scores zero. The adapters preserve the submission
-without rewriting records; license, execution and unclassified tool failures
-remain evaluation errors.
-
-For Synopsys runtimes, `customcompiler-geometry-native` accepts the same settings
-and bounding-box constraints. It explicitly runs operator-installed Custom
-Compiler on the host, in a fresh job directory. `importStream` preserves GDS
-layer/datatype numbers in a generic OA library; native layout editing flattens
-hierarchy and arrays before measuring non-text shapes. No reference or PDK
-design library resolves submitted cells. Import logs and shape measurements
-are retained. Native execution uses the declared license environment and does
-not provide container isolation or automatically replace a failed Docker run.
-
-Spectre evaluator containers and solver sessions with a declared Spectre module
-allow executable mappings in their isolated workspace so that Spectre can load
-compiled AHDL model libraries. The root filesystem and installed tool/PDK mounts
-remain read-only.
+LVS can export a native `klayout-lvs` database and a JSON binding. The binding
+records the candidate GDS, database digest, top cell, and logical-layer mapping.
+After validating the binding, the geometry adapter uses the native LVS database
+APIs for network correspondence and geometry. Process support bundles declare
+deck-layer variables; the adapter reads the names actually registered by the run
+instead of fixing runtime indices such as `l10`, and it does not modify upstream
+rules.
 
 `named_metal_ports` names each port, its drawing/pin/text layers, logical connection
 layer, and minimum square side that can be contacted. The top cell must contain
@@ -701,24 +589,7 @@ translation is allowed. Each required strip must be continuously covered by meta
 on the supply net matched through LVS. A text label alone is insufficient.
 This row-interface check does not establish neighbor abutment or external pin access.
 
-LVS can export a native `klayout-lvs` database and a JSON binding. The binding records the candidate GDS, database digest, top cell, and logical-layer mapping. After validating the binding, the geometry adapter uses the native LVS database APIs for network correspondence and geometry. Process support bundles declare deck-layer variables; the adapter reads the names actually registered by the run instead of fixing runtime indices such as `l10`, and it does not modify upstream rules.
-
-Magic's SPICE export rewrites some characters in port names. Before Magic extraction, interface names that are not simple identifiers (letters, digits and underscores, not starting with a digit), such as `!CONTROL`, receive unique aliases on an isolated GDS copy. The adapter preserves the original candidate and mapping evidence, and then uses the native SPICE reader to check the count, names, and order of exported ports. It does not rewrite the original task netlist; simulation connects through the declared port order.
-
-The `model-calls` diagnostic profile accepts ngspice model calls for
-`sg13_lv_nmos`, `sg13_lv_pmos`, `cap_cmim`, `ntap1` and `ptap1`. Its
-`sg13g2-model-calls.lvs` entry point is generated from the KLayout support
-manifest and includes the unchanged upstream runset. This profile is selected
-explicitly when interpreting these model calls. A KLayout reader delegate maps these `X` calls to the native PDK device handlers, preserving their terminal
-mapping, parameter units, simplification and comparison rules. Other `X` calls
-retain normal hierarchy handling, and CDL primitive cards retain their
-native interpretation. Use circuit-local `.param` definitions and compact
-expressions on model calls; expression parsing and parameter scoping remain
-those of the pinned native reader. This is an input adapter, with no rule
-waivers or new device models. Candidate scoring simulates only GDS-derived PEX. Other source dialects require
-an explicitly validated adaptation.
-
-### Fixed passive macros
+#### Fixed passive macros
 
 `fixed-macros-docker` checks immutable layout cells before a separate native
 LVS and extraction. A `layout.fixed_macros` check consumes `layout` (candidate
@@ -756,7 +627,7 @@ ground context, frequency coverage and approximation limits, then validate
 negative geometry/connection controls and candidate-dependent performance.
 This boundary does not establish full-wave accuracy of inherited models.
 
-### Candidate uniform transmission lines
+#### Candidate uniform transmission lines
 
 `rlc-line-docker` implements `layout.rf_line` with a trusted process bundle
 (`support`, `profile`), `image` and `timeout_seconds`. It consumes the prior
@@ -795,23 +666,7 @@ as evidence and appends its subcircuit definitions to the extracted candidate
 circuit. Other supplied circuit models are rejected. The simulation fixture and
 its other inputs remain identical between source and post-layout evaluation.
 
-### HBT core simulation support
-
-The HBT model profile (Dataset: `tasks/ihp-sg13g2/pdk.toml`) prepares the pinned
-HBT, resistor and capacitor include closure, using native ngspice VBIC and
-OpenVAF-compiled R3_CMC and MoM models. The source retains the R3_CMC license and
-NOTICE with the IHP adaptation. No compact-model source is patched.
-The `sg13g2-hbt-rc-docker` backend combines candidate-only KLayout native
-HBT extraction with Magic distributed interconnect R/C. Its `klayout_support`
-and `magic_support` settings use separately reviewed bundles; declare their
-profiles through `support_profiles` in the [resource manifest](tools.md#agent-pdk-resources). Physical LVS remains a
-separate gate against the maintained circuit, including the named interface.
-For the fixed `npn13G2` emitter, the native extractor reports bounding-box X/Y
-dimensions as `we`/`le`. The adapter accepts the complete 70 × 900 nm pair in
-either axis order, preserving native `Nx` and terminal connections and passing
-only the fixed symbol's behavioral parameters to simulation. Other dimensions
-remain errors. Native LVS still checks the source's declared geometry; this
-serialization rule does not alter its comparison options or the PDK deck.
+#### KPEX coupling capacitance
 
 The `kpex-cc-docker` backend provides nominal 2.5D coupling capacitance.
 Its `support` bundle and JSON `profile` declare the process name, bundled native
@@ -838,16 +693,91 @@ Evidence includes both databases, candidate-derived reference, configuration,
 geometry log and extracted netlist. This backend declares **CC only**: no wire
 resistance or inductance. Tasks explicitly select this scope.
 
-For upstream flows requiring HSPICE-style syntax, `ngspice-docker` accepts
-`compatibility = "hsa"`. The effective `.spiceinit` is archived and the choice
-is part of backend identity. The default remains the prepared model profile's
-startup. Use ngspice 45 or later for this HBT flow.
+#### Qucs-S and Qucsator
+
+The unified image provides `qucs-s`, `qucsator`, `qucsator_rf` and `qucsconv`
+alongside ngspice. Qucs-S parses/netlists `.sch` files headlessly with
+`QT_QPA_PLATFORM=offscreen`; simulation still selects an explicit backend.
+
+The image does not provide Xyce. A task requiring Xyce needs a compatible runtime
+and backend; Qucsator is not a substitute for that simulator.
+
+The pinned ngspice build includes an `xfer` DC Jacobian correction for
+operating-point convergence. `xfer` does not provide S-parameter thermal noise
+or transient support; those analyses require an appropriate passive model.
+
+### Process notes: IHP SG13G2
+
+These notes apply only to cases using the IHP SG13G2 resources declared in the
+Dataset's `tasks/ihp-sg13g2/pdk.toml`.
+
+#### IHP physical-check profiles
+
+IHP resources come from one pinned ciel release with `sg13g2_pr` and common
+technology files. The model, KLayout, Magic and PCell selections use that release's
+native contents. PSP and passive Verilog-A sources are compiled with the selected
+tools image during support preparation. Agent resources include the required
+PCell Python dependencies from the prebuilt package; no nested Git initialization
+or local open-pdks build is needed. The per-file PCell view uses the same cache.
+
+Prepare support from the `klayout` profile in `tasks/ihp-sg13g2/pdk.toml`.
+Frozen bundles are not updated in place; prepare a new bundle when the manifest
+changes. Cases select their check profiles through `[toolchain]`.
+
+| Profile | Scope |
+|---|---|
+| `drc-upstream.json` | Pinned PDK GUI defaults: main plus extra `sg13g2_maximal.drc`, deep mode, density and antenna off. |
+| `lvs-upstream.json` | Pinned PDK GUI defaults: explicit taps, native simplification and strict named ports. |
+
+The `model-calls` diagnostic profile accepts ngspice model calls for
+`sg13_lv_nmos`, `sg13_lv_pmos`, `cap_cmim`, `ntap1` and `ptap1`. Its
+`sg13g2-model-calls.lvs` entry point is generated from the KLayout support
+manifest and includes the unchanged upstream runset. This profile is selected
+explicitly when interpreting these model calls. A KLayout reader delegate maps these `X` calls to the native PDK device handlers, preserving their terminal
+mapping, parameter units, simplification and comparison rules. Other `X` calls
+retain normal hierarchy handling, and CDL primitive cards retain their
+native interpretation. Use circuit-local `.param` definitions and compact
+expressions on model calls; expression parsing and parameter scoping remain
+those of the pinned native reader. This is an input adapter, with no rule
+waivers or new device models. Candidate scoring simulates only GDS-derived PEX. Other source dialects require
+an explicitly validated adaptation.
+
+Evaluate the maintained circuit and candidate using the case's declared task
+plan. See the [evaluation command](running.md#standalone-evaluation) and each case problem
+for reference results and reproduction instructions.
+
+#### SG13G2 well and substrate ties
+
+SG13G2 Magic extraction treats well/substrate ties as ideal connections;
+it does not preserve the finite `ntap1`/`ptap1` resistance cards used by the
+source simulator netlists. Physical LVS can still
+check explicit tap geometry. Cases using this RC boundary must disclose the
+idealization and calibrate its effect on their declared nominal measurements.
+It does not establish distributed well/substrate resistance or substrate-noise
+accuracy.
+
+#### HBT core simulation support
+
+The HBT model profile (Dataset: `tasks/ihp-sg13g2/pdk.toml`) prepares the pinned
+HBT, resistor and capacitor include closure, using native ngspice VBIC and
+OpenVAF-compiled R3_CMC and MoM models. The source retains the R3_CMC license and
+NOTICE with the IHP adaptation. No compact-model source is patched.
+The `sg13g2-hbt-rc-docker` backend combines candidate-only KLayout native
+HBT extraction with Magic distributed interconnect R/C. Its `klayout_support`
+and `magic_support` settings use separately reviewed bundles; declare their
+profiles through `support_profiles` in the [resource manifest](#agent-resource-declarations). Physical LVS remains a
+separate gate against the maintained circuit, including the named interface.
+For the fixed `npn13G2` emitter, the native extractor reports bounding-box X/Y
+dimensions as `we`/`le`. The adapter accepts the complete 70 × 900 nm pair in
+either axis order, preserving native `Nx` and terminal connections and passing
+only the fixed symbol's behavioral parameters to simulation. Other dimensions
+remain errors. Native LVS still checks the source's declared geometry; this
+serialization rule does not alter its comparison options or the PDK deck.
 
 The SG13G2 Magic support profile declares the emitter-to-Metal1 connection in its
 process manifest. HBT graph matching uses retained native resistor geometry and
 named tail ports to distinguish otherwise identical branches. Ambiguous graphs
 fail, and all passive and final-RC connectivity checks remain mandatory.
-
 
 For a declared ideal-body compact-model boundary, the optional boolean
 `disable_tap_extraction = true` setting enables the pinned KLayout PDK's
@@ -889,20 +819,400 @@ Distributed-RC compact-model simulation does not establish RF/EM behavior,
 noise or statistical corners. Those require separately declared extraction
 and validation scope in the selected task contract.
 
-### Qucs-S and Qucsator
+### Spectre measurement profiles
 
-The unified image provides `qucs-s`, `qucsator`, `qucsator_rf` and `qucsconv`
-alongside ngspice. Qucs-S parses/netlists `.sch` files headlessly with
-`QT_QPA_PLATFORM=offscreen`; simulation still selects an explicit backend.
+These parameters belong to jobs using the [Spectre backends](#spectre). A
+simulation job declares `parameters.measurements`, a nonempty map of requested
+measurement names to units, and exactly one measurement profile: `response`,
+`ac_transfer`, `dc_sweep`, `transient`, `transients` or `waveform`. Optional
+`section` selects a model corner and optional `calibration` runs the profile for
+several parameter settings ([Discrete calibration](#discrete-calibration)); other
+parameters are rejected. Each requested name must be reported by the selected
+profile with the declared unit; otherwise the job is an `error`. The trusted
+deck supplies stimuli and saved signals. Scoring and functional bounds are
+separate declarations in the [task evaluation plan](tasks.md#evaluation-plan).
 
-The image does not provide Xyce. A task requiring Xyce needs a compatible runtime
-and backend; Qucsator is not a substitute for that simulator.
+#### DC sweeps
 
-The pinned ngspice build includes an `xfer` DC Jacobian correction for
-operating-point convergence. `xfer` does not provide S-parameter thermal noise
-or transient support; those analyses require an appropriate passive model.
+The `dc_sweep` profile reads `results/sweep.dc` from a named `sweep dc` analysis.
+It declares `axis`, `axis_unit` (`V` or `degC`), a positive `max_step`, affine
+`traces` with physical units, and `measures`. Supported operations are `at`
+(with an `at` coordinate), `min`, `max`, `span` (with closed `start`/`stop`
+windows), and `ppm_per_axis`. The last also requires `reference_at` and returns
+`1e6 * (max-min) / (reference * (stop-start))` in `ppm/V` or `ppm/degC`.
+The reference must be positive and inside the window. Incomplete, nonfinite,
+nonmonotonic or overly sparse sweeps fail; endpoints use linear interpolation.
+Use a parameter name distinct from saved node names to avoid ambiguous PSF signals.
 
-## External commercial runtimes
+#### Discrete calibration
+
+For discrete calibration, a simulation job may declare `parameters.calibration`
+and `outputs = {selection = "json"}`. Calibration contains:
+
+- `candidates`: records with a unique nonnegative integer `id` and a `parameters`
+  map. Every candidate binds the same simple parameter names to finite numbers.
+- `target`: `measurement`, `unit`, and numeric `value` to approach.
+- `eligibility`: a list of validity bounds, each with `measurement`, `unit`,
+  and at least one of `lower` or `upper`. Units must match declared measurements.
+  Use an empty list when all completed, finite candidate measurements may
+  participate; a quality target does not require an eligibility window.
+
+The adapter runs every candidate independently with the same DUT, deck, process
+section and measurement profile. All runs must complete. Among candidates
+satisfying every eligibility bound, it selects the smallest absolute target
+error, breaking exact ties by lower ID. No eligible setting is an error and
+produces no downstream selection. The report retains all candidate waveforms,
+logs and a calibration table; the job's measurements describe the selected run.
+
+Both calibration and subsequent testbenches include `"selection.scs"`. The
+adapter generates this file from the selected JSON using only numeric Spectre
+parameter declarations. It requires exactly one explicit, uncommented
+`include "selection.scs"` line in the deck whenever a selection is supplied;
+an unused staged parameter file is an error. Downstream jobs bind an optional `selection` input to
+`job:<calibration-id>:selection`; dependency handling ensures that calibration
+completed. Reuse that same output for every condition covered by a calibration
+decision. Authors define the calibration condition, eligibility, full measurement
+window and subsequent performance gates; calibration does not certify those
+other operating conditions. Each source or candidate evaluation recalibrates
+independently. Do not substitute a reference solution's historical settings.
+
+<a id="ac-response"></a>
+
+#### AC response (`parameters.response`)
+
+The AC response profile measures a differential amplifier from completed PSF
+ASCII `ac.ac` and `op.dc` results. `parameters.response` declares `output`,
+`positive` and `negative`, saved AC signals forming the complex transfer
+`output / (positive - negative)`, plus `supply_current`, a saved DC current, and
+numeric `supply_v` in volts. The sweep needs at least two strictly increasing,
+positive frequencies; missing or incomplete signals are errors. It reports:
+
+| Measurement | Unit | Definition |
+| --- | --- | --- |
+| `gain_db` | `dB` | Transfer magnitude at the lowest sweep frequency. |
+| `unity_hz` | `Hz` | First downward crossing of unity magnitude. |
+| `bandwidth_hz` | `Hz` | First downward crossing of the lowest-frequency magnitude divided by √2 (3 dB below `gain_db`). |
+| `phase_margin_deg` | `deg` | Phase margin at `unity_hz`, defined below. |
+| `output_v` | `V` | Operating-point value of `output`. |
+| `power_w` | `W` | Absolute operating-point `supply_current` multiplied by `supply_v`. |
+
+Crossings interpolate log magnitude against log frequency. Both crossings must
+lie inside the sweep even when they are not requested; otherwise the job is an
+`error`.
+
+The AC profile also reports `phase_margin_deg`: 180 degrees plus the unwrapped
+transfer phase at the first downward unity crossing, interpolated on log frequency.
+Authors must establish negative-feedback polarity, a valid operating point and a
+sufficient sweep; this measurement alone does not prove closed-loop stability.
+
+#### AC transfer
+
+For open-loop filters and attenuating stages, select `parameters.ac_transfer`
+instead of the other measurement profiles. This uses completed `ac.ac` and
+`op.dc` samples without requiring a unity crossing or assigning a phase margin.
+Declare `input` and `output` as linear signal maps, each with `terms`, for example
+`{terms = {inp = 1, inm = -1}}`. The transfer is the complex output combination
+divided by the complex input combination; subtraction occurs before magnitude.
+Zero excitation, nonfinite transfer magnitudes, incomplete signal arrays,
+and nonpositive/nonmonotonic frequency grids fail. `max_frequency_ratio` bounds
+every adjacent frequency ratio to reject sparse sweeps.
+
+The `measures` map names observations with `operation` and `unit`:
+
+- `gain_db`: `frequency_hz`; unit `dB`.
+- `peak_gain_db` or `peak_frequency_hz`: `start_hz`, `stop_hz`; unit `dB` or `Hz`.
+- `peaking_db`: the same window plus `reference_hz`; peak gain minus reference
+  gain, unit `dB`.
+- `bandwidth_hz`: the same window plus `reference_hz` and negative `relative_db`;
+  first downward crossing of that reference-relative level, unit `Hz`. Use
+  `relative_db = -3` for an exact 3 dB drop.
+- `dc`: `terms` combines saved scalar DC signals; unit `V`, `A`, `W` or `1`.
+  For supply power, use negative supply-voltage coefficients on currents entering
+  each supplying voltage source. Authors must include the relevant bias supplies.
+
+Exact transfer zeros fail logarithmic measurements only when the requested
+point, interpolation segment or window includes them. Zeros outside requested
+measurement coverage do not invalidate other observations.
+Point values and crossings interpolate gain in dB against log frequency; no
+out-of-sweep extrapolation is allowed. Window peaks include interpolated endpoints
+and saved interior samples. Peak frequency is the lowest frequency attaining the
+sampled maximum, with no fitted peak interpolation. A missing required crossing
+fails. Authors must establish sweep/window coverage and numerical convergence;
+these AC observations do not prove large-signal or closed-loop stability.
+
+#### Waveforms
+
+For other transient circuits, select `parameters.waveform` instead of `response`
+or `transient`. It contains `max_step_s`, named `traces` and named `measures`.
+Each trace is an affine combination of saved PSF signals, for example
+`{terms = {"VDD:p" = -2.5}, offset = 0}` for supply power at a constant 2.5 V.
+Each ordinary measure declares `operation`, `start_s`, `stop_s`, and `unit`. Operations
+`mean`, `min`, `max`, `rms`, `integral`, `abs_integral`, `span` and `absmax` also select a `trace`.
+`abs_integral` integrates the absolute trace, splitting interpolated segments at
+zero crossings so opposite-polarity excursions cannot cancel. Its unit is the
+trace unit multiplied by seconds, as for the signed `integral`.
+Window endpoints use linear interpolation; integral and RMS integrate that
+piecewise-linear signal exactly. Task authors own the physical units and signs.
+
+#### Window comparisons
+
+`mean_difference` selects a `trace` and subtracts its mean over
+`reference_start_s`–`reference_stop_s` from its mean over `start_s`–`stop_s`.
+Both windows must be complete; the result retains the trace's physical unit.
+
+#### Phase difference
+
+`phase_difference` declares two crossing events (`event`, `reference_event`),
+unit `s`, integer `min_edges` of at least two, and `statistic` (`std` or `span`).
+Both use the common measurement window. Their first edges are aligned once by
+the nearest initial event, and subsequent edges are paired by ordinal position.
+Population standard deviation or peak-to-peak span uses these continuous time
+differences, preserving accumulated drift and cycle slips. Too few aligned
+edges rejects the candidate response. This observation does not establish frequency lock by itself.
+
+#### Crossing events
+
+`count` requires unit `1` and an `event` with `trace`, `threshold` and `direction`
+(`rise` or `fall`). `delay` requires unit `s`, `trigger` and `target` events,
+one-based ordinal `pairs` such as `[[1,1],[2,2]]`, and `aggregation = "min"` or
+`"max"`. Both event lists use the declared window independently. Early targets
+produce negative delays; missing requested edges reject the candidate response. This supports
+propagation, pulse widths, slew and signed dead time without selecting a later
+edge to conceal overlap. Authors must also bound crossing counts and logic
+levels to reject glitches or missing cycles. Nonfinite/incomplete signals,
+nonmonotonic or sparse time grids, and out-of-range windows fail closed.
+
+An event may replace its numeric `threshold` with `threshold_fraction`, strictly
+between zero and one. Its threshold is that fraction of the trace's minimum-to-
+maximum range within the measurement window, including interpolated endpoints.
+This supports relative slew measurement without imposing an absolute swing gate.
+The two threshold forms are mutually exclusive; a constant signal has no relative
+threshold and rejects a prescribed response measurement. Both threshold forms use the same event pairing and
+missing-edge checks.
+
+#### Cycle measurements
+
+`duty_cycle` requires unit `1`, a `trace`, `threshold`, positive integer
+`min_cycles`, and `aggregation = "min"`, `"max"` or `"mean"`. It computes
+high time divided by period between each consecutive pair of rising crossings,
+requiring exactly one falling crossing inside every complete period. Partial
+cycles at the window boundaries are excluded; too few complete periods or
+missing/ambiguous falling crossings reject the candidate response. Use separate minimum and maximum
+metrics to enforce a duty envelope on every observed cycle; an average alone
+does not establish that envelope. Frequency, amplitude and startup requirements
+remain separate task gates.
+
+`frequency` uses the same complete-cycle fields as `duty_cycle`, with unit `Hz`,
+and aggregates reciprocal individual periods. The mean is the arithmetic mean
+of those frequencies. `cycle_extrema` additionally requires `statistic = "min"`
+or `"max"`; it computes each complete cycle's trace extremum before applying
+`aggregation`, retaining the trace unit. Use the minimum of cycle maxima and
+maximum of cycle minima to require every cycle to reach both rails.
+
+`frequency_ratio` and `frequency_relative_difference` require `trace`,
+`threshold`, `min_cycles`, `reference_start_s`, `reference_stop_s` and unit `1`
+in addition to the common fields. Both windows independently require the minimum
+complete-cycle count. With arithmetic mean frequencies `a` in the main window
+and `b` in the reference window, they return `a/b` and `abs(a-b)/((a+b)/2)`.
+These comparisons do not replace per-cycle frequency, duty or amplitude gates.
+
+After successful Spectre execution, these response rejections produce a `failed`
+simulation job and a zero layout score under the shared candidate-rejection rule.
+The adapter retains native logs, the sampled waveform, and
+`waveform-measurements.json`, which records each rejected measurement with its
+declared specification and all independently available values. Undefined values
+are never replaced with fabricated scalars. A response rejection in an unrequested
+diagnostic measure alone does not reject the requested observations.
+Malformed or truncated waveforms, absent signals, invalid declarations, windows
+outside the completed analysis, and execution failures remain `error` with an
+unknown score. Validation errors take precedence over a response rejection;
+neither condition triggers infrastructure retries.
+
+#### ADC transfer
+
+For a clocked, stepped ADC sweep, `parameters.waveform.adc_transfers` maps a
+transfer name to `input_trace`, `bit_traces` in least-significant-bit order,
+`logic_low_v`, `logic_high_v`, contiguous ascending `codes`, ordered settled
+`windows_s = [[start, stop], ...]`, `full_scale_low_v`, `full_scale_high_v`, and
+`max_input_ripple_v`. The actual mean input in each window must increase, remain
+inside full scale and vary by no more than the declared ripple. Each output bit
+must stay entirely below the low rail limit or above the high rail limit within
+its window. The decoded sequence must begin and end at the declared endpoint
+codes and pass through every declared code in order without skips or reversals.
+The optional `encoding = "twos_complement"` interprets the most significant
+output bit as a sign bit before checking `codes`; the default is `"unsigned"`.
+For example, three raw output bits `101, 110, 111, 000, 001, 010, 011`
+represent signed codes `-3, -2, -1, 0, 1, 2, 3`. The declared codes must remain
+contiguous and within the range of the selected encoding.
+These checks make missing codes, unstable rails and incomplete sweeps measurement
+errors; they do not impose a DNL, INL or conversion-time performance limit.
+
+An `operation = "adc_transfer"` measure selects `transfer`, `statistic` and
+`unit`, without `start_s` or `stop_s`. Scalar statistics are `code_count` (`1`),
+`threshold_uncertainty_v` (`V`), `max_abs_dnl_lsb` (`1`) and `max_abs_inl_lsb`
+(`1`). Indexed statistics `threshold_v` (`V`), `dnl_lsb` (`1`) and `inl_lsb`
+(`1`) require one-based `index`. For each code change, the transition estimate
+is the midpoint between the last input level of the lower code and the first
+input level of the upper code. `threshold_uncertainty_v` is the largest half
+step around such a transition. If there are `N` declared codes, the ideal LSB
+is `(full_scale_high_v - full_scale_low_v)/N`. The `N` widths include both
+full-scale endpoints; `DNL_k = width_k/LSB - 1`, and each interior transition
+has `INL_k = (transition_k - (full_scale_low_v + k*LSB))/LSB`. These are sampled
+estimates with a declared endpoint convention. Refine the input step and
+simulation time grid to establish numerical convergence. Use separate waveform
+events for sample-to-output conversion delay and score numerical accuracy and
+delay as quality unless a task justifies a functional limit.
+
+#### Settling time
+
+The Spectre transient profile selects `parameters.transient` instead of `response`.
+It declares differential `positive`/`negative` signals, `trigger`,
+`trigger_threshold`, one-based rising `edge_index`, `reference_start_s`,
+`reference_stop_s`, `tolerance_v`, and `max_step_s`. The trusted deck saves a
+`tran.tran.tran` PSF ASCII analysis. `final_v` is the time-weighted mean over the
+reference window; `settling_s` is the last entry into the symmetric tolerance
+band after the trigger through the reference-window end. Linear interpolation
+is used. A final out-of-band sample returns the full observation interval, so
+hard limits must be shorter than that interval. Missing edges, incomplete or
+nonfinite data, and sparse/nonmonotonic sampling are errors. Task authors must
+bound final amplitude separately to reject stuck or attenuated responses.
+Optional trusted job `section` overrides the backend model section.
+
+To measure several settling events from one simulation, use `parameters.transients`
+instead of `parameters.transient`. This nonempty table maps names such as `rise`
+and `fall` to the same transient settings described above. Names start with an
+ASCII letter and contain only letters, digits and underscores. One simulation
+and one PSF parse serve all events; results are named `<name>_settling_s` and
+`<name>_final_v`. Every declared event must pass measurement validation, including
+events whose results are not requested. Other measurement profiles are mutually
+exclusive with `transients`.
+
+#### Coherent digital ADC spectra
+
+The waveform profile accepts `adc_spectra` tables with `bits_lsb_first`,
+`threshold_v`, `sample_start_s`, `sample_period_s`, `sample_count` and
+`fundamental_bin`. Samples are interpolated on the completed transient grid,
+decoded as unsigned binary, and analyzed with a rectangular coherent DFT after
+removing DC. The even sample count is between 8 and 4096. Single-sided power
+doubles interior bins but not Nyquist. `adc_spectrum` measurements select a
+`spectrum`, `statistic` and `unit`: `sndr`/`sfdr` (`dB`), `enob`/`code_span`
+(`1`), or `logic_margin` (`V`). SNDR includes every non-DC bin except the
+fundamental in noise/distortion; SFDR uses the largest of those bins. ENOB is
+`(SNDR-1.76)/6.02` without amplitude correction. Authors must declare coherent
+stimuli, bit significance and settling time. Missing signal or distortion
+power, out-of-range sampling, invalid units and incomplete data are errors.
+Spectre measurement errors retain native logs and waveforms for diagnosis.
+
+## PDK resource manifests (for Dataset authors)
+
+This part is for Dataset authors who maintain process manifests and support
+profiles. Evaluating a published Dataset does not require it: case loading
+prepares declared resources automatically.
+
+### PDK manifests
+
+Dataset `pdk.toml` pins process releases, repositories/commits and selected
+profiles. Ciel-managed and Git installations retain their source notices.
+`support_profiles` selects derived Magic/model/KLayout resources before backend
+construction. Case preparation binds paths instead of copying PDK installations.
+Frozen support bundles are not updated in place; a changed declaration resolves
+to a new binding.
+
+`pdk.toml` is an index of reviewed process resources. Keep release identities,
+module and mount selections, environment settings, profile selection and file
+references in the manifest. Maintain JSON configuration, SPICE entries, native
+rules, program text and license/attribution text as separate files in
+`resources/` beside it, including content that could fit on one line. Reuse
+one file for identical content serving the same purpose. Existing vendor
+files remain in their pinned installation rather than being copied into this
+directory. Project resources must not contain task solutions or complete DUTs.
+
+| Declaration | Path base | Meaning |
+| --- | --- | --- |
+| `profiles.<name>.files` / `compile_files` | Pinned installation | Existing tool/PDK files and compiler inputs. |
+| `profiles.<name>.local_files.<target>` | Manifest directory | Project-owned file with `path` and `format`, prepared at the named support target. |
+| `replace[].old_file` / `new_file` | Manifest directory | Exact-match replacement fragments. Short single-line `old` / `new` literals are also supported. |
+| `agent.local_files.<target>` | Manifest directory | Reviewed Agent resource with `path` and `format`, exposed at `/resources/<target>`. |
+| `runtime.control_files.<target>.path` | Manifest directory | Native control file staged at `process/<target>` and selected through the existing `@<target>` interface. |
+| `notices.<name>.path` | Manifest directory | Preserved license or attribution file. |
+
+For example, a process can declare an independent native control fragment:
+
+```toml
+[runtime.control_files."strict-lvs.tvf"]
+path = "resources/strict-lvs.tvf"
+```
+
+Paths are explicit normalized relative paths. Keep local files regular and
+declared; each support target has one owner. Preparation includes their actual
+bytes in its resource identity and preserves native syntax. Agent preparation
+relocates project-owned support files from `/workspace/support` to their
+`/resources/support/<profile>` view. Checks invoke declared scripts or installed
+commands rather than embedded `python -c` or shell programs.
+
+Portable snapshots and publication inventories carry every declared local
+file, preserving its relative path, and exclude undeclared files. They do not
+copy external installations or credentials.
+
+### Agent resource declarations
+
+These declarations produce the [Agent PDK resources](#agent-pdk-resources) view.
+
+An `[agent]` table in `pdk.toml` declares process
+`id`, `sources`, `environment`, `checks`, and optional `support_profiles`.
+Each source declares a pinned `repository` and `commit`, or `installation = true`
+for the manifest's installation. Optional `path` selects the PDK root within
+that checkout or installation. Optional `paths` is a nonempty list of normalized,
+nonoverlapping paths below that root. Use it to expose technology files, device
+models and licenses while omitting reference cells and example layouts. Paths
+are bound directly from the installation; preparation does not copy the PDK.
+Changing this selection produces a new resource binding.
+Each support profile names an evaluator preparation profile. `checks` is a
+nonempty list of executable argument lists run inside the Agent container.
+
+| Resource | Runtime behavior |
+|---|---|
+| PDK resources | The selected `pdk.toml` declares roots and container settings; selected roots are mounted read-only. |
+| Tool support bundle | Declared profiles select Magic, MOS models and KLayout rules; generated models are compiled in a separate container. |
+| PDK resource view | `resource.json` binds shared preparation; containers mount installed roots and derived files read-only. Sessions detect the selected PDK; `/protocol/task.json` → `resources` publishes its container-local import paths and a preflight import command without adding task or reference files |
+
+Keep upstream files byte-for-byte and register generated startup settings
+separately in the manifest. Preserve component license notices, including those
+for PSP models, PyCell and pypreprocessor.
+
+Resource preflight runs the process's declared `checks` and any selected
+support-profile checks. A passing command establishes only the functionality it
+exercises; successful imports do not certify every device parameter or process
+rule. Physical and electrical coverage comes from the selected task's declared
+evaluation scope, as described under [qualification](tasks.md#qualification).
+
+### Manual support preparation
+
+Normal case loading prepares declared profiles automatically. Standalone
+configurations can explicitly prepare a profile from their chosen Dataset:
+
+```bash
+export DATASET_ROOT=/path/to/dataset
+python -m benchmarking.eda.resources.support \
+  "$DATASET_ROOT/tasks/ihp-sg13g2/pdk.toml#magic" build/support/sg13g2-magic
+python -m benchmarking.eda.resources.support \
+  "$DATASET_ROOT/tasks/ihp-sg13g2/pdk.toml#mos-models" build/support/sg13g2-mos-models
+python -m benchmarking.eda.resources.support \
+  "$DATASET_ROOT/tasks/ihp-sg13g2/pdk.toml#klayout" build/support/sg13g2-klayout
+```
+
+The IHP `mixed-mos-models` profile adds the pinned HV PSP closure to LV MOS
+support. Use the same preparation command with that profile when explicitly
+needed. Relative standalone backend `settings.support` paths resolve from the
+backend launch directory; evaluation-plan paths resolve from the plan file.
+[Task tool bindings](tasks.md#tool-bindings-and-drc-waivers) define those declarations.
+
+<a id="external-commercial-runtimes"></a>
+
+## Commercial runtimes (for operators)
+
+This part is for operators who bind licensed vendor tools and process data
+installed on their own host.
 
 Operator-installed EDA and PDKs can be bound to the shared evaluator without
 entering the public resource cache. The public package includes generic
@@ -911,6 +1221,23 @@ Commercial evaluation uses licensed tools and an explicitly installed PDK on
 the trusted operator host. Agent solving uses the declared commercial Docker
 image. The evaluator receives only frozen submissions and declared evaluation
 inputs; it does not run inside or read the writable solver workspace.
+
+### Host execution
+
+All commercial evaluator backends in this part (`*-native`) run on the trusted
+operator host rather than in a container. They use declared module/resource and
+license bindings with identical host/target paths, stage immutable input bytes
+in fresh job directories, apply any time limit in effect to the whole process
+group, preserve failure evidence and redact passed license settings from text
+evidence. They run as the operator user with host resources and network;
+container CPU, memory, filesystem and network isolation do not apply. Host
+execution is selected explicitly and never automatically replaces a failed
+Docker run. Identity records this execution mode, UID/GID, stable tool releases,
+declared resources and their digests, and the launcher, without evaluator image
+identity or container resource limits. These trusted evaluator adapters are
+separate from the solver runtime: solver isolation is unchanged, and solver
+resource filtering and runtime deployment remain the operator's responsibility.
+Select this mode only in a reviewed operator task configuration.
 
 ### Runtime manifest
 
@@ -1017,19 +1344,59 @@ and diagnostics. They retain tool failure and timeout evidence; they do not
 automatically change execution location or expose a script endpoint to solvers.
 Process-specific layout recipes and circuit rules remain with their authors.
 No public `profiles` or cached `agent` bundle is supported for an external PDK.
-The local service accepts an explicit `--solver-runtime NAME` only when NAME
-matches the case's external process declaration. `--solver-image` selects
-the solver image; evaluator backends use the operator host. `--image` selects
-open EDA evaluator images and does not override commercial host execution. No cached
-Agent bundle is required. The process runtime supplies read-only installations
-and minimal tool license access. Provider credentials, reference files and operator
-repositories stay outside the container. Solver mounts cannot shadow trusted
-input/protocol/system paths, or override the trusted reader environment. Resource
-limits and frozen submissions still apply. Both solver runtime and evaluator
-identities are recorded. The image must provide Python 3.12+ as `/usr/bin/python3`
-and `python`. Session commands bypass image entrypoints; load the selected
-modulefiles in each shell. Commercial recipes and experiment configuration belong to
-the operator, including license/network policy and installation immutability.
+
+#### Solver image requirements
+
+A commercial solver image must:
+
+- provide Python 3.12+ as `/usr/bin/python3` and `python`;
+- work without its entrypoint, because session commands bypass image entrypoints;
+- load the selected modulefiles in each shell, as described under [Solver commands](#solver-commands).
+
+The process runtime supplies read-only installations and minimal tool license
+access. Provider credentials, reference files and operator repositories stay
+outside the container. Solver mounts cannot shadow trusted input/protocol/system
+paths, or override the trusted reader environment. Resource limits and frozen
+submissions still apply.
+
+#### Service flags
+
+The local service selects the solver and evaluator separately:
+
+- `--solver-runtime NAME` is accepted only when NAME matches the case's external process declaration.
+- `--solver-image` selects the solver image; evaluator backends use the operator host.
+- `--image` selects open EDA evaluator images and does not override commercial host execution.
+
+Both solver runtime and evaluator identities are recorded. Commercial recipes and
+experiment configuration belong to the operator, including license/network
+policy and installation immutability.
+
+### Virtuoso and Custom Compiler geometry
+
+`virtuoso-geometry-native` accepts `runtime`, `check` (`artifact` or `geometry`)
+and `timeout_seconds`. XStream imports the frozen GDS into an isolated OA
+library; Virtuoso queries hierarchy and arrays and measures each non-text shape
+under its native occurrence transform, without building a flattened copy of the
+design. The geometry check supports `bbox_max` and `functional_bbox_area` with
+the same layer/datatype semantics as [`klayout-geometry-docker`](#geometry). It
+does not support connectivity constraints. Import logs and native geometry
+measurements are retained as evaluation evidence.
+
+For Synopsys runtimes, `customcompiler-geometry-native` accepts the same
+settings and bounding-box constraints. It runs operator-installed Custom
+Compiler under [host execution](#host-execution). `importStream` preserves GDS
+layer/datatype numbers in a generic OA library; native layout editing flattens
+hierarchy and arrays before measuring non-text shapes. No reference or PDK
+design library resolves submitted cells. Import logs and shape measurements are
+retained.
+
+Both native geometry adapters check stream record lengths, directory/precision
+and TEXT record syntax before importing the submitted bytes. In particular, a
+TEXT label requires TEXTTYPE and ordered XY/STRING records; permissive OA import
+does not establish validity for malformed labels. A confirmed format violation
+fails the artifact gate and scores zero. The adapters preserve the submission
+without rewriting records; license, execution and unclassified tool failures
+remain evaluation errors.
 
 ### Assura
 
@@ -1164,69 +1531,64 @@ extract it correctly, including shared diffusion. The adapter does not inject
 junction formulas or copy geometry from source devices. Optional `ground` names
 the physical parasitic reference.
 
-`calibre-native` runs these checks and extraction on the operator's host installation. It uses declared module/resource and
-license bindings with identical host/target paths, copies frozen GDS/CDL into a
-fresh job directory, and applies any time limit in effect to the whole process
-group. It is a trusted
-evaluator backend, separate from the solver runtime. It
-runs as the operator user with host resources and network; container CPU,
-memory, filesystem and network isolation do not apply. Identity records this
-execution mode, UID/GID, tool release and declared resources. Select this mode
-only in a reviewed operator task configuration; solver isolation is unchanged.
+`calibre-native` runs these checks and extraction under [host
+execution](#host-execution).
 
 ### Calibre with Quantus
 
-`calibre-quantus-native` uses the same explicit operator host execution for
-Calibre LVS/CCI followed by Quantus coupled RC. It requires `deck`,
-`technology_env` (an environment entry naming a technology directory within a
-declared, noncredential resource mount), and `ground` (a declared top-level port).
-The technology can share the PDK mount; include its files or directory in that
-mount's `identity_paths`. The runtime selects
-both `calibre` and `quantus` module profiles. Frozen GDS and source bytes remain
+`calibre-quantus-native` uses the same explicit [operator host
+execution](#host-execution) for Calibre LVS/CCI followed by Quantus coupled RC.
+It requires `deck`, `technology_env` (an environment entry naming a technology
+directory within a declared, noncredential resource mount), and `ground` (a
+declared top-level port). The technology can share the PDK mount; include its
+files or directory in that mount's `identity_paths`. The runtime selects both
+`calibre` and `quantus` module profiles. Frozen GDS and source bytes remain
 unchanged; source data is used for LVS and naming, while devices and parasitics
 come from annotated candidate geometry. Jobs declare `ports` and optionally an
-integer `temperature_c` (default 27). The adapter preserves CCI device templates,
-requires a complete non-blackboxed LVS match and normal Quantus completion, and
-validates extracted MOS geometry before returning a simulation netlist. Identity
-includes stable Quantus release/build fields and the worker launcher. Evidence
-retains the LVS/CCI/Quantus logs, controls, annotated device netlist and raw DSPF.
-The operator must independently validate the selected technology and supported
-device interfaces; this interface does not imply foundry certification.
+integer `temperature_c` (default 27). The adapter preserves CCI device
+templates, requires a complete non-blackboxed LVS match and normal Quantus
+completion, and validates extracted MOS geometry before returning a simulation
+netlist. Identity includes stable Quantus release/build fields and the worker
+launcher. Evidence retains the LVS/CCI/Quantus logs, controls, annotated device
+netlist and raw DSPF. The operator must independently validate the selected
+technology and supported device interfaces; this interface does not imply
+foundry certification.
 
 ### Calibre with StarRC
 
-`calibre-starrc-native` uses the same operator host execution for Calibre LVS/CCI
-followed by StarRC. It selects `deck`, `technology_env`, and resource paths
-`grid`, `mapping`, `command_template`, `query_template`, and `hcell_file` within
-the declared technology mount. Both `calibre` and `starrc` module profiles are
-required. Optional `cores` (1–8) runs the vendor's manual distributed workers.
-StarRC may reduce the worker count when fewer partitions are needed. Acceptance
-requires successful worker exits, normal extraction completion and zero reported
-errors; completion-message counts need not equal the requested worker count.
-The vendor command policy is retained; run-specific file paths, top name,
-temperature, node reporting and worker count are bound explicitly.
-Optional `extraction_mode = "RC"` fills an existing template extraction setting;
-`device_pin_file` binds an existing `CALIBRE_OPTIONAL_DEVICE_PIN_FILE` setting to
-a resource path inside the declared technology mount. Missing or duplicate
-template settings fail rather than silently appending defaults. A job declares
-`ports` and optional integer `temperature_c` (default 27). Acceptance requires
-complete named-port LVS, successful workers with normal completion and zero
-reported errors, and valid extracted physical device geometry and R/C. The raw
-DSPF, controls and native logs remain evidence. Frozen GDS/CDL bytes are preserved;
-the source is used for LVS and naming, not as a substitute for extraction.
+`calibre-starrc-native` uses the same [operator host execution](#host-execution)
+for Calibre LVS/CCI followed by StarRC. It selects `deck`, `technology_env`, and
+resource paths `grid`, `mapping`, `command_template`, `query_template`, and
+`hcell_file` within the declared technology mount. Both `calibre` and `starrc`
+module profiles are required. Optional `cores` (1–8) runs the vendor's manual
+distributed workers. StarRC may reduce the worker count when fewer partitions
+are needed. Acceptance requires successful worker exits, normal extraction
+completion and zero reported errors; completion-message counts need not equal
+the requested worker count. The vendor command policy is retained; run-specific
+file paths, top name, temperature, node reporting and worker count are bound
+explicitly. Optional `extraction_mode = "RC"` fills an existing template
+extraction setting; `device_pin_file` binds an existing
+`CALIBRE_OPTIONAL_DEVICE_PIN_FILE` setting to a resource path inside the
+declared technology mount. Missing or duplicate template settings fail rather
+than silently appending defaults. A job declares `ports` and optional integer
+`temperature_c` (default 27). Acceptance requires complete named-port LVS,
+successful workers with normal completion and zero reported errors, and valid
+extracted physical device geometry and R/C. The raw DSPF, controls and native
+logs remain evidence. Frozen GDS/CDL bytes are preserved; the source is used for
+LVS and naming, not as a substitute for extraction.
 
 ### ICV with StarRC
 
-`icv-native` selects operator host ICV with `check = "drc"`, `"lvs"`, or
-`"rc"` and a mounted `deck`. Optional `lvs_control = "@filename"` selects a
-declared native runset wrapper, retaining the mounted deck's include directory.
-LVS and RC settings require `lvs_checks`, a mapping from native report check names
-to expected device-class counts. The adapter verifies this declared coverage and
-the native comparison verdict, and passes source inputs unchanged. Process
-resources own property comparison and device-equivalence policies.
-DRC requires a completed report for the requested top, positive rule coverage
-and zero violations. `allowed_unexecuted` records known inactive rules without
-suppressing checks.
+`icv-native` selects [operator host](#host-execution) ICV with `check = "drc"`,
+`"lvs"`, or `"rc"` and a mounted `deck`. Optional `lvs_control = "@filename"`
+selects a declared native runset wrapper, retaining the mounted deck's include
+directory. LVS and RC settings require `lvs_checks`, a mapping from native
+report check names to expected device-class counts. The adapter verifies this
+declared coverage and the native comparison verdict, and passes source inputs
+unchanged. Process resources own property comparison and device-equivalence
+policies. DRC requires a completed report for the requested top, positive rule
+coverage and zero violations. `allowed_unexecuted` records known inactive rules
+without suppressing checks.
 
 RC uses native ICV/StarRC, requiring `grid` and the job's ordered `ports`.
 It runs coupled RC at 25°C with `ground` (default `GND!`). Optional
@@ -1251,15 +1613,6 @@ library statements. Acceptance requires normal completion, no reported errors,
 and exactly one finite scalar for each requested measurement. Failed event
 measurements are errors; engineering suffixes include atto (`a`).
 
-These Synopsys backends explicitly use the trusted operator host with identical
-mount source/target paths. They stage immutable input bytes in fresh job
-directories, apply any time limit in effect to the whole process group and
-redact passed license settings from text evidence. Stable releases, resource
-digests and launcher identity are recorded. Container CPU, memory, filesystem
-and network isolation do not apply. They are evaluator adapters; solver resource
-filtering and runtime deployment remain the operator's responsibility.
-
-
 ### Spectre
 
 `spectre-native` selects a model file and section. Optional `sections` loads
@@ -1277,13 +1630,13 @@ power. It does not replay general OCEAN/ADE expressions.
 The backend setting `max_parallel_jobs` defaults to 1; a positive integer opts
 into concurrent independent jobs with isolated tool workspaces. Select it within
 the installation's license and resource capacity. Candidate runs inside one
-calibration job remain sequential.
-All Spectre variants execute on the operator host in fresh job directories.
-Frozen input bytes and failure evidence are preserved, and any time limit in
-effect applies to the whole process group. Host execution and tool versions are
-recorded without evaluator image identity or container resource limits. Spectre
-backends accept no container resource settings; solver container limits remain
-separate.
+calibration job remain sequential. All Spectre variants use [host
+execution](#host-execution). Spectre backends accept no container resource
+settings; solver container limits remain separate.
+
+Solver sessions with a declared Spectre module allow executable mappings in
+their isolated workspace so that Spectre can load compiled AHDL model libraries.
+The root filesystem and installed tool/PDK mounts remain read-only.
 
 ### Spectre APS
 
@@ -1333,259 +1686,3 @@ numeric resistor cards carrying `segr`, `segl`, `segw`, `effl` or `effw` are
 rejected because a flattened process device is not an ordinary wire resistor.
 Primitive process resistors require valid native L/W; supplied bipolar area and
 multiplicity must be positive finite values and retain their native units.
-
-## Spectre measurement profiles
-
-These parameters belong to jobs using the [Spectre backends](#spectre). Select one
-measurement profile per job; incompatible profiles are rejected. The trusted
-deck supplies stimuli and saved signals. Scoring and functional bounds are
-separate declarations in the [task evaluation plan](tasks.md#evaluation-plan).
-
-### DC sweeps
-
-The `dc_sweep` profile reads `results/sweep.dc` from a named `sweep dc` analysis.
-It declares `axis`, `axis_unit` (`V` or `degC`), a positive `max_step`, affine
-`traces` with physical units, and `measures`. Supported operations are `at`
-(with an `at` coordinate), `min`, `max`, `span` (with closed `start`/`stop`
-windows), and `ppm_per_axis`. The last also requires `reference_at` and returns
-`1e6 * (max-min) / (reference * (stop-start))` in `ppm/V` or `ppm/degC`.
-The reference must be positive and inside the window. Incomplete, nonfinite,
-nonmonotonic or overly sparse sweeps fail; endpoints use linear interpolation.
-Use a parameter name distinct from saved node names to avoid ambiguous PSF signals.
-
-### Discrete calibration
-
-For discrete calibration, a simulation job may declare `parameters.calibration`
-and `outputs = {selection = "json"}`. Calibration contains:
-
-- `candidates`: records with a unique nonnegative integer `id` and a `parameters`
-  map. Every candidate binds the same simple parameter names to finite numbers.
-- `target`: `measurement`, `unit`, and numeric `value` to approach.
-- `eligibility`: a list of validity bounds, each with `measurement`, `unit`,
-  and at least one of `lower` or `upper`. Units must match declared measurements.
-  Use an empty list when all completed, finite candidate measurements may
-  participate; a quality target does not require an eligibility window.
-
-The adapter runs every candidate independently with the same DUT, deck, process
-section and measurement profile. All runs must complete. Among candidates
-satisfying every eligibility bound, it selects the smallest absolute target
-error, breaking exact ties by lower ID. No eligible setting is an error and
-produces no downstream selection. The report retains all candidate waveforms,
-logs and a calibration table; the job's measurements describe the selected run.
-
-Both calibration and subsequent testbenches include `"selection.scs"`. The
-adapter generates this file from the selected JSON using only numeric Spectre
-parameter declarations. It requires exactly one explicit, uncommented
-`include "selection.scs"` line in the deck whenever a selection is supplied;
-an unused staged parameter file is an error. Downstream jobs bind an optional `selection` input to
-`job:<calibration-id>:selection`; dependency handling ensures that calibration
-completed. Reuse that same output for every condition covered by a calibration
-decision. Authors define the calibration condition, eligibility, full measurement
-window and subsequent performance gates; calibration does not certify those
-other operating conditions. Each source or candidate evaluation recalibrates
-independently. Do not substitute a reference solution's historical settings.
-
-### AC response
-
-The AC profile also reports `phase_margin_deg`: 180 degrees plus the unwrapped
-transfer phase at the first downward unity crossing, interpolated on log frequency.
-Authors must establish negative-feedback polarity, a valid operating point and a
-sufficient sweep; this measurement alone does not prove closed-loop stability.
-
-### AC transfer
-
-For open-loop filters and attenuating stages, select `parameters.ac_transfer`
-instead of the other measurement profiles. This uses completed `ac.ac` and
-`op.dc` samples without requiring a unity crossing or assigning a phase margin.
-Declare `input` and `output` as linear signal maps, each with `terms`, for example
-`{terms = {inp = 1, inm = -1}}`. The transfer is the complex output combination
-divided by the complex input combination; subtraction occurs before magnitude.
-Zero excitation, nonfinite transfer magnitudes, incomplete signal arrays,
-and nonpositive/nonmonotonic frequency grids fail. `max_frequency_ratio` bounds
-every adjacent frequency ratio to reject sparse sweeps.
-
-The `measures` map names observations with `operation` and `unit`:
-
-- `gain_db`: `frequency_hz`; unit `dB`.
-- `peak_gain_db` or `peak_frequency_hz`: `start_hz`, `stop_hz`; unit `dB` or `Hz`.
-- `peaking_db`: the same window plus `reference_hz`; peak gain minus reference
-  gain, unit `dB`.
-- `bandwidth_hz`: the same window plus `reference_hz` and negative `relative_db`;
-  first downward crossing of that reference-relative level, unit `Hz`. Use
-  `relative_db = -3` for an exact 3 dB drop.
-- `dc`: `terms` combines saved scalar DC signals; unit `V`, `A`, `W` or `1`.
-  For supply power, use negative supply-voltage coefficients on currents entering
-  each supplying voltage source. Authors must include the relevant bias supplies.
-
-Exact transfer zeros fail logarithmic measurements only when the requested
-point, interpolation segment or window includes them. Zeros outside requested
-measurement coverage do not invalidate other observations.
-Point values and crossings interpolate gain in dB against log frequency; no
-out-of-sweep extrapolation is allowed. Window peaks include interpolated endpoints
-and saved interior samples. Peak frequency is the lowest frequency attaining the
-sampled maximum, with no fitted peak interpolation. A missing required crossing
-fails. Authors must establish sweep/window coverage and numerical convergence;
-these AC observations do not prove large-signal or closed-loop stability.
-
-### Waveforms
-
-For other transient circuits, select `parameters.waveform` instead of `response`
-or `transient`. It contains `max_step_s`, named `traces` and named `measures`.
-Each trace is an affine combination of saved PSF signals, for example
-`{terms = {"VDD:p" = -2.5}, offset = 0}` for supply power at a constant 2.5 V.
-Each ordinary measure declares `operation`, `start_s`, `stop_s`, and `unit`. Operations
-`mean`, `min`, `max`, `rms`, `integral`, `abs_integral`, `span` and `absmax` also select a `trace`.
-`abs_integral` integrates the absolute trace, splitting interpolated segments at
-zero crossings so opposite-polarity excursions cannot cancel. Its unit is the
-trace unit multiplied by seconds, as for the signed `integral`.
-Window endpoints use linear interpolation; integral and RMS integrate that
-piecewise-linear signal exactly. Task authors own the physical units and signs.
-
-### Window comparisons
-
-`mean_difference` selects a `trace` and subtracts its mean over
-`reference_start_s`–`reference_stop_s` from its mean over `start_s`–`stop_s`.
-Both windows must be complete; the result retains the trace's physical unit.
-
-### Phase difference
-
-`phase_difference` declares two crossing events (`event`, `reference_event`),
-unit `s`, integer `min_edges` of at least two, and `statistic` (`std` or `span`).
-Both use the common measurement window. Their first edges are aligned once by
-the nearest initial event, and subsequent edges are paired by ordinal position.
-Population standard deviation or peak-to-peak span uses these continuous time
-differences, preserving accumulated drift and cycle slips. Too few aligned
-edges rejects the candidate response. This observation does not establish frequency lock by itself.
-
-### Crossing events
-
-`count` requires unit `1` and an `event` with `trace`, `threshold` and `direction`
-(`rise` or `fall`). `delay` requires unit `s`, `trigger` and `target` events,
-one-based ordinal `pairs` such as `[[1,1],[2,2]]`, and `aggregation = "min"` or
-`"max"`. Both event lists use the declared window independently. Early targets
-produce negative delays; missing requested edges reject the candidate response. This supports
-propagation, pulse widths, slew and signed dead time without selecting a later
-edge to conceal overlap. Authors must also bound crossing counts and logic
-levels to reject glitches or missing cycles. Nonfinite/incomplete signals,
-nonmonotonic or sparse time grids, and out-of-range windows fail closed.
-
-An event may replace its numeric `threshold` with `threshold_fraction`, strictly
-between zero and one. Its threshold is that fraction of the trace's minimum-to-
-maximum range within the measurement window, including interpolated endpoints.
-This supports relative slew measurement without imposing an absolute swing gate.
-The two threshold forms are mutually exclusive; a constant signal has no relative
-threshold and rejects a prescribed response measurement. Both threshold forms use the same event pairing and
-missing-edge checks.
-
-### Cycle measurements
-
-`duty_cycle` requires unit `1`, a `trace`, `threshold`, positive integer
-`min_cycles`, and `aggregation = "min"`, `"max"` or `"mean"`. It computes
-high time divided by period between each consecutive pair of rising crossings,
-requiring exactly one falling crossing inside every complete period. Partial
-cycles at the window boundaries are excluded; too few complete periods or
-missing/ambiguous falling crossings reject the candidate response. Use separate minimum and maximum
-metrics to enforce a duty envelope on every observed cycle; an average alone
-does not establish that envelope. Frequency, amplitude and startup requirements
-remain separate task gates.
-
-`frequency` uses the same complete-cycle fields as `duty_cycle`, with unit `Hz`,
-and aggregates reciprocal individual periods. The mean is the arithmetic mean
-of those frequencies. `cycle_extrema` additionally requires `statistic = "min"`
-or `"max"`; it computes each complete cycle's trace extremum before applying
-`aggregation`, retaining the trace unit. Use the minimum of cycle maxima and
-maximum of cycle minima to require every cycle to reach both rails.
-
-`frequency_ratio` and `frequency_relative_difference` require `trace`,
-`threshold`, `min_cycles`, `reference_start_s`, `reference_stop_s` and unit `1`
-in addition to the common fields. Both windows independently require the minimum
-complete-cycle count. With arithmetic mean frequencies `a` in the main window
-and `b` in the reference window, they return `a/b` and `abs(a-b)/((a+b)/2)`.
-These comparisons do not replace per-cycle frequency, duty or amplitude gates.
-
-After successful Spectre execution, these response rejections produce a `failed`
-simulation job and a zero layout score under the shared candidate-rejection rule.
-The adapter retains native logs, the sampled waveform, and
-`waveform-measurements.json`, which records each rejected measurement with its
-declared specification and all independently available values. Undefined values
-are never replaced with fabricated scalars. A response rejection in an unrequested
-diagnostic measure alone does not reject the requested observations.
-Malformed or truncated waveforms, absent signals, invalid declarations, windows
-outside the completed analysis, and execution failures remain `error` with an
-unknown score. Validation errors take precedence over a response rejection;
-neither condition triggers infrastructure retries.
-
-### ADC transfer
-
-For a clocked, stepped ADC sweep, `parameters.waveform.adc_transfers` maps a
-transfer name to `input_trace`, `bit_traces` in least-significant-bit order,
-`logic_low_v`, `logic_high_v`, contiguous ascending `codes`, ordered settled
-`windows_s = [[start, stop], ...]`, `full_scale_low_v`, `full_scale_high_v`, and
-`max_input_ripple_v`. The actual mean input in each window must increase, remain
-inside full scale and vary by no more than the declared ripple. Each output bit
-must stay entirely below the low rail limit or above the high rail limit within
-its window. The decoded sequence must begin and end at the declared endpoint
-codes and pass through every declared code in order without skips or reversals.
-The optional `encoding = "twos_complement"` interprets the most significant
-output bit as a sign bit before checking `codes`; the default is `"unsigned"`.
-For example, three raw output bits `101, 110, 111, 000, 001, 010, 011`
-represent signed codes `-3, -2, -1, 0, 1, 2, 3`. The declared codes must remain
-contiguous and within the range of the selected encoding.
-These checks make missing codes, unstable rails and incomplete sweeps measurement
-errors; they do not impose a DNL, INL or conversion-time performance limit.
-
-An `operation = "adc_transfer"` measure selects `transfer`, `statistic` and
-`unit`, without `start_s` or `stop_s`. Scalar statistics are `code_count` (`1`),
-`threshold_uncertainty_v` (`V`), `max_abs_dnl_lsb` (`1`) and `max_abs_inl_lsb`
-(`1`). Indexed statistics `threshold_v` (`V`), `dnl_lsb` (`1`) and `inl_lsb`
-(`1`) require one-based `index`. For each code change, the transition estimate
-is the midpoint between the last input level of the lower code and the first
-input level of the upper code. `threshold_uncertainty_v` is the largest half
-step around such a transition. If there are `N` declared codes, the ideal LSB
-is `(full_scale_high_v - full_scale_low_v)/N`. The `N` widths include both
-full-scale endpoints; `DNL_k = width_k/LSB - 1`, and each interior transition
-has `INL_k = (transition_k - (full_scale_low_v + k*LSB))/LSB`. These are sampled
-estimates with a declared endpoint convention. Refine the input step and
-simulation time grid to establish numerical convergence. Use separate waveform
-events for sample-to-output conversion delay and score numerical accuracy and
-delay as quality unless a task justifies a functional limit.
-
-### Settling time
-
-The Spectre transient profile selects `parameters.transient` instead of `response`.
-It declares differential `positive`/`negative` signals, `trigger`,
-`trigger_threshold`, one-based rising `edge_index`, `reference_start_s`,
-`reference_stop_s`, `tolerance_v`, and `max_step_s`. The trusted deck saves a
-`tran.tran.tran` PSF ASCII analysis. `final_v` is the time-weighted mean over the
-reference window; `settling_s` is the last entry into the symmetric tolerance
-band after the trigger through the reference-window end. Linear interpolation
-is used. A final out-of-band sample returns the full observation interval, so
-hard limits must be shorter than that interval. Missing edges, incomplete or
-nonfinite data, and sparse/nonmonotonic sampling are errors. Task authors must
-bound final amplitude separately to reject stuck or attenuated responses.
-Optional trusted job `section` overrides the backend model section.
-
-To measure several settling events from one simulation, use `parameters.transients`
-instead of `parameters.transient`. This nonempty table maps names such as `rise`
-and `fall` to the same transient settings described above. Names start with an
-ASCII letter and contain only letters, digits and underscores. One simulation
-and one PSF parse serve all events; results are named `<name>_settling_s` and
-`<name>_final_v`. Every declared event must pass measurement validation, including
-events whose results are not requested. Other measurement profiles are mutually
-exclusive with `transients`.
-
-### Coherent digital ADC spectra
-
-The waveform profile accepts `adc_spectra` tables with `bits_lsb_first`,
-`threshold_v`, `sample_start_s`, `sample_period_s`, `sample_count` and
-`fundamental_bin`. Samples are interpolated on the completed transient grid,
-decoded as unsigned binary, and analyzed with a rectangular coherent DFT after
-removing DC. The even sample count is between 8 and 4096. Single-sided power
-doubles interior bins but not Nyquist. `adc_spectrum` measurements select a
-`spectrum`, `statistic` and `unit`: `sndr`/`sfdr` (`dB`), `enob`/`code_span`
-(`1`), or `logic_margin` (`V`). SNDR includes every non-DC bin except the
-fundamental in noise/distortion; SFDR uses the largest of those bins. ENOB is
-`(SNDR-1.76)/6.02` without amplitude correction. Authors must declare coherent
-stimuli, bit significance and settling time. Missing signal or distortion
-power, out-of-range sampling, invalid units and incomplete data are errors.
-Spectre measurement errors retain native logs and waveforms for diagnosis.

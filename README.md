@@ -54,7 +54,7 @@ amplifiers. Its 21-task **core** selection is the standard benchmark.
 | You want to | Start here |
 | --- | --- |
 | Evaluate a model or agent on your own machine | [Quick Start](#quick-start) |
-| Benchmark your own agent program, or add tools such as MCP servers | [Custom controllers and tool schemes](docs/running.md#participant-tool-schemes) |
+| Benchmark your own agent program, or add tools such as MCP servers | [Custom controllers](docs/running.md#custom-controllers) and [tool schemes](docs/running.md#participant-tool-schemes) |
 | Score a GDS you already have, without a model | [Standalone evaluation](docs/running.md#standalone-evaluation) |
 
 ## Prerequisites
@@ -107,7 +107,7 @@ harness that can reach your model, then sign in with that CLI:
 | BigModel or Z.AI coding plan | `zcode` | `account:<plan>/<model>` | `zcode login` in a dedicated profile; see [ZCode](docs/running.md#zcode) |
 | Any OpenAI- or Anthropic-compatible API | `zcode` | `<provider>/<model>` | Endpoint and key variable in a profile `config.json`; see [ZCode](docs/running.md#zcode) |
 | DSH | `dsh` | A model ID accepted by DSH | `settings.yaml` in its home; see [DSH](docs/running.md#claude-code-and-dsh) |
-| Your own agent program | `command` | A label recorded with results | `[scheme.launch]`; see [custom controllers](docs/running.md#participant-tool-schemes) |
+| Your own agent program | `command` | A label recorded with results | `[scheme.launch]`; see [custom controllers](docs/running.md#custom-controllers) |
 
 By default a native harness uses your CLI's normal sign-in. To keep benchmark
 credentials separate, sign in inside a dedicated profile directory and point
