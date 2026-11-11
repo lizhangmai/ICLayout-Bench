@@ -1,9 +1,8 @@
 # Tool Environments and EDA Backends
 
-Local evaluation needs Linux x86-64, Docker and a compatible EDA image. The
-participant host runs the model CLI; isolated solver/evaluator environments run
-EDA. Remote participants use the operator's service and need no local PDK/tool
-installation. [Running](running.md) supplies experiment commands. Use the setup
+Local evaluation needs Linux x86-64, Python 3.12+, Git, Docker and a compatible
+EDA image. The participant host runs the model CLI; isolated solver/evaluator
+environments run EDA. [Running](running.md) supplies experiment commands. Use the setup
 sections for local runs and the backend reference when configuring a Dataset's
 evaluation tools.
 
@@ -32,8 +31,13 @@ To build the maintained Dockerfile from source, choose your own output tag:
 ```bash
 git clone https://github.com/lizhangmai/ICLayout-Bench.git
 cd ICLayout-Bench
-docker build --platform linux/amd64 -t iclayout-bench-tools:dev .
+docker build --platform linux/amd64 \
+  --build-arg HTTP_PROXY --build-arg HTTPS_PROXY --build-arg NO_PROXY \
+  -t iclayout-bench-tools:dev .
 ```
+
+The build forwards your proxy settings. Add `--network host` only when the
+proxy listens on a host loopback address.
 
 The unified open image contains Qucs-S/Qucsator, ngspice, Xschem, Magic, Netgen,
 OpenVAF, KLayout and the prepared Python tools below. Its label is
@@ -45,7 +49,9 @@ Open EDA resource loading uses an explicit image, then `ICLAYOUT_BENCH_IMAGE`,
 then the published open image. Commercial evaluators run directly on the
 operator host and do not resolve or inspect a Docker image.
 `scheme.solver_image` or the service's `--solver-image` can choose a distinct
-participant image while trusted evaluator bindings remain separate. Commercial
+participant image while trusted evaluator bindings remain separate.
+`scheme.solver_image` must be a local immutable image ID of the form
+`sha256:<64 hex digits>`, as reported by `docker image inspect --format '{{.Id}}'`. Commercial
 images and installed vendor tools follow [Commercial runtimes](#external-commercial-runtimes).
 
 ### Dataset loading
@@ -58,10 +64,10 @@ their declared inputs. Full Dataset metadata and reference assets stay outside
 the solver mount.
 
 A repository revision selects a fixed asset snapshot; `--offline` selects cached
-data. HF owns snapshot downloads, authentication, locking and cache layout. The
-Dataset's canonical `data.parquet` indexes its cases. [Running](running.md#static-dataset-inputs)
-defines native table selection and task ordering. Evaluator loading binds its
-reader cache to the resolved table files automatically.
+data. Hugging Face (HF) owns snapshot downloads, authentication, locking and
+cache layout. The Dataset's canonical `data.parquet` indexes its cases.
+[Running](running.md#static-dataset-inputs) defines native table selection and
+task ordering.
 
 Inspect host prerequisites or prefetch one case's PDK resources without a model:
 
@@ -96,7 +102,6 @@ Bench uses `$XDG_CACHE_HOME/iclayout-bench` when `XDG_CACHE_HOME` is set, or
 | `pdks/` | Pinned process installations. |
 | `derived/` | Generated support profiles and resource bindings. |
 | `diagnostics/` | Retained preparation/compiler failure evidence. |
-| `platform/` | Rebuildable website object copies. |
 
 Consumers evict only their own namespace. HF Dataset/Xet blobs remain in their
 native cache and are read in place. Caches contain rebuildable inputs; results,
@@ -146,11 +151,7 @@ commands rather than embedded `python -c` or shell programs.
 
 Portable snapshots and publication inventories carry every declared local
 file, preserving its relative path, and exclude undeclared files. They do not
-copy external installations or credentials. Moving content out of a manifest
-requires byte-equivalence and path-resolution checks, not new circuit
-qualification when models, rules and conditions are unchanged. The reader
-continues to accept literal `generated.content` and runtime control text in
-retained datasets; maintained manifests use file references.
+copy external installations or credentials.
 
 ### Agent PDK resources
 
@@ -230,8 +231,6 @@ needed. Relative standalone backend `settings.support` paths resolve from the
 backend launch directory; evaluation-plan paths resolve from the plan file.
 [Task tool bindings](tasks.md#tool-bindings-and-drc-waivers) define those declarations.
 
-<a id="manual-tools"></a>
-
 ### Prepared Python tools
 
 The image's `python` and `python3` select its prepared Python 3.12 environment at
@@ -299,25 +298,19 @@ sum is not evaluation wall time. Resource preparation precedes that interval.
 
 #### Evaluation time limits and cancellation
 
-The shared native/container tool executor lets EDA jobs finish without per-job
-limits by default, including direct operator and preview calls, session feedback,
-final judging, standalone evaluation, characterization and qualification.
-The default is owned by the shared execution policy; evaluation, feedback and
-preview callers inherit it, including across worker threads
-(`tool_time_limits = false`). Declared backend `timeout_seconds` does not impose
-an automatic cutoff on these jobs. Callers can explicitly select
-`run_evaluation(..., limit_tools=True)` for bounded diagnostics; startup/version
-probes retain their own bounded timeouts.
+EDA jobs have no automatic time limit by default. This covers session feedback,
+final judging, standalone evaluation, characterization, qualification and
+preview. Declared backend `timeout_seconds` values bound tool version probes;
+they are not applied automatically to evaluation jobs, and the service does not
+derive an evaluation deadline from them.
 
-Feedback inherits an explicitly bounded workspace command's deadline and its
-cancellation scope. Workspace commands and checks have no automatic time limit.
-Normal final judging and result collection have no automatic deadline, and the
-service does not derive one by adding backend timeouts. An explicitly configured
-standalone evaluation allowance remains bounded and is persisted across recovery.
-Nested calls and parallel jobs share any explicitly supplied deadline. Tool
-failure and cancellation evidence remains available with the accepted candidate.
-Phase budgets are specified by the
-[session protocol](architecture.md#lifecycle-and-budgets).
+The local service sets no command or final-judging deadline; the
+[session protocol](architecture.md#lifecycle-and-budgets) defines the phase
+budgets. A workspace command may request an explicit timeout, and process
+feedback started by that command inherits its deadline. Nested calls, retries and
+parallel jobs share the enclosing deadline, and a job that reaches it is stopped.
+Tool failure and cancellation evidence remains available with the accepted
+candidate.
 
 Cancelling a process check propagates to native/container jobs and their parallel
 workers. Cancelled jobs retain diagnostics and cannot publish successful
@@ -326,20 +319,12 @@ extraction. Later checks and final judging use independent cancellation scopes.
 #### Automatic tool retries
 
 The shared native/container executor permits at most three attempts for an
-immutable EDA job, waiting one and two seconds before the next attempts. It retries
-explicit native crashes (including PVS report-cleanup crashes) and recognized
-license checkout failures. Capacity and server connectivity failures qualify only
-when the native diagnostic explicitly identifies them. A `No such feature exists`
-response is also retried because it can occur intermittently during startup;
-it does not by itself establish that the feature is permanently absent or that
-concurrency caused the failure. Persistent missing-feature responses stop at the
-same attempt limit. The combined Cadence `LMF-02002` and
-`FLEXnet ERROR(-2, 0, 0): Invalid license file syntax` checkout response also
-receives this bounded retry; that response alone does not establish a permanent
-configuration defect. Other explicit invalid-file, host, key and expiration
-diagnostics remain non-retryable, including when they accompany this response.
-Unrecognized exits and input errors do not trigger retries.
-Completed DRC/LVS rejections and measurement failures
+immutable EDA job, waiting one and then two seconds before the next attempts. It
+retries only failures that the native diagnostic explicitly identifies: tool
+crashes and transient license checkout failures, such as an unavailable feature,
+all licenses in use or an unreachable license server. Invalid license files,
+hosts or keys and expired features are not retried, nor are unrecognized exits
+and input errors. Completed DRC/LVS rejections and measurement failures
 remain candidate/evaluation results; they are not retried to seek a better score.
 
 Each attempt uses the same frozen command, inputs, declared resources and tool
@@ -359,19 +344,17 @@ or replay arbitrary solver workspace commands.
 Native tools record process/thread states before termination without retaining
 command arguments or environment values in those snapshots.
 
-<a id="preview-troubleshooting"></a>
-
 ### Startup troubleshooting
 
 | Symptom | Action |
 | --- | --- |
-| Docker missing or daemon unreachable | Check `docker version` and the current user's access; run `python -m benchmarking.eda doctor`. |
+| Docker missing or daemon unreachable | Check `docker version` and the current user's access; run `python -m benchmarking.eda doctor`, which also checks Linux x86-64, Python 3.12+ and Git. |
 | Unsupported host architecture | Use Linux x86-64 for the maintained amd64 image. |
 | Missing image | Pull/build a compatible image and select it explicitly. |
 | Pinned PDK file absent | Run `python -m benchmarking.eda --dataset SOURCE fetch --case ID` and inspect the selected release. |
 | Derived support missing | Reload the case to rebuild its content-addressed support binding. |
 | Existing evaluation output directory | Choose a new output path; retain the old diagnostics. |
-| Image build download failure | Check build connectivity and declared source digests. A host proxy can use the build command's explicit `--network host` selection. |
+| Image build download failure | Check build connectivity and declared source digests. Forward proxy settings with the build arguments shown under [local builds](#prebuilt-images-and-local-builds); add `--network host` to `docker build` for a host loopback proxy. |
 | Model authentication or endpoint failure | Inspect the selected [harness profile](running.md#native-harness-configuration); dry-run does not validate credentials. |
 
 ## Open EDA and geometry backends
@@ -563,9 +546,7 @@ An exhausted mesh sequence returns an explicit `mesh_not_converged` numerical
 error with the measured change, tolerance and port names. Its matrices and audit
 remain available, while no qualified SPICE model is emitted. Candidate rejection
 remains `failed`; numerical uncertainty and tool crashes remain `error`, with
-their respective diagnostic evidence. Finer meshes or
-circuits generated from unconverged matrices may be used in a separate author
-diagnostic; such probes do not replace the declared evaluation or its score.
+their respective diagnostic evidence.
 
 This branch assumes ideal signal interconnect and projected ohmic silicon.
 It does not establish vertical/backside transport, depletion coupling, carrier
@@ -679,9 +660,8 @@ into an isolated OA library; Virtuoso queries hierarchy and arrays and measures
 each non-text shape under its native occurrence transform, without building a
 flattened copy of the design. The geometry check supports `bbox_max` and
 `functional_bbox_area` with the same layer/datatype semantics above. It does not
-support connectivity constraints. Neither KLayout nor an authoring bridge is
-needed in this container. Import logs and native geometry measurements are
-retained as evaluation evidence.
+support connectivity constraints. Import logs and native geometry measurements
+are retained as evaluation evidence.
 
 Both native geometry adapters check stream record lengths, directory/precision
 and TEXT record syntax before importing the submitted bytes. In particular, a
@@ -723,7 +703,7 @@ This row-interface check does not establish neighbor abutment or external pin ac
 
 LVS can export a native `klayout-lvs` database and a JSON binding. The binding records the candidate GDS, database digest, top cell, and logical-layer mapping. After validating the binding, the geometry adapter uses the native LVS database APIs for network correspondence and geometry. Process support bundles declare deck-layer variables; the adapter reads the names actually registered by the run instead of fixing runtime indices such as `l10`, and it does not modify upstream rules.
 
-Magic's SPICE export drops the `!` from `!CONTROL`, causing a collision with `CONTROL`. The extraction adapter first uses KLayout on an isolated GDS copy to give unsafe interface names unique aliases, preserves the original candidate and mapping evidence, and then uses the native SPICE reader to check the count, names, and order of exported ports. It does not rewrite the original task netlist; simulation connects through the declared port order.
+Magic's SPICE export rewrites some characters in port names. Before Magic extraction, interface names that are not simple identifiers (letters, digits and underscores, not starting with a digit), such as `!CONTROL`, receive unique aliases on an isolated GDS copy. The adapter preserves the original candidate and mapping evidence, and then uses the native SPICE reader to check the count, names, and order of exported ports. It does not rewrite the original task netlist; simulation connects through the declared port order.
 
 The `model-calls` diagnostic profile accepts ngspice model calls for
 `sg13_lv_nmos`, `sg13_lv_pmos`, `cap_cmim`, `ntap1` and `ptap1`. Its
@@ -990,16 +970,9 @@ modules in each tool process. Solver shell commands load modules explicitly.
 Optional `tool_environment.<tool>` tables declare noncredential environment
 settings applied after that tool's modules load. The settings enter runtime
 identity and `/protocol/task.json` → `resources.external`; solver commands apply the selected
-tool's settings after loading its modules. For example, an HSPICE compatibility
-setting `LD_PRELOAD = "/lib64/libudev.so.1"` is scoped to HSPICE rather than every
-process in the shared image. License values must still be forwarded by name.
-
-Some rootless host-network deployments do not mount sysfs. Calibre 2025.2 can
-then detect zero NUMA nodes and crash with `SIGFPE` during LVS initialization.
-For those deployments, declare `CALIBRE_DISABLE_NUMA = "1"` under
-`[runtime.tool_environment.calibre]`. This tool setting applies after module
-loading, reaches both solver commands and evaluator launches, and enters runtime
-identity without changing process rules or container privileges.
+tool's settings after loading its modules. For example, a setting declared under
+`[runtime.tool_environment.hspice]` applies to HSPICE rather than every process
+in the shared image. License values must still be forwarded by name.
 
 ### Solver commands
 
@@ -1037,15 +1010,13 @@ that selection, retaining the technology library name and unrelated settings.
 Native OA discovery uses `PDK_TECH_LIBRARY`, `PDK_TECH_PATH` and `PDK_LAYER_MAP`
 for Virtuoso, or `PDK_TECH_LIBRARY`, `PDK_LIBRARY_DEFINITIONS` and `PDK_LAYER_MAP`
 for Custom Compiler. These are declared resources, not author working libraries.
-Trusted author/operator utilities `eda.oa.virtuoso.VirtuosoGDSNative` and
-`eda.oa.customcompiler.CustomCompilerGDSNative` import explicit frozen GDS
+Trusted author/operator utilities `benchmarking.eda.oa.virtuoso.VirtuosoGDSNative`
+and `benchmarking.eda.oa.customcompiler.CustomCompilerGDSNative` import explicit frozen GDS
 assets into fresh libraries, run native transactions, and export selected cells
 and diagnostics. They retain tool failure and timeout evidence; they do not
 automatically change execution location or expose a script endpoint to solvers.
 Process-specific layout recipes and circuit rules remain with their authors.
 No public `profiles` or cached `agent` bundle is supported for an external PDK.
-The case's `distribution` controls delivery and is independent of process
-installation. Owners must classify asset rights before delivery.
 The local service accepts an explicit `--solver-runtime NAME` only when NAME
 matches the case's external process declaration. `--solver-image` selects
 the solver image; evaluator backends use the operator host. `--image` selects
@@ -1095,8 +1066,8 @@ PDK-relative technology directory. The native output must already use the
 qualified simulator model interfaces. It retains
 numeric coupled RC, process resistor geometry and substrate connections, and
 requires complete native LVS and Quantus reports before publishing a netlist.
-The runtime provides `ASSURA_ROOT`, `assura`, `quantus` and Python; author OA is
-not used. Junction geometry is required by default. An explicit
+The runtime provides `ASSURA_ROOT`, `assura`, `quantus` and Python. Junction
+geometry is required by default. An explicit
 `junctionless_models` list may identify process devices such as MOS
 capacitors whose extraction definition has no diffusion junctions. This does
 not exempt other MOS models from geometry validation or synthesize junctions.
@@ -1111,8 +1082,9 @@ requires a normal completion and a nonempty executed-rule count; LVS requires a
 complete match without blackboxed cells. RC extraction checks LVS first and
 retains physical instances, resistance and capacitance. A Linux subreaper
 (launched with the evaluator Python interpreter) waits for the Quantus command
-and any orphaned workers; nonzero worker exit status is an error. The native
-job timeout bounds the whole process tree. A parent completion message alone is insufficient. Only the extracted
+and any orphaned workers; nonzero worker exit status is an error. When a
+[time limit](#evaluation-time-limits-and-cancellation) is in effect, it bounds the
+whole process tree. A parent completion message alone is insufficient. Only the extracted
 subcircuit port declaration is reordered to match the declared named interface.
 This backend requires identical simple layout/source top names and
 DSPF top-level ports (including SPICE continuations). Unsupported output is an error, not a pass.
@@ -1192,11 +1164,10 @@ extract it correctly, including shared diffusion. The adapter does not inject
 junction formulas or copy geometry from source devices. Optional `ground` names
 the physical parasitic reference.
 
-<a id="native-calibre"></a>
-
 `calibre-native` runs these checks and extraction on the operator's host installation. It uses declared module/resource and
 license bindings with identical host/target paths, copies frozen GDS/CDL into a
-fresh job directory, and enforces process-group timeouts. It is a trusted
+fresh job directory, and applies any time limit in effect to the whole process
+group. It is a trusted
 evaluator backend, separate from the solver runtime. It
 runs as the operator user with host resources and network; container CPU,
 memory, filesystem and network isolation do not apply. Identity records this
@@ -1282,12 +1253,11 @@ measurements are errors; engineering suffixes include atto (`a`).
 
 These Synopsys backends explicitly use the trusted operator host with identical
 mount source/target paths. They stage immutable input bytes in fresh job
-directories, enforce process-group timeouts and redact passed license settings
-from text evidence. Stable releases, resource digests and launcher identity are
-recorded. Container CPU, memory, filesystem and network isolation do not apply.
-They are evaluator adapters; solver resource filtering and runtime deployment
-remain the operator's responsibility. Custom Compiler authoring uses its own
-native library definitions and Tcl interface, independent of Virtuoso.
+directories, apply any time limit in effect to the whole process group and
+redact passed license settings from text evidence. Stable releases, resource
+digests and launcher identity are recorded. Container CPU, memory, filesystem
+and network isolation do not apply. They are evaluator adapters; solver resource
+filtering and runtime deployment remain the operator's responsibility.
 
 
 ### Spectre
@@ -1309,10 +1279,11 @@ into concurrent independent jobs with isolated tool workspaces. Select it within
 the installation's license and resource capacity. Candidate runs inside one
 calibration job remain sequential.
 All Spectre variants execute on the operator host in fresh job directories.
-Frozen input bytes, process-group timeouts and failure evidence are preserved.
-Host execution and tool versions are recorded without evaluator image identity
-or container resource limits. The retired container `memory_mb` setting is not
-accepted; solver container limits remain separate.
+Frozen input bytes and failure evidence are preserved, and any time limit in
+effect applies to the whole process group. Host execution and tool versions are
+recorded without evaluator image identity or container resource limits. Spectre
+backends accept no container resource settings; solver container limits remain
+separate.
 
 ### Spectre APS
 
@@ -1330,7 +1301,7 @@ with the selected engine and options. License failures remain errors.
 ### Spectre X
 
 `spectre-x-native` explicitly selects licensed Spectre X with `+preset` (`cx`,
-`ax`, `mx`, `lx`, or `vx`) and `+mt` (`threads` is a positive integer, default 4).
+`ax`, `mx`, `lx`, or `vx`; default `ax`) and `+mt` (`threads` is a positive integer, default 4).
 It uses the same inputs, measurements, calibration, and native
 failure checks as `spectre-native`. Its identity records the selected preset
 and thread count. Optional `postlayout_preset` selects `+postlpreset` using the
@@ -1351,6 +1322,7 @@ The extraction adapters validate native output and bind the already existing
 named top-level ports. Device cards, including continuations and annotations,
 are preserved. They do not convert M/Q/R primitives into X calls, rename models,
 scale BJT area, infer substrate terminals or remove physical parameters.
+Evaluation does not reconnect a candidate or substitute expected devices.
 Model compatibility belongs to the qualified process extraction and simulator
 resources.
 
@@ -1361,12 +1333,6 @@ numeric resistor cards carrying `segr`, `segl`, `segw`, `effl` or `effw` are
 rejected because a flattened process device is not an ordinary wire resistor.
 Primitive process resistors require valid native L/W; supplied bipolar area and
 multiplicity must be positive finite values and retain their native units.
-
-Author validation must show that declared negative controls remain rejected.
-A tool defect may be fixed in a fixed, independently validated extraction flow,
-but evaluation does not reconnect a candidate or substitute expected devices.
-Unsupported native combinations remain development cases. Preserve diagnostics
-and distinguish a completed candidate rejection from an infrastructure failure.
 
 ## Spectre measurement profiles
 

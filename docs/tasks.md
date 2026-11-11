@@ -42,8 +42,8 @@ membership or selection policy. Table loading is documented in
 Optional `core_order` is a positive integer on a core case. When used, every core
 case must declare a unique value. The core reader dispatches in ascending order;
 datasets without this field use their table order. The complete table
-remains sorted by stable ID. Membership and order are recipient-owned metadata
-and do not change task requirements or scoring.
+remains sorted by stable ID. `in_core` and `core_order` only select and order
+cases; they do not change task requirements or scoring.
 
 `[origin].url` supplies attribution. Optional `[presentation]` fields `category`
 and `summary` must be nonempty strings; they support browsing and do not alter
@@ -163,22 +163,17 @@ weight nor `category = "performance"` disables a requirement.
 requirement = { lower = 0.0, rationale = "A negative response reverses the required output polarity." }
 ```
 
-Legacy top-level metric `lower`/`upper` remain readable for historical contracts
-and retain their old rejection semantics. New qualification runs reject them
-before invoking EDA. Use `qualification audit` to list requirements, weighted
-quality and unweighted diagnostics; the audit validates structure, not the truth
-of the author's rationale. Review each rationale against the circuit intent.
-Do not move an arbitrary performance budget into `requirement` merely to pass
-the audit. No minimum score is imposed.
+Bounds are declared only in `requirement`; top-level metric `lower`/`upper` are
+rejected when the plan loads. Use `python -m benchmarking.evaluation qualify audit`
+to list requirements, weighted quality and unweighted diagnostics; the audit
+validates structure, not the truth of the author's rationale. Review each
+rationale against the circuit intent. Do not move an arbitrary performance budget
+into `requirement` merely to pass the audit. No minimum score is imposed.
 
-When qualification fails, first distinguish an invalid contract, a measurement
-or tool error, and a defective reference. Review historical comparable cases
-and the declared scoring method before editing geometry. Retain the original
-reference until this diagnosis identifies a necessary functional or physical
-repair. Finite observation windows and missing crossings also need review:
-an unavailable measurement is not proof that a performance budget is required.
+An unavailable measurement, such as a missing crossing in a finite observation
+window, is not proof that a performance budget is required.
 
-Public tasks use `layout`. Electrical quality uses declared engineering targets,
+The only scoring method is `layout`. Electrical quality uses declared engineering targets,
 with source simulation under the same conditions retained as evidence. Without
 an explicit target, the source value is the quality anchor. Area uses a declared
 target footprint. A score of 100 requires every positive-weight metric to attain its target.
@@ -190,6 +185,10 @@ q_i = worst source-paired quality for metric i
 c_i = min(1, q_i)
 S = 100 * G * product(c_i ** w_i)  # positive weights, including area
 ```
+
+`G` is the gate factor: 1 when every gate, job and requirement passes, 0 after
+any completed rejection, and `null` (unknown score) when an evaluation error
+prevents a judgment.
 
 Artifact, DRC, named-interface LVS, prescribed parasitic extraction, hard geometry
 and electrical requirements must pass. A completed rejection, including an
@@ -204,8 +203,7 @@ consistent extracted netlist usable by the declared post-layout simulations.
 Use check/report feedback to repair and resubmit within the solve budget.
 Qualification establishes feasibility of the prescribed flow; a participant's
 claim that a rejection is caused by the tool does not waive the gate or change
-the score. Only an independently confirmed evaluation-system defect may be
-reviewed separately by the operator. Preserve the original diagnostics.
+the score.
 
 ### Electrical quality
 
@@ -386,6 +384,26 @@ Conclusive zero scores use the same envelope. Evaluation errors remain unknown.
 Result imports accept only this 0–100 score contract. The task definition and
 evaluator digests bind each result to its scoring configuration.
 
+<a id="run-outcomes"></a>
+
+### Run outcomes
+
+A session result reports one terminal `outcome`; its `score` also applies the
+solve `termination`:
+
+| Outcome | Run score |
+| --- | --- |
+| `pass` | The candidate's layout score |
+| `fail` | 0: a completed rejection |
+| `no_submission` | 0: no accepted candidate |
+| `error` | `null`: evaluation could not judge the candidate |
+
+A `budget_exhausted` or `agent_error` termination scores 0 even when the accepted
+candidate passes; a session not closed before its settlement window ends
+terminates as `budget_exhausted`. An `infrastructure_error` termination leaves
+the score unknown (`null`). The independent evaluation report keeps the
+candidate's own quality score.
+
 <a id="evaluation"></a>
 
 ## Evaluation results
@@ -432,7 +450,7 @@ adapter exceptions remain `error`. The runner does not convert extraction errors
 to rejections by excluding recognized infrastructure diagnostics. A blocked
 dependent or unrelated evaluator error does not turn an established rejection
 into an unknown score. These statuses describe grading evidence, not proof of
-causal responsibility; confirmed task or evaluator defects require operator review.
+causal responsibility.
 
 For the command and output paths, see [standalone evaluation](running.md#standalone-evaluation).
 For witness verification, see [qualification](#qualification).
@@ -519,8 +537,6 @@ representations preserve the declared circuit; a digest does not prove that
 equivalence. Fixed evaluator inputs retain checksum verification.
 The protocol publishes origin/format declarations for derived inputs and
 identities for fixed inputs, without evaluator file paths or contents.
-Result archives containing evaluator materials require the operator's normal
-disclosure review.
 
 Source attribution is stored in the outer case table:
 
@@ -531,8 +547,6 @@ url = "https://github.com/owner/repository/tree/revision/path/to/circuit"
 
 This URL does not require an upstream checkout at runtime. Inputs and reference
 assets have their own digests; PDK resources are pinned in `pdk.toml`.
-Collection catalogs contain `[[cases]]` entries with `id`
-and `config_path`.
 
 ### Geometry constraints
 
@@ -570,7 +584,8 @@ access to internal jobs, calibration observations or backend identities.
 
 An evaluation plan contains `mode`, `jobs`, `metrics`, optional `scoring` and
 frozen `pre_layout` calibration when metrics use source baselines.
-Qualified public cases declare scoring.
+Core cases (`in_core = true`) must be `qualified` and declare a scored
+`post_layout` plan.
 
 | Object | Fields and semantics |
 |---|---|
@@ -632,9 +647,7 @@ plan. The shared PDK deck and archived native report remain unchanged.
 Load only the declared task inputs and reviewed resource profiles into a solver
 session. Keep witnesses, development probes, other cases, model/website/session credentials
 and retained run evidence outside that environment. Check provenance and asset
-rights before admitting new inputs. Repository-specific source exclusions belong
-to the source owner's internal admission records; they are not package defaults.
-Commercial sessions may receive explicitly reviewed tool license access under the
+rights before admitting new inputs. Commercial sessions may receive explicitly reviewed tool license access under the
 [external runtime contract](tools.md#external-commercial-runtimes); this does not
 authorize other credentials or redistribution of license contents.
 
@@ -684,7 +697,7 @@ participant performance. Separate repeated runs may be used when numerical
 stability itself needs study.
 
 `audit` performs contract classification without an EDA run. `run` repeats this
-preflight automatically and rejects legacy implicit metric bounds. Explicit
+preflight automatically. Explicit
 requirements need a functional rationale; performance targets belong in quality
 normalization and weights. The retained report includes this classification.
 The audit cannot establish that a written rationale is physically justified;

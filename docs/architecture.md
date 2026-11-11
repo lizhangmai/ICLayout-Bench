@@ -3,8 +3,8 @@
 ICLayout-Bench loads an explicitly selected task Dataset, runs isolated solver
 sessions and independently evaluates frozen candidate layouts. The installed
 package provides commands, Python APIs, task contracts and an
-[HTTP protocol](#http-session). Use this reference to integrate a controller,
-host an evaluation service or understand how submissions are evaluated.
+[HTTP protocol](#http-session). Use this reference to integrate a controller or
+understand how submissions are evaluated.
 
 ```mermaid
 flowchart LR
@@ -22,15 +22,18 @@ flowchart LR
 | --- | --- |
 | Dataset | Independently supplied task contracts, materials and resource declarations, selected by path or repository revision. |
 | Case / task | A circuit layout problem. A case wraps the executable task and its metadata; its stable ID comes from the contract. |
+| Harness | The participant's agent program, a native agent CLI or custom controller, that chooses each action and drives a session. |
 | Condition | One resolved harness, model, effort and declared participant-tool configuration. |
 | Repetition | An independent scheduled solve for a task under one condition. |
 | Attempt | A solve with its own workspace and budget. Explicit replacement creates a new attempt and retains the earlier evidence. |
 | Session | The service workspace, scoped credential, accepted candidates and deadline used by an attempt. |
 | Continuation | Another native launch using the same session, conversation and deadline. |
+| Settlement | The bounded window after the solve deadline, or after an operation still running at it, for final reads, submission and close. |
 | Collection | Settlement and export of an existing session without a model launch. |
 | Candidate | A participant-produced layout; an accepted submission is an immutable snapshot. |
 | Source | The authoritative circuit and fixed pre-layout measurements used by evaluation. |
 | Reference / witness | An author-retained feasible layout used for qualification, excluded from task deliveries and solver inputs. |
+| Qualification | An author evaluation of the reference under the complete plan, showing that the task is feasible; see [qualification](tasks.md#qualification). |
 
 ## System roles and boundaries
 
@@ -39,7 +42,7 @@ flowchart LR
 | Task author | Complete circuit, requirements, resource declarations and feasibility evidence. | Static task contracts and reviewed solver inputs; references remain with the author. |
 | Participant | Harness, model configuration, tool choices and complete experiment results. | Immutable candidate submissions and participant-reported traces/usage. |
 | Evaluator | Trusted inputs, isolated checks, extraction, measurements and scoring. | Independent verdicts and evidence bound to the submitted bytes. |
-| Operator | Task admission, deployment, credentials, capacity and disclosure. | Explicit service access and reviewed result releases. |
+| Operator | Service deployment, credentials and capacity. | Explicit service access. |
 
 Authors define the problem; the Agent performs circuit import, device
 implementation, placement, routing and iteration using declared EDA resources.
@@ -89,6 +92,7 @@ Run these modules with `python -m` in the environment where Bench is installed.
 | `benchmarking.execution` | Check controlled inference access or recover frozen workspace submissions. |
 | `benchmarking.eda` | Inspect declared resources and prepare or build an EDA environment. |
 | `benchmarking.client` | Use an existing service through the generic HTTP client. |
+| `benchmarking.observe` | Snapshot a session's observation stream and result without model calls. |
 | `benchmarking.analyze`, `benchmarking.results` | Export structured statistics and optionally retain an archive. |
 
 [Running](running.md) provides end-to-end commands; [Harnesses](running.md#harness-configuration)
@@ -115,8 +119,7 @@ participant-produced attachments and retain their native layout. These files
 are tool state and supporting records; independent evaluation remains authoritative.
 
 The bundled server binds to loopback and supports one case and one active
-session. Operators provide production authentication, TLS, capacity and task
-admission. Native model credentials stay with the participant host or its
+session. Native model credentials stay with the participant host or its
 controlled gateway. [Tools](tools.md) defines resource/image preparation.
 
 ## Evaluation identity and process checks
@@ -136,16 +139,9 @@ post-layout plan rather than generating new author baselines.
 ## Result handoff and storage ownership
 
 Bench exports terminal results, structured statistics and EDA preview assets.
-You can retain them in a local archive or pass them to an application for charts,
-interactive comparisons and publication. Keep the experiment configuration and
-original evidence available when interpreting or sharing a result.
-
-Submission, local archive import, transfer and public disclosure are separate
-operations. [Results](running.md#website-result-delivery) describes portable
-packages and optional upload. Receipt or a durable import job ID confirms
-transfer, not publication. A shared read-only filesystem is an explicit data
-handoff; it is not a source-code dependency. Participants do not need website
-database credentials.
+You can retain them in a local archive or process them with your own tools. Keep
+the experiment configuration and original evidence available when interpreting
+or sharing a result.
 
 The optional archive accepts terminal participant and service results through
 `ResultStore`. Its `object_store` supplies `put(bytes) -> (sha256, size)` and
@@ -154,20 +150,13 @@ validation preserves candidate, task and condition identity independently of the
 storage backend. [Results](running.md#result-archive) owns archive commands,
 attachments, backup and migration.
 
-## Verified reruns and disclosure
+<a id="verified-reruns-and-disclosure"></a>
 
-`self_run` denotes participant-controlled execution. `controlled_run` requires an
-operator to freeze conditions, control execution and check complete evidence.
-These labels are independent of score, model identity, import and publication.
-A declared model ID records the requested condition without attesting the
-provider's internal implementation.
+## Evaluation mode
 
-Controlled verification binds task inputs, resources, budgets, repetition
-schedule, participant conditions, candidate bytes and independent verdicts.
-Missing/modified evidence prevents verification. Operators review restricted
-material exposure and aggregate disclosure. Reference qualification establishes
-feasibility under its declared conditions; it does not certify participant
-performance or authorize publication.
+Results produced by this package are recorded as `self_run`; `controlled_run` is
+reserved for operator-verified reruns. A declared model ID records the requested
+condition without attesting the provider's internal implementation.
 
 <a id="http-session"></a>
 
@@ -179,8 +168,9 @@ evaluation. The bundled service and its generic client use the format below.
 ### Authentication and common format
 
 All routes are relative to the service URL and use `Authorization: Bearer TOKEN`.
-An operator creation token authorizes `POST /sessions`; its response returns a
-new token scoped to that session. Use HTTPS except on loopback development hosts.
+The creation token the service was started with (read from the variable named by
+`--token-env`) authorizes `POST /sessions`; its response returns a new token
+scoped to that session. Use HTTPS except on loopback development hosts.
 Wrong or nonexistent session/token pairs return `404` after bearer validation.
 Queries remain available until the creation response's `retained_until`.
 
@@ -223,11 +213,13 @@ scoped token before further commands. `condition` has exactly the fields in the
 example: harness kind is `agent`, text IDs are nonempty and the two SHA-256
 fields may be null when unknown. Condition metadata is participant-reported.
 
-Provisioning has a separate 600-second startup window, with a 30-second HTTP
-response allowance. It covers durable resource archival and container startup;
-solve time begins at the existing container-launch boundary. An interrupted
-creation key returns a nonretryable infrastructure failure on replay and never
-provisions a second session. Successful creation replays its original response.
+`POST /sessions` returns when the workspace is ready. Provisioning, including
+durable resource archival and container startup, may take up to 600 seconds and
+does not consume solve time, which starts when the solver container is created.
+Set the creation read timeout to at least 630 seconds; the bundled client does
+this. An interrupted creation key returns a nonretryable infrastructure failure
+on replay and never provisions a second session. Successful creation replays its
+original response.
 
 ### Lifecycle and budgets
 
@@ -253,30 +245,24 @@ without an automatic deadline.
 | `evaluating` | Workspace closed; independently judge the frozen accepted candidate, without an automatic deadline in normal sessions. |
 | `complete`, `error` | Terminal result; an infrastructure failure preserves candidate and diagnostic evidence. |
 
-Status keeps the coarse `state` for protocol compatibility and exposes `phase`
-separately. `budget` includes phase-specific remaining times; an active unlimited
-command publishes `command_remaining_seconds: null` and
-`settlement_remaining_seconds: null`. Settlement defaults to 60 seconds after the
-operation ends. Final evaluation does not derive a time allowance from backend job
-timeouts. Execution requests with null timeout have no automatic cutoff unless an
-explicit command cap was configured; positive timeouts are honored and clamped to
-such a cap when present. Cancellation and polling remain available
-after solve expiry. Session feedback and final judging disable per-job EDA
-timeouts. An evaluating session publishes `evaluation_remaining_seconds: null`
-when judging is unlimited, and clients continue waiting across collection
-recovery. A retained deadline from an older collection attempt cannot terminate
-an explicitly unlimited evaluation.
+Status reports the coarse `state` and the finer `phase` separately. `budget`
+includes phase-specific remaining times; an active unlimited command publishes
+`command_remaining_seconds: null` and `settlement_remaining_seconds: null`.
+Final evaluation does not derive a time allowance from backend job timeouts.
+Execution requests with null timeout have no automatic cutoff; positive timeouts
+are honored. Cancellation and polling remain available after solve expiry.
+Session feedback and final judging disable per-job EDA timeouts. An evaluating
+session publishes `evaluation_remaining_seconds: null` while judging is
+unlimited; clients keep waiting for the result.
 
-Standalone solver configurations may declare `[phase_budgets]` with
-`command_seconds`, `settlement_seconds` and an optional finite
-`evaluation_seconds` for explicitly bounded judging; solve duration
-still comes from the task. Without this table commands have no automatic cutoff and
-the settlement allowance is zero. The former `soft_budget` configuration is rejected. Elapsed time and
-late submissions remain recorded; final judging grants no additional solve time.
+The bundled service takes `solve_seconds` from the task, leaves
+`command_seconds` and `evaluation_seconds` null and sets `settlement_seconds` to
+60. Elapsed time and late submissions remain recorded; final judging grants no
+additional solve time.
 
 CPU, memory and PID limits default to null, meaning no framework quota. The
 local service enforces workspace/file/candidate/log/response bounds and publishes
-`max_command_seconds`, null by default or matching an explicitly configured command cap.
+`max_command_seconds: null`.
 [Tools](tools.md#eda-backend-contract) defines evaluator job time limits.
 
 Workspace execution, file access and submission are serialized. A busy workspace
@@ -323,11 +309,8 @@ route and returns only the committed response. Replaying that POST with the same
 key/body never writes twice; changed bodies conflict. Checkpoint failures reject
 success replay while retaining the previous valid recovery point.
 
-The local service advertises `process-feedback`. It does not implement optional
-snapshot `diagnostics` or `opinions`; absent optional operations return `404` and
-have zero allowance. A remote service may advertise its own implemented optional
-capabilities. Process feedback uses ordinary execution/report routes, rather
-than a separate diagnostics POST.
+The local service advertises `process-feedback`, which uses the ordinary
+execution and report routes rather than a separate diagnostics POST.
 
 ### Workspace, task and submissions
 
@@ -397,14 +380,13 @@ A service result contains session/task/condition/tool identity, `limits`,
 `evaluation_mode`, `provenance`, nullable `usage`, `submission`, `outcome`,
 `termination`, `task_success`, `score`, `metrics`, failure details and evidence. Before terminal
 state, verdicts remain null. Terminal outcomes are `pass`, `fail`, `no_submission`
-or `error`; [Tasks](tasks.md#evaluation) defines their scoring consequences.
+or `error`; [run outcomes](tasks.md#run-outcomes) defines their scoring consequences.
 
 `termination` records how the solve ended, independently of the candidate verdict.
 Its run score includes termination rules; an attached independent evaluation
 report retains the candidate's original quality score.
 
-`evaluation_mode` is `self_run` or `controlled_run`, independent of score and
-publication. Provenance separates `server_observed`, `participant_reported` and
+`evaluation_mode` is `self_run` or `controlled_run`, independent of score. Provenance separates `server_observed`, `participant_reported` and
 `unknown`. The service's nullable token/cost fields remain unknown when native
 model calls are outside its observation. Participant exports separately retain
 [model usage](running.md#model-usage-and-cost).
@@ -412,7 +394,8 @@ model calls are outside its observation. Participant exports separately retain
 The read-only observations stream returns successful API-visible interactions,
 ordered by sequence with timestamp, kind and data. It excludes denied requests,
 participant-local activity and hidden evaluator material. Pages contain up to
-100 events and approximately 256 KiB. Older services can report `available: false`.
+100 events and approximately 256 KiB. `available: false` means the session
+recorded no observation stream.
 
 ```bash
 python -m benchmarking.observe --output results/new-observation
@@ -442,7 +425,6 @@ Errors use this envelope:
 | 503 | Capacity/unavailable response; retry only when explicitly retryable. |
 | 500 | Infrastructure failure; retain diagnostics rather than inferring a verdict. |
 
-Operator services may additionally enforce admission/rate-limit responses.
 Only transport loss and explicitly retryable responses authorize configured HTTP
 retry. The runner supplies its [retry policy](running.md#recovery-settings);
 mutations retain identical keys and bodies. Infrastructure, harness and candidate
@@ -473,7 +455,6 @@ explicit frozen task, agent, execution and implementation bindings. The caller
 supplies the run directory and frozen asset root; the verifier owns archive paths,
 event interpretation and evaluation input checks. `verify_service_result` checks
 an HTTP result against the retained service store and frozen task/tool bindings.
-Neither interface schedules batches or authorizes publication.
 `benchmarking.results.scoring.verified_run_score` recomputes verified evidence and
 applies the same attempt termination rules as execution.
 
@@ -491,18 +472,17 @@ Exports provide structured results for consumers to render. Recorded scores,
 identities and archived attachments remain immutable.
 
 `benchmarking.results.statistics` owns shared arithmetic. `wilson` supplies a
-95% binomial score interval; `usage_summary` and `inference_summary` preserve
+95% Wilson interval for a success rate; `usage_summary` and `inference_summary` preserve
 unknown resource usage. `planned_score_summary(values, scheduled)` distinguishes
 missing observations from observed unknown scores and returns a complete-sample
 mean only when every planned score is known. `weighted_score` combines explicit
 task coefficient/score pairs, keeping the suite score unknown if any task score
 is unknown. Callers own sample selection, cohort membership and frozen suite
-bindings; these functions do not read operator batch plans or authorize releases.
+bindings.
 
 `benchmarking.service.launch.launch_service` starts the installed local service
 from explicit CLI arguments, an output directory and a process environment. It
 owns readiness detection and bounded process-group shutdown, including failed
 startup. Credentials stay in the supplied environment. A caller may explicitly
 retain a ready service for recovery; that caller owns its durable process
-identity and subsequent shutdown. Participant launchers and operator deployments
-use the same mechanism with their respective runtime and retention settings.
+identity and subsequent shutdown.

@@ -43,7 +43,8 @@ the chosen native Agent CLI separately; see [harness configuration](#harness-con
 
 ### First experiment
 
-Local evaluation requires Linux x86-64, Docker, a compatible
+Local evaluation requires Linux x86-64, Docker, Bubblewrap (`bwrap`; see
+[shared native isolation](#shared-native-isolation)), a compatible
 [EDA image](tools.md#prebuilt-images-and-local-builds) and an explicit Dataset path
 or repository ID. The package bundles no tasks. A published task Dataset excludes
 author reference layouts and qualification evidence.
@@ -73,64 +74,39 @@ python -m benchmarking.run \
 ```
 
 Dry-run resolves configuration, local connections and Dataset bindings without
-model calls or Docker execution. It does not test credentials, quota, electrical
-qualification or remote-service availability.
+model calls or Docker execution. It does not test credentials, quota or electrical
+qualification.
 
 Pull the published tools image, then run the same condition:
 
 ```bash
 docker pull docker.io/lizhangmai/iclayout-bench-tools:latest
-python -m benchmarking.run --config experiment.toml --case NAND2_X1 \
-  --image docker.io/lizhangmai/iclayout-bench-tools:latest
+python -m benchmarking.run --config experiment.toml --case NAND2_X1
 ```
 
 The runner creates the local service, isolated workspace and harness process,
 then independently evaluates the submitted candidate and exports the result.
 PDK installation and derived resource binding are automatic. This command makes
 real model calls. Omit `--case` to execute the complete configured selection.
-Use `--image IMAGE` or `ICLAYOUT_BENCH_IMAGE` to select another compatible image.
+The runner defaults to the published tools image; use `--image IMAGE` or
+`ICLAYOUT_BENCH_IMAGE` to select another compatible image.
 Results default to `results/experiment/<task-id>/<timestamp>/`; add
 `--output /path/to/results` to select an output root. See
 [output selection](#output-selection-and-scheduling) for reuse and scheduling.
 
-### Remote participation
-
-For a remote service, use a configuration with explicit task IDs and no local
-Dataset table:
-
-```toml
-harness = "codex"
-model = "your-model-id"
-effort = "medium"
-tasks = ["freepdk45.nangate45-pdk.NAND2_X1"]
-concurrency = 1
-repetitions = 1
-```
-
-Save it as `remote-medium.toml`. Supply the operator's creation credential
-through `ICLAYOUT_BENCH_TOKEN`, then run:
-
-```bash
-python -m benchmarking.run \
-  --config remote-medium.toml --endpoint https://evaluation.example.org
-```
-
-Use the endpoint and credentials issued by the operator. Local Docker and PDK
-resources are unnecessary. The service must support the selected tasks and
-concurrency; the bundled development server supports one case and one active
-session. Local and remote execution use the [same protocol](architecture.md#http-session).
-
 ### Configuration reference
 
 Each TOML selects one harness and model. `effort` selects one condition; `efforts`
-expands distinct values into separate conditions. Both fields together, an empty
-selection and `"default"` effort are rejected. Support is validated by the
-selected harness/model; equal effort names do not imply equal computation.
+expands distinct values into separate conditions. Accepted effort names are
+`low`, `medium`, `high`, `xhigh`, `max`, `ultra` and `off`; both fields together,
+an empty selection and any other name, including `"default"`, are rejected. The
+selected harness/model then validates support for the chosen effort; equal effort
+names do not imply equal computation.
 
 | Field | Meaning |
 | --- | --- |
 | `harness`, `model` | Required supported harness and explicit model ID. |
-| `effort` or `efforts` | Required reasoning selection. |
+| `effort` or `efforts` | Required reasoning selection from the accepted effort names. |
 | `harness_home` | Optional native connection/authentication profile; see [Harnesses](#native-harness-configuration). |
 | `tasks` | Distinct task IDs; required without `[dataset]`, otherwise an optional subset. |
 | `concurrency` | Required positive integer limiting simultaneous case/repetition sessions. |
@@ -325,10 +301,8 @@ unless `--toolchain` is supplied; a case without embedded bindings requires that
 option. `characterize` measures an explicit source circuit using an explicit
 toolchain. Declared case resource profiles are prepared in the shared cache;
 no prepared directories from the Dataset author are required. Select another
-tool image with `--image` or `ICLAYOUT_BENCH_IMAGE`.
-Author reference checks require an author verification snapshot with
-the witness present; use [qualification](tasks.md#qualification). Ordinary
-delivered Datasets are sufficient for participant runs and candidate evaluation.
+tool image with `--image` or `ICLAYOUT_BENCH_IMAGE`. Delivered Datasets are
+sufficient for participant runs and candidate evaluation.
 
 ## Harness configuration
 
@@ -338,9 +312,6 @@ Every registered harness, including `command`, runs through the same Linux
 Bubblewrap (`bwrap`) filesystem allowlist. Install Bubblewrap on the participant
 host. Missing or unusable isolation fails the launch; there is no direct-host
 fallback. This policy applies to initial launches and continuations.
-An older native history without this isolation origin cannot be resumed under
-the new policy: its existing prompt may already contain undeclared context.
-Retain that attempt and use a new run instead of rewriting its history.
 
 The native CLI sees system runtime files, its installed program dependencies,
 the selected Python environment and its private attempt directory. Host homes,
@@ -442,7 +413,7 @@ and MCP configuration do not belong in this native connection file.
 Bench configures noninteractive approval for the declared MCP tools and starts
 Codex with `--sandbox workspace-write` in its per-attempt host working directory.
 Native host execution tools remain disabled; layout operations run through MCP
-in the remote EDA workspace. These settings also apply to continuation; MCP
+in the isolated EDA workspace. These settings also apply to continuation; MCP
 permission fields are not experiment TOML options.
 
 #### Claude Code and DSH
@@ -496,8 +467,8 @@ launch. For example, native `max_attempts_per_step = 10` and framework
 same-session CLI continuations after eligible terminal failures. Successful
 native retries consume no framework continuation count.
 
-Same-session continuation is enabled by default for remote services and
-checkpointed local sessions; see [Recovery](#failure-recovery). Kimi session state,
+Same-session continuation is enabled by default for checkpointed local sessions;
+see [Recovery](#failure-recovery). Kimi session state,
 wire records and diagnostic logs are retained under `native/kimi/` and in the
 observation export's `native-traces.zip`. Configuration and credential stores are
 excluded, and known initial/refreshed credentials are redacted.
@@ -597,6 +568,8 @@ Only declared MCP servers are available; personal plugins, skills, hooks, memory
 subagents and native host tools are disabled. Calls are noninteractive.
 Native model-I/O and JSONL diagnostics are retained under `native/zcode/` with
 credential redaction. Same-session continuation follows [Recovery](#failure-recovery).
+Provider codes `1308` and `1310` count as exhausted quota even when reported as
+HTTP 429.
 
 ### Credential lifecycle
 
@@ -675,7 +648,7 @@ Inspect the conditions, then run the comparison:
 
 ```bash
 python -m benchmarking.run --matrix contrast.toml \
-  --dataset /path/to/dataset --dry-run
+  --dataset lizhangmai/ICLayout-Bench --dry-run
 python -m benchmarking.run --matrix contrast.toml \
   --dataset lizhangmai/ICLayout-Bench
 ```
@@ -693,9 +666,7 @@ to explain imports or commands. The same image can contain A for both conditions
 if the experiment deliberately measures enabling its use; record that choice.
 `--image` selects the default local solver image and is resolved to an immutable
 ID before dispatch. Each scheme may override it. The Dataset case's trusted
-EDA images/resources remain unchanged. A remote service must already provide
-the declared solver image; a mismatch closes the session before launching the
-participant. The participant cannot replace an operator's evaluator.
+EDA images/resources and the independent evaluator remain unchanged.
 
 MCP `command` is an argv list, `files` lists config-relative scripts and dependency
 locks, and `env_vars` names runtime variables; never put credentials in argv or
@@ -749,7 +720,7 @@ as its upstream stdio server. Preserve its original tool responses and label any
 added history or summaries as participant-derived. Record only this session's
 allowed inputs, workspace files and public feedback. The scoped HTTP service
 continues to enforce workspace operations, candidate freezing and solve budgets;
-the operator's independent evaluator and final scores remain authoritative.
+the independent evaluator and final scores remain authoritative.
 
 For an existing control program, select `harness = "command"` and declare:
 
@@ -766,7 +737,7 @@ The process receives only the original problem document on stdin. Environment va
 `ICLAYOUT_BENCH_ENDPOINT`, `ICLAYOUT_BENCH_TOKEN` and `ICLAYOUT_BENCH_SESSION`
 provide scoped HTTP access; `ICLAYOUT_BENCH_TASK_FILE` points to session metadata,
 `ICLAYOUT_BENCH_MCP_CONFIG` to the private MCP config,
-`ICLAYOUT_BENCH_INSTRUCTIONS_FILE` to optional operator-declared `scheme.instructions` (empty when absent), and
+`ICLAYOUT_BENCH_INSTRUCTIONS_FILE` to optional experiment-declared `scheme.instructions` (empty when absent), and
 `ICLAYOUT_BENCH_MODEL` / `ICLAYOUT_BENCH_EFFORT` record requested settings.
 `ICLAYOUT_BENCH_TOOL_ARTIFACTS` provides the persistent tool output directory shared
 with the declared MCP servers.
@@ -781,11 +752,21 @@ calls. Read `/protocol/task.json` in the EDA workspace for the compact solver
 manifest and `/protocol/harness.json` for capabilities, budget and available
 helper commands; the full evaluation plan is held by the framework.
 The runner follows the service's budget policy, captures stdout/stderr, cleans up
-its process group and collects the terminal result. Custom commands do not
-support native same-session continuation; use `resume_session = false`.
+its process group and collects the terminal result. Same-session continuation is
+unavailable for custom commands; their recovery defaults already disable it, and
+enabling `resume_session`, `network_resumes` or `capacity_resumes` is rejected.
 
-Scheme outputs append their name and content digest to the normal condition
-path. Changed declared tools, instructions or images cannot reuse an old case.
+To report model usage, print one JSON object per line on stdout with
+`"type": "model.usage"`. Its `usage` object may contain `input_tokens`,
+`uncached_input_tokens`, `cached_input_tokens`, `cache_write_input_tokens`,
+`output_tokens`, `reasoning_output_tokens` and `cost`; optional top-level
+`request_id`, `model`, `elapsed_seconds`, `started_at` (Unix seconds or ISO 8601
+with a time zone) and `currency` (default `USD`) describe the request. Without
+these records, usage remains unknown.
+
+Schemes do not change the condition path: distinguish them by configuration file
+name or matrix run name. Changed declared tools, instructions or images cannot
+reuse an old case.
 Archive comparisons distinguish schemes while matching the service's evaluator
 identity, limits and evaluation mode. Result records include the scheme name and
 digest so consumers can distinguish tool configurations.
@@ -819,7 +800,7 @@ python -m benchmarking.run \
   --output results/my-batch --resume --detach
 ```
 
-Reuse the original TOML, endpoint or Dataset arguments, images and conditions.
+Reuse the original TOML, Dataset arguments, images and conditions.
 Finished slots are skipped. Surviving workers retain their leases and deadlines;
 the coordinator observes them and dispatches pending work as slots become free.
 Workers outside a `--case` subset still count toward the concurrency cap.
@@ -839,7 +820,7 @@ the tool journal, including requests whose outcome could not be observed.
 The service continues to enforce execution concurrency, paths and budgets.
 
 Continuation validates resolved conditions, framework release, Dataset inputs,
-endpoint, CLI version, native storage and frozen launch settings. Repetitions
+CLI version, native storage and frozen launch settings. Repetitions
 remain independent solves; continuation is another launch inside the same attempt.
 All waits, human repair and downtime consume the original deadline.
 
@@ -873,8 +854,7 @@ session is not made resumable by retaining its diagnostic checkpoint.
 
 Sessions without checkpoints cannot gain them retroactively. External solver
 runtimes with writable mounts or network side effects do not support workspace
-recovery. A remote service must retain its own session state across participant
-interruption. Missing or expired service records cannot be recovered as a new
+recovery. Missing or expired service records cannot be recovered as a new
 solve through `--resume`.
 
 ### Automatic retries and continuation
@@ -901,15 +881,8 @@ require `resume_session`. Authentication, exhausted account quota, process
 signals and unknown/mixed failures do not authorize an
 automatic relaunch. A successful native exit does not trigger continuation.
 Adapters classify native evidence; generated assistant prose is not evidence.
-
-ZCode maps upstream provider codes `1308` (usage-window exhaustion) and `1310`
-(weekly/monthly usage exhaustion) to `quota_exhausted`, including responses
-forwarded through API gateways, even when native attribution reports HTTP 429
-and `rate_limited`. The explicit provider code takes precedence over a generic
-retryability hint; HTTP 429 alone remains insufficient evidence. Exhausted quota
-stops automatic continuation and blocks new dispatch for the
-affected harness/profile. Already running cases continue; quota reset does not
-automatically restart the batch.
+Exhausted quota also blocks new dispatch for the affected harness/profile.
+Already running cases continue; quota reset does not automatically restart the batch.
 
 Network and capacity waits grow exponentially with up to 20% positive jitter,
 bounded by their respective caps. A native `retry_after` is a minimum wait;
@@ -1006,12 +979,11 @@ python -m benchmarking.run \
   --output results/my-batch --case NAND2_X1 --replace-unfinished
 ```
 
-Finished cases cannot be replaced. Model, effort, Dataset inputs, image, endpoint
-and repetitions must match. Repaired framework/CLI versions and recovery settings
+Finished cases cannot be replaced. Model, effort, Dataset inputs, image and
+repetitions must match. Repaired framework/CLI versions and recovery settings
 are recorded on the new attempt. Prior attempts keep their candidates, traces,
 failures and original price snapshots; pending cases keep unused plans. An
 interrupted replacement move completes when the same command is repeated.
-Operator-controlled evaluations apply their separately frozen replacement policy.
 
 ### Settlement and failure interpretation
 
@@ -1034,19 +1006,14 @@ If the service has already entered evaluation or a terminal state, the runner
 collects that result without closing the workspace again. A `session_closed`
 response during close is accepted only after a status read confirms that
 transition; other close failures retain their recovery evidence.
-Container removal interrupted by a shutdown signal is retried once after the
-daemon confirms that the owned container still exists, within the original
-removal timeout. Both removal attempts remain in the cleanup evidence;
-persistent failures remain infrastructure errors.
 
 Harness interruption, settlement failure and evaluator verdict remain separate.
 Failures carry a `scope`: `session` isolates one case, `provider` blocks tasks using
-the same native profile/provider, `endpoint` blocks the shared remote endpoint,
-and `runtime` blocks the affected local runtime. A local checkpoint timeout is
-session-scoped and does not stop other cases. Known shared storage failures such
-as a full or read-only results filesystem stop runtime dispatch. Legacy unscoped
-service failures block a shared remote endpoint; independently hosted local cases
-remain isolated. Error or incomplete observations remain
+the same native profile/provider, and `runtime` blocks the affected local runtime.
+A local checkpoint timeout is session-scoped and does not stop other cases. Known
+shared storage failures such as a full or read-only results filesystem stop
+runtime dispatch. Other local service failures stay isolated to their case.
+Error or incomplete observations remain
 unknown in analysis. Preserve original evidence when repairing an environment;
 [Results](#results-and-analysis) defines terminal retention and usage across attempts.
 
@@ -1054,13 +1021,19 @@ unknown in analysis. Preserve original evidence when repairing an environment;
 
 ### Active executions
 
-An operator can query or cancel an existing execution during settlement using
-the same protected session environment:
+From a process that has the run's scoped session environment, you can query or
+cancel an existing execution. The runner sets `ICLAYOUT_BENCH_ENDPOINT`,
+`ICLAYOUT_BENCH_TOKEN` and `ICLAYOUT_BENCH_SESSION` for the participant process,
+including custom commands and declared MCP servers; the token is otherwise kept
+only in the run's private `.runtime/` state. To settle from a shell instead, use
+[`--collect-only`](#collect-interrupted-sessions-without-model-calls).
 
 ```bash
 python -m benchmarking.client poll EXECUTION_ID --offset 0
-python -m benchmarking.client cancel EXECUTION_ID --key OPERATOR_KEY
+python -m benchmarking.client cancel EXECUTION_ID --key IDEMPOTENCY_KEY
 ```
+
+`--key` is a request key you choose; reuse it when retrying the same cancellation.
 
 These commands use the existing service session without launching a model or
 starting another solve. Polling/cancellation follow the [HTTP contract](architecture.md#process-feedback).
@@ -1082,7 +1055,7 @@ Default experiment invocations create fresh timestamped task runs:
 Each condition contains `<full-task-id>/<YYYYMMDD-HHMMSS-microseconds>/`.
 Timestamps use local time; unsafe path characters are percent-escaped. Explicit
 `--output` selects a condition root verbatim and requires one condition. Declared
-schemes add their name/content digest to default condition paths.
+schemes do not change these paths; result records carry the scheme name and digest.
 
 A completed local task run contains:
 
@@ -1120,8 +1093,8 @@ candidate/check evidence under `attempts/`; collection and replacement follow
 `evaluation/report.json` retains job measurements and relevant text diagnostics;
 waveforms and native databases remain separate files. Non-UTF-8 logs remain
 byte-exact attachments. The compact export retains task/candidate/condition
-bindings and the tool image locator, rather than a full operator provenance
-archive. Known credentials are redacted; arbitrary generated text requires review
+bindings and the tool image locator, rather than a full provenance archive.
+Known credentials are redacted; arbitrary generated text requires review
 before transfer. Compact exports do not provide post-export tamper detection.
 
 Keep results outside disposable build/cache storage and back them up. Prepared
@@ -1150,35 +1123,16 @@ pool deduplicates identical compressed objects using hard links. Final GDS and P
 files and the native files under `tool-artifacts/` remain directly readable.
 Read other archived attachments through
 `benchmarking.files.read_file`; direct filesystem existence checks do not describe
-the availability of compressed evidence. Declared result transfer and import use
-this same reader.
+the availability of compressed evidence. Result import uses this same reader.
 
-The maintenance command is read-only unless `--apply` is supplied:
+Terminal export applies this retention automatically. It does not invoke models
+or EDA, change recorded scores, or upgrade the result's verification level. Native
+credential homes and active recovery state remain outside the archived file set.
+Verify a terminal run's compressed evidence without changing it:
 
 ```bash
-python -m benchmarking.results.retention /path/to/results --tree --report /path/to/inventory.json
-python -m benchmarking.results.retention /path/to/results --tree --apply --report /path/to/migration.json
 python -m benchmarking.results.retention /path/to/terminal-run --verify
 ```
-
-Migration takes the case or service lease, stages and verifies compressed objects,
-commits the manifest, then removes original copies and explicitly classified
-process attachments. Unfinished or locked runs remain unchanged. Repeating an
-interrupted operation verifies the committed objects before completing cleanup.
-`--keep-check check-N` preserves a diagnostic check before migration; omitted bytes
-cannot be recovered by a later invocation. Retention does not invoke models or
-EDA, change recorded scores, or upgrade the result's verification level. Native
-credential homes and active recovery state remain outside the archived file set.
-
-After verifying stopped service archives, retire their authentication state while
-keeping redacted observations, request receipts and execution summaries:
-
-```bash
-python -m benchmarking.results.retention /path/to/results --retire-services --apply --report /path/to/retirement.json
-```
-
-The resulting `service-observations.json` is diagnostic evidence, not resumable
-HTTP state. Unfinished sessions keep their original recovery state.
 
 ### Read a run
 
@@ -1239,9 +1193,9 @@ remain counted in `missing_attempts` without erasing known attempt subtotals.
 Cost prefers a valid native amount, including a genuine zero, unless the explicit
 price table sets `prefer_reported_cost = false`. Otherwise native token counts
 are multiplied by the configured rates. `cost_source` distinguishes `provider`,
-`harness_reported`, `api_token_pricing` and combined `mixed` costs. Earlier exports
-retain their original labels. Subscription-equivalent API costs and actual
-subscription invoices are separate quantities.
+`harness_reported`, `api_token_pricing` and combined `mixed` costs.
+Subscription-equivalent API costs and actual subscription invoices are separate
+quantities.
 
 #### Pricing
 
@@ -1321,8 +1275,7 @@ scores remain missing. Output consists of structured data for consumers to rende
 
 Local terminal exports retain the scored `final.gds` and an optional `layout.png`.
 Rendering reads that frozen candidate and records the top cell, dimensions and
-renderer identity separately from evaluation. Remote-only exports can lack GDS
-and images because the current service has no candidate-download endpoint.
+renderer identity separately from evaluation.
 
 Regenerate missing previews using the recorded image, or select an explicit
 compatible rendering image:
@@ -1351,7 +1304,7 @@ Diagnostics redact credential/license values from the environment, common secret
 assignments and authorization headers, and replace absolute directories with a
 path marker while keeping filenames. Each text field is limited to 64 KiB,
 preserving its beginning and end with a truncation marker. Diagnostic files have
-mode `0600` and appear in the result's artifact list for packaging and import.
+mode `0600` and appear in the result's artifact list for import.
 Each failure gets an immutable artifact; retries retain earlier diagnostics,
 including after a successful preview. If diagnostics cannot be written, the image
 status records `diagnostics_error_type` instead of a file reference.
@@ -1365,9 +1318,10 @@ all staged artifacts before publishing them and commits the manifest last.
 Optional preview failures remain separate from evaluation and attachment status.
 
 Use the optional archive to import results, query records and generate structured
-comparison or presentation data. Bench supplies Python interfaces and a CLI;
-graphical browsing and publication require a separate application. To hand results
-to an evaluation operator, see [website result delivery](#website-result-delivery).
+comparison or presentation data. The `benchmarking.results` CLI imports, indexes
+and verifies results; comparison data comes from the Python interface
+`benchmarking.results.ResultStore(...).comparison(...)`. Graphical browsing and
+publication require a separate application.
 
 For offline archive processing, install `iclayout-bench[results]`. The importer
 accepts `participant-result` exports and terminal `layout-http` results. It
@@ -1382,8 +1336,6 @@ python -m benchmarking.results --data results/archive \
 ```
 
 These optional commands create `results/archive/`; no results ship with the package.
-The operator platform imports terminal collections into its own storage and applies
-publication permissions independently of an offline archive.
 
 `layout` caps each metric at quality 1 before aggregation with explicit task
 weights, giving a maximum of 100. Result imports require this single score
@@ -1398,9 +1350,9 @@ repetitions, measured counts, failures and missing scores. An error remains
 unknown, not zero. Overall means use equally weighted, fully measured common task
 contexts; coverage and the common-task count remain visible. Unknown scoring
 methods form separate contexts.
-Planned but unexecuted tasks from runner schedules appear as `Not run`; historical
-imports cannot reconstruct an absent experiment schedule. Missing provenance is
-not inferred from directory names.
+Planned but unexecuted tasks from runner schedules appear as `Not run`; only
+automatic indexing records a schedule, so manual imports list imported runs only.
+Missing provenance is not inferred from directory names.
 
 #### Task presentations and interactive layouts
 
@@ -1430,8 +1382,7 @@ polygons and labels for platform presentation. Extraction has a 200,000-shape li
 their PNG and downloadable GDS. This bounds browser work rather than silently
 truncating geometry. KLayout DRC reports can supply top-cell marker overlays.
 Hierarchical markers without transforms remain in the report and are counted as
-not overlaid. Cross-highlighting netlist nets against layout connectivity and
-large-design multiresolution tiles are not implemented.
+not overlaid.
 
 #### Automatic indexing and recovery
 
@@ -1462,12 +1413,7 @@ without changing any score.
 
 Participant results retain task, candidate and condition hashes. Unknown usage
 stays null; CLI-reported usage never becomes service-observed usage.
-
-Automatic indexing targets the participant-selected archive, not an operator
-website. Neither `results_data` nor archive `retry` uploads files to the website,
-and an evaluation `--endpoint` is not a website import endpoint. See
-[result handoff and storage ownership](architecture.md#result-handoff-and-storage-ownership)
-for the separate transfer, ingestion and publication boundaries.
+Automatic indexing writes only to the selected local archive and uploads nothing.
 
 #### Storage, deployment and backup
 
@@ -1484,77 +1430,5 @@ and set `ICLAYOUT_BENCH_DATABASE_URL` to a SQLAlchemy `postgresql+psycopg` URL. 
 same `--data` attachment root for all processes. The archive creates missing tables from the current definitions
 when it opens; existing columns are not automatically transformed. SQLite and PostgreSQL use the same result model; moving
 existing SQL contents between backends is not an automatic database conversion.
-Reimport original exports into the target database, then regenerate presentations,
-or perform an operator-managed SQL migration. Back up PostgreSQL and its associated
-object directory as one quiescent snapshot. Generic public code supplies no formal
-operator deployment or result-publication policy.
-
-
-### Website result delivery
-
-The installed package includes a standard-library-only delivery CLI, independent
-of operator applications and optional SQL archive dependencies. Run the complete
-experiment first, then create a portable package:
-
-```bash
-python -m benchmarking.results.transfer pack results/my-experiment my-experiment.zip
-```
-
-Remote upload is available only when the operator deployment enables participant
-accounts and ingestion. Otherwise hand the complete package to the operator
-through its agreed transfer channel.
-
-Obtain the website URL and an upload token from the operator, then supply the
-token in `ICLAYOUT_UPLOAD_TOKEN`. Account creation and authentication depend on
-that deployment. Do not put tokens in command arguments, scripts committed to Git,
-experiment TOMLs or result packages. The CLI accepts another environment variable
-via `--token-env`.
-
-```bash
-python -m benchmarking.results.transfer upload my-experiment.zip \
-  --website https://benchmark.example --name 'My experiment'
-python -m benchmarking.results.transfer status JOB_ID --website https://benchmark.example
-```
-
-Use the actual configured website origin. Remote delivery requires HTTPS; HTTP is
-allowed only for loopback development. The client refuses redirects so bearer
-credentials cannot be forwarded to another origin. Authentication errors require
-credential replacement; a successfully received upload returns a durable job ID,
-not a publication promise. Reuploading identical package bytes with the same name
-under the same account returns the same job. Status distinguishes queued/running,
-completed, completed-with-errors and failed. Use the operator's supported retry
-interface for failed imports. Correct a malformed package at its source and
-package it again. The CLI never reruns an Agent or evaluator and never deletes
-original results.
-
-#### Package and HTTP contract
-
-`iclayout-results` is a ZIP containing `manifest.json` and terminal collections
-at `runs/NNNNNN/`. The manifest records `format`, `runs` and a `files` map of member
-paths to `{sha256, size}`. Original `result.json` bytes, declared files and available
-standard evaluator artifacts are preserved; recovery directories, participant
-working trees and local archive databases are excluded. Missing declared artifacts
-fail packaging. Packaging does not redact arbitrary trace contents: inspect source
-materials before sending them to an operator. Traces are internal evidence and
-are not public merely because they were uploaded.
-
-Receivers check the complete manifest, member digests, run count and referenced
-files. Duplicate paths, traversal, symlinks, encrypted members and hidden/runtime
-paths are rejected. The default cap is 512 MiB for the uploaded ZIP and extracted
-contents, and 20,000 data files; split larger experiment collections into packages
-without dropping failed outcomes or planned repetitions. The manifest is limited
-to 8 MiB. These are transfer limits, not evaluation budgets.
-
-- `POST /api/uploads?name=...`: `application/zip` body; authenticated session or
-  `Authorization: Bearer ...`, plus `X-Platform-Request: 1`; returns HTTP 202 with
-  `id` and `status_url`.
-- `GET /api/uploads/{id}`: same account authorization; returns processing state,
-  progress, diagnostics and imported result publication state.
-- `POST /api/uploads/{id}/retry`: account authorization and request header; retries
-  failed/partially failed ingestion idempotently.
-
-Website ownership and origin come from the authenticated server context, never
-from fields in the package. Different participants' session IDs and repetition
-cohorts remain isolated even if their declared model conditions match. Original
-recorded scores, methods and evaluation mode metadata remain intact. Operator review
-still controls score and file publication independently.
+Reimport original exports into the target database, then regenerate presentations.
+Back up PostgreSQL and its associated object directory as one quiescent snapshot.
