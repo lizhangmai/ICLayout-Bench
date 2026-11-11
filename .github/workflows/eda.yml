@@ -22,27 +22,38 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           version: '0.11.2'
           python-version: '3.12'
       - run: uv sync --locked --group eda
-      - run: docker build -t iclayout-eda-open:dev .
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build tools image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: tools
+          platforms: linux/amd64
+          load: true
+          tags: iclayout-eda-open:dev
+          cache-from: type=gha,scope=tools
       - env:
           ICLAYOUT_BENCH_TEST_IMAGE: iclayout-eda-open:dev
           DATASET_REPO: ${{ inputs.dataset }}
           DATASET_REVISION: ${{ inputs.revision }}
+          CHECKPOINT_CAPACITY: ${{ inputs.checkpoint_capacity }}
         run: |
-          export ICLAYOUT_BENCH_DATASET="$(uv run --locked python -c 'import os; from huggingface_hub import snapshot_download; print(snapshot_download(repo_id=os.environ["DATASET_REPO"], repo_type="dataset", revision=os.environ["DATASET_REVISION"]))')"
+          ICLAYOUT_BENCH_DATASET="$(uv run --locked python -c 'import os; from huggingface_hub import snapshot_download; print(snapshot_download(repo_id=os.environ["DATASET_REPO"], repo_type="dataset", revision=os.environ["DATASET_REVISION"]))')"
+          export ICLAYOUT_BENCH_DATASET
           uv run --locked pytest tests/integration/test_catalogs.py
           uv run --locked --group eda pytest tests/unit/test_hbt_extraction.py
           uv run --locked pytest -m acceptance_container
           uv run --locked pytest tests/test_http.py
-          if [ "${{ inputs.checkpoint_capacity }}" = "true" ]; then
+          if [ "$CHECKPOINT_CAPACITY" = "true" ]; then
             uv run --locked pytest -m acceptance_capacity
           fi
           uv run --locked --group eda pytest tests/integration/test_public_references.py -k 'cell_6t or NAND2_X1'

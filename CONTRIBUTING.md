@@ -77,11 +77,11 @@ Choose verification by change scope and delivery stage:
 
 | Stage or change | Required verification |
 | --- | --- |
-| Before a local commit | Review the diff, run `git diff --check`, and run checks relevant to the changed behavior. For documentation edits, inspect changed links and commands; example configuration edits need parsing/configuration checks. |
-| Before pushing, or in PR CI | Run the full offline checks below, including the distribution build and isolated wheel installation smoke test. PR CI may satisfy this stage; successful local checks for the same revision need not be repeated before pushing. |
-| Packaging, dependencies, package structure, entry points, or bundled resources change | Run the affected build and isolated wheel checks before committing, so packaging failures are caught during development. |
+| Before a local commit | Review the diff, run `git diff --check`, and run checks relevant to the changed behavior. For documentation edits, run `uv run --locked pytest tests/unit/test_documentation_links.py` and inspect changed commands; example configuration edits need parsing/configuration checks. |
+| Before pushing, or in PR CI | Run the full offline checks below, including the distribution build and isolated wheel and sdist installation smoke test. PR CI may satisfy this stage; successful local checks for the same revision need not be repeated before pushing. |
+| Packaging, dependencies, package structure, entry points, or bundled resources change | Run the affected build and isolated installation checks before committing, so packaging failures are caught during development. |
 
-Routine local commits do not require a distribution build or isolated wheel test.
+Routine local commits do not require a distribution build or isolated installation test.
 The affected container, evaluator, and task qualification checks below still apply
 when their behavior changes. Report which checks ran and which are deferred to CI.
 
@@ -90,14 +90,15 @@ After [development setup](#development-setup), run the offline checks:
 ```bash
 uv sync --locked --extra results
 uv run --locked ruff check .
-uv run --locked pytest -m unit
+uv run --locked pytest -m 'unit or acceptance_fast'
 uv build --out-dir build/dist
+bash scripts/check_distributions.sh build/dist "$(git rev-parse HEAD)"
 git diff --check
 ```
 
-After building, run the isolated wheel installation smoke test defined in
-[the checks workflow](.github/workflows/checks.yml). The command list above builds
-the distributions; the smoke test separately verifies the installed wheel.
+The [distribution check](scripts/check_distributions.sh) installs each built wheel
+and sdist into a fresh virtual environment and verifies its entry points and
+embedded release identity, as [the checks workflow](.github/workflows/checks.yml) does.
 
 Package metadata is derived from Git tags by `setuptools-scm`; untagged commits
 receive development versions. Build from a checkout with full tag history or a
@@ -308,8 +309,13 @@ actually produced them; a rebuilt image does not retroactively validate them.
 ### Publishing the tools image
 
 The [image workflow](.github/workflows/image.yml) publishes the public tools
-Dockerfile to Docker Hub. Release maintainers configure the destination below;
-forks can choose their own namespace:
+Dockerfile to Docker Hub after [Framework checks](.github/workflows/checks.yml)
+pass for a push to `main`; the [release workflow](.github/workflows/cd.yml)
+publishes release tags after its package checks. Both use the
+[shared publisher](.github/workflows/tools-image.yml), which pushes an untagged
+candidate by digest, checks tool startup and Python imports in that exact digest,
+and only then attaches public tags. Release maintainers configure the destination
+below; forks can choose their own namespace:
 
 | Setting | Type | Value |
 | --- | --- | --- |
@@ -317,12 +323,13 @@ forks can choose their own namespace:
 | `DOCKERHUB_USERNAME` | Variable | Docker Hub login that owns the access token |
 | `DOCKERHUB_TOKEN` | Secret | Access token with write access to the repository |
 
-Without `DOCKERHUB_IMAGE`, publishing is skipped. A push to `main` publishes
-`latest` and `sha-<full Git commit>` after the image checks pass. A `v*.*.*` tag
-publishes its version and commit tags without replacing `latest`. A manual run
-publishes a commit tag and updates `latest` only on `main`; pull requests do not
-publish. BuildKit reuses unchanged layers. The workflow checks tool startup and
-Python imports, not Dataset qualification; run affected EDA checks separately.
+Without `DOCKERHUB_IMAGE`, publishing is skipped. A checked `main` commit receives
+`sha-<full Git commit>` and moves `latest` only while it is still the head of
+`main`. A `v*.*.*` tag receives its version and commit tags without replacing
+`latest`. Pull requests and commits whose checks fail do not publish; re-run a
+failed publication from its workflow run. BuildKit reuses unchanged layers. The
+image checks cover tool startup and Python imports, not Dataset qualification;
+run affected EDA checks separately.
 
 ## Task qualification
 
@@ -380,21 +387,33 @@ Preserve unrelated changes and verify and commit affected repositories separatel
 
 ## CI and release
 
-Push/PR checks cover lint, documentation, offline regressions and independent
-wheel installation. Its manually dispatched EDA workflow builds the public image
-and checks containers, HTTP sessions and selected public references without operator applications.
+Checks for pushes to `main` and pull requests cover lint, Markdown links and
+anchors, offline regressions (`unit` and `acceptance_fast` markers) and independent
+wheel and sdist installation. The manually dispatched EDA workflow builds the
+public image and checks containers, HTTP sessions and selected public references
+without operator applications.
 Applications integrating Bench pin a compatible package release and test their
 own behavior against it. Hidden assets, credentials and raw model transcripts never
 enter release artifacts.
 
 The [release workflow](.github/workflows/cd.yml) builds and checks wheel/sdist
-artifacts. Pushing a `v*.*.*` Git tag publishes those same artifacts to PyPI via
-Trusted Publishing, then creates the GitHub release. Versions come from Git tags;
-use a canonical PEP 440 version after `v` (for example, `v1.0.0` or `v1.0.0rc1`).
+artifacts. Pushing a `v*.*.*` Git tag publishes the release tools image, then those
+same artifacts to PyPI via Trusted Publishing, then creates the GitHub release.
+PyPI upload starts only after the release image is published, or skipped when
+`DOCKERHUB_IMAGE` is unset. Versions come from Git tags; use a canonical PEP 440
+version after `v` (for example, `v1.0.0` or `v1.0.0rc1`), and tag a commit that
+is already on `main` after its checks pass.
 Ordinary branch pushes do not publish Python packages. Manual workflow runs only
 build and validate distributions. For a failed upload, re-run the failed jobs so
 they reuse the checked artifacts; do not move a published tag or reuse its version.
-Tools images use the separate [Docker Hub workflow](#automatic-publication).
+Tools images follow [Docker Hub publication](#automatic-publication).
+
+Workflow actions are pinned to full commit SHAs with their release tag in a
+comment; [Dependabot](.github/dependabot.yml) proposes weekly updates. Review the
+upstream release before merging a pin update. GitHub Pages uses the GitHub Actions
+source: the manually dispatched [pages workflow](.github/workflows/pages.yml)
+verifies the reviewed `gh-pages` manifest before deployment, and a push to
+`gh-pages` alone does not deploy.
 
 Configure a GitHub environment named `pypi` and a PyPI Trusted Publisher with:
 

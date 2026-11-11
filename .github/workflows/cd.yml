@@ -19,18 +19,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           version: '0.11.2'
           python-version: '3.12'
           enable-cache: true
       - run: uv sync --locked --extra results
       - run: uv run --locked ruff check .
-      - run: uv run --locked pytest -m unit
+      - run: uv run --locked pytest -m 'unit or acceptance_fast'
       - name: Check release tag
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         run: |
@@ -39,45 +39,44 @@ jobs:
             echo "Tag $GITHUB_REF_NAME does not match project version $version" >&2
             exit 1
           }
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+            echo "Tag $GITHUB_REF_NAME points to $GITHUB_SHA, which is not on main" >&2
+            exit 1
+          }
       - name: Build distributions
         run: uv build --out-dir build/dist
-      - name: Install wheel smoke test
-        run: |
-          package_venv="$RUNNER_TEMP/iclayout-bench-package"
-          python -m venv "$package_venv"
-          for bench_wheel in build/dist/*.whl; do
-            "$package_venv/bin/python" -m pip install "${bench_wheel}[results]"
-          done
-          "$package_venv/bin/python" -I - <<'PYCODE'
-          import os
-          import subprocess
-          import sys
-          from importlib.metadata import version
-          from pathlib import Path
-
-          import benchmarking
-          from benchmarking.version import package_version
-
-          assert Path(benchmarking.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
-          identity = package_version()
-          assert identity["version"] == version("iclayout-bench")
-          assert identity["commit"] == os.environ["GITHUB_SHA"]
-          for name in ("benchmarking.run", "benchmarking.service", "benchmarking.evaluation",
-                       "benchmarking.execution", "benchmarking.eda"):
-              subprocess.run([sys.executable, "-I", "-m", name, "--help"], check=True)
-          PYCODE
+      - name: Install wheel and sdist smoke test
+        run: bash scripts/check_distributions.sh build/dist "$GITHUB_SHA"
       - name: Upload distributions
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: iclayout-bench-release-${{ github.sha }}
           path: build/dist/*
           if-no-files-found: error
           retention-days: 14
 
+  image:
+    name: Publish release tools image
+    needs: package
+    if: >-
+      github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') &&
+      vars.DOCKERHUB_IMAGE != ''
+    uses: ./.github/workflows/tools-image.yml
+    with:
+      ref: ${{ github.sha }}
+      release_tag: ${{ github.ref_name }}
+    secrets:
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
   pypi:
     name: Publish Python distributions to PyPI
-    needs: package
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [package, image]
+    # The release image must exist before the package that defaults to it.
+    if: >-
+      !cancelled() &&
+      github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') &&
+      needs.package.result == 'success' &&
+      (needs.image.result == 'success' || needs.image.result == 'skipped')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment:
@@ -87,31 +86,34 @@ jobs:
       id-token: write
     steps:
       - name: Download checked distributions
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: iclayout-bench-release-${{ github.sha }}
           path: build/dist
       - name: Publish with Trusted Publishing
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           packages-dir: build/dist/
           skip-existing: true
 
   publish:
     name: Publish GitHub release
-    needs: [package, pypi]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [package, image, pypi]
+    if: >-
+      !cancelled() &&
+      github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') &&
+      needs.pypi.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
       - name: Download distributions
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: iclayout-bench-release-${{ github.sha }}
           path: build/dist

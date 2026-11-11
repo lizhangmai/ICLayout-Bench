@@ -1,10 +1,12 @@
 name: Tools image
 
+# Publish main only after Framework checks pass for that exact pushed commit.
+# Release tags publish from the release workflow after its package checks.
 on:
-  push:
+  workflow_run:
+    workflows: [Framework checks]
+    types: [completed]
     branches: [main]
-    tags: ['v*.*.*']
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,64 +16,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  image:
-    if: vars.DOCKERHUB_IMAGE != ''
-    runs-on: ubuntu-24.04
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - name: Validate Docker build context
-        run: bash tests/integration/test_build_context.sh
-      - uses: docker/setup-buildx-action@v4
-      - name: Extract image metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ vars.DOCKERHUB_IMAGE }}
-          flavor: latest=false
-          tags: |
-            type=sha,format=long
-            type=ref,event=tag
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-      - name: Build candidate
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          target: tools
-          platforms: linux/amd64
-          load: true
-          tags: iclayout-eda-open:ci
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=tools
-          cache-to: type=gha,scope=tools,mode=max,ignore-error=true
-      - name: Check installed tools
-        run: |
-          docker run --rm --network none iclayout-eda-open:ci bash -euc '
-            test "$(id -u)" != 0
-            klayout -v
-            ngspice --version
-            magic --version
-            openvaf --version
-            for tool in xschem qucs-s qucsator qucsator_rf qucsconv; do
-              command -v "$tool"
-            done
-            python -I -c "import klayout.db, klayout_pex, gdsfactory, psutil, numpy, scipy, pandas, matplotlib.pyplot, shapely, sympy, networkx, PIL, yaml"
-          '
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Publish checked image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          target: tools
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          provenance: mode=min
-          sbom: true
+  publish:
+    if: >-
+      vars.DOCKERHUB_IMAGE != '' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    uses: ./.github/workflows/tools-image.yml
+    with:
+      ref: ${{ github.event.workflow_run.head_sha }}
+      update_latest: true
+    secrets:
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
