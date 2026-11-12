@@ -251,6 +251,11 @@ def test_deadline_does_not_require_stdout(harness, tmp_path):
 
 @pytest.mark.parametrize('code,message,category', [
     ('authentication_failed', 'Failed to authenticate. API Error: 401 fixture authentication', 'authentication'),
+    ('authentication_failed', 'Failed to authenticate. API Error: 403 fixture permission denied', 'authentication'),
+    ('authentication_failed', ('Failed to authenticate. API Error: 403 Subscription quota is insufficient or no '
+                               'subscription is configured: subscription quota insufficient, need=239392'),
+     'quota_exhausted'),
+    ('authentication_failed', 'Failed to authenticate. API Error: 403 You exceeded your current quota', 'quota_exhausted'),
     ('server_error', 'API Error: 529 fixture overloaded. This is a server-side issue, usually temporary', 'provider_overloaded'),
     ('server_error', 'API Error: 500 fixture internal error', 'unknown'),
     ('rate_limit', 'API Error: Request rejected (429) · fixture rate limit', 'rate_limit'),

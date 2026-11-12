@@ -427,6 +427,10 @@ the isolated invocation and rejects an empty declaration.
 Claude Code runs in `bypassPermissions` mode with its built-in tools disabled
 and only the declared MCP servers configured, so MCP calls need no approval.
 
+Claude Code reports provider HTTP 403 responses as authentication failures. A
+403 whose API error text says quota is insufficient, exhausted or exceeded counts
+as exhausted quota instead; other 403 responses remain authentication failures.
+
 DSH is the DeepSeek Harness `dsh` CLI, which boots plugin-bundle profiles; Bench
 runs its `headless` profile and requires headless `--json` and `--session-id`
 support (0.2.0-rc.2 or newer). DSH composes its native headless configuration

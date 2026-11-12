@@ -44,6 +44,9 @@ NATIVE_ENVIRONMENT = frozenset({
     'MAX_THINKING_TOKENS',
 })
 
+QUOTA_403 = re.compile(r'\bAPI Error: 403\b(?=.*\bquota\b)(?=.*\b(?:insufficient|exhausted|exceeded)\b)',
+                       re.IGNORECASE | re.DOTALL)
+
 
 def resolve(model, effort, env, *, home=None):
     path = Path(env.get("CLAUDE_CONFIG_DIR", str(Path.home() / ".claude"))) / "settings.json"
@@ -268,6 +271,10 @@ def harness_failure(output, exit_code=None, timed_out=False):
                         and isinstance(item.get('text'), str)
                         and re.match(r'^API Error: 529(?:\s|$)', item['text']) for item in content)):
             code = 'server_overloaded'
+        # Claude Code reports provider 403 responses as authentication failures,
+        # including gateways that answer exhausted quota with HTTP 403.
+        if native_code == 'authentication_failed' and QUOTA_403.search(text):
+            code = 'insufficient_quota'
         codes.append(code)
     # The result repeats the assistant error without a code. Preserve unknown
     # structured failures, but don't let that redundant marker hide HTTP 529.
