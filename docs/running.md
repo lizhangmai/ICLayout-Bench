@@ -399,6 +399,25 @@ An explicit Claude home uses its `settings.json` provider environment or key
 helper, or its native `.credentials.json`. Inherited Anthropic/Claude provider
 settings do not select a different authentication method.
 
+Proxy variables come from the launching process. To reach a provider directly
+while a proxy is set, list its hosts in the profile's `env.NO_PROXY`:
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://provider.example",
+    "ANTHROPIC_AUTH_TOKEN": "YOUR_TOKEN",
+    "NO_PROXY": "provider.example"
+  }
+}
+```
+
+Bench adds these hosts to the inherited `NO_PROXY`/`no_proxy` exceptions for
+the isolated invocation and rejects an empty declaration.
+
+Claude Code runs in `bypassPermissions` mode with its built-in tools disabled
+and only the declared MCP servers configured, so MCP calls need no approval.
+
 DSH is the DeepSeek Harness `dsh` CLI, which boots plugin-bundle profiles; Bench
 runs its `headless` profile and requires headless `--json` and `--session-id`
 support (0.2.0-rc.2 or newer). DSH composes its native headless configuration

@@ -356,6 +356,27 @@ def test_codex_loopback_telemetry_bypasses_inherited_model_proxy(tmp_path, provi
     assert not provider.get('proxied_telemetry')
 
 
+@pytest.mark.parametrize('declared', [False, True])
+def test_claude_profile_no_proxy_reaches_provider_directly(tmp_path, provider, declared):
+    provider.update(status=200)
+    context = native_context(tmp_path, 'claude-code', provider['url'])
+    profile = tmp_path / 'profile'; profile.mkdir()
+    settings = {'ANTHROPIC_API_KEY': 'fixture-provider-secret', 'ANTHROPIC_BASE_URL': provider['url'],
+                'API_TIMEOUT_MS': '5000'}
+    if declared:
+        settings['NO_PROXY'] = '127.0.0.1'
+    (profile / 'settings.json').write_text(json.dumps({'env': settings}))
+    # The provider also answers proxy-form requests, so the request target shows the route taken.
+    env = dict(context.selection.environment, HTTP_PROXY=provider['url'], HTTPS_PROXY=provider['url'],
+               ALL_PROXY=provider['url'], NO_PROXY='localhost', no_proxy='localhost')
+    selection = adapters.resolve('claude-code', 'claude-sonnet-4-6', 'medium', env, home=profile)
+    adapters.stage_credentials('claude-code', tmp_path / '.private', selection.environment, selection.settings)
+    context = LaunchContext(selection, context.mcp, context.directory, context.output, context.bridge, context.prompt)
+    assert launch(context) == (0, False)
+    assert provider['authenticated']
+    assert provider['request_path'].startswith('/') is declared
+
+
 @pytest.mark.parametrize('effort', ['high', 'max'])
 @pytest.mark.parametrize('credential_source', ['env', 'file'])
 def test_dsh_native_uses_explicit_effort_and_isolated_credentials(tmp_path, provider, effort, credential_source):

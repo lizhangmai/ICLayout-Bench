@@ -14,6 +14,7 @@ from benchmarking.participants.harnesses.contracts import (
     ParticipantSelection,
 )
 from benchmarking.participants.harnesses.registry import prepare as prepare_harness
+from benchmarking.participants.harnesses.registry import resolve as resolve_harness
 from benchmarking.participants.mcp import Bridge, dispatch
 
 pytestmark = pytest.mark.unit
@@ -415,7 +416,29 @@ class SelectionTests(unittest.TestCase):
                 self.assertEqual(overridden["effort_resolved"], "high")
                 args = prepare_harness_args(overridden, env, settings, Path("mcp.json"), Path(directory))
                 self.assertEqual(args[args.index("--effort") + 1], "high")
+                self.assertEqual(args[args.index("--permission-mode") + 1], "bypassPermissions")
             self.assertEqual(path.read_text(), original)
+
+    def test_claude_profile_no_proxy_extends_inherited_exceptions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            inherited = {"HTTPS_PROXY": "http://proxy.example:8080",
+                         "NO_PROXY": "localhost", "no_proxy": "internal.example"}
+
+            def select(declared):
+                (home / "settings.json").write_text(json.dumps(
+                    {"env": {"ANTHROPIC_AUTH_TOKEN": "test-secret", **declared}}))
+                return resolve_harness("claude-code", "claude-opus-5-5", "high", dict(inherited), home=home)
+
+            env = select({"NO_PROXY": "provider.example, gateway.example"}).environment
+            self.assertEqual(env["NO_PROXY"], env["no_proxy"])
+            self.assertEqual(set(env["NO_PROXY"].split(",")),
+                             {"localhost", "internal.example", "provider.example", "gateway.example"})
+            self.assertEqual(env["HTTPS_PROXY"], inherited["HTTPS_PROXY"])
+            self.assertEqual(select({}).environment["NO_PROXY"], inherited["NO_PROXY"])
+            for invalid in ("", " , ", 7):
+                with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                    select({"NO_PROXY": invalid})
 
     def test_codex_profile_defaults_and_explicit_override(self):
         with tempfile.TemporaryDirectory() as directory:

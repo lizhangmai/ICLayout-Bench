@@ -72,3 +72,21 @@ and preserve unrelated changes.
 Select checks by change scope and delivery stage from [CONTRIBUTING](CONTRIBUTING.md#verification).
 Check changed links and commands, and report actual validation scope and Git status.
 Verify affected repositories separately; commit only when authorized, with one repository per commit.
+
+## Branches and Pull Requests
+
+`main` accepts changes only through pull requests; direct pushes, force pushes and
+merge commits are rejected.
+
+1. Create a feature branch from the latest `origin/main` and commit there.
+2. Push the branch and open a pull request against `main` with `gh pr create`.
+3. Wait for the required checks `checks (3.12)`, `checks (3.13)` and `Build package`
+   (`gh pr checks --watch --required`). Fix failures and review comments with new
+   commits on the branch.
+4. Squash merge with `gh pr merge --squash --delete-branch`. Pass `--subject` and
+   `--body` in the repository commit style; the default body concatenates every
+   branch commit message.
+
+The squash commit is the only one `main` keeps: build distributions, tag releases
+and pin downstream consumers from that `main` commit. Pushing, opening a pull
+request and merging are authorized separately from committing.

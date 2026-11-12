@@ -54,6 +54,7 @@ def resolve(model, effort, env, *, home=None):
                 and not any(provider_env.get(key) for key in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"))):
             raise ValueError("Claude experiment home needs native credentials or configured API authentication")
     env.update(provider_env)
+    _add_proxy_exceptions(settings.get("env", {}), env)
     model = model or env.get("ANTHROPIC_MODEL") or settings.get("model")
     resolved_effort = effort
     source = "experiment" if effort is not None else "harness default (unresolved)"
@@ -87,6 +88,19 @@ def resolve(model, effort, env, *, home=None):
     return ParticipantSelection(condition, env, cli_settings)
 
 
+def _add_proxy_exceptions(declared, env):
+    """Add the profile's direct-connection hosts to the inherited proxy exceptions."""
+    values = [declared[key] for key in ("NO_PROXY", "no_proxy") if key in declared]
+    if not values:
+        return
+    if any(not isinstance(value, str) or not value.strip(" ,") for value in values):
+        raise ValueError("Claude settings NO_PROXY must list at least one host")
+    inherited = [env[key] for key in ("NO_PROXY", "no_proxy") if env.get(key)]
+    entries = dict.fromkeys(entry.strip() for value in inherited + values
+                            for entry in value.split(",") if entry.strip())
+    env.update(NO_PROXY=",".join(entries), no_proxy=",".join(entries))
+
+
 def prepare(context: LaunchContext) -> list[str]:
     condition = context.selection.condition
     env = context.selection.environment
@@ -114,7 +128,7 @@ def prepare(context: LaunchContext) -> list[str]:
             "mcp__" + name for name in dict.fromkeys(["layout", *settings.get("mcp_servers", {})])
         ),
         "--permission-mode",
-        "dontAsk",
+        "bypassPermissions",
         "--output-format",
         "stream-json",
         "--verbose",
