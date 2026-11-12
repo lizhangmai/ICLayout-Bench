@@ -323,11 +323,23 @@ effective startup are retained in evaluation evidence. The CPU budget bounds
 this backend's job/thread allocation, not all simultaneous sessions. Concurrent
 jobs may have explicit container memory limits; by default they are uncapped.
 Operators must also account for aggregate CPU and memory use across sessions.
+When a job supplies an explicit `startup` input, that native file is used unchanged;
+its thread selection belongs to the case and the backend's thread environment
+continues to bound the allocation.
 
 ##### Simulation inputs
 
 ngspice writes each input role as `<role>.spice` and uses `deck.spice` as its entry
-point. The declared testbench selects analyses and measurements:
+point. The optional `startup` role accepts native startup text, written unchanged
+as `.spiceinit` and selected through `SPICE_USERINIT_DIR`. It takes precedence over
+support initialization; model loading, compatibility, search paths and simulator
+thread settings must be declared by the case. Do not also set backend
+`compatibility` when supplying a startup file. The declared testbench selects
+analyses and measurements:
+
+Model files may come from shared PDK resources. Model sections, process corners
+and statistical switches are selected by the case's SPICE testbench or its
+declared model-entry input.
 
 | Job parameter | Purpose |
 | --- | --- |
@@ -421,75 +433,43 @@ Native network reduction can vary in low-level ordering, so byte-identical RC
 netlists are not guaranteed across tool versions or runs. Compare extracted
 results against the declared task measurements and tolerances.
 
-The supported RC interface has one declared port per conductor. A native
-topology check rejects multiple ports on one conductor: the installed Magic
-can otherwise duplicate the resistance network or bypass it with an alias
-resistor. A completed topology rejection is a candidate failure (`failed`) with
-zero score; its same-conductor reason is exposed in process feedback. Case-specific
-extraction warnings, models and calibration still require review against the
-selected contract.
+By default, the RC interface requires one declared port per conductor. A native
+topology check rejects aliases because repeated extraction can duplicate their
+resistance networks. `resistance_net_selection = "canonical"` instead selects
+only native `node`/`substrate` names from the `.ext` file with `extresist include`.
+This permits same-conductor ports while retaining the check against new resistor
+paths between originally distinct topology nets. Missing native gate, substrate,
+source/drain connections and orphaned nodes reject an incomplete extraction.
 
-#### Projected substrate and well sheets
+#### Native Magic external layout fixtures
 
-`substrate-sheet-docker` can bind to `layout.extract_substrate`. It accepts
-`layout`, the authoritative `netlist`, `constraints` and optional `task`, and
-exports a SPICE `netlist`. Require independent DRC, ordinary combined LVS and
-geometry gates before this extraction. Its additional native uncombined export
-preserves primitive MOS positions and parameters; that export's comparison is
-not a substitute for the independent LVS gate. Source devices never replace
-candidate devices.
+`magic-fixture-rc-docker` extracts a frozen candidate together with a separately
+declared external GDS fixture. It uses canonical native net selection. Inputs
+are `layout` and `fixture` GDS assets and `constraints` JSON; the output is one
+`netlist` SPICE asset. Independent DRC/LVS and geometry gates remain required
+for the candidate.
 
-The reviewed `support`/`profile` defines process layers, MOS body domains,
-contact/via sizes, sheet and cut resistances, and native extraction variables.
-`physical_support`/`physical_profile` selects the native LVS resource. The job's
-`fixture` defines domain-to-supply bindings, an `outline_constraint` identifying
-the existing bounding-box constraint, power-pin access windows, the fixed
-external return and numerical domain, four substrate excitation boxes, well
-boundary-band width, mesh steps, convergence tolerance and grid budget.
-Bounding-box registration removes translation only; it does not rescale or
-rotate a submission. Each supply requires one external power-pin label.
+Job parameters declare `top_cell`, ordered candidate `ports`, `fixture_top`,
+ordered `fixture_ports`, corresponding local `fixture_nets`, `outline_constraint`, and a SPICE identifier
+`fixture_flag`. Optional `excluded_layers` lists drawing-layer pairs outside
+the selected extraction scope. The alignment constraint must be a declared
+`bbox_max` constraint. The candidate's functional centre is translated to the
+origin on its native database grid. A native geometry comparison verifies the
+translation; reserved fixture-label or extraction-cell collisions, excluded drawing layers and
+fixture/candidate overlap reject the candidate. The supplied fixture is placed
+at its fixed coordinates. Its database unit must match the candidate.
 
-The native conductor database selects only actual supply-connected metal.
-Every primitive channel must map uniquely to the candidate's physical body
-domain. Manhattan material boundaries are discretized with harmonic half-cell
-face resistances; opposite-polarity domains have no galvanic connection.
-Same-polarity tap diffusion adds local parallel sheet conductance, with explicit
-contact/via cuts and finite supply metal. The resource and task must disclose
-the ideal vertical ohmic connection assumed by this projection.
-
-Four substrate footprints and four directional active-well boundary-strip
-unions form eight experiments. Unused wells do not dilute well excitation.
-The fixed testbench defines `lb_sheet_drive_0` through `lb_sheet_drive_7` as AC
-currents; all have zero DC injection. A reciprocal passive multiport is realized
-with native SPICE current sensors and CCVS elements, preserving nonlinear MOS
-body-current loading, all original model parameters and all non-body terminal
-connections. The result keeps the original named top-level interface.
-
-Retained evidence includes native geometry and SPICE, registration, primitive
-bindings, contact counts, every mesh's impedance matrix, reciprocity, KCL,
-return-current conservation, passivity and mesh convergence. Run source and
-candidate immunity simulations with the same fixture; ideal equipotential source
-bodies have zero disturbance. Declare and validate that source boundary.
-
-Each completed mesh is retained in `impedance.npz`, including when a subsequent
-solve fails. `audit.json` identifies the body and excitation ports, completed
-steps, the current step, conservation checks and each refinement's column-scaled
-errors. It distinguishes the full matrix from the body-response rows, body-loading
-block and excitation-to-body block, with the worst row/column and their impedance
-values. These additional diagnostics do not change the declared full-matrix
-convergence criterion.
-
-An exhausted mesh sequence returns an explicit `mesh_not_converged` numerical
-error with the measured change, tolerance and port names. Its matrices and audit
-remain available, while no qualified SPICE model is emitted. Candidate rejection
-remains `failed`; numerical uncertainty and tool crashes remain `error`, with
-their respective diagnostic evidence.
-
-This branch assumes ideal signal interconnect and projected ohmic silicon.
-It does not establish vertical/backside transport, depletion coupling, carrier
-collection, latch-up or silicon-calibrated isolation. Evaluate ordinary wire-RC
-performance in a separate declared branch. Coefficients, convergence, electrical
-loading and useful degraded-layout controls require author qualification.
+All devices and parasitic cards are emitted by Magic from that combined layout.
+The native combined layout is extracted under the reserved internal circuit name
+`LB_EXTERNAL_EXTRACTED`. The
+adapter appends a port-only wrapper under `top_cell`, binding candidate ports
+and the declared local `fixture_nets` to those existing native terminals, plus
+`.param <fixture_flag>=1`. The fixed simulation deck can then retain the same
+candidate interface as its ideal source anchor. It does not construct physical R/C models, patch native
+cards, or inject current at inferred body nodes. Evidence retains the supplied
+fixture, preparation report, combined GDS and unmodified native extraction.
+Physical coverage follows the selected technology and extraction model; adding
+an external fixture does not establish unmodeled well or substrate mechanisms.
 
 #### Magic and Netgen Physical Checks
 
@@ -532,12 +512,17 @@ these must agree with `task` when both are supplied.
 | DRC | Completed declared decks, required report categories and zero unwaived violations. |
 | LVS | Completed comparison against a nonempty trusted source, participation of the requested circuit and the declared named-port checks. |
 
-DRC/LVS read a JSON profile from the frozen support bundle, declaring `deck`,
-fixed `variables` and explanatory `scope`. DRC also declares `required_categories`;
+DRC/LVS settings declare the native `deck` path and fixed `variables`, passed
+unchanged as KLayout `-rd` arguments. DRC also declares `required_categories`;
 optional `additional_decks` entries each declare `deck` and `required_categories`
 with the same variables. Every deck runs independently. Any execution/report error
 takes precedence; otherwise the gate sums counts and fails if any deck fails.
 Required categories detect skipped groups rather than enumerating every rule.
+LVS may declare `layer_names` for geometry checks consuming its database.
+These settings can be shared in a [PDK backend declaration](#pdk-manifests).
+The existing `profile` setting reads a JSON resource containing the same settings;
+it cannot be combined with direct rule settings. Explanatory scope belongs in
+the task documentation and is not required by the native invocation.
 
 Per-deck `report.db`, `report-1.db`, logs and completion markers remain separate
 evidence with per-deck results. Reviewed case-local `parameters.waivers` select
@@ -1124,12 +1109,45 @@ to a new binding.
 
 `pdk.toml` is an index of reviewed process resources. Keep release identities,
 module and mount selections, environment settings, profile selection and file
-references in the manifest. Maintain JSON configuration, SPICE entries, native
+references in the manifest. Shared tool backends may declare native entry paths
+and command parameters as TOML tables. Maintain file-format JSON configuration, SPICE entries, native
 rules, program text and license/attribution text as separate files in
 `resources/` beside it, including content that could fit on one line. Reuse
 one file for identical content serving the same purpose. Existing vendor
 files remain in their pinned installation rather than being copied into this
 directory. Project resources must not contain task solutions or complete DUTs.
+
+`[backends.<name>]` uses the same `type`, `settings` and `support_profiles` tables
+as a case backend. A case selects one complete declaration:
+
+```toml
+# pdk.toml
+[backends.drc]
+type = "klayout-docker"
+support_profiles = { support = "physical" }
+[backends.drc.settings]
+image = "docker.io/lizhangmai/iclayout-bench-tools:latest"
+check = "drc"
+support = "physical"
+deck = "drc/gf180mcu.drc"
+required_categories = ["'M1.1'"]
+[backends.drc.settings.variables]
+variant = "D"
+decks = "all,-density"
+
+# case.toml
+[toolchain.backends.drc]
+from_pdk = "drc"
+```
+
+The deck path names a file declared by the selected support profile. Runtime
+preparation replaces `support` with that profile's prepared path; no build-output
+path is needed in the declaration. `from_pdk` is supported only for Dataset cases
+with their adjacent process manifest. It cannot be mixed with local fields or
+chained through another reference. Standalone toolchains continue to declare
+complete backends directly. Image and resource selections supplied by the runtime
+still apply after resolution. Native rule or program bodies are referenced as files,
+not embedded in TOML strings.
 
 | Declaration | Path base | Meaning |
 | --- | --- | --- |

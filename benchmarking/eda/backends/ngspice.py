@@ -52,10 +52,11 @@ def branch_resistors(asset: Asset) -> Asset:
 
 
 class NgspiceDocker:
-    """Each input role becomes <role>.spice; deck owns analyses and measurements.
+    """SPICE roles become <role>.spice; deck owns analyses and measurements.
 
-    Optional support is a verified snapshot of models, compiled libraries and
-    startup settings. It is supplied by tool configuration, independent of tasks.
+    A case's startup input becomes .spiceinit without rewriting. Optional support
+    supplies verified model files and compiled libraries; its startup is used
+    only when no case startup is supplied.
     """
 
     def __init__(self, *, image: str, timeout_seconds: float = 60, support: str | None = None,
@@ -111,8 +112,16 @@ class NgspiceDocker:
             if path == "ngspice.log":
                 raise ValueError("ngspice.log is reserved for evidence")
         files = {}
+        startup_input = inputs.get("startup")
+        if startup_input is not None:
+            if startup_input.format != "text":
+                raise ValueError("ngspice startup input must be native startup text")
+            if self.compatibility is not None:
+                raise ValueError("Declare compatibility in the supplied case startup file")
         for name, asset in inputs.items():
             identifier(name)
+            if name == "startup":
+                continue
             if name == "parameters" or asset.format != "spice":
                 raise ValueError("ngspice inputs must be SPICE; parameters is a reserved role")
             files[f"{name}.spice"] = asset
@@ -123,7 +132,7 @@ class NgspiceDocker:
             if re.search(r"(?im)^\s*\.?noise\b", inputs["deck"].content.decode("utf-8")):
                 raise ValueError("Branch resistor formulation does not support noise analysis")
             for name, asset in inputs.items():
-                if name == "deck":
+                if name in {"deck", "startup"}:
                     continue
                 effective = branch_resistors(asset)
                 if effective != asset:
@@ -134,14 +143,17 @@ class NgspiceDocker:
             files.update(self.support.mounted_files())
             evidence.update(self.support.evidence())
             environment["SPICE_USERINIT_DIR"] = "/workspace/support"
-        startup_path = "support/.spiceinit" if self.support else ".spiceinit"
-        startup = files.get(startup_path, Asset(b"", "text"))
-        settings = f"\nset num_threads={self.threads}\n"
-        if self.compatibility:
-            settings += f"set ngbehavior={self.compatibility}\n"
-        startup = Asset(startup.content + settings.encode(), "text")
+        startup_path = ".spiceinit" if startup_input is not None or not self.support else "support/.spiceinit"
+        if startup_input is not None:
+            startup = startup_input
+        else:
+            startup = files.get(startup_path, Asset(b"", "text"))
+            settings = f"\nset num_threads={self.threads}\n"
+            if self.compatibility:
+                settings += f"set ngbehavior={self.compatibility}\n"
+            startup = Asset(startup.content + settings.encode(), "text")
         files[startup_path] = startup
-        environment["SPICE_USERINIT_DIR"] = "/workspace/support" if self.support else "/workspace"
+        environment["SPICE_USERINIT_DIR"] = "/workspace" if startup_path == ".spiceinit" else "/workspace/support"
         evidence["effective_startup"] = startup
         requested = {"ngspice.log": "text", **{path: dict(job.outputs)[name] for name, path in exports.items()}}
         result = self.tool.run(["ngspice", "-b", "-o", "ngspice.log", "deck.spice"],

@@ -38,7 +38,7 @@ def load_profile(spec: str) -> Asset:
         raise ValueError(f"Support profile must name a manifest profile: {spec}#<name>")
     path = Path(path).absolute()
     manifest = tomllib.loads(read_file(path.parent, path.name).decode())
-    keys(manifest, {"source", "profiles"}, {"agent", "notices"}, "support manifest")
+    keys(manifest, {"source", "profiles"}, {"agent", "notices", "backends"}, "support manifest")
     if name not in manifest["profiles"]:
         raise ValueError(f"Unknown support profile: {name}")
     profile = manifest["profiles"][name]

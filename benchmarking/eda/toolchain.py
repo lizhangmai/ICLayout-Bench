@@ -59,7 +59,23 @@ def load_toolchain_spec(config: Path, *, require_declared=False) -> ToolchainSpe
     if not isinstance(data["backends"], dict) or not isinstance(data["bindings"], dict):
         raise TypeError("Toolchain backends and bindings must be tables")
     backends = {}
+    shared = None
     for name, entry in data["backends"].items():
+        if isinstance(entry, dict) and "from_pdk" in entry:
+            keys(entry, {"from_pdk"}, set(), f"backend {name}")
+            selected = identifier(entry["from_pdk"])
+            if not embedded:
+                raise ValueError("from_pdk requires an embedded Dataset case toolchain")
+            if shared is None:
+                from benchmarking.tasks.dataset import process_manifest
+
+                manifest = process_manifest(path)
+                shared = tomllib.loads(read_file(manifest.parent, manifest.name).decode()).get("backends", {})
+                if not isinstance(shared, dict):
+                    raise TypeError("PDK backends must be a table")
+            if selected not in shared:
+                raise ValueError(f"Unknown PDK backend: {selected}")
+            entry = shared[selected]
         keys(entry, {"type", "settings"}, {"support_profiles"}, f"backend {name}")
         text(entry["type"], "backend type")
         if not isinstance(entry["settings"], dict):
@@ -101,7 +117,7 @@ _BUILTINS = {
     "magic-physical-docker": ("magic_checks", "MagicPhysicalDocker"),
     "magic-capacitance-docker": ("magic", "MagicCapacitanceDocker"),
     "magic-rc-docker": ("magic", "MagicRCDocker"),
-    "substrate-sheet-docker": ("substrate", "SubstrateSheetDocker"),
+    "magic-fixture-rc-docker": ("magic_fixture", "MagicFixtureRCDocker"),
     "sg13g2-hbt-rc-docker": ("hbt.backend", "SG13G2HBTRCDocker"),
     "klayout-docker": ("klayout", "KLayoutDocker"),
     "kpex-cc-docker": ("kpex", "KpexCCDocker"),

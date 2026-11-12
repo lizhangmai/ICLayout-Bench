@@ -11,6 +11,7 @@ pytestmark = pytest.mark.unit
 @pytest.mark.parametrize('settings,error', [
     ({'grid_subdivision': 0}, ValueError),
     ({'label_layers': [[11, 65536]]}, ValueError),
+    ({'resistance_net_selection': 'canonical'}, ValueError),
 ])
 def test_malformed_preprocessing_settings_fail_before_bundle_or_docker_access(settings, error):
     with pytest.raises(error):
@@ -20,6 +21,8 @@ def test_malformed_preprocessing_settings_fail_before_bundle_or_docker_access(se
 
 @pytest.mark.parametrize('log,status', [
     ('Warning: Orphaned node "internal" arbitrarily attached to "internal.t1"', 'failed'),
+    ('Missing substrate connection of device at (0 0) on net body', 'failed'),
+    ('Missing drain connection of device at (0 0)', 'failed'),
     ('Error while reading cell "error_amplifier": Unknown layer/datatype', 'error'),
     ('2 errors found during extraction', 'error'),
     ('Warning: Orphaned node "internal" arbitrarily attached to "internal.t1"\nUnknown layer/datatype', 'error'),

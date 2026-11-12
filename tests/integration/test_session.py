@@ -464,11 +464,11 @@ def test_declared_pdks_are_usable_in_agent_container(tmp_path, manifest):
     runtime = load_case(cases[0], image=IMAGE)
     bundle = runtime.agent
     # Case metadata, rather than a process-wide wish list, owns runtime profiles.
-    from benchmarking.eda.toolchain import support_bindings
+    from benchmarking.eda.toolchain import load_toolchain_spec
 
     declaration = tomllib.loads(manifest.read_text())
-    backends = tomllib.loads(cases[0].read_text())["toolchain"]["backends"]
-    required = {profile for name, backend in backends.items() for _, profile in support_bindings(name, backend)}
+    backends = load_toolchain_spec(cases[0], require_declared=True).backends
+    required = {profile for backend in backends.values() for _, profile in backend.support_profiles}
     assert {name.split("/")[1] for name, _ in bundle.files if name.startswith("support/")} == required
     assert not any("/verilog-a/" in name or "/compilation/" in name for name, _ in bundle.files)
 

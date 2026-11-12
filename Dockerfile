@@ -16,9 +16,9 @@ RUN test "$(dpkg --print-architecture)" = amd64 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl --fail --show-error --silent --location --retry 3 --retry-all-errors --connect-timeout 20 \
-        https://www.klayout.org/downloads/Ubuntu-24/klayout_0.30.11-1_amd64.deb \
+        https://www.klayout.org/downloads/Ubuntu-24/klayout_0.30.13-1_amd64.deb \
         --output /tmp/klayout.deb \
-    && echo '772eb2c597dc8ec054800841246fcbf6f3440581caee53663dc93afd135027b3  /tmp/klayout.deb' | sha256sum --check \
+    && echo '0bb6b913fd6a32581d50b08be744b522a2a477baa1ed7e253c97cc18ce248a24  /tmp/klayout.deb' | sha256sum --check \
     && apt-get update \
     && apt-get install -y --no-install-recommends /tmp/klayout.deb \
     && rm /tmp/klayout.deb \

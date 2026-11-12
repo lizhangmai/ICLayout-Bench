@@ -32,7 +32,12 @@ class MagicCapacitanceDocker:
     def __init__(self, *, image: str, support: str, technology: str, tech_name: str,
                  style: str, capacitance_threshold_ff: float = 0, timeout_seconds: float = 60,
                  gds_readonly: bool = True, label_layers: list[list[int]] | None = None,
-                 case_insensitive_ports: bool = False, grid_subdivision: int = 1):
+                 case_insensitive_ports: bool = False, grid_subdivision: int = 1,
+                 resistance_net_selection: str = "all"):
+        if resistance_net_selection not in {"all", "canonical"} or (
+                not self.wire_resistance and resistance_net_selection != "all"):
+            raise ValueError("Invalid Magic resistance net selection")
+        self.resistance_net_selection = resistance_net_selection
         if type(grid_subdivision) is not int or grid_subdivision < 1:
             raise ValueError("Magic grid subdivision must be a positive integer")
         self.grid_subdivision = grid_subdivision
@@ -75,7 +80,8 @@ class MagicCapacitanceDocker:
                 "grid_subdivision": self.grid_subdivision,
                 **({"flatten": True, "resistance_threshold_mohm": 0, "minimum_resistance_mohm": 0,
                     "minimum_delay_ps": 0, "simplify_resistance": False, "merge_devices": "none",
-                    "same_conductor_ports": "rejected"}
+                    "same_conductor_ports": "native_canonical" if self.resistance_net_selection == "canonical" else "rejected",
+                    "resistance_net_selection": self.resistance_net_selection}
                    if self.wire_resistance else {})}
 
     def _check_diagnostics(self, log: str, files: dict[str, Asset]) -> tuple[str, str, dict[str, Asset]]:
@@ -90,7 +96,7 @@ class MagicCapacitanceDocker:
             '', log, flags=re.MULTILINE,
         )
         rejected = [line for line in log.splitlines()
-                    if re.search(r"missing gate connection|orphaned node", line, re.IGNORECASE)]
+                    if re.search(r"missing (?:gate|substrate|source|drain) connection|orphaned node", line, re.IGNORECASE)]
         remaining = "\n".join(line for line in log.splitlines() if line not in rejected)
         if re.search(r"\berrors?\b|unrecognized|unknown layer|unmapped|not found|couldn't|cannot|"
                      r"extraction style .* ambiguous", remaining, re.IGNORECASE):
@@ -146,7 +152,12 @@ class MagicCapacitanceDocker:
                "ext2spice short resistor", "ext2spice extresist off", "ext2spice cthresh infinite",
                "ext2spice -o topology.spice"] if self.wire_resistance else []),
             *(["extresist threshold 0", "extresist minres 0", "extresist mindelay 0",
-               "extresist simplify off", "extresist all"] if self.wire_resistance else []),
+               "extresist simplify off",
+               *([f"set f [open {_tcl_word(top + '.ext')} r]", "set data [read $f]", "close $f",
+                  "extresist include all",
+                  'foreach line [split $data "\\n"] {if {[regexp {^(node|substrate) "([^"]+)"} $line match kind name]} {extresist include $name}}']
+                 if self.resistance_net_selection == "canonical" else []),
+               "extresist all"] if self.wire_resistance else []),
             "ext2spice default", "ext2spice format ngspice", "ext2spice scale off",
             "ext2spice hierarchy off", "ext2spice subcircuit top on", "ext2spice global off",
             *(["ext2spice merge none", "ext2spice short none", "ext2spice extresist on"]
@@ -179,7 +190,8 @@ class MagicCapacitanceDocker:
             files["extraction.gds"] = prepared.files["extraction.gds"]
         files["magic_netlist.py"] = Asset(package_source("eda/_scripts/magic_netlist.py").read_bytes(), "python")
         files["interface.json"] = Asset(json.dumps({"top_cell": top, "ports": [aliases.get(p, p) for p in ports],
-                                                   "reject_aliased_ports": self.wire_resistance}).encode(), "json")
+                                                   "reject_aliased_ports": self.wire_resistance,
+                                                   "allow_aliased_ports": self.resistance_net_selection == "canonical"}).encode(), "json")
         result = self.tool.run(["python", "magic_netlist.py"], files,
                                {"extracted.spice": "spice", "complete.txt": "text", "interface-check.json": "json",
                                 **({"extraction.ext": "magic-ext", "resistance.ext": "magic-ext",

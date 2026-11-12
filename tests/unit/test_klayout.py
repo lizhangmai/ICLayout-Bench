@@ -5,9 +5,42 @@ from types import SimpleNamespace
 
 import pytest
 
-from benchmarking.eda.backends.klayout import validate_drc_waivers
+from benchmarking.eda.backends.klayout import KLayoutDocker, validate_drc_waivers
+from benchmarking.files import Asset
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.fixture
+def native_support(monkeypatch):
+    from benchmarking.eda.backends import klayout
+
+    support = SimpleNamespace(files=(('rules.drc', Asset(b'# native rules\n', 'text')),
+                                     ('rules.lvs', Asset(b'# native rules\n', 'text'))))
+    monkeypatch.setattr(klayout, 'load_bundle', lambda path: support)
+    monkeypatch.setattr(klayout, 'DockerTool', lambda *args: SimpleNamespace(identity={}))
+    return support
+
+
+def test_native_rule_settings_need_no_json_resource(native_support):
+    backend = KLayoutDocker(image='tools', check='drc', support='prepared', deck='rules.drc',
+                            variables={'variant': 'D'}, required_categories=['width'])
+    assert backend.settings['deck'] == 'rules.drc'
+    assert backend.settings['variables'] == {'variant': 'D'}
+    assert backend.settings['required_categories'] == ['width']
+
+
+@pytest.mark.parametrize('settings,match', [
+    ({'deck': '../rules.drc', 'required_categories': ['width']}, 'relative'),
+    ({'deck': 'missing.drc', 'required_categories': ['width']}, 'Missing'),
+    ({'deck': 'rules.drc', 'required_categories': []}, 'unique report category'),
+    ({'deck': 'rules.drc', 'required_categories': ['width'],
+      'variables': {'input': 'candidate.gds'}}, 'reserved'),
+    ({'deck': 'rules.drc', 'profile': 'drc.json'}, 'cannot mix'),
+])
+def test_direct_rule_settings_preserve_validation(native_support, settings, match):
+    with pytest.raises(ValueError, match=match):
+        KLayoutDocker(image='tools', check='drc', support='prepared', **settings)
 
 
 def test_drc_waiver_schema_keeps_case_local_marker_scope():

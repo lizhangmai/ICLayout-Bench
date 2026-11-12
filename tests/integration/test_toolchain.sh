@@ -47,6 +47,9 @@ print('Python KLayout', pya.__version__)
 PY
 printf '%s\n' 'puts "Embedded Ruby #{RUBY_VERSION}"' > /tmp/runtime.rb
 klayout -b -r /tmp/runtime.rb
+kpex --version
+kpex extract --help > /dev/null
+netlist --help > /dev/null
 xschem --version
 ngspice --version
 python - <<'PY'

@@ -52,30 +52,43 @@ def validate_drc_waivers(value: object) -> list[dict]:
 class KLayoutDocker:
     """Check one concern. Technology settings live in a reviewed support bundle.
 
-    The profile selects a deck and fixed -rd variables, not arbitrary commands.
+    Settings select a native deck and fixed -rd variables, not arbitrary commands.
     The task supplies only its top cell, authoritative netlist and size limit.
     DRC jobs may add exact, case-local marker waivers; they never alter the deck.
     """
 
     def __init__(self, *, image: str, check: str, support: str | None = None,
-                 profile: str | None = None, timeout_seconds: float = 120):
+                 deck: str | None = None, variables: dict | None = None,
+                 required_categories: list | None = None, layer_names: dict | None = None,
+                 additional_decks: list | None = None, profile: str | None = None,
+                 timeout_seconds: float = 120):
         if check not in {"artifact", "drc", "lvs"}:
             raise ValueError("Unknown KLayout check")
         self.check = check
         self.support = load_bundle(Path(support)) if support else None
         self.settings = {}
+        direct = {name: value for name, value in {
+            "deck": deck, "variables": variables, "required_categories": required_categories,
+            "layer_names": layer_names, "additional_decks": additional_decks,
+        }.items() if value is not None}
         if check == "artifact":
-            if support is not None or profile is not None:
+            if support is not None or profile is not None or direct:
                 raise ValueError("Artifact checks do not use technology support")
         else:
             if self.support is None:
                 raise ValueError("DRC/LVS requires a reviewed support bundle")
-            profile = relative(profile, "KLayout check profile")
-            self.settings = json.loads(dict(self.support.files)[profile].content)
-            required = {"deck", "variables", "scope"}
+            if profile is not None:
+                if direct:
+                    raise ValueError("KLayout checks cannot mix a JSON profile with direct rule settings")
+                profile = relative(profile, "KLayout check profile")
+                self.settings = json.loads(dict(self.support.files)[profile].content)
+            else:
+                self.settings = {"variables": {}, **direct}
+            required = {"deck", "variables"}
             if check == "drc":
                 required.add("required_categories")
-            keys(self.settings, required, {"layer_names"} if check == "lvs" else {"additional_decks"}, "KLayout check profile")
+            optional = {"scope", "layer_names"} if check == "lvs" else {"scope", "additional_decks"}
+            keys(self.settings, required, optional, "KLayout rule settings")
             for name, variable in self.settings.get("layer_names", {}).items():
                 if not re.fullmatch(r"[a-z][a-z0-9_]*", name) or not re.fullmatch(r"[a-z][a-z0-9_]*", variable):
                     raise ValueError("LVS layer names must be simple identifiers")
@@ -83,7 +96,8 @@ class KLayoutDocker:
             if (deck not in dict(self.support.files) or not deck.endswith("." + check)
                     or not re.fullmatch(r"[A-Za-z0-9_./-]+", deck)):
                 raise ValueError("Missing or incorrectly typed KLayout deck")
-            text(self.settings["scope"], "check scope")
+            if "scope" in self.settings:
+                text(self.settings["scope"], "check scope")
             variables = self.settings["variables"]
             if not isinstance(variables, dict):
                 raise TypeError("KLayout variables must be a mapping")

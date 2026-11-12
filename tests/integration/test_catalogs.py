@@ -166,9 +166,11 @@ def _check_case_interfaces(config, data, task):
             assert declared is not None and len(declared) == len(ports), (config, item.role)
         elif declared is not None:
             assert declared == ports, (config, item.role)
-    for backend in data["toolchain"]["backends"].values():
-        for setting, profile in backend.get("support_profiles", {}).items():
-            assert setting in backend["settings"], (config, setting)
+    from benchmarking.eda.toolchain import load_toolchain_spec
+
+    for backend in load_toolchain_spec(config, require_declared=True).backends.values():
+        for setting, profile in backend.support_profiles:
+            assert setting in backend.settings, (config, setting)
             load_profile(f"{process_manifest(config)}#{profile}")
 
 
