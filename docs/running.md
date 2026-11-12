@@ -142,6 +142,15 @@ explicit `tasks` list filters the selection and sets dispatch order. Every ID
 must belong to the selected rows. Dataset loading snapshots declared inputs in
 memory and never creates a prepared case or edits the source contract.
 
+A repository ID records the resolved snapshot commit. A local directory records
+the `HEAD` commit only when the directory is the top level of its own Git
+repository; a directory inside another repository, or outside Git, records a
+null commit. Each case also records the digests of its index row, `case.toml`,
+declared inputs, PDK manifest and every file that manifest references.
+Continuation and replacement compare local Datasets by these digests, so a
+commit elsewhere in an enclosing repository does not block them, while a
+changed case, input or PDK file does.
+
 `--dataset`, `--revision` and `--offline` override configured source settings
 before row selection. `--dataset` retains the configured `name`, `split` and task
 subset. HF owns downloaded snapshots and authentication; Bench separately owns
@@ -875,8 +884,9 @@ that call preserve its original key and body. Request/result evidence remains in
 the tool journal, including requests whose outcome could not be observed.
 The service continues to enforce execution concurrency, paths and budgets.
 
-Continuation validates resolved conditions, framework release, Dataset inputs,
-CLI version, native storage and frozen launch settings. Repetitions
+Continuation validates resolved conditions, framework release, Dataset inputs
+([by content](#static-dataset-inputs) for local directories), CLI version,
+native storage and frozen launch settings. Repetitions
 remain independent solves; continuation is another launch inside the same attempt.
 All waits, human repair and downtime consume the original deadline.
 

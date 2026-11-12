@@ -1,6 +1,8 @@
 """Explicit replacement of unfinished cases, preserving their original evidence."""
 
+import copy
 import json
+from pathlib import Path
 from uuid import uuid4
 
 from benchmarking.client import Client
@@ -11,23 +13,49 @@ from benchmarking.participants.attempt.state import ParticipantAttempt
 from benchmarking.participants.attempt.storage import CaseRecord
 
 
+def content_identity(identity):
+    """Match local Datasets by recorded digests; their Git commit is provenance only.
+
+    Repository-ID sources keep their snapshot commit, which addresses content.
+    """
+    result = copy.deepcopy(identity)
+    plan = result.get('plan') if isinstance(result.get('plan'), list) else []
+    inputs = result.get('inputs') if isinstance(result.get('inputs'), dict) else {}
+    for entry in [row.get('dataset') for row in plan if isinstance(row, dict)] + [
+            item.get('dataset') for item in inputs.values() if isinstance(item, dict)]:
+        if isinstance(entry, dict) and isinstance(entry.get('source'), str) and Path(entry['source']).is_absolute():
+            entry.pop('commit', None)
+    return result
+
+
 def comparable(identity):
     """A repair may change runner/CLI/recovery versions, never solve conditions."""
+    identity = content_identity(identity)
     result = {k: v for k, v in identity.items() if k not in {'benchmark', 'cli_version', 'plan'}}
     result['plan'] = [{k: v for k, v in row.items() if k not in {'recovery', 'name'}}
                       for row in identity['plan']]
     return result
 
 
+def same_solve_conditions(recorded, current):
+    """Records from releases without PDK file digests compare on the content they recorded."""
+    recorded, current = comparable(recorded), comparable(current)
+    inputs = current.get('inputs') if isinstance(current.get('inputs'), dict) else {}
+    for task, entry in (recorded.get('inputs') if isinstance(recorded.get('inputs'), dict) else {}).items():
+        if isinstance(entry, dict) and 'pdk_files_sha256' not in entry and isinstance(inputs.get(task), dict):
+            inputs[task].pop('pdk_files_sha256', None)
+    return recorded == current
+
+
 def validate_replacement(root, identity):
     journal = root / '.replacement.json'
     transaction = json.loads(journal.read_text()) if journal.exists() else None
     record = transaction['previous'] if transaction else CaseRecord(root).read()
-    if transaction and transaction['identity'] != identity:
+    if transaction and content_identity(transaction['identity']) != content_identity(identity):
         raise ValueError('Interrupted replacement requires its recorded target conditions: ' + str(root))
     if record['state'] not in {'pending', 'blocked', 'suspended'}:
         raise ValueError('Replacement requires a pending, blocked or suspended case; collect other states first: ' + str(root))
-    if comparable(record['identity']) != comparable(identity):
+    if not same_solve_conditions(record['identity'], identity):
         raise ValueError('Replacement cannot change model, effort, inputs, image, endpoint or repetitions: ' + str(root))
     terminal = root / '.runtime/summary.json'
     if not transaction and terminal.exists() and json.loads(terminal.read_text()).get('state') == 'finished':

@@ -1,5 +1,6 @@
 """Native runner lifecycle tests use subprocess fixtures, never a model provider."""
 import copy
+import hashlib
 import json
 import tempfile
 import unittest
@@ -1030,6 +1031,36 @@ def test_replacement_rejects_changed_solve_conditions(tmp_path, changed):
     assert json.loads((tmp_path / 'result.json').read_text()) == record
 
 
+@pytest.mark.parametrize('source,change,accepted', [
+    ('/datasets/public', 'commit', True),
+    ('/datasets/public', 'pdk_files', False),
+    ('fixture/dataset', 'commit', False),
+])
+def test_replacement_compares_local_datasets_by_content(tmp_path, source, change, accepted):
+    from benchmarking.files import write_json as save
+    from benchmarking.participants.batch.replacement import validate_replacement
+
+    def identity(commit, pdk_files=None):
+        dataset = {'source': source, 'commit': commit}
+        entry = {'dataset': dataset, 'case_sha256': 'case', 'pdk_sha256': 'manifest'}
+        if pdk_files is not None:
+            entry['pdk_files_sha256'] = pdk_files
+        return {'benchmark': {'commit': 'old'}, 'cli_version': 'old', 'endpoint': None, 'image': 'image-id',
+                'inputs': {'case': entry},
+                'plan': [{'model': 'fixture', 'effort': 'high', 'repetitions': 1, 'tasks': ['case'],
+                          'dataset': {**dataset, 'index_sha256': 'index'}}]}
+
+    # Earlier releases recorded an enclosing repository commit and no PDK file digests.
+    recorded = identity('a' * 40) if change == 'commit' else identity('a' * 40, {'resources/smoke.py': 'old'})
+    save(tmp_path / 'result.json', {'identity': recorded, 'state': 'suspended'})
+    current = identity(None if source.startswith('/') else 'b' * 40, {'resources/smoke.py': 'new'})
+    if accepted:
+        assert validate_replacement(tmp_path, current)['identity'] == current
+    else:
+        with pytest.raises(ValueError, match='cannot change'):
+            validate_replacement(tmp_path, current)
+
+
 @pytest.mark.parametrize('fault', ['move', 'record', 'commit'])
 def test_interrupted_replacement_preserves_evidence_and_completes_same_transaction(tmp_path, monkeypatch, fault):
     from benchmarking.files import write_json as save
@@ -1704,6 +1735,56 @@ def test_new_runs_preserve_task_history_and_reuse_only_the_latest(tmp_path, monk
         main(explicit + ['--resume'])
     assert len(calls) == 2
     assert original == {p.relative_to(first): p.read_bytes() for p in first.rglob('*') if p.is_file()}
+
+
+def test_local_dataset_continuation_compares_content_not_enclosing_commits(tmp_path, monkeypatch):
+    import subprocess
+
+    from benchmarking.run import main
+
+    def git(*args):
+        subprocess.run(['git', '-C', str(workspace), '-c', 'user.name=Synthetic', '-c',
+                        'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', *args],
+                       check=True, capture_output=True)
+
+    workspace = tmp_path / 'workspace'
+    dataset = write_dataset(workspace / 'dataset', ['case'])
+    resource = dataset / 'tasks/case/resources/smoke.py'
+    resource.parent.mkdir()
+    resource.write_text('print("smoke")\n')
+    (dataset / 'tasks/case/pdk.toml').write_text(
+        'id="fixture"\n[agent.local_files."checks/smoke.py"]\npath="resources/smoke.py"\n')
+    git('init', '-q')
+    git('add', '.')
+    git('commit', '-qm', 'Workspace with a Dataset export')
+    config = tmp_path / 'trial.toml'
+    config.write_text('harness="codex"\nmodel="fixture"\neffort="medium"\ntasks=["case"]\n'
+                      'concurrency=1\nrepetitions=1\n')
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv('ICLAYOUT_BENCH_ENDPOINT', raising=False)
+    monkeypatch.setattr('benchmarking.participants.batch.plan.harness_version', lambda _: ('1.2.3', 'codex-cli 1.2.3'))
+    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({}, {}, {}))
+    monkeypatch.setattr('benchmarking.participants.attempt.service.service', lambda *args: nullcontext(None))
+    calls = []
+    def run(access, row, output, selection):
+        calls.append(row['task'])
+        return terminal_files(output, 'pass')
+    monkeypatch.setattr('benchmarking.participants.attempt.runner.run_one', run)
+    root = tmp_path / 'results/trial'
+    args = ['--config', str(config), '--dataset', str(dataset), '--output', str(root)]
+    assert main(args) == 0
+    recorded = json.loads((case_run(root, 'case') / 'result.json').read_text())['identity']
+    assert recorded['inputs']['case']['dataset']['commit'] is None
+    assert recorded['inputs']['case']['pdk_files_sha256'] == {
+        'resources/smoke.py': hashlib.sha256(resource.read_bytes()).hexdigest()}
+    (workspace / 'notes.md').write_text('unrelated\n')
+    git('add', 'notes.md')
+    git('commit', '-qm', 'Unrelated workspace change')
+    assert main(args) == 0
+    resource.write_text('print("changed")\n')
+    with pytest.raises(SystemExit):
+        main(args)
+    assert calls == ['case']
 
 
 def test_append_cases_skips_original_and_runs_new_cases_concurrently(tmp_path, monkeypatch, capsys):

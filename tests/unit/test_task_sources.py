@@ -148,3 +148,29 @@ def test_core_order_rejects_ambiguous_or_invalid_positions(orders):
             for name, order in zip(("example", "zebra"), orders, strict=True)]
     with pytest.raises(ValueError, match="core_order"):
         select_core(rows)
+
+
+def test_local_dataset_records_only_its_own_repository_commit(tmp_path):
+    import subprocess
+
+    from benchmarking.tasks.dataset import load_dataset
+
+    def git(root, *args):
+        return subprocess.run(["git", "-C", str(root), "-c", "user.name=Synthetic", "-c",
+                               "user.email=test@example.invalid", "-c", "commit.gpgsign=false", *args],
+                              check=True, capture_output=True, text=True).stdout.strip()
+
+    workspace = tmp_path / "workspace"
+    dataset = workspace / "datasets/public"
+    (dataset / "tasks").mkdir(parents=True)
+    git(workspace, "init", "-q")
+    (workspace / "notes.md").write_text("unrelated\n")
+    git(workspace, "add", ".")
+    git(workspace, "commit", "-qm", "Enclosing repository")
+    assert load_dataset(str(dataset)).identity == {"source": str(dataset.resolve()), "commit": None}
+
+    git(dataset, "init", "-q")
+    (dataset / "README.md").write_text("Dataset\n")
+    git(dataset, "add", ".")
+    git(dataset, "commit", "-qm", "Dataset repository")
+    assert load_dataset(str(dataset)).identity["commit"] == git(dataset, "rev-parse", "HEAD")

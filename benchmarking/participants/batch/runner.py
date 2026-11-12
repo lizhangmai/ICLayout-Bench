@@ -24,6 +24,7 @@ from benchmarking.participants.batch import coordinator as scheduler
 from benchmarking.participants.batch import worker
 from benchmarking.participants.batch.config import frozen_pricing
 from benchmarking.participants.batch.replacement import (
+    content_identity,
     lease_replacement,
     replace_unfinished,
     validate_replacement,
@@ -117,7 +118,7 @@ def _execute_condition(options, row, selection, output, identity, blocked, coord
                     if options.replace_unfinished:
                         replacements.append((slot, validate_replacement(slot, current)))
                         lease_replacement(slot, store_leases)
-                    elif recorded != current:
+                    elif content_identity(recorded) != content_identity(current):
                         raise ValueError("Case configuration, benchmark version or endpoint changed: " + task)
                     if finished:
                         verify(slot, data)

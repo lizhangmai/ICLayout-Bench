@@ -145,10 +145,13 @@ def load_dataset(source=None, *, revision=None, local_files_only=False, include_
         if revision is not None:
             raise ValueError("Local Dataset directories select their current files; omit revision")
         root = local.resolve()
-        result = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"],
+        # Only the Dataset's own repository identifies its files; an enclosing
+        # repository's commit says nothing about an ignored or exported copy.
+        result = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel", "HEAD"],
                                 capture_output=True, text=True, check=False)
-        commit = result.stdout.strip() if result.returncode == 0 else None
-        return Dataset(root, {"source": str(root), "commit": commit})
+        lines = result.stdout.splitlines()
+        own = result.returncode == 0 and len(lines) == 2 and Path(lines[0]).resolve() == root
+        return Dataset(root, {"source": str(root), "commit": lines[1] if own else None})
     from huggingface_hub import snapshot_download
 
     root = Path(snapshot_download(

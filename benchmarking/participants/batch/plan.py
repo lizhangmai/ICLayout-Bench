@@ -1,11 +1,13 @@
 """Resolve experiment conditions and immutable local execution inputs."""
 
+import tomllib
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from benchmarking.eda.resources.support import manifest_local_paths
 from benchmarking.execution.workspace.docker import DockerSession
-from benchmarking.files import Asset, relative
+from benchmarking.files import Asset, read_file, relative
 from benchmarking.participants.attempt.storage import CaseRecord, case_lease_root
 from benchmarking.participants.batch import runner as batch
 from benchmarking.participants.batch.config import (
@@ -188,6 +190,7 @@ def prepare_batch(request: ExperimentRequest, experiment: ExperimentPlan, *, cas
                 "benchmark": package_version()}
     dataset_paths = {}
     cases = {}
+    manifests = {}
     if not request.endpoint:
         identity["inputs"] = {}
     for condition in conditions:
@@ -221,8 +224,14 @@ def prepare_batch(request: ExperimentRequest, experiment: ExperimentPlan, *, cas
             if name in cases and cases[name] != selection:
                 raise ValueError(f"Conflicting datasets for case: {name}")
             cases[name] = selection
+            manifest = process_manifest(config)
+            if manifest not in manifests:
+                raw = manifest.read_bytes()
+                manifests[manifest] = (Asset(raw, "toml").sha256, {
+                    path: Asset(read_file(manifest.parent, path), "binary").sha256
+                    for path in manifest_local_paths(tomllib.loads(raw.decode("utf-8")))})
             identity["inputs"][name] = {"dataset": dataset.identity, "case_sha256": task.digest,
-                "pdk_sha256": Asset((process_manifest(config)).read_bytes(), "toml").sha256,
+                "pdk_sha256": manifests[manifest][0], "pdk_files_sha256": manifests[manifest][1],
                 "inputs": {key: value.sha256 for key, value in task.input_assets().items()}}
     selected = {task for c in conditions for task in c.row["tasks"]}
     if case_paths is None:
