@@ -20,6 +20,25 @@ def _tcl_word(value: str) -> str:
     return '"' + value + '"'
 
 
+def _model_binding(support, technology):
+    """Select a native model interface for Magic's SI extraction output."""
+    if support is None and technology is None:
+        return {}, {}
+    if support is None or technology is None:
+        raise ValueError('Magic model support and technology must be supplied together')
+    bundle = load_bundle(Path(support))
+    technology = relative(technology, 'model technology')
+    if technology not in dict(bundle.files):
+        raise ValueError('Model technology is missing from its support bundle')
+    runner = Asset(package_source('eda/_scripts/magic_models.py').read_bytes(), 'python')
+    files = {f'model_support/{name}': asset for name, asset in bundle.files}
+    files.update({'magic_models.py': runner, 'model-interface.json': Asset(json.dumps({
+        'technology': 'model_support/' + technology}).encode(), 'json')})
+    identity = {'model_support_sha256': bundle.manifest.sha256, 'model_technology': technology,
+                'model_interface_sha256': runner.sha256}
+    return files, identity
+
+
 def _ignore_gds_layers(technology: bytes, layers: list[list[int]]) -> Asset:
     """Apply explicit input-layer exclusions with native CIF/GDS ignore rules."""
     source = technology.decode()
@@ -61,7 +80,8 @@ class MagicCapacitanceDocker:
                  style: str, capacitance_threshold_ff: float = 0, timeout_seconds: float = 60,
                  gds_readonly: bool = True, label_layers: list[list[int]] | None = None,
                  case_insensitive_ports: bool = False, grid_subdivision: int = 1,
-                 resistance_net_selection: str = "all", gds_ignore_layers: list[list[int]] | None = None):
+                 resistance_net_selection: str = "all", gds_ignore_layers: list[list[int]] | None = None,
+                 model_support: str | None = None, model_technology: str | None = None):
         if resistance_net_selection not in {"all", "canonical"} or (
                 not self.wire_resistance and resistance_net_selection != "all"):
             raise ValueError("Invalid Magic resistance net selection")
@@ -96,6 +116,7 @@ class MagicCapacitanceDocker:
                                                    self.gds_ignore_layers)
                                   if self.gds_ignore_layers else None)
         self.tech_name, self.style = text(tech_name, "technology name"), text(style, "extract style")
+        self.model_files, self.model_identity = _model_binding(model_support, model_technology)
         self.threshold = number(capacitance_threshold_ff)
         if self.threshold < 0:
             raise ValueError("Capacitance threshold cannot be negative")
@@ -117,6 +138,7 @@ class MagicCapacitanceDocker:
                 "label_layers": self.label_layers,
                 "case_insensitive_ports": self.case_insensitive_ports,
                 "grid_subdivision": self.grid_subdivision,
+                **self.model_identity,
                 **({"flatten": True, "resistance_threshold_mohm": 0, "minimum_resistance_mohm": 0,
                     "minimum_delay_ps": 0, "simplify_resistance": False, "merge_devices": "none",
                     "same_conductor_ports": "native_canonical" if self.resistance_net_selection == "canonical" else "rejected",
@@ -211,7 +233,7 @@ class MagicCapacitanceDocker:
         ])
         files = {"candidate.gds": inputs["layout"], "extract.tcl": Asset(script.encode(), "tcl"),
                  "empty.magicrc": Asset(b"# No user startup or device generators.\n", "tcl"),
-                 **self.support.mounted_files()}
+                 **self.support.mounted_files(), **self.model_files}
         if self.import_technology is not None:
             files[f"support/{self.technology}"] = self.import_technology
         preprocessing = {}
@@ -232,9 +254,11 @@ class MagicCapacitanceDocker:
         files["magic_netlist.py"] = Asset(package_source("eda/_scripts/magic_netlist.py").read_bytes(), "python")
         files["interface.json"] = Asset(json.dumps({"top_cell": top, "ports": [aliases.get(p, p) for p in ports],
                                                    "reject_aliased_ports": self.wire_resistance,
-                                                   "allow_aliased_ports": self.resistance_net_selection == "canonical"}).encode(), "json")
+                                                   "allow_aliased_ports": self.resistance_net_selection == "canonical",
+                                                   "model_interface": bool(self.model_files)}).encode(), "json")
         result = self.tool.run(["python", "magic_netlist.py"], files,
                                {"extracted.spice": "spice", "complete.txt": "text", "interface-check.json": "json",
+                                **({"native.spice": "spice"} if self.model_files else {}),
                                 **({"extraction.ext": "magic-ext", "resistance.ext": "magic-ext",
                                     "feedback.tcl": "tcl", "topology.spice": "spice"}
                                    if self.wire_resistance else {})})
@@ -246,6 +270,8 @@ class MagicCapacitanceDocker:
             evidence["interface_check"] = result.files["interface-check.json"]
         if "extracted.spice" in result.files:
             evidence["extracted_netlist"] = result.files["extracted.spice"]
+        if "native.spice" in result.files:
+            evidence['native_model_parameters'] = result.files['native.spice']
         for name in ("extraction.ext", "resistance.ext", "feedback.tcl", "topology.spice"):
             if name in result.files:
                 evidence[name] = result.files[name]

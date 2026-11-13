@@ -69,7 +69,12 @@ def prepare_support_cache(source: Path | None, profile: str, *,
     local_targets = set(data.get("local_files", {}))
     if local_targets & (data.get("files", {}).keys() | data.get("compile_files", {}).keys() | data.get("generated", {}).keys()):
         raise ValueError("A support target cannot have both local and generated/installed owners")
-    if data["source"].get("kind") == "ciel":
+    if data["source"].get("kind") == "python-package":
+        from benchmarking.eda.resources.installation import prepare_package_resources
+
+        source = prepare_package_resources(data["source"],
+            data.get("files", {}) | data.get("compile_files", {}), tool_image(compiler_image))
+    elif data["source"].get("kind") == "ciel":
         from benchmarking.eda.resources.installation import prepare_installation
 
         source = prepare_installation(data["source"])

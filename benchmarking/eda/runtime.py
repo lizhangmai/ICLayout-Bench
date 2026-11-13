@@ -90,7 +90,7 @@ def load_case(config, *, image=None, include_agent=True, factories=None):
     for _, _, profile, spec in case_resources(config):
         if profile not in profiles:
             source = json.loads(load_profile(spec).content)["source"]
-            installation = prepare_installation(source)
+            installation = None if source.get("kind") == "python-package" else prepare_installation(source)
             profiles[profile] = prepare_support_cache(
                 installation, spec, compiler_image=image_id, diagnostics=diagnostics / profile)
     shared = prepare_agent_cache(manifest,

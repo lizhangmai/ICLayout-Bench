@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 from klayout import db
@@ -85,5 +86,7 @@ if config.get("reject_aliased_ports"):
     introduced = resistive_port_connections(circuit) - resistive_port_connections(top)
     if introduced:
         reject(f"Magic RC introduced a resistive connection between distinct topology ports: {sorted(introduced)}")
+if config.get('model_interface'):
+    subprocess.run([sys.executable, 'magic_models.py'], check=True)
 Path("interface-check.json").write_text(json.dumps({"status": "passed", "reason": "",
                                                  "top_cell": circuit.name, "ports": ports}))

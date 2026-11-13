@@ -213,7 +213,9 @@ def ensure_case_pdks(case):
     manifest = process_manifest(record["config"])
     prepare_installation(tomllib.loads(manifest.read_text())["source"])
     for *_, spec in case_resources(record["config"]):
-        prepare_installation(json.loads(load_profile(spec).content)["source"])
+        source = json.loads(load_profile(spec).content)["source"]
+        if source.get("kind") != "python-package":
+            prepare_installation(source)
 
 
 def run(case, output, image=None):

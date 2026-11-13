@@ -4,7 +4,7 @@ import json
 import re
 from pathlib import Path
 
-from benchmarking.eda.backends.magic import _tcl_word
+from benchmarking.eda.backends.magic import _model_binding, _tcl_word
 from benchmarking.eda.netlists.spice import logical_lines, tokens
 from benchmarking.evaluation.contracts import Job, JobResult
 from benchmarking.evidence.bundles import load_bundle
@@ -58,7 +58,8 @@ class MagicPhysicalDocker:
     """
 
     def __init__(self, *, image, check, support, technology, tech_name,
-                 style, setup=None, grid_subdivision=1, timeout_seconds=180):
+                 style, setup=None, grid_subdivision=1, timeout_seconds=180,
+                 model_support=None, model_technology=None):
         if check not in {'drc', 'lvs'}:
             raise ValueError("Magic physical check must be drc or lvs")
         if type(grid_subdivision) is not int or grid_subdivision < 1:
@@ -73,6 +74,9 @@ class MagicPhysicalDocker:
             if path is not None and path not in dict(self.support.files):
                 raise ValueError(f"Missing physical-check resource: {path}")
         self.tech_name, self.style = text(tech_name, 'technology name'), text(style, 'check style')
+        self.model_files, self.model_identity = _model_binding(model_support, model_technology)
+        if self.model_files and check != 'lvs':
+            raise ValueError('Only LVS consumes a model interface')
         self.tool = DockerTool(image, ['magic', '--version'], timeout_seconds)
         self.netgen = DockerTool(image, ['netgen', '-batch', 'quit'], timeout_seconds) if check == 'lvs' else None
 
@@ -83,7 +87,7 @@ class MagicPhysicalDocker:
                 'adapter_sha256': Asset(Path(__file__).read_bytes(), 'python').sha256,
                 'support_sha256': self.support.manifest.sha256, 'technology': self.technology,
                 'tech_name': self.tech_name, 'style': self.style, 'setup': self.setup,
-                'grid_subdivision': self.grid_subdivision}
+                'grid_subdivision': self.grid_subdivision, **self.model_identity}
 
     def run(self, job: Job, inputs):
         keys(inputs, {'layout', 'netlist'} if self.check == 'lvs' else {'layout'}, {'task'}, 'Magic check inputs')
@@ -120,12 +124,16 @@ class MagicPhysicalDocker:
                 raise ValueError("LVS source must be a SPICE netlist")
             text(params.get('subcircuit'), 'source subcircuit')
             script += [f'extract style {_tcl_word(self.style)}', 'extract all', 'ext2spice lvs',
-                       'ext2spice scale off', 'ext2spice -o extracted.spice']
-            exports = {'extracted.spice': 'spice'}
+                       *(['ext2spice hierarchy off', 'ext2spice blackbox off',
+                          'ext2spice subcircuit top on'] if self.model_files else []),
+                       'ext2spice scale off', 'ext2spice -o extracted.spice',
+                       *(['exec python magic_models.py'] if self.model_files else [])]
+            exports = {'extracted.spice': 'spice', **({'native.spice': 'spice'} if self.model_files else {})}
         script += ['set f [open complete.txt w]', 'puts $f complete', 'close $f',
                    '} message]} {puts stderr $message; exit 2}', 'quit -noprompt']
         files = {'candidate.gds': inputs['layout'], 'empty.magicrc': Asset(b'', 'text'),
-                 'check.tcl': Asset(('\n'.join(script) + '\n').encode(), 'tcl'), **self.support.mounted_files()}
+                 'check.tcl': Asset(('\n'.join(script) + '\n').encode(), 'tcl'),
+                 **self.support.mounted_files(), **self.model_files}
         result = self.tool.run(['magic', '-dnull', '-noconsole', '-rcfile', 'empty.magicrc', 'check.tcl'],
                                files, {**exports, 'complete.txt': 'text'})
         evidence = {**self.support.evidence(), **result.evidence, **result.files, 'script': files['check.tcl']}

@@ -121,6 +121,8 @@ _BUILTINS = {
     "sg13g2-hbt-rc-docker": ("hbt.backend", "SG13G2HBTRCDocker"),
     "klayout-docker": ("klayout", "KLayoutDocker"),
     "kpex-cc-docker": ("kpex", "KpexCCDocker"),
+    "kpex-rc-docker": ("kpex", "KpexRCDocker"),
+    "kpex-netgen-docker": ("kpex", "KpexNetgenDocker"),
     "klayout-geometry-docker": ("geometry", "KLayoutGeometryDocker"),
     "fixed-macros-docker": ("fixed_macros", "FixedMacrosDocker"),
 }

@@ -94,7 +94,8 @@ def prepare_agent_cache(manifest, *, profiles=None, image=None,
         if "check" in profile_data:
             checks.append(profile_data["check"])
         output = selected[profile] if selected is not None else prepare_support_cache(
-            installation_path(profile_data["source"]), f"{manifest}#{profile}",
+            None if profile_data["source"].get("kind") == "python-package"
+            else installation_path(profile_data["source"]), f"{manifest}#{profile}",
             compiler_image=image, diagnostics=Path(diagnostics) / profile)
         profiles[profile] = load_bundle(Path(output))
     info = {"id": spec["id"], "environment": spec["environment"], "checks": checks, "sources": sources}

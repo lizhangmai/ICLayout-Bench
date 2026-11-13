@@ -436,6 +436,16 @@ to zero. These controls enter the extraction evidence.
 Raw extraction, resistance,
 topology, feedback, and port/geometry checks are retained with the result.
 
+An optional native model interface pairs `model_support` with
+`model_technology`, the KPEX technology JSON path inside that support bundle.
+Select a Magic extraction style that emits SI geometry. The interface reads
+Magic's `.ext` parameter declarations and the technology's model units to
+serialize the same extracted physical parameters for simulation. It preserves
+model names, terminal order and multiplicities, and copies native interconnect
+R/C cards without changing their values or connections. It reads no source
+circuit. Missing unit declarations, unsupported model interfaces and missing
+geometry are errors. The original native parameter export remains in evidence.
+
 When wire-resistance extraction is enabled, the RC adapter also compares port pairs
 joined by resistor cards in the native topology and final RC exports. It rejects a
 new resistor-only connection between previously separate topology ports,
@@ -494,6 +504,11 @@ Trusted settings select `check`, `technology`, `tech_name`, `style`, the frozen
 requires a bundled Netgen `setup`; DRC must not specify it. Top-cell and source
 subcircuit names come from the task. Candidate-provided extracted netlists are
 not accepted as LVS evidence.
+
+LVS also accepts the paired `model_support` and `model_technology` settings
+described under Magic extraction. In that mode it exports a flat native SI
+circuit, applies the declared model interface, and compares it with the original
+trusted source through Netgen. The model interface never reads that source.
 
 DRC imports the GDS, verifies the active native rule style, runs the complete
 check and requires a completion marker and a nonnegative native violation count.
@@ -654,9 +669,46 @@ ground context, frequency coverage and approximation limits, then validate
 negative geometry/connection controls and candidate-dependent performance.
 This boundary does not establish full-wave accuracy of inherited models.
 
-#### KPEX coupling capacitance
+<a id="kpex-coupling-capacitance"></a>
 
-The `kpex-cc-docker` backend provides nominal 2.5D coupling capacitance.
+#### KPEX coupling capacitance and distributed RC
+
+The `kpex-cc-docker` backend provides nominal 2.5D coupling capacitance;
+`kpex-rc-docker` adds distributed wire and contact/via resistance. Both use
+KPEX's native consistency checks, blackbox modeled devices and retain coupling
+capacitance. RC extraction does not reduce the network. Neither mode extracts
+inductance or establishes device/well resistance coverage beyond its native
+technology definition.
+
+For maintained KPEX resources, declare `support`, `pdk`, `deck` and `technology`
+together. `deck` and `technology` are paths within the prepared support profile;
+KPEX uses those selected files rather than its implicit package defaults.
+`variables` supplies native deck settings, `top_cell_variable` names its top-cell
+argument (default `topcell`), and `substrate_node` names the native ideal
+reference plane (default `VSUBS`). The job declares `ports`, `substrate` and the
+top cell. An optional `substrate_variable` passes the job's existing substrate
+name to the native deck (for example SKY130's `lvs_sub`). Only the reference-plane name may be aliased to the declared
+substrate port. Device models, terminal order and parameter conversions come
+from the unmodified KPEX technology definition. Unsupported models fail.
+
+An independent LVS job supplies the candidate database and binding. The KPEX
+deck re-extracts the same GDS, then KLayout compares its native device netlist
+directly with that candidate database before PEX. The comparison must match.
+This comparison uses no source or reference-layout devices. RC output must
+preserve the existing named ports and native terminal-to-wire connections.
+
+The `kpex-netgen-docker` LVS backend extracts devices with the maintained KPEX
+deck, serializes their model calls through KPEX's native technology definition,
+and independently compares them with the original source SPICE using Netgen.
+It adds `netgen_support` and `setup` settings to the managed resource settings
+above. A check job supplies `layout`, `netlist`, and optionally `task`, declares
+the substrate port, and produces `database = "klayout-lvs"` and
+`binding = "json"`. Without a task input, it also declares `top_cell` and
+`subcircuit`. Only a successful full Netgen comparison exports those outputs.
+The PEX deck's comparison with a dummy schematic establishes geometry; it is
+not treated as a source LVS result.
+
+The CC backend also accepts the earlier explicit process interface:
 An explicit JSON `process` job input declares the process name, bundled native
 LVS deck, runset variables, substrate reference node and physical device
 interfaces. Each device declares terminal order, extracted parameter units,
@@ -672,16 +724,15 @@ When a prior fixed-macro job emits an extraction copy, optional `original` and
 `derivation` inputs must be supplied together. Their content proof binds the
 original submission, cut GDS and top cell; the independent native LVS binding
 still binds that cut GDS to its candidate database. Both proofs enter evidence.
-The backend independently extracts annotated geometry, compares it against a
-reference exported from that candidate database, and consumes the persisted
-native LVS verdict. It preserves the process's device and terminal-equivalence
-rules. Physical classes are serialized through the declared interface, including
+For the earlier explicit process interface, the backend independently extracts
+annotated geometry, compares it against a reference exported from that candidate
+database, and consumes the persisted native LVS verdict. It preserves the
+process's device and terminal-equivalence rules. Physical classes are serialized through the declared interface, including
 classes whose native geometry differs from KPEX's primitive writer API.
 Undeclared models, unsupported geometry and missing or additional ports fail.
 The process reference plane is bound to the task's declared ideal substrate.
-Evidence includes both databases, candidate-derived reference, configuration,
-geometry log and extracted netlist. This backend declares **CC only**: no wire
-resistance or inductance. Tasks explicitly select this scope.
+The ordinary tool logs retain both databases, the candidate-derived reference,
+configuration and extracted netlist. Tasks explicitly choose CC or RC scope.
 
 #### Qucs-S and Qucsator
 
@@ -1158,6 +1209,7 @@ not embedded in TOML strings.
 | Declaration | Path base | Meaning |
 | --- | --- | --- |
 | `profiles.<name>.files` / `compile_files` | Pinned installation | Existing tool/PDK files and compiler inputs. |
+| `profiles.<name>.source` | Profile-specific installation | Overrides the manifest source for this profile; installed Python-package resources use the selected tools image. |
 | `profiles.<name>.local_files.<target>` | Manifest directory | Project-owned file with `path` and `format`, prepared at the named support target. |
 | `replace[].old_file` / `new_file` | Manifest directory | Exact-match replacement fragments. Short single-line `old` / `new` literals are also supported. |
 | `agent.local_files.<target>` | Manifest directory | Reviewed Agent resource with `path` and `format`, exposed at `/resources/<target>`. |
@@ -1181,6 +1233,36 @@ commands rather than embedded `python -c` or shell programs.
 Portable snapshots and publication inventories carry every declared local
 file, preserving its relative path, and exclude undeclared files. They do not
 copy external installations or credentials.
+
+A tool may distribute native process resources separately from the Ciel PDK.
+Select those files from its installed distribution with a profile-specific
+`python-package` source:
+
+```toml
+[profiles.kpex.source]
+kind = "python-package"
+distribution = "klayout-pex"
+version = "0.9.0"
+
+[profiles.kpex.files."kpex/sky130.lvs"]
+path = "klayout_pex/pdk/sky130A/libs.tech/kpex/sky130.lvs"
+format = "text"
+
+[profiles.kpex.files."kpex/rule_decks/auto_name_layers.rb"]
+path = "klayout_pex/pdk/sky130A/libs.tech/kpex/rule_decks/auto_name_layers.rb"
+format = "text"
+
+[profiles.kpex.files."sky130A_tech.pb.json"]
+path = "klayout_pex_protobuf/sky130A_tech.pb.json"
+format = "json"
+```
+
+Paths are relative to the distribution's installation root, as listed in its
+installed file inventory. Preparation reads only declared files, checks the
+exact installed version and stores the resources in the existing derived cache.
+No host Python dependency or additional Python environment is created. The
+selected image must already contain that distribution. Include the distribution
+license and retain the native files' attribution when declaring a complete profile.
 
 ### Agent resource declarations
 
