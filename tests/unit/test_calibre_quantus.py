@@ -139,15 +139,20 @@ M0 OUT IN GND GND nmodel L=2e-6 W=3e-6 AS=1e-12 AD=2e-12 PS=3e-6 PD=4e-6
         assert backend.identity['execution'] == 'operator-native'
 
 
-@pytest.mark.parametrize('technology', ['/eda/pdk-sibling/technology', '/eda/pdk/../author'])
+@pytest.mark.parametrize('technology', [None, '/eda/pdk-sibling/technology', '/eda/pdk/../author'])
 def test_quantus_technology_cannot_read_an_undeclared_author_workspace(native_tmp_path, monkeypatch, technology):
     (native_tmp_path / 'identity').write_text('declared PDK')
-    monkeypatch.setattr(NativeTool, 'probe', native_probe)
+    def unexpected_probe(*args, **kwargs):
+        raise AssertionError('Undeclared technology must fail before native tool probes')
+
+    monkeypatch.setattr(NativeTool, 'probe', unexpected_probe)
     runtime = ExternalRuntime('licensed-test', {'image': 'unused',
-        'environment': {'PDK_ROOT': str(native_tmp_path), 'QRC_ROOT': technology},
+        'environment': {'PDK_ROOT': str(native_tmp_path),
+                        **({'QRC_ROOT': technology} if technology is not None else {})},
         'mounts': [{'source': str(native_tmp_path), 'target': str(native_tmp_path), 'release': 'test',
                     'identity_paths': ['identity']}]})
-    with pytest.raises(ValueError, match='declared resource mount'):
+    reason = 'declared native Quantus technology resource: QRC_ROOT' if technology is None else 'declared resource mount'
+    with pytest.raises(ValueError, match=reason):
         CalibreQuantusNative(runtime=runtime, deck='unused', technology_env='QRC_ROOT', ground='GND')
 
 

@@ -123,7 +123,6 @@ _BUILTINS = {
     "kpex-cc-docker": ("kpex", "KpexCCDocker"),
     "klayout-geometry-docker": ("geometry", "KLayoutGeometryDocker"),
     "fixed-macros-docker": ("fixed_macros", "FixedMacrosDocker"),
-    "rlc-line-docker": ("rlc_line", "RLCLineDocker"),
 }
 
 

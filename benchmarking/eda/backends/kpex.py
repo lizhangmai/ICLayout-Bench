@@ -6,10 +6,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
-from benchmarking.eda.layout_derivation import (
-    validate_derived_model,
-    validate_layout_derivation,
-)
+from benchmarking.eda.layout_derivation import validate_layout_derivation
 from benchmarking.eda.netlists.dspf import bind_ports
 from benchmarking.eda.netlists.spice import logical_lines, tokens
 from benchmarking.evaluation.contracts import Job, JobResult
@@ -78,10 +75,14 @@ class KpexCCDocker:
 
     wire_resistance = False
 
-    def __init__(self, *, image: str, support: str, profile: str, timeout_seconds: float = 600):
-        self.support = load_bundle(Path(support))
-        self.process = json.loads(dict(self.support.files)[profile].content)
-        validate_process(self.process)
+    def __init__(self, *, image: str, support: str | None = None, profile: str | None = None,
+                 timeout_seconds: float = 600):
+        if (support is None) != (profile is None):
+            raise ValueError("KPEX legacy support and profile must be supplied together")
+        self.support = load_bundle(Path(support)) if support is not None else None
+        self.process = json.loads(dict(self.support.files)[profile].content) if self.support else None
+        if self.process is not None:
+            validate_process(self.process)
         self.tool = DockerTool(image, ["kpex", "--version"], timeout_seconds)
         self.runner = Asset(package_source("eda/_scripts/kpex_runner.py").read_bytes(), "python")
 
@@ -92,10 +93,21 @@ class KpexCCDocker:
                 "runner_sha256": self.runner.sha256, "mode": "CC",
                 "layout_derivation_sha256": Asset(package_source("eda/layout_derivation.py").read_bytes(), "python").sha256,
                 "blackbox_devices": True, "process": self.process,
-                "support_sha256": self.support.manifest.sha256}
+                "support_sha256": self.support.manifest.sha256 if self.support else None}
 
     def run(self, job: Job, inputs: dict[str, Asset]) -> JobResult:
-        keys(inputs, {"layout", "database", "binding"}, {"task", "original", "derivation", "model"}, "KPEX inputs")
+        keys(inputs, {"layout", "database", "binding"},
+             {"task", "original", "derivation", "process"}, "KPEX inputs")
+        process = self.process
+        if "process" in inputs:
+            if process is not None:
+                raise ValueError("KPEX process input cannot be combined with a legacy profile")
+            if inputs["process"].format != "json":
+                raise ValueError("KPEX process input must be JSON")
+            process = json.loads(inputs["process"].content)
+        if process is None:
+            raise ValueError("KPEX requires an explicit process input or a legacy profile")
+        validate_process(process)
         derivation = validate_layout_derivation({**{key: value for key, value in inputs.items()
                                                     if key in {"layout", "task", "original"}},
             **({"binding": inputs["derivation"]} if "derivation" in inputs else {})})
@@ -117,12 +129,12 @@ class KpexCCDocker:
                 or len({p.casefold() for p in ports}) != len(ports) or params["substrate"] not in ports):
             raise ValueError("KPEX requires unique ports and a declared substrate port")
         evidence = {"binding": inputs["binding"], "runner": self.runner, **derivation,
-            **validate_derived_model(inputs.get("derivation"), inputs.get("model"))}
+            **({"process": inputs["process"]} if "process" in inputs else {})}
         try:
             validate_binding(inputs["layout"], inputs["database"], json.loads(inputs["binding"].content), top)
         except (ValueError, TypeError, KeyError) as error:
             return JobResult("error", str(error), evidence=evidence)
-        config = Asset(json.dumps({**params, "top_cell": top, "process": self.process}).encode(), "json")
+        config = Asset(json.dumps({**params, "top_cell": top, "process": process}).encode(), "json")
         result = self.tool.run(["python", "run.py"], {
             "candidate.lvsdb": inputs["database"], "candidate.gds": inputs["layout"],
             "run.py": self.runner, "config.json": config,
@@ -151,9 +163,9 @@ class KpexCCDocker:
                     if not values:
                         raise ValueError("KPEX emitted an incomplete device")
                     model = values[-1].lower()
-                    if model not in self.process['devices']:
+                    if model not in process['devices']:
                         raise ValueError("KPEX emitted an undeclared physical model")
-                    if len(values) != len(self.process['devices'][model]['terminals']) + 1:
+                    if len(values) != len(process['devices'][model]['terminals']) + 1:
                         raise ValueError("KPEX device terminals differ from its declared interface")
                     models.append(model)
                 elif fields[0][0].lower() not in {'r', 'c'}:
@@ -164,6 +176,4 @@ class KpexCCDocker:
                 raise ValueError("KPEX emitted duplicate physical device names")
         except (ValueError, TypeError, KeyError) as error:
             return JobResult("error", f"Invalid KPEX result: {error}", evidence=evidence)
-        if "model" in inputs:
-            netlist = Asset(netlist.content + b"\n" + inputs["model"].content, "spice")
         return JobResult("passed", outputs={"netlist": netlist}, evidence=evidence)

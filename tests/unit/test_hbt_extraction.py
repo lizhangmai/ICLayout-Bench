@@ -563,6 +563,60 @@ def test_kpex_rejects_a_database_bound_to_a_different_candidate(changed):
         validate_binding(layout, database, binding, "DUT")
 
 
+def test_kpex_process_is_a_frozen_case_input_and_is_never_inferred(monkeypatch):
+    import json
+
+    from benchmarking.eda.backends.kpex import KpexCCDocker
+    from benchmarking.evaluation import Job
+    from benchmarking.execution.tools import ToolResult
+    from benchmarking.files import Asset
+
+    seen = []
+    class Tool:
+        def __init__(self, *args):
+            self.identity = {'tool_version': 'fixture'}
+        def run(self, command, files, exports):
+            seen.append(json.loads(files['config.json'].content)['process'])
+            return ToolResult(0, '', {
+                'result.json': Asset(b'{"status":"passed","details":{"physical_devices":{"film":1}}}', 'json'),
+                'extracted.spice': Asset(b'.SUBCKT DUT A B SUB\nXphysical_1 A B SUB film w=1u\n.ENDS DUT\n', 'spice')}, {})
+
+    monkeypatch.setattr('benchmarking.eda.backends.kpex.DockerTool', Tool)
+    process = {'pdk': 'synthetic', 'deck': 'synthetic.lvs', 'variables': {},
+               'substrate_node': 'PLANE', 'devices': {'film': {
+                   'terminals': ['A', 'B', 'SUB'], 'parameters': {'w': 'u'}, 'reference_prefix': 'R'}}}
+    asset = Asset(json.dumps(process).encode(), 'json')
+    layout, database = Asset(b'candidate', 'gds'), Asset(b'native-db', 'klayout-lvs')
+    inputs = {'layout': layout, 'database': database, 'binding': Asset(json.dumps({
+        'candidate_sha256': layout.sha256, 'database_sha256': database.sha256,
+        'top_cell': 'DUT', 'layers': {}}).encode(), 'json')}
+    job = Job('pex', 'extract', 'parasitics.extract', (), (('netlist', 'spice'),), (), None,
+              json.dumps({'ports': ['A', 'B', 'SUB'], 'substrate': 'SUB', 'top_cell': 'DUT'}))
+    backend = KpexCCDocker(image='fixture')
+    with pytest.raises(ValueError, match='explicit process'):
+        backend.run(job, inputs)
+    with pytest.raises(ValueError, match='must be JSON'):
+        backend.run(job, inputs | {'process': Asset(asset.content, 'text')})
+    result = backend.run(job, inputs | {'process': asset})
+    assert result.status == 'passed'
+    assert result.evidence['process'] == asset and seen == [process]
+    broken_binding = Asset(json.dumps({
+        'candidate_sha256': 'another-layout', 'database_sha256': database.sha256,
+        'top_cell': 'DUT', 'layers': {}}).encode(), 'json')
+    result = backend.run(job, inputs | {'process': asset, 'binding': broken_binding})
+    assert result.status == 'error' and 'not bound' in result.reason
+    assert result.evidence['process'] == asset and result.evidence['binding'] == broken_binding
+    assert seen == [process]  # Reject before external extraction.
+    invalid_process = Asset(json.dumps(process | {'variables': {'input': 'other.gds'}}).encode(), 'json')
+    with pytest.raises(ValueError, match='runset variables'):
+        backend.run(job, inputs | {'process': invalid_process})
+    backend.process = process
+    with pytest.raises(ValueError, match='combined'):
+        backend.run(job, inputs | {'process': asset})
+    with pytest.raises(ValueError, match='together'):
+        KpexCCDocker(image='fixture', profile='undeclared.json')
+
+
 @pytest.mark.parametrize("terminals,width,header,expected", [
     (("A", "B", "SUB"), 0.5, "A B SUB", "passed"),
     (("B", "A", "SUB"), 0.5, "A B SUB", "passed"),

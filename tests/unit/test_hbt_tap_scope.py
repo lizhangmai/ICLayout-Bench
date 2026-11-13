@@ -66,3 +66,24 @@ def test_hbt_identity_covers_split_implementation_modules(settings):
     }
 
     assert adapter.identity["hbt_implementation_sha256"] == expected
+
+
+def test_hbt_accepts_native_lvs_settings_and_rejects_mixed_profile(settings):
+    direct = {key: value for key, value in settings.items() if key != 'klayout_profile'}
+    direct.update(klayout_deck='rules.lvs',
+                  klayout_variables={'disable_tap_extraction': 'false'},
+                  klayout_layer_names={'metal1': 'm1'})
+    adapter = SG13G2HBTRCDocker(**direct)
+    candidate = Asset(b'frozen layout', 'gds')
+    job = Job('pex', 'extract', 'layout.extract', (), (('netlist', 'spice'),), (), None,
+              json.dumps({'ports': ['IN', 'OUT', 'VSS'], 'top_cell': 'AMP'}))
+    result = adapter.run(job, {'layout': candidate})
+    assert result.status == 'error'  # Stop at the external EDA boundary.
+    config = json.loads(adapter.klayout.tool.inputs['config.json'].content)
+    assert config['deck'] == 'rules.lvs'
+    assert config['variables']['disable_tap_extraction'] == 'false'
+    assert adapter.identity['klayout']['settings']['layer_names'] == {'metal1': 'm1'}
+    with pytest.raises(ValueError, match='cannot mix'):
+        SG13G2HBTRCDocker(**direct, klayout_profile=settings['klayout_profile'])
+    with pytest.raises(ValueError, match='reserved'):
+        SG13G2HBTRCDocker(**(direct | {'klayout_variables': {'input': 'replacement.gds'}}))

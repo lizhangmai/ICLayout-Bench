@@ -616,55 +616,18 @@ ground context, frequency coverage and approximation limits, then validate
 negative geometry/connection controls and candidate-dependent performance.
 This boundary does not establish full-wave accuracy of inherited models.
 
-#### Candidate uniform transmission lines
-
-`rlc-line-docker` implements `layout.rf_line` with a trusted process bundle
-(`support`, `profile`), `image` and `timeout_seconds`. It consumes the prior
-macro-cut `layout` and `binding`, the untouched candidate as `original`, `task`
-and a trusted JSON `specification`. It exports `layout` (GDS), `binding` (JSON)
-and `netlist` (SPICE). Native DRC checks the original; native LVS and extraction
-check the resulting layout and retain its candidate and parent-proof digests.
-
-The specification declares `cell`, `subcircuit`, `signal_layer`, `ground_layer`,
-`landing_um`, `window_um`, `guard_um`, `ground_anchor`, three ordered `ports` and all
-`conductor_layers`. Exactly one instance must contain a uniform rectangular
-strip at local origin and the complete prescribed return plane. Quarter turns
-and reflections preserve the grid. The process fixes width, return geometry,
-optional regular ground perforations and permitted length range. Extra
-conductors, branches, labels or altered cross-sections inside the modeled cell
-are rejected. Surrounding conductors may enter the isolation region only
-through the declared end access areas. Existing terminal metal, vias, return
-wiring and all free circuit geometry remain subject to native physical checks.
-`ground_anchor` names a separately verified fixed cell and a local `point_um`
-inside its return metal. The drawn return plane must share one continuous
-polygon on `ground_layer` with this transformed anchor. Net labels cannot
-replace that physical connection. This interface requires same-layer return
-wiring; multilayer return routes need a separately validated model boundary.
-
-The model uses positive series DC resistance and inductance, parallel RL skin
-branches and shunt capacitance in a finite pi ladder. Values scale with the
-measured candidate length. The process must document its calibration source,
-independent accuracy checks and approximation limits. Reusing a calibrated
-cross-section permits routine RLC post-simulation without running a full-wave
-solver for every candidate. It does not establish accuracy for new widths,
-bends, return planes or neighboring conductors. Authors must validate physical
-length controls, invalid geometry and disconnected return paths separately.
-KPEX accepts the resulting SPICE as optional `model`, with its line proof in
-`derivation`. It checks the model digest against that proof, retains the model
-as evidence and appends its subcircuit definitions to the extracted candidate
-circuit. Other supplied circuit models are rejected. The simulation fixture and
-its other inputs remain identical between source and post-layout evaluation.
-
 #### KPEX coupling capacitance
 
 The `kpex-cc-docker` backend provides nominal 2.5D coupling capacitance.
-Its `support` bundle and JSON `profile` declare the process name, bundled native
+An explicit JSON `process` job input declares the process name, bundled native
 LVS deck, runset variables, substrate reference node and physical device
 interfaces. Each device declares terminal order, extracted parameter units,
 native reference-card prefix, and any supported-value constraints. Parameters
 are read from native devices; the adapter never supplies missing geometry.
-The process profile and support manifest enter backend identity. Tool settings
-also include `image` and `timeout_seconds`.
+The frozen process input enters job evidence. Tool settings include `image` and
+`timeout_seconds`. Legacy `support` and `profile` settings remain available as a
+pair, record their process and manifest in backend identity, and cannot be
+combined with a process input. Task-specific device limits belong to case inputs.
 
 Jobs consume candidate GDS, its native LVS database and a content binding.
 When a prior fixed-macro job emits an extraction copy, optional `original` and
@@ -756,6 +719,9 @@ HBT extraction with Magic distributed interconnect R/C. Its `klayout_support`
 and `magic_support` settings use separately reviewed bundles; declare their
 profiles through `support_profiles` in the [resource manifest](#agent-resource-declarations). Physical LVS remains a
 separate gate against the maintained circuit, including the named interface.
+Choose its native KLayout LVS deck with `klayout_deck`, optional
+`klayout_variables` and `klayout_layer_names`. The alternative `klayout_profile`
+loads a JSON rule profile and cannot be combined with those direct settings.
 For the fixed `npn13G2` emitter, the native extractor reports bounding-box X/Y
 dimensions as `we`/`le`. The adapter accepts the complete 70 × 900 nm pair in
 either axis order, preserving native `Nx` and terminal connections and passing
@@ -1563,7 +1529,9 @@ execution](#host-execution) for Calibre LVS/CCI followed by Quantus coupled RC.
 It requires `deck`, `technology_env` (an environment entry naming a technology
 directory within a declared, noncredential resource mount), and `ground` (a
 declared top-level port). The technology can share the PDK mount; include its
-files or directory in that mount's `identity_paths`. The runtime selects both
+files or directory in that mount's `identity_paths`. An unset `technology_env`
+or a directory outside the declared resource mounts fails before tool probes;
+the adapter does not supply replacement extraction parameters. The runtime selects both
 `calibre` and `quantus` module profiles. Frozen GDS and source bytes remain
 unchanged; source data is used for LVS and naming, while devices and parasitics
 come from annotated candidate geometry. Jobs declare `ports` and optionally an
@@ -1648,6 +1616,13 @@ measurement profile reads completed PSF ASCII `ac.ac` and `op.dc` data and repor
 differential AC gain, first downward unity/3 dB crossings, DC output and supply
 power. It does not replay general OCEAN/ADE expressions.
 [Measurements](#spectre-measurement-profiles) defines the AC, DC and transient profiles.
+
+The optional backend `environment` table declares case simulator startup
+settings, for example `SPECTRE_DEFAULTS = "-E"` to select native C preprocessing.
+These values are recorded in backend identity and applied after the declared
+tool module loads, so module defaults cannot silently replace the case choice.
+Empty values can explicitly clear inherited defaults. License values must use
+the runtime's named forwarding interface.
 
 The backend setting `max_parallel_jobs` defaults to 1; a positive integer opts
 into concurrent independent jobs with isolated tool workspaces. Select it within

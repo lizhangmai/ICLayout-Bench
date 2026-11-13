@@ -150,13 +150,21 @@ class SpectreBackend:
     """Shared model binding, calibration and acceptance for Spectre transports."""
 
     def __init__(self, *, runtime, model, section, sections=None, model_includes=(),
-                 timeout_seconds=300, max_parallel_jobs=1, pdk_root_env=None, module_profile=None):
+                 timeout_seconds=300, max_parallel_jobs=1, pdk_root_env=None, module_profile=None,
+                 environment=None):
         if type(max_parallel_jobs) is not int or max_parallel_jobs < 1:
             raise ValueError('Spectre concurrency must be a positive integer')
         self.max_parallel_jobs = max_parallel_jobs
         if not isinstance(runtime, ExternalRuntime):
             raise TypeError('Cadence backend requires a resolved external runtime')
         self.runtime = runtime.select_pdk(pdk_root_env).select_module("spectre", module_profile)
+        if (environment is not None and (not isinstance(environment, dict)
+                or any(not isinstance(name, str) or not re.fullmatch(r'[A-Z][A-Z0-9_]*', name)
+                       or re.search(r'LIC|LICENSE', name)
+                       or not isinstance(value, str) or '\0' in value
+                       for name, value in environment.items()))):
+            raise ValueError('Invalid Spectre environment; forward licenses through the runtime')
+        self.environment = dict(environment or {})
         self.model, self.section = model, section
         self.sections = list(sections) if sections is not None else [section]
         self.model_includes = list(model_includes)
@@ -173,6 +181,7 @@ class SpectreBackend:
         return {'adapter': self.adapter, 'model': self.model, 'section': self.section,
                 'sections': self.sections, 'model_includes': self.model_includes,
                 'max_parallel_jobs': self.max_parallel_jobs,
+                'environment': self.environment,
                 **self.tool.identity, 'adapter_sha256': Asset(Path(__file__).read_bytes(), 'python').sha256,
                 'frequency_sha256': Asset(package_source('evaluation/measurements/frequency.py').read_bytes(), 'python').sha256,
                 'sweep_sha256': Asset(package_source('evaluation/measurements/sweep.py').read_bytes(), 'python').sha256,
@@ -283,7 +292,8 @@ class SpectreBackend:
         if 'dc_sweep' in job.parameters:
             exports = {'spectre.log': 'text', 'results/sweep.dc': 'text'}
         result = self.tool.run(['spectre', 'deck.scs', '-format', 'psfascii', '-raw', 'results',
-                                '+log', 'spectre.log'], files, exports)
+                                '+log', 'spectre.log'], files, exports,
+                               **({'environment': self.environment} if getattr(self, 'environment', {}) else {}))
         evidence = result.evidence | result.files
         if result.reason or result.returncode:
             return JobResult('error', result.reason or 'Spectre did not complete', evidence=evidence)
