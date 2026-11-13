@@ -230,15 +230,30 @@ def main(config):
 def run_deck(config, suffix="", used=None):
     mode = config["check"]
     deck = Path("support") / config["deck"]
-    wrapper = deck.with_name(f"check{suffix}.{mode}")
+    completion = f'\nFile.write("/workspace/complete{suffix}.txt", "complete\\n")\n'
     mapping = ", ".join(f'"{name}" => lvs_data.layer_name(lvs_data.layer_of({variable}.data))'
                         for name, variable in config.get("layer_names", {}).items())
     names = ('require "json"\nFile.write("layer-map.json", JSON.generate({' + mapping + '}))\n') if mode == "lvs" else ""
-    # Preserve the deck's directory for native Ruby require_relative/__dir__.
-    # KLayout's %include source annotations cannot serve as Ruby file paths.
-    wrapper.write_text(deck.read_text() + "\n" + names +
-                            f'File.write("/workspace/complete{suffix}.txt", "complete\\n")\n')
-    variables = {**config["variables"], "input": "/workspace/candidate.gds", "topcell": config["top_cell"],
+    if deck.suffix == {"drc": ".lydrc", "lvs": ".lylvs"}[mode]:
+        wrapper = deck.with_name(f"check{suffix}.rb")
+        # Let KLayout retain the XML macro's interpreter, metadata and source
+        # path. A completion marker inside the body also detects early exit(0).
+        wrapper.write_text(f'macro = RBA::Macro.new({json.dumps(str(deck.resolve()))})\n'
+                           f'macro.text += {json.dumps(names + completion)}\n'
+                           f'raise "KLayout {mode.upper()} macro failed" unless macro.run == 0\n')
+    else:
+        wrapper = deck.with_name(f"check{suffix}.{mode}")
+        # Preserve the deck's directory for native Ruby require_relative/__dir__.
+        # KLayout's %include source annotations cannot serve as Ruby file paths.
+        wrapper.write_text(deck.read_text() + "\n" + names + completion)
+    input_path = "/workspace/candidate.gds"
+    if mode == "lvs" and config.get("flatten"):
+        layout = db.Layout()
+        layout.read(input_path)
+        layout.cell(config["top_cell"]).flatten(-1, True)
+        input_path = "/workspace/flat-candidate.gds"
+        layout.write(input_path)
+    variables = {**config["variables"], "input": input_path, "topcell": config["top_cell"],
                  "report": f"/workspace/report{suffix}.db", "log": f"/workspace/deck{suffix}.log"}
     if mode == "lvs":
         variables.update(schematic="/workspace/reference.spice", target_netlist="/workspace/extracted.spice")

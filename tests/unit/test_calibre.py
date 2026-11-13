@@ -279,3 +279,98 @@ def test_tool_module_selection_requires_a_declared_profile():
     assert runtime.modules['spectre'] == ['cadence/current']
     with pytest.raises(ValueError, match='explicitly declared'):
         runtime.select_module('spectre', 'unknown')
+
+
+@pytest.fixture
+def native_calibre(native_tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.execution.tools import ToolResult
+    from benchmarking.execution.tools.native import NativeTool
+    from benchmarking.files import Asset
+
+    (native_tmp_path / 'native.rules').write_text('LVS RECOGNIZE GATES NONE\n')
+    runtime = ExternalRuntime('test', {'image': 'unused',
+        'environment': {'PDK_ROOT': str(native_tmp_path)},
+        'control_files': {'shared.tvf': '#!tvf\ntvf::VERBATIM {\nLVS RECOGNIZE GATES NONE\n}\n'},
+        'mounts': [{'source': str(native_tmp_path), 'target': str(native_tmp_path), 'release': 'test',
+                    'identity_paths': ['native.rules']}]})
+    monkeypatch.setattr(NativeTool, 'probe', lambda *args, **kwargs:
+                        SimpleNamespace(returncode=0, stdout=b'Calibre native release'))
+    captured = {}
+
+    def execute(self, command, files, exports, **kwargs):
+        captured.update(files)
+        report = b'''OVERALL COMPARISON RESULTS
+CELL SUMMARY
+**********
+ CORRECT TOP TOP
+**********
+ LVS IGNORE PORTS NO
+ LVS CHECK PORT NAMES YES
+Total Elapsed Time: 3 sec
+'''
+        circuit = b'.subckt TOP D G S B\nM0 D G S B nfet W=48n L=20n AS=1p AD=1p PS=1u PD=1u\nR0 G gate 10\nC0 gate S 1f\n.ends TOP\n'
+        return ToolResult(0, '', {'lvs.report': Asset(report, 'text'),
+            'pdb.log': Asset(b'xRC Errors = 0\n', 'text'), 'fmt.log': Asset(b'xRC Errors = 0\n', 'text'),
+            'extracted.spice': Asset(circuit, 'spice')}, {})
+
+    monkeypatch.setattr(NativeTool, 'run', execute)
+    return runtime, captured
+
+
+@pytest.mark.parametrize('check', ['lvs', 'rc'])
+@pytest.mark.parametrize('source', ['task', 'runtime', 'deck'])
+def test_native_case_controls_own_policy_and_preserve_frozen_inputs(native_calibre, check, source):
+    from types import SimpleNamespace
+
+    from benchmarking.eda.backends.calibre import CalibreNative
+    from benchmarking.files import Asset
+
+    runtime, captured = native_calibre
+    backend = CalibreNative(runtime=runtime, check=check, deck='native.rules',
+        require_erc_summary=False, **({'rule_control': '@shared.tvf'} if source == 'runtime' else {}))
+    inputs = {'layout': Asset(b'frozen-gds', 'gds'), 'netlist': Asset(b'frozen-source', 'spice'),
+        'task': Asset(b'{"output":{"top_cell":"TOP"},"netlist_subcircuit":"TOP"}', 'json')}
+    native = b'#!tvf\n# native comment \xb0\ntvf::VERBATIM {\nLVS EXECUTE ERC NO\nVIRTUAL CONNECT COLON YES\nPEX EXTRACT FLOATING NETS ALL\nTRACE PROPERTY MN W W 0\n}\n'
+    if source == 'task':
+        inputs['rule_control'] = Asset(native, 'text')
+    job = SimpleNamespace(stage='extract' if check == 'rc' else 'check',
+                          parameters={'ports': ['D', 'G', 'S', 'B']} if check == 'rc' else {})
+    result = backend.run(job, inputs)
+    assert result.status == 'passed'
+    assert captured['source.spice'] == inputs['netlist']
+    assert captured['candidate.gds'] == inputs['layout']
+    control = captured['control.svrf'].content
+    assert result.evidence['control'].content == control
+    if source == 'task':
+        assert control.startswith(native)
+        assert control.count(b'LVS EXECUTE ERC') == 1
+        assert control.count(b'VIRTUAL CONNECT COLON') == 1
+        assert control.count(b'PEX EXTRACT FLOATING NETS') == 1
+    else:
+        assert b'VIRTUAL CONNECT COLON NO' in control
+        assert b'LVS EXECUTE ERC YES' in control
+        assert (b'PEX EXTRACT FLOATING NETS REDUCED' in control) == (check == 'rc')
+    if check == 'rc':
+        assert b'M0 D G S B nfet W=48n L=20n' in result.outputs['netlist'].content
+
+
+@pytest.mark.parametrize('content,format,shared', [(b'', 'text', False), (b' \n', 'text', False),
+    (b'native\0', 'text', False), (b'native', 'spice', False), (b'native', 'text', True)])
+def test_calibre_rejects_invalid_or_ambiguous_case_controls(native_calibre, content, format, shared):
+    from types import SimpleNamespace
+
+    from benchmarking.eda.backends.calibre import CalibreNative
+    from benchmarking.files import Asset
+
+    runtime, captured = native_calibre
+    backend = CalibreNative(runtime=runtime, check='lvs', deck='native.rules',
+        **({'rule_control': '@shared.tvf'} if shared else {}))
+    inputs = {'layout': Asset(b'frozen', 'gds'), 'netlist': Asset(b'source', 'spice'),
+        'task': Asset(b'{"output":{"top_cell":"TOP"},"netlist_subcircuit":"TOP"}', 'json'),
+        'rule_control': Asset(content, format)}
+    with pytest.raises(ValueError):
+        backend.run(SimpleNamespace(stage='check', parameters={}), inputs)
+    assert not captured

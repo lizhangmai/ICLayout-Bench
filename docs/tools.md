@@ -412,7 +412,16 @@ execution/cleanup failures and missing/malformed interface reports remain `error
 Optional `label_layers` is a
 nonempty list of GDS layer/datatype pairs that may contain electrical text;
 text on other layers is removed from the extraction copy without removing any
-geometry. `case_insensitive_ports=true` aliases case variants to unique internal
+geometry. Optional `gds_ignore_layers` lists unique GDS layer/datatype pairs
+that the task explicitly excludes from Magic import. The adapter adds native
+`ignore` and `calma` declarations to each inline `cifinput` style in a job-local
+copy of the technology file. It preserves the shared support bundle and candidate
+GDS; the selected pairs enter backend identity, and the effective technology is
+retained as `import_technology` evidence. No layers are ignored by default.
+Other unmapped layers still report native input errors; import warnings remain
+enabled. Styles defined through an `include` inside `cifinput` require an inline
+definition before using this setting.
+`case_insensitive_ports=true` aliases case variants to unique internal
 names before extraction, matching SPICE's port-name semantics. The defaults
 preserve all labels and use case-sensitive matching. Settings, alias mappings,
 ignored-label counts and the geometric flattening check are archived. The
@@ -518,10 +527,33 @@ these must agree with `task` when both are supplied.
 | DRC | Completed declared decks, required report categories and zero unwaived violations. |
 | LVS | Completed comparison against a nonempty trusted source, participation of the requested circuit and the declared named-port checks. |
 
-DRC/LVS settings declare the native `deck` path and fixed `variables`, passed
-unchanged as KLayout `-rd` arguments. DRC also declares `required_categories`;
-optional `additional_decks` entries each declare `deck` and `required_categories`
-with the same variables. Every deck runs independently. Any execution/report error
+DRC/LVS settings declare fixed `variables`, passed unchanged as KLayout `-rd`
+arguments. DRC requires a native `deck` path. LVS selects either a support `deck`
+or a job input named `lvs_macro` with format `text`, containing a native XML
+`.lylvs` macro. Declare a case-owned macro as an evaluator input when it is only
+needed for independent evaluation. The two LVS control sources are mutually
+exclusive; the input macro is retained in the run evidence.
+
+DRC decks accept plain `.drc` scripts and native XML `.lydrc` macros; LVS decks
+accept `.lvs` and `.lylvs`. XML macros run through KLayout's `RBA::Macro` API,
+using the native DRC or LVS interpreter
+and retaining the source path for relative includes. The runner adds its completion
+marker to the macro's in-memory body without modifying the declared source.
+An early exit, macro execution error or invalid report cannot establish a pass.
+An input `lvs_macro` is staged as `task.lylvs` at the support bundle root, so its
+native relative includes resolve against that bundle. This filename is reserved
+when an input macro is supplied.
+
+LVS can explicitly set `flatten = true` to flatten the selected candidate top
+cell with KLayout before comparison. The copy preserves labels and is retained
+as `flat-candidate.gds`; the frozen submission and its binding stay unchanged.
+Hierarchy, tolerances, virtual connections and pin equivalence otherwise belong
+to the declared native controls. A shared extraction module can supply process
+layers and devices while each case owns its comparison policy.
+
+DRC also declares `required_categories`; optional `additional_decks` entries each
+declare `deck` and `required_categories` with the same variables. Every deck runs
+independently. Any execution/report error
 takes precedence; otherwise the gate sums counts and fails if any deck fails.
 Required categories detect skipped groups rather than enumerating every rule.
 LVS may declare `layer_names` for geometry checks consuming its database.
@@ -684,21 +716,23 @@ changes. Cases select their check profiles through `[toolchain]`.
 
 | Profile | Scope |
 |---|---|
-| `drc-upstream.json` | Pinned PDK GUI defaults: main plus extra `sg13g2_maximal.drc`, deep mode, density and antenna off. |
-| `lvs-upstream.json` | Pinned PDK GUI defaults: explicit taps, native simplification and strict named ports. |
+| `drc-main-maximal` | Main plus extra `sg13g2_maximal.drc`, deep mode, density and antenna off. |
+| `lvs-explicit-taps` | Explicit taps, native simplification and strict named ports. |
+| `lvs-logical-mos` | Native logical MOS comparison and physical body connectivity, without schematic tap devices. |
 
-The `model-calls` diagnostic profile accepts ngspice model calls for
-`sg13_lv_nmos`, `sg13_lv_pmos`, `cap_cmim`, `ntap1` and `ptap1`. Its
-`sg13g2-model-calls.lvs` entry point is generated from the KLayout support
-manifest and includes the unchanged upstream runset. This profile is selected
-explicitly when interpreting these model calls. A KLayout reader delegate maps these `X` calls to the native PDK device handlers, preserving their terminal
-mapping, parameter units, simplification and comparison rules. Other `X` calls
-retain normal hierarchy handling, and CDL primitive cards retain their
-native interpretation. Use circuit-local `.param` definitions and compact
-expressions on model calls; expression parsing and parameter scoping remain
-those of the pinned native reader. This is an input adapter, with no rule
-waivers or new device models. Candidate scoring simulates only GDS-derived PEX. Other source dialects require
-an explicitly validated adaptation.
+These are native backend declarations selected through `from_pdk`. The upstream
+LVS reader consumes the declared CDL representation. Dataset authors can use the
+PDK's Xschem simulation and `lvs_format` netlisting modes to derive both tool
+representations from one authoritative circuit. Author consistency checks belong
+with the case; no global model-call reader override is required.
+
+The `magic` support profile retains the pinned upstream technology files.
+Cases needing the reviewed `npn13G2` emitter connection explicitly select
+`magic-hbt` instead. That variant declares the local `gec`-to-Metal1 connection,
+matching the pinned native LVS EmWind connection semantics. Its PCell topology
+controls cover the intact device, removed emitter metal, removed window and a
+separate nearby metal net. This establishes neither fabrication correctness nor
+distributed-RC accuracy. Candidate scoring simulates only GDS-derived PEX.
 
 Evaluate the maintained circuit and candidate using the case's declared task
 plan. See the [evaluation command](running.md#standalone-evaluation) and each case problem
@@ -1471,8 +1505,7 @@ count and zero results; LVS requires a finished named-port comparison of every
 reported cell without blackboxes. Failures and incomplete reports retain native
 evidence. RC runs LVS, xRC `-pdb -rcc` and `-fmt -all`, preserves distributed R,
 explicit coupling C and physical devices, and reorders only the extracted top
-port declaration. Floating fill uses Calibre's `REDUCED` equivalent capacitance
-network. No source circuit substitutes for extraction.
+port declaration. No source circuit substitutes for extraction.
 
 Recorded Calibre settings group rule bindings, DRC execution, LVS comparison,
 and RC adaptation separately. Quantus and StarRC record CCI connectivity and
@@ -1482,16 +1515,26 @@ their extraction settings alongside the shared Calibre configuration.
 files whose contents must be inserted before adapting run I/O. Each name must
 match once. This handles an xRC wrapper including an LVS deck with single-valued
 run controls, without duplicating those statements or changing device rules.
-Optional `rule_control = "@filename"` selects a fixed native process wrapper
-from `runtime.control_files`. The native rule author owns its device definitions
-and validation; the framework only binds run I/O. A TVF wrapper that reads another
-deck must itself exclude that deck's fixed run I/O before emitting its rules.
+An optional text job input `rule_control` selects the task's native SVRF or TVF
+entrypoint. Declare it as an evaluator input and bind it to each intended job.
+This entrypoint owns comparison, virtual-connection, ERC and floating-net
+policies. The adapter binds run I/O and enforces named-port comparison; it does
+not add `LVS EXECUTE ERC`, `VIRTUAL CONNECT COLON` or
+`PEX EXTRACT FLOATING NETS` to a task-supplied entrypoint. The effective control
+file remains evidence. Non-UTF-8 comment bytes are preserved.
+
+Alternatively, the backend setting `rule_control = "@filename"` selects a fixed
+native process wrapper from `runtime.control_files`; supplying both sources is
+an error. Without a task control input, the existing flow requests ERC, disables
+colon virtual connections and uses the `REDUCED` floating-metal capacitance
+network. A TVF wrapper that reads another deck must itself exclude that deck's
+fixed run I/O before emitting its rules.
 `require_erc_summary = false` is explicit for decks with no standalone ERC
 RuleChecks; the default still requires the ERC report.
 
-Process-specific LVS reduction and parameter-comparison rules belong to native
-process resources, selected by `rule_control` or `rule_includes`. The framework
-does not synthesize device policies. Extraction may declare `mos_parameters`,
+Task-specific LVS reduction and parameter-comparison rules belong to the task's
+native controls; process resources supply the device and layer definitions. The
+framework does not synthesize device policies. Extraction may declare `mos_parameters`,
 a mapping from native parameter names to `positive`, `nonnegative` or `positive_integer` domains. These checks reject
 unsupported native output without changing its models, parameters or nets.
 `require_junctions` independently selects conventional AS/AD/PS/PD checks.
@@ -1580,21 +1623,29 @@ LVS and naming, not as a substitute for extraction.
 ### ICV with StarRC
 
 `icv-native` selects [operator host](#host-execution) ICV with `check = "drc"`,
-`"lvs"`, or `"rc"` and a mounted `deck`. Optional `lvs_control = "@filename"`
-selects a declared native runset wrapper, retaining the mounted deck's include
-directory. LVS and RC settings require `lvs_checks`, a mapping from native
-report check names to expected device-class counts. The adapter verifies this
+`"lvs"`, or `"rc"` and a mounted `deck`. An optional text job input
+`lvs_control` selects the task's native runset wrapper, retaining the mounted
+deck's include directory. Alternatively, the backend setting
+`lvs_control = "@filename"` selects a declared runtime control file; supplying
+both sources is an error. LVS and RC settings require `lvs_checks`, a mapping
+from native report check names to expected device-class counts. The adapter verifies this
 declared coverage and the native comparison verdict, and passes source inputs
-unchanged. Process resources own property comparison and device-equivalence
-policies. DRC requires a completed report for the requested top, positive rule
-coverage and zero violations. `allowed_unexecuted` records known inactive rules
+unchanged. Task controls own property comparison and device-equivalence
+policies; shared resources supply process interfaces. DRC requires a completed
+report for the requested top, positive rule coverage and zero violations.
+`allowed_unexecuted` records known inactive rules
 without suppressing checks.
 
 RC uses native ICV/StarRC, requiring `grid` and the job's ordered `ports`.
-It runs coupled RC at 25°C with `ground` (default `GND!`). Optional
-`starrc_control = "@filename"` appends declared native StarRC commands, including
-explicit process choices for power extraction. Three-terminal
-MOS models, geometry and RC cards remain as emitted by StarRC. The existing
+The adapter binds the block, grid, RC/SPF output and `ground` (default `GND!`).
+An optional text job input `starrc_control` appends the task's native StarRC
+commands. Alternatively, `starrc_control = "@filename"` selects a runtime
+control file; supplying both sources is an error. Native controls select
+extraction networks, power extraction, coupling, isolated ports, temperature
+and worker count. Controls are evaluator inputs and must be declared and bound
+to the corresponding jobs. DRC accepts neither control input, and LVS accepts
+only `lvs_control`. The effective runset and StarRC command file remain evidence.
+Three-terminal MOS models, geometry and RC cards remain as emitted by StarRC. The existing
 named interface may be reordered; missing supply ports and extra generated ports
 are rejected instead of added or removed. Native resource templates must produce
 the required model names and interface before the flow can be qualified.

@@ -188,32 +188,123 @@ def test_native_version_parser_keeps_backend_module_and_accepted_exit_codes():
     with pytest.raises(ValueError, match='release identity'):
         _native_version(probe, runtime, 'icv', ['icv', '-V'], r'Version (\S+) for linux64')
 
-def test_icv_passes_source_and_native_rules_without_process_rewrites(monkeypatch, tmp_path):
-    from benchmarking.eda.backends.synopsys import ICVNative
-
+@pytest.fixture
+def native_icv(monkeypatch, tmp_path):
     deck = tmp_path / 'native.rules'
-    rules = 'native process comparison and reduction rules\n'
-    deck.write_text(rules)
+    deck.write_text('native process comparison and reduction rules\n')
     captured = {}
+
     class Tool:
         def __init__(self, *_args, **_kwargs):
             pass
+
         def probe(self, *_args, **_kwargs):
-            return SimpleNamespace(returncode=0, stdout=b'Version test for linux64')
+            return SimpleNamespace(returncode=0, stdout=b'Version test for linux64\nVersion : test\n')
+
         def run(self, command, files, exports, **kwargs):
             captured.update(files)
             report = b'Final comparison result:PASS\nTOP equivalence point: [TOP, TOP]\ncheck_property = 2 device_name\nrecognize_gate = 0 device_name\n'
-            return SimpleNamespace(reason='', returncode=0, evidence={},
-                                   files={'TOP.LVS_ERRORS': Asset(report, 'text')})
+            extracted = b'.SUBCKT TOP D G S\nR0 G gate 10\nC0 gate S 1e-15\nM0 D gate S nfet W=21n L=15n nfin=1 ADEJ=1e-16 ASEJ=1e-16 PDEJ=10n PSEJ=10n\n.ENDS TOP\n'
+            return SimpleNamespace(reason='', returncode=0,
+                evidence={'console': Asset(b'Warnings: 0 Errors: 0\nDone Elp=1\n', 'text')},
+                files={'TOP.LVS_ERRORS': Asset(report, 'text'), 'extracted.dspf': Asset(extracted, 'spice')})
+
     monkeypatch.setattr('benchmarking.eda.backends.synopsys.NativeTool', Tool)
     runtime = SimpleNamespace(pdk_file=lambda _: (deck, str(deck)),
-                              module_command=lambda _module, command: command)
-    backend = ICVNative(runtime=runtime, check='lvs', deck='native.rules',
-                        lvs_checks={'check_property': 2, 'recognize_gate': 0})
+        control_files={'lvs.rs': 'native shared wrapper\n', 'star.cmd': 'POWER_EXTRACT: YES\n'},
+        control_path=lambda name: 'process/' + name[1:],
+        module_command=lambda _module, command: command, module_setup=lambda _module: '')
+    return runtime, captured
+
+
+@pytest.mark.parametrize('check', ['lvs', 'rc'])
+@pytest.mark.parametrize('control_source', ['deck', 'runtime', 'task'])
+def test_icv_passes_source_and_native_rules_without_process_rewrites(native_icv, check, control_source):
+    from benchmarking.eda.backends.synopsys import ICVNative
+
+    runtime, captured = native_icv
+    settings, controls = {}, {}
+    rules = runtime.pdk_file('native.rules')[0].read_bytes()
+    commands = b''
+    if control_source == 'runtime':
+        settings['lvs_control'] = '@lvs.rs'
+        rules = runtime.control_files['lvs.rs'].encode()
+        if check == 'rc':
+            settings['starrc_control'] = '@star.cmd'
+            commands = runtime.control_files['star.cmd'].encode()
+    elif control_source == 'task':
+        # Each job can select its own native policies without process rewriting.
+        rules = b'#include "process/interface.rs"\ncase comparison with exact tolerances\n'
+        controls['lvs_control'] = Asset(rules, 'text')
+        if check == 'rc':
+            commands = b'POWER_EXTRACT: YES\nCOUPLE_TO_GROUND: NO\nOPERATING_TEMPERATURE: 80\nNUM_CORES: 2\n'
+            controls['starrc_control'] = Asset(commands, 'text')
+    backend = ICVNative(runtime=runtime, check=check, deck='native.rules',
+        grid='native.grid' if check == 'rc' else None,
+        lvs_checks={'check_property': 2, 'recognize_gate': 0}, **settings)
     source = Asset(b'.subckt TOP D G S\nM0 D G S nfet w=21n l=15n nfin=1 m=3\n.ends TOP\n', 'spice')
-    job = SimpleNamespace(stage='check', parameters={})
+    job = SimpleNamespace(stage='extract' if check == 'rc' else 'check',
+                          parameters={'ports': ['D', 'G', 'S']} if check == 'rc' else {})
     result = backend.run(job, {'layout': Asset(b'frozen', 'gds'), 'netlist': source,
-                              'task': Asset(b'{"output":{"top_cell":"TOP"},"netlist_subcircuit":"TOP"}', 'json')})
+        'task': Asset(b'{"output":{"top_cell":"TOP"},"netlist_subcircuit":"TOP"}', 'json'), **controls})
     assert result.status == 'passed'
     assert captured['source.spice'] == source
-    assert captured['control.rs'].content == rules.encode()
+    assert captured['control.rs'].content == rules
+    assert result.evidence['control'].content == rules
+    if check == 'rc':
+        effective = captured['star.cmd'].content
+        assert effective.endswith(commands)
+        # Conditions come only from selected controls, with no hidden temperature,
+        # coupling or parallelism overriding the task's native settings.
+        for keyword in (b'OPERATING_TEMPERATURE:', b'NUM_CORES:', b'COUPLE_TO_GROUND:'):
+            assert effective.count(keyword) == commands.count(keyword)
+        assert result.evidence['starrc_control'].content == effective
+        assert b'M0 D gate S nfet W=21n L=15n' in result.outputs['netlist'].content
+
+
+@pytest.mark.parametrize('role', ['lvs_control', 'starrc_control'])
+@pytest.mark.parametrize('bad', [Asset(b'', 'text'), Asset(b' \n', 'text'),
+                                Asset(b'native\0', 'text'), Asset(b'native', 'spice'),
+                                Asset(b'\xff', 'text')])
+def test_icv_rejects_invalid_native_control_inputs(native_icv, role, bad):
+    from benchmarking.eda.backends.synopsys import ICVNative
+
+    runtime, captured = native_icv
+    backend = ICVNative(runtime=runtime, check='rc', deck='native.rules', grid='native.grid',
+                        lvs_checks={'check_property': 2})
+    inputs = {'layout': Asset(b'frozen', 'gds'), 'netlist': Asset(b'source', 'spice'),
+              'task': Asset(b'{"output":{"top_cell":"TOP"},"netlist_subcircuit":"TOP"}', 'json'), role: bad}
+    with pytest.raises(ValueError):
+        backend.run(SimpleNamespace(stage='extract', parameters={'ports': ['D', 'G', 'S']}), inputs)
+    assert not captured
+
+
+@pytest.mark.parametrize('role,setting', [('lvs_control', '@lvs.rs'), ('starrc_control', '@star.cmd')])
+def test_icv_rejects_ambiguous_native_control_sources(native_icv, role, setting):
+    from benchmarking.eda.backends.synopsys import ICVNative
+
+    runtime, captured = native_icv
+    backend = ICVNative(runtime=runtime, check='rc', deck='native.rules', grid='native.grid',
+                        lvs_checks={'check_property': 2}, **{role: setting})
+    inputs = {'layout': Asset(b'frozen', 'gds'), 'netlist': Asset(b'source', 'spice'),
+              'task': Asset(b'{"output":{"top_cell":"TOP"},"netlist_subcircuit":"TOP"}', 'json'),
+              role: Asset(b'case policy', 'text')}
+    with pytest.raises(ValueError, match='exactly one source'):
+        backend.run(SimpleNamespace(stage='extract', parameters={'ports': ['D', 'G', 'S']}), inputs)
+    assert not captured
+
+
+@pytest.mark.parametrize('check,role', [('drc', 'lvs_control'), ('drc', 'starrc_control'),
+                                      ('lvs', 'starrc_control')])
+def test_icv_rejects_controls_for_other_operations(native_icv, check, role):
+    from benchmarking.eda.backends.synopsys import ICVNative
+
+    runtime, captured = native_icv
+    backend = ICVNative(runtime=runtime, check=check, deck='native.rules',
+                        lvs_checks=None if check == 'drc' else {'check_property': 2})
+    inputs = {'layout': Asset(b'frozen', 'gds'), 'task': Asset(b'{}', 'json'), role: Asset(b'native', 'text')}
+    if check == 'lvs':
+        inputs['netlist'] = Asset(b'source', 'spice')
+    with pytest.raises(ValueError):
+        backend.run(SimpleNamespace(stage='check', parameters={}), inputs)
+    assert not captured

@@ -149,7 +149,10 @@ class ICVNative:
                 'spice_number_sha256': Asset(package_source('eda/netlists/spice.py').read_bytes(), 'python').sha256}
 
     def run(self, job, inputs):
-        keys(inputs, {'layout', 'task'} | ({'netlist'} if self.check != 'drc' else set()), set(), 'ICV inputs')
+        controls = ({'lvs_control'} if self.check != 'drc' else set())
+        if self.check == 'rc':
+            controls.add('starrc_control')
+        keys(inputs, {'layout', 'task'} | ({'netlist'} if self.check != 'drc' else set()), controls, 'ICV inputs')
         keys(job.parameters, {'ports'} if self.check == 'rc' else set(), set(), 'ICV parameters')
         if (inputs['layout'].format != 'gds' or inputs['task'].format != 'json'
                 or job.stage != ('extract' if self.check == 'rc' else 'check')):
@@ -158,8 +161,19 @@ class ICVNative:
         top = task['output']['top_cell']
         if top != task['netlist_subcircuit'] or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', top):
             raise ValueError('ICV needs identical simple top names')
-        raw = (self.runtime.control_files[self.lvs_control[1:]] if self.lvs_control
-               else self.deck.read_text())
+        selected = {}
+        for role in controls:
+            setting = getattr(self, role)
+            if role in inputs and setting is not None:
+                raise ValueError(f'ICV {role} must have exactly one source')
+            asset = (inputs.get(role) if setting is None else
+                     Asset(self.runtime.control_files[setting[1:]].encode(), 'text'))
+            if asset is not None:
+                if asset.format != 'text' or not asset.content.strip() or b'\0' in asset.content:
+                    raise ValueError(f'ICV {role} requires nonempty native text')
+                asset.content.decode('utf-8')
+                selected[role] = asset
+        raw = selected.get('lvs_control', Asset(self.deck.read_bytes(), 'text')).content.decode()
         files = {'candidate.gds': inputs['layout']}
         command = ['icv', '-c', top, '-f', 'GDSII', '-i', 'candidate.gds',
                    '-I', str(self.deck.parent), '-host_init', 'localhost:1']
@@ -178,18 +192,20 @@ class ICVNative:
         script = 'set -eu\n' + shlex.join(command) + '\n'
         if self.check == 'rc':
             files['star.cmd'] = Asset((f'BLOCK: {top}\nICV_RUNSET_REPORT_FILE: pex_runset_report\n'
-                f'SKIP_CELLS: !*\nTCAD_GRD_FILE: {self.grid}\nEXTRACTION: RC\nCOUPLE_TO_GROUND: NO\n'
-                'NETS: *\nNETLIST_FORMAT: SPF\nNETLIST_FILE: extracted.dspf\n'
+                f'TCAD_GRD_FILE: {self.grid}\nEXTRACTION: RC\n'
+                'NETLIST_FORMAT: SPF\nNETLIST_FILE: extracted.dspf\n'
                 'NETLIST_INSTANCE_SECTION: YES\nNETLIST_NODE_SECTION: YES\n'
-                f'NETLIST_GROUND_NODE_NAME: {self.ground}\nOPERATING_TEMPERATURE: 25\nNUM_CORES: 1\n'
-                + (self.runtime.control_files[self.starrc_control[1:]]
-                   if self.starrc_control else '')).encode(), 'text')
+                f'NETLIST_GROUND_NODE_NAME: {self.ground}\n'
+                + (selected['starrc_control'].content.decode()
+                   if 'starrc_control' in selected else '')).encode(), 'text')
             script += self.runtime.module_setup('starrc') + '\nStarXtract star.cmd\n'
             exports['extracted.dspf'] = 'spice'
         files['run.sh'] = Asset(script.encode(), 'text')
         result = self.tool.run(self.runtime.module_command('icv', ['bash', 'run.sh']), files, exports,
                                evidence_patterns=('Star*.log', '*.LAYOUT_ERRORS'))
         evidence = result.evidence | result.files | {'control': files['control.rs']}
+        if self.check == 'rc':
+            evidence['starrc_control'] = files['star.cmd']
         if self.check != 'drc':
             evidence['lvs_source'] = files['source.spice']
         if result.reason or result.returncode:

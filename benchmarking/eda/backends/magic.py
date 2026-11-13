@@ -20,6 +20,34 @@ def _tcl_word(value: str) -> str:
     return '"' + value + '"'
 
 
+def _ignore_gds_layers(technology: bytes, layers: list[list[int]]) -> Asset:
+    """Apply explicit input-layer exclusions with native CIF/GDS ignore rules."""
+    source = technology.decode()
+    section = re.search(r'(?ms)^[ \t]*cifinput[ \t]*\r?\n(.*?)^[ \t]*end[ \t]*\r?$', source)
+    if section is None:
+        raise ValueError("GDS ignore layers require an inline cifinput section")
+    body = section[1]
+    if re.search(r'(?m)^[ \t]*include\s', body):
+        raise ValueError("GDS ignore layers require inline cifinput styles")
+    name = "ICLAYOUT_IGNORED"
+    if re.search(r'\b' + name + r'\b', source):
+        raise ValueError("Reserved Magic input layer: " + name)
+    by_type = {}
+    for layer, datatype in layers:
+        by_type.setdefault(datatype, []).append(layer)
+    rules = f'\n  ignore {name}\n' + ''.join(
+        f'  calma {name} {",".join(map(str, sorted(numbers)))} {datatype}\n'
+        for datatype, numbers in sorted(by_type.items()))
+    # Append to every style so the declarations also apply after cif istyle.
+    styles = list(re.finditer(r'(?m)^[ \t]*style\s+[^\n]*', body))
+    positions = [style.start() for style in styles[1:]] + [len(body)]
+    if styles and any(line.split('#', 1)[0].strip() for line in body[:styles[0].start()].splitlines()):
+        positions.insert(0, styles[0].start())
+    for position in reversed(positions):
+        body = body[:position] + rules + body[position:]
+    return Asset((source[:section.start(1)] + body + source[section.end(1):]).encode(), "text")
+
+
 class MagicCapacitanceDocker:
     """Extract devices and coupled capacitances; wire resistance is not included.
 
@@ -33,7 +61,7 @@ class MagicCapacitanceDocker:
                  style: str, capacitance_threshold_ff: float = 0, timeout_seconds: float = 60,
                  gds_readonly: bool = True, label_layers: list[list[int]] | None = None,
                  case_insensitive_ports: bool = False, grid_subdivision: int = 1,
-                 resistance_net_selection: str = "all"):
+                 resistance_net_selection: str = "all", gds_ignore_layers: list[list[int]] | None = None):
         if resistance_net_selection not in {"all", "canonical"} or (
                 not self.wire_resistance and resistance_net_selection != "all"):
             raise ValueError("Invalid Magic resistance net selection")
@@ -53,10 +81,20 @@ class MagicCapacitanceDocker:
                        for pair in label_layers)):
             raise ValueError("label_layers must contain GDS layer/datatype pairs")
         self.label_layers = label_layers
+        if gds_ignore_layers is not None and (not isinstance(gds_ignore_layers, list)
+                or any(not isinstance(pair, list) or len(pair) != 2
+                       or any(type(n) is not int or not 0 <= n <= 65535 for n in pair)
+                       for pair in gds_ignore_layers)
+                or len({tuple(pair) for pair in gds_ignore_layers}) != len(gds_ignore_layers)):
+            raise ValueError("gds_ignore_layers must contain unique GDS layer/datatype pairs")
+        self.gds_ignore_layers = sorted(gds_ignore_layers or [])
         self.support = load_bundle(Path(support))
         self.technology = relative(technology, "Magic technology")
         if self.technology not in dict(self.support.files):
             raise ValueError("Magic technology is missing from the support bundle")
+        self.import_technology = (_ignore_gds_layers(dict(self.support.files)[self.technology].content,
+                                                   self.gds_ignore_layers)
+                                  if self.gds_ignore_layers else None)
         self.tech_name, self.style = text(tech_name, "technology name"), text(style, "extract style")
         self.threshold = number(capacitance_threshold_ff)
         if self.threshold < 0:
@@ -75,6 +113,7 @@ class MagicCapacitanceDocker:
                 "wire_resistance": self.wire_resistance,
                 "capacitance_threshold_ff": self.threshold,
                 "gds_readonly": self.gds_readonly,
+                "gds_ignore_layers": self.gds_ignore_layers,
                 "label_layers": self.label_layers,
                 "case_insensitive_ports": self.case_insensitive_ports,
                 "grid_subdivision": self.grid_subdivision,
@@ -173,6 +212,8 @@ class MagicCapacitanceDocker:
         files = {"candidate.gds": inputs["layout"], "extract.tcl": Asset(script.encode(), "tcl"),
                  "empty.magicrc": Asset(b"# No user startup or device generators.\n", "tcl"),
                  **self.support.mounted_files()}
+        if self.import_technology is not None:
+            files[f"support/{self.technology}"] = self.import_technology
         preprocessing = {}
         if prepare_layout:
             helper = Asset(package_source("eda/_scripts/magic_ports.py").read_bytes(), "python")
@@ -199,6 +240,8 @@ class MagicCapacitanceDocker:
                                    if self.wire_resistance else {})})
         evidence = {**self.support.evidence(), **preprocessing, **result.evidence, "script": files["extract.tcl"],
                     "interface": files["interface.json"], "interface_checker": files["magic_netlist.py"]}
+        if self.import_technology is not None:
+            evidence["import_technology"] = self.import_technology
         if "interface-check.json" in result.files:
             evidence["interface_check"] = result.files["interface-check.json"]
         if "extracted.spice" in result.files:

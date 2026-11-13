@@ -11,6 +11,8 @@ pytestmark = pytest.mark.unit
 @pytest.mark.parametrize('settings,error', [
     ({'grid_subdivision': 0}, ValueError),
     ({'label_layers': [[11, 65536]]}, ValueError),
+    ({'gds_ignore_layers': [[201, True]]}, ValueError),
+    ({'gds_ignore_layers': [[201, 0], [201, 0]]}, ValueError),
     ({'resistance_net_selection': 'canonical'}, ValueError),
 ])
 def test_malformed_preprocessing_settings_fail_before_bundle_or_docker_access(settings, error):
@@ -59,6 +61,52 @@ def test_extraction_diagnostics_distinguish_cell_names_from_errors(tmp_path, mon
     result = backend.run(job, {'layout': Asset(b'unused by mock tool', 'gds')})
     assert result.status == status
     assert bool(result.outputs) == (status == 'passed')
+
+
+@pytest.mark.parametrize('styles', ['', 'style first\n', 'style first\nstyle second\n'])
+def test_native_ignored_layers_are_job_local_and_retained_in_evidence(tmp_path, monkeypatch, styles):
+    import json
+
+    from benchmarking.evaluation import Job
+    from benchmarking.evidence.bundles import publish_bundle
+    from benchmarking.execution.tools import ToolResult
+    from benchmarking.files import Asset
+
+    original = Asset(('cifinput\n' + styles + 'end\nextract\nend\n').encode(), 'text')
+    candidate = Asset(b'frozen candidate', 'gds')
+    seen = []
+
+    class Tool:
+        def __init__(self, *args):
+            self.identity = {'tool_version': 'synthetic'}
+
+        def run(self, command, files, outputs):
+            seen.append(files)
+            return ToolResult(0, '', {
+                'extracted.spice': Asset(b'.subckt dut P\n.ends\n', 'spice'),
+                'interface-check.json': Asset(b'{"status":"passed"}', 'json')}, {})
+
+    monkeypatch.setattr('benchmarking.eda.backends.magic.DockerTool', Tool)
+    support = tmp_path / 'support'
+    publish_bundle({'tech.tech': original}, {}, support)
+    settings = {'image': 'unused', 'support': str(support), 'technology': 'tech.tech',
+                'tech_name': 'test', 'style': 'test'}
+    configured = MagicCapacitanceDocker(**settings, gds_ignore_layers=[[201, 7]])
+    default = MagicCapacitanceDocker(**settings)
+    job = Job('extract', 'extract', 'extract', (), (('netlist', 'spice'),), (), None,
+              json.dumps({'top_cell': 'dut', 'ports': ['P']}))
+    result = configured.run(job, {'layout': candidate})
+    assert result.status == default.run(job, {'layout': candidate}).status == 'passed'
+    effective = result.evidence['import_technology']
+    assert effective == seen[0]['support/tech.tech']
+    assert effective.content.count(b'ignore ICLAYOUT_IGNORED') == max(1, styles.count('style '))
+    assert b'calma ICLAYOUT_IGNORED 201 7' in effective.content
+    assert effective.content.endswith(b'extract\nend\n')
+    assert seen[0]['candidate.gds'] == seen[1]['candidate.gds'] == candidate
+    assert seen[1]['support/tech.tech'] == original
+    assert (support / 'tech.tech').read_bytes() == original.content
+    assert configured.identity['gds_ignore_layers'] == [[201, 7]]
+    assert default.identity['gds_ignore_layers'] == []
 
 
 @pytest.mark.parametrize('problem,expected', [
