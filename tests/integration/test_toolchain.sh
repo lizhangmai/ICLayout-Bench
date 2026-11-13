@@ -13,6 +13,9 @@ test "$(id -u)" -ne 0
 python - <<'PY'
 import importlib.util
 import subprocess
+import gdsfactory as gf
+from gdsfactory.generic_tech import get_generic_pdk
+import gdstk
 import matplotlib.pyplot as plt
 import networkx
 import numpy
@@ -27,6 +30,18 @@ import tkinter
 import yaml
 assert pya.__version__ in subprocess.check_output(['klayout', '-b', '-v'], text=True)
 assert pya.Box(0, 0, 10, 20).area() == 200
+assert gdstk.rectangle((0, 0), (2, 3)).area() == 6
+get_generic_pdk().activate()
+rectangle = gf.components.rectangle(size=(2, 3), layer=(1, 0))
+assert rectangle.area() == 6
+array = gf.Component()
+array.add_array(rectangle, columns=2, rows=2, spacing=(4, 5))
+assert array.area() == 24
+cutout = gf.geometry.boolean(
+    A=gf.components.rectangle(size=(4, 4), layer=(1, 0)),
+    B=gf.components.rectangle(size=(2, 2), layer=(1, 0)),
+    operation="A-B", layer=(1, 0))
+assert cutout.area() == 12
 assert psutil.Process().pid > 0
 assert tkinter.Tcl().eval('expr {2 + 3}') == '5'
 assert numpy.allclose(numpy.linalg.solve([[2, 0], [0, 4]], [4, 8]), [2, 2])

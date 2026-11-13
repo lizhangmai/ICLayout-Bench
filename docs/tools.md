@@ -129,7 +129,7 @@ support profiles through the normal session mount, `/resources`:
 - `support/<profile>/`: the case's evaluator support files, mounted directly from
   the PDK or shared derived cache. Generated startup paths are adapted for this mount.
 - `pdk-environment.json`: process identity, source release, container environment
-  and usage checks, also exposed through the `resources` field of `/protocol/task.json`.
+  and optional usage checks, also exposed through the `resources` field of `/protocol/task.json`.
 
 Case preparation stores path bindings, not another filesystem view of the PDK.
 Benchmark case references, other case directories and unrelated PDK roots are
@@ -141,11 +141,17 @@ identifier avoids conflicting with tool-owned settings such as gdsfactory's
 Python/KLayout search paths are appended; conflicting fixed settings are rejected.
 The PDK mounts are read-only and the Agent stays non-root and offline. Write
 generated layouts, simulator decks and tool caches under `/workspace` or `/tmp`.
-For ngspice, copy the selected support profile's `.spiceinit` into the working
-directory before invoking the simulator; it loads compiled models where needed.
+For ngspice, use the task's declared startup configuration and model selections;
+shared PDK profiles provide model files and compiled modules.
 
 Additional participant tools can be installed in a custom solver image selected
 through [participant tool schemes](running.md#participant-tool-schemes).
+
+The tools image resolves Python packages together with upstream PCell APIs.
+Its gdsfactory pin preserves `Component.add_array` and `geometry.boolean`, used
+by GF180's native generators; its NumPy and gdstk bounds also constrain compatible
+SciPy and pandas releases. Check native MOS, guard-ring and passive generation
+when changing this dependency line.
 
 ### Prepared Python tools
 
@@ -1147,7 +1153,8 @@ copy external installations or credentials.
 These declarations produce the [Agent PDK resources](#agent-pdk-resources) view.
 
 An `[agent]` table in `pdk.toml` declares process
-`id`, `sources`, `environment`, `checks`, and optional `support_profiles`.
+`id`, `sources`, and `environment`, with optional `checks`, `support_profiles`
+and `local_files`.
 Each source declares a pinned `repository` and `commit`, or `installation = true`
 for the manifest's installation. Optional `path` selects the PDK root within
 that checkout or installation. Optional `paths` is a nonempty list of normalized,
@@ -1155,24 +1162,27 @@ nonoverlapping paths below that root. Use it to expose technology files, device
 models and licenses while omitting reference cells and example layouts. Paths
 are bound directly from the installation; preparation does not copy the PDK.
 Changing this selection produces a new resource binding.
-Each support profile names an evaluator preparation profile. `checks` is a
-nonempty list of executable argument lists run inside the Agent container.
+Each support profile names an evaluator preparation profile. When declared,
+`checks` lists executable argument lists run inside the Agent container; each
+command must be nonempty.
 
 | Resource | Runtime behavior |
 |---|---|
 | PDK resources | The selected `pdk.toml` declares roots and container settings; selected roots are mounted read-only. |
 | Tool support bundle | Declared profiles select Magic, MOS models and KLayout rules; generated models are compiled in a separate container. |
-| PDK resource view | `resource.json` binds shared preparation; containers mount installed roots and derived files read-only. Sessions detect the selected PDK; `/protocol/task.json` → `resources` publishes its container-local import paths and a preflight import command without adding task or reference files |
+| PDK resource view | `resource.json` binds shared preparation; containers mount installed roots and derived files read-only. Sessions detect the selected PDK; `/protocol/task.json` → `resources` publishes its container-local import paths and any declared preflight commands without adding task or reference files |
 
-Keep upstream files byte-for-byte and register generated startup settings
-separately in the manifest. Preserve component license notices, including those
-for PSP models, PyCell and pypreprocessor.
+Keep upstream files byte-for-byte and maintain simulator startup settings with
+the task. Preserve component license notices, including those for PSP models,
+PyCell and pypreprocessor.
 
 Resource preflight runs the process's declared `checks` and any selected
-support-profile checks. A passing command establishes only the functionality it
-exercises; successful imports do not certify every device parameter or process
-rule. Physical and electrical coverage comes from the selected task's declared
-evaluation scope, as described under [qualification](tasks.md#qualification).
+support-profile checks. Process `checks` are optional and may be empty; a resource
+binding does not require a custom check script. A passing command establishes
+only the functionality it exercises; successful imports do not certify every
+device parameter or process rule. Physical and electrical coverage comes from
+the selected task's declared evaluation scope, as described under
+[qualification](tasks.md#qualification).
 
 ### Manual support preparation
 

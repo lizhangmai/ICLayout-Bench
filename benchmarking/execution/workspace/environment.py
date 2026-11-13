@@ -27,8 +27,8 @@ def descriptor(resources):
                                and local.startswith(key + "/"))
                            for key, value in resources.items()):
                     raise ValueError(f"Missing PDK environment path: {path}")
-    if not isinstance(data["checks"], list) or not data["checks"]:
-        raise ValueError("PDK environment requires usage checks")
+    if not isinstance(data["checks"], list):
+        raise TypeError("PDK checks must be a list")
     for command in data["checks"]:
         if not isinstance(command, list) or not command or any(not isinstance(x, str) or not x or "\0" in x for x in command):
             raise ValueError("PDK checks must be argument lists")
