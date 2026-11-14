@@ -80,9 +80,12 @@ def test_native_passive_examples_and_passive_equivalents(em_resources, component
     backend = OpenEMSDocker(image=image, support=str(prepared), workflow="workflow/modules",
         stackup="stackup.xml", timeout_seconds=3600)
     job = Job("native_passive", "extract", "layout.electromagnetic", (),
-        (("network", "touchstone"), ("model", "spice")), (), None, json.dumps(settings))
+        (("network", "touchstone"), ("model", "spice"), ("netlist", "spice")), (), None, json.dumps(settings))
+    circuit = Asset(b"* Declared circuit\n.subckt control p n\nXmodel p n external_model\n.ends control\n", "spice")
+    models = Asset(b".subckt external_model p n\nRcontrol p n 50\n.ends external_model\n", "spice")
     result = backend.run(job, {"layout": Asset(files[f"examples/{component}.gds"].content, "gds"),
-                              "ports": Asset(json.dumps(ports).encode(), "json")})
+                              "ports": Asset(json.dumps(ports).encode(), "json"),
+                              "circuit": circuit, "models": models})
     for name, asset in {**result.evidence, **result.outputs}.items():
         (tmp_path / name.replace(":", "_")).write_bytes(asset.content)
     assert result.status == "passed", result.reason
@@ -92,6 +95,8 @@ def test_native_passive_examples_and_passive_equivalents(em_resources, component
     assert details["maximum_reciprocity_error"] < .001
     assert details["model"]["passive"] and details["model"]["stable"]
     assert details["model"]["maximum_complex_s_error"] <= .003
+    assert result.outputs["netlist"].content == (
+        circuit.content + b"\n" + models.content + b"\n" + result.outputs["model"].content)
 
 
 def test_native_hbt_port_example_and_mesh_convergence(em_resources, tmp_path):

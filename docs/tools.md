@@ -919,6 +919,17 @@ the simulator's native instance parameter. The effective resistance is
 unchanged; both exported representations remain evidence. Passivity or fitting
 errors reject the model.
 
+
+An optional prepared SPICE `circuit` input requests an assembled `netlist`
+output. Optional SPICE `models` supplies its model definitions. The adapter
+concatenates these declared bytes and the fitted EM model without changing
+device cards or connections.
+
+The physical-GDS partitioner serializes multi-hole material using native
+KLayout trapezoids when their planar region is exactly preserved. This avoids
+ambiguous bridged GDS contours while retaining holes, zero-area port sheets
+and labels.
+
 This backend starts from explicit EM geometry and reference planes. A task
 must define and independently validate their relationship to the submitted
 physical layout, the compact-device boundaries, DC bias connections and any
@@ -941,13 +952,41 @@ integral number of uniform steps; `cellsize`, `margin`, `meshsize_max` and
 `adaptive_sweep`, `conductor_model` (`surface`, `solve_inside` or
 `solve_inside_skin`), basis `order` (1–3), OpenMP `threads` and MPI `processes`.
 Optional settings are `merge_polygon_size`, `preprocess_gds`,
-`adaptive_mesh_iterations`, `adaptive_tolerance`, `cad_threads` and the native `model` fit.
+`adaptive_mesh_iterations`, `adaptive_tolerance`, `cad_threads`,
+`cad_boolean_simplify`, `mesh_algorithm_3d`, `fill_factor_correction`,
+`excitation_batch_size`, `parallel_batches`, `linear_solver`,
+`complex_coarse_solve`, `solver_maxits`, `solver_tol`, `krylov_max_size`
+and the native `model` fit.
 The declared CAD thread count enables Gmsh's native parallel OpenCASCADE
 operators; its default is the declared OpenMP thread count.
+The optional integer simplification mode sets Gmsh's native
+`Geometry.OCCBooleanSimplify` (0: disabled, 1: unions, 2: all boolean operations).
+The optional `mesh_algorithm_3d` selects Gmsh's native volume mesher:
+1 (Delaunay), 4 (Frontal), 7 (MMG3D), or 10 (HXT).
+The optional boolean `fill_factor_correction` enables the upstream workflow's
+conductivity correction for merged via arrays, using the original via metal
+area. Declare it explicitly when using that native homogenization method.
+Optional positive integers `excitation_batch_size` and `parallel_batches`
+schedule native Palace excitation groups on one fixed mesh. All port
+terminations remain active; only incident excitation indices change between
+groups. Every matrix column is required exactly once on the same frequency
+grid. Missing, unsolved or duplicate columns reject the result. Each group
+uses the declared MPI process and OpenMP thread counts, so parallel groups
+multiply the resource demand. Batching cannot be combined with adaptive mesh
+iterations, which could produce different meshes for different columns.
 The adaptive tolerance sets Palace's `Solver.Driven.AdaptiveTol` explicitly.
+`linear_solver` selects the upstream preconditioner (`Default`, `AMS`,
+`MUMPS`, `SuperLU`, `STRUMPACK` or `STRUMPACK-MP`); the selected solver must
+be available in the image. `complex_coarse_solve`, `solver_maxits` and
+`solver_tol` pass through to the native workflow. `krylov_max_size` bounds
+Palace's GMRES restart space through `Solver.Linear.MaxSize`. These settings
+control numerical solving and memory demand; the physical mesh, materials
+and complete response requirements still apply.
 
 The adapter requires every matrix entry at every requested frequency. Missing,
-unsolved or nonfinite responses are errors. It preserves the native reference
+unsolved or nonfinite responses, and an adaptive sweep that exhausts its sample
+limit before converging, or a linear solver that misses its residual tolerance,
+are errors. It preserves the native reference
 planes and frequency range without DC extrapolation or port de-embedding.
 Mesh convergence, assembly accuracy and circuit qualification remain separate
 author checks.

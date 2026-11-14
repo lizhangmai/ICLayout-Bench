@@ -21,6 +21,41 @@ from benchmarking.files import Asset
 pytestmark = [pytest.mark.integration, pytest.mark.acceptance_eda]
 
 
+
+def test_field_gds_serialization_preserves_holes_and_port_sheets(tmp_path):
+    """Material holes and zero-area source sheets survive native serialization."""
+    db = pytest.importorskip("klayout.db")
+    from benchmarking.eda._scripts.openems_prepare import write_field_gds
+
+    layout = db.Layout()
+    layout.dbu = .001
+    top = layout.create_cell("TOP")
+    material = db.Region(db.Box(0, 0, 10000, 10000))
+    for x in (1000, 4000, 7000):
+        material -= db.Region(db.Box(x, 2000, x + 500, 8000))
+    assert sum(p.holes() for p in material.each()) == 3
+    index = layout.layer(8, 0)
+    top.shapes(index).insert(material)
+    port_index = layout.layer(1001, 0)
+    port = db.Box(200, 0, 200, 400)
+    top.shapes(port_index).insert(port)
+    top.shapes(layout.layer(8, 2)).insert(db.Text("terminal", db.Trans(0, 0)))
+    encoded = tmp_path / "field.gds"
+    write_field_gds(layout, str(encoded))
+    frozen = db.Layout()
+    frozen.read(str(encoded))
+    result = db.Region(frozen.top_cell().begin_shapes_rec(frozen.layer(8, 0)))
+    assert (result ^ material).is_empty()
+    assert sum(p.holes() for p in result.merged().each()) == 3
+    for x in (1000, 4000, 7000):
+        assert (result & db.Region(db.Box(x, 2000, x + 500, 8000))).is_empty()
+    source_shapes = list(frozen.top_cell().shapes(frozen.layer(1001, 0)).each())
+    assert len(source_shapes) == 1
+    assert source_shapes[0].bbox() == port
+    labels = list(frozen.top_cell().shapes(frozen.layer(8, 2)).each())
+    assert [shape.text.string for shape in labels] == ["terminal"]
+
+
 def test_native_components_are_compared_without_regenerating_the_candidate(tmp_path):
     profile = os.environ.get("ICLAYOUT_BENCH_NATIVE_CELLS_PROFILE")
     if not profile:

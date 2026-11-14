@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import tarfile
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 
 import numpy as np
@@ -21,26 +22,41 @@ def read_network(csv_path, converter, ports, config):
     spec = importlib.util.spec_from_file_location("native_palace_csv", converter)
     native = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(native)
-    frequency, magnitudes, phases = [], [], []
-    count, unit = native.parse_palace_csv(str(csv_path), frequency, magnitudes, phases)
-    expected = {f"{i} {j}" for i in range(1, len(ports) + 1) for j in range(1, len(ports) + 1)}
-    if count != len(ports) or not frequency:
-        raise ValueError("Native FEM output has missing ports or frequencies")
-    matrices = []
-    for magnitude, phase in zip(magnitudes, phases, strict=True):
-        if magnitude.keys() != expected or phase.keys() != expected:
-            raise ValueError("Native FEM output does not contain every port response")
-        matrix = np.empty((count, count), dtype=complex)
-        for i in range(count):
-            for j in range(count):
-                key = f"{i+1} {j+1}"
-                db, angle = float(magnitude[key]), float(phase[key])
-                if math.isnan(db) or db == math.inf or not math.isfinite(angle):
-                    raise ValueError("Native FEM output contains an invalid response")
-                matrix[i, j] = dbdeg_2_reim(db, angle)
-        matrices.append(matrix)
-    network = skrf.Network(frequency=skrf.Frequency.from_f(np.asarray(frequency, float), unit=unit),
-                           s=np.asarray(matrices), z0=ports[0]["impedance"])
+    count = len(ports)
+    sources = csv_path if isinstance(csv_path, list) else [(csv_path, list(range(1, count + 1)))]
+    covered, frequencies, matrices = set(), None, None
+    for path, columns in sources:
+        if (not columns or any(type(column) is not int or not 1 <= column <= count for column in columns)
+                or len(set(columns)) != len(columns) or covered.intersection(columns)):
+            raise ValueError("Native FEM excitation columns are missing, invalid or duplicated")
+        frequency, magnitudes, phases = [], [], []
+        native_count, unit = native.parse_palace_csv(str(path), frequency, magnitudes, phases)
+        expected = {f"{i} {j}" for i in range(1, count + 1) for j in columns}
+        if native_count != count or not frequency:
+            raise ValueError("Native FEM output has missing ports or frequencies")
+        native_frequency = skrf.Frequency.from_f(np.asarray(frequency, float), unit=unit).f
+        if frequencies is None:
+            frequencies = native_frequency
+            matrices = np.empty((len(frequency), count, count), dtype=complex)
+        elif not np.array_equal(frequencies, native_frequency):
+            raise ValueError("Native FEM excitation batches have different frequency grids")
+        if len(magnitudes) != len(frequencies) or len(phases) != len(frequencies):
+            raise ValueError("Native FEM output has incomplete frequency responses")
+        for k, (magnitude, phase) in enumerate(zip(magnitudes, phases, strict=True)):
+            if not expected <= magnitude.keys() or not expected <= phase.keys():
+                raise ValueError("Native FEM output does not contain every requested port response")
+            for i in range(count):
+                for j in columns:
+                    key = f"{i+1} {j}"
+                    db, angle = float(magnitude[key]), float(phase[key])
+                    if math.isnan(db) or db == math.inf or not math.isfinite(angle):
+                        raise ValueError("Native FEM output contains an invalid response")
+                    matrices[k, i, j-1] = dbdeg_2_reim(db, angle)
+        covered.update(columns)
+    if covered != set(range(1, count + 1)):
+        raise ValueError("Native FEM did not solve every excitation column")
+    network = skrf.Network(frequency=skrf.Frequency.from_f(frequencies, unit="Hz"),
+                           s=matrices, z0=ports[0]["impedance"])
     order = np.argsort(network.f)
     network = skrf.Network(frequency=skrf.Frequency.from_f(network.f[order], unit="Hz"),
                            s=network.s[order], z0=network.z0[order])
@@ -55,9 +71,34 @@ def read_network(csv_path, converter, ports, config):
     return network
 
 
+def native_linear_settings(config):
+    """Translate declared options to the upstream Palace linear-solver schema."""
+    settings = {}
+    if "linear_solver" in config:
+        solver = config["linear_solver"]
+        if type(solver) is not str or solver not in {"Default", "AMS", "MUMPS", "SuperLU", "STRUMPACK", "STRUMPACK-MP"}:
+            raise ValueError("Invalid native Palace linear solver")
+        settings["Type"] = solver
+    if "complex_coarse_solve" in config:
+        if type(config["complex_coarse_solve"]) is not bool:
+            raise ValueError("Invalid native complex coarse-solve setting")
+        settings["ComplexCoarseSolve"] = config["complex_coarse_solve"]
+    for key, native in (("solver_maxits", "MaxIts"), ("krylov_max_size", "MaxSize")):
+        if key in config:
+            if type(config[key]) is not int or config[key] < 1:
+                raise ValueError("Invalid native Palace Krylov iteration or memory bound")
+            settings[native] = config[key]
+    if "solver_tol" in config:
+        if type(config["solver_tol"]) not in {int, float} or not 0 < config["solver_tol"] < 1:
+            raise ValueError("Invalid native Palace linear residual tolerance")
+        settings["Tol"] = config["solver_tol"]
+    return settings
+
+
 def prepare_mesh(config, ports):
     from klayout import db
 
+    linear = native_linear_settings(config)
     for key in ("fstart", "fstop", "fstep", "cellsize", "margin", "meshsize_max", "air_around"):
         if type(config[key]) not in {int, float} or not math.isfinite(config[key]):
             raise ValueError("Invalid native FEM numeric setting")
@@ -134,6 +175,12 @@ def prepare_mesh(config, ports):
         "dielectrics_list": dielectric, "metals_list": metal, "layernumbers": layernumbers,
         "allpolygons": polygons, "sim_path": str(simulation), "model_basename": "candidate",
     }
+    settings.update({key: config[key] for key in ("complex_coarse_solve", "solver_maxits", "solver_tol")
+                     if key in config})
+    if "fill_factor_correction" in config:
+        if type(config["fill_factor_correction"]) is not bool:
+            raise ValueError("Invalid native via fill-factor correction setting")
+        settings["fill_factor_correction"] = config["fill_factor_correction"]
     import gmsh
 
     cad_threads = config.get("cad_threads", config["threads"])
@@ -142,35 +189,100 @@ def prepare_mesh(config, ports):
     gmsh.initialize(readConfigFiles=False)
     gmsh.option.setNumber("General.NumThreads", cad_threads)
     gmsh.option.setNumber("Geometry.OCCParallel", 1 if cad_threads > 1 else 0)
+    if "cad_boolean_simplify" in config:
+        simplify = config["cad_boolean_simplify"]
+        if type(simplify) is not int or simplify not in {0, 1, 2}:
+            raise ValueError("Invalid declared Gmsh boolean simplification mode")
+        gmsh.option.setNumber("Geometry.OCCBooleanSimplify", simplify)
+    if "mesh_algorithm_3d" in config:
+        algorithm = config["mesh_algorithm_3d"]
+        if type(algorithm) is not int or algorithm not in {1, 4, 7, 10}:
+            raise ValueError("Invalid declared native Gmsh 3D meshing algorithm")
+        gmsh.option.setNumber("Mesh.Algorithm3D", algorithm)
     config_name, _ = setup.create_palace(simulation_ports.all_active_excitations(), settings)
     config_path = Path(config_name)
     if not config_path.is_absolute():
         config_path = (config_path if config_path.exists() else simulation / config_path).resolve()
+    native_config = json.loads(config_path.read_text())
+    native_config["Solver"]["Linear"].update(linear)
     if "adaptive_tolerance" in config:
         tolerance = config["adaptive_tolerance"]
         if type(tolerance) not in {int, float} or not 0 < tolerance < 1 or not config["adaptive_sweep"]:
             raise ValueError("Invalid declared native Palace adaptive-sweep tolerance")
-        native_config = json.loads(config_path.read_text())
         native_config["Solver"]["Driven"]["AdaptiveTol"] = tolerance
-        config_path.write_text(json.dumps(native_config, indent=2))
+    config_path.write_text(json.dumps(native_config, indent=2))
     return config_path, simulation
 
 
-def solve(config, ports):
-    config_path, simulation = prepare_mesh(config, ports)
-    with (simulation / "solver.log").open("w") as log:
-        subprocess.run(["palace", "-np", str(config["processes"]), str(config_path)],
-                       cwd=simulation, stdout=log, stderr=subprocess.STDOUT, check=True)
-    candidates = list(simulation.rglob("port-S.csv"))
-    if len(candidates) > 1:
-        ranked = [(max((int(v) for v in re.findall(r"iteration(\d+)", str(p))), default=-1), p)
-                  for p in candidates]
-        latest = max(rank for rank, _ in ranked)
-        candidates = [p for rank, p in ranked if rank == latest]
-    if len(candidates) != 1:
-        raise ValueError("Native FEM did not produce one unambiguous final multiport result")
-    network = read_network(candidates[0], Path("support", config["converter"]).resolve(), ports, config)
+def excitation_groups(config, ports):
+    """Validate native source groups before the expensive geometry operation."""
+    batch_size = config.get("excitation_batch_size", len(ports))
+    parallel = config.get("parallel_batches", 1)
+    if any(type(value) is not int or value < 1 for value in (batch_size, parallel)):
+        raise ValueError("Invalid declared native FEM excitation batching")
+    if batch_size < len(ports) and config.get("adaptive_mesh_iterations", 0):
+        raise ValueError("Excitation batches require the same fixed mesh")
+    groups = [list(range(start, min(start + batch_size, len(ports) + 1)))
+              for start in range(1, len(ports) + 1, batch_size)]
+    return groups, parallel
+
+
+def solve_prepared(config, ports, config_path, simulation):
+    """Run native sources on one existing native mesh and material configuration."""
+    groups, parallel = excitation_groups(config, ports)
+    base = json.loads(config_path.read_text())
+
+    def run_batch(item):
+        index, columns = item
+        if len(groups) == 1:
+            path, log_path = config_path, simulation / "solver.log"
+            result_directory = simulation / base["Problem"]["Output"]
+        else:
+            native = json.loads(json.dumps(base))
+            if {port["Index"] for port in native["Boundaries"]["LumpedPort"]} != set(range(1, len(ports) + 1)):
+                raise ValueError("Native FEM ports do not match the complete excitation plan")
+            for port in native["Boundaries"]["LumpedPort"]:
+                port["Excitation"] = port["Index"] if port["Index"] in columns else 0
+            native["Problem"]["Output"] = f"output/batch-{index}"
+            path = simulation / f"config-batch-{index}.json"
+            path.write_text(json.dumps(native, indent=2))
+            log_path = simulation / f"solver-batch-{index}.log"
+            result_directory = simulation / native["Problem"]["Output"]
+        with log_path.open("w") as log:
+            subprocess.run(["palace", "-np", str(config["processes"]), str(path)],
+                           cwd=simulation, stdout=log, stderr=subprocess.STDOUT, check=True)
+        with log_path.open() as log:
+            if any(any(marker in line.lower() for marker in (
+                    "adaptive sampling reached maximum", "did not converge", "failed to converge"))
+                   for line in log):
+                raise ValueError("Native FEM did not reach its declared solver tolerance")
+        candidates = list(result_directory.rglob("port-S.csv"))
+        if len(candidates) > 1:
+            ranked = [(max((int(v) for v in re.findall(r"iteration(\d+)", str(p))), default=-1), p)
+                      for p in candidates]
+            latest = max(rank for rank, _ in ranked)
+            candidates = [p for rank, p in ranked if rank == latest]
+        if len(candidates) != 1:
+            raise ValueError("Native FEM did not produce one unambiguous final excitation result")
+        return candidates[0], columns
+
+    responses = []
+    # Keep only active groups submitted. A failed native call must not leave
+    # every remaining source group queued behind it during executor shutdown.
+    with ThreadPoolExecutor(max_workers=min(parallel, len(groups))) as pool:
+        remaining = iter(enumerate(groups))
+        pending = {pool.submit(run_batch, item) for item in
+                   [next(remaining) for _ in range(min(parallel, len(groups)))]}
+        while pending:
+            completed, pending = wait(pending, return_when=FIRST_COMPLETED)
+            responses.extend(future.result() for future in completed)
+            for _ in completed:
+                item = next(remaining, None)
+                if item is not None:
+                    pending.add(pool.submit(run_batch, item))
+    network = read_network(responses, Path("support", config["converter"]).resolve(), ports, config)
     details = {"ports": network.nports, "frequencies": len(network.f),
+        "excitation_batches": len(groups), "parallel_batches": min(parallel, len(groups)),
         "maximum_singular_value": float(np.linalg.svd(network.s, compute_uv=False).max()),
         "maximum_reciprocity_error": float(np.abs(network.s - network.s.transpose(0, 2, 1)).max()),
         "scope": "Native FEM of explicit input geometry; no DC extrapolation or port de-embedding."}
@@ -178,6 +290,12 @@ def solve(config, ports):
         from native_fit import fit_model
         details["model"] = fit_model(network.f, network.s, ports[0]["impedance"], config["model"])
     return details
+
+
+def solve(config, ports):
+    excitation_groups(config, ports)
+    config_path, simulation = prepare_mesh(config, ports)
+    return solve_prepared(config, ports, config_path, simulation)
 
 
 if __name__ == "__main__":

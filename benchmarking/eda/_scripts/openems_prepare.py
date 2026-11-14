@@ -225,6 +225,36 @@ def placements(layout, cells):
     return {name: values[0] for name, values in found.items()}
 
 
+
+def write_field_gds(layout, filename):
+    """Serialize multi-hole material without ambiguous bridged GDS contours.
+
+    Native KLayout trapezoids preserve the same planar region. Keep an
+    original contour if integer-grid decomposition cannot preserve it exactly.
+    Port sheets, paths, labels and all component boundaries remain intact.
+    """
+    top = layout.top_cell()
+    encoded = 0
+    for index in layout.layer_indices():
+        container = top.shapes(index)
+        for shape in list(container.each()):
+            if not shape.is_polygon():
+                continue
+            region = db.Region(shape.polygon).merged()
+            if not any(polygon.holes() > 1 for polygon in region.each()):
+                continue
+            pieces = [piece for polygon in region.each()
+                      for piece in polygon.decompose_trapezoids(db.Polygon.TD_simple)]
+            if not (region ^ db.Region(pieces)).is_empty():
+                continue
+            container.erase(shape)
+            for piece in pieces:
+                container.insert(piece)
+            encoded += 1
+    layout.write(filename)
+    return encoded
+
+
 def partition(layout, physical, geometry, config, cells):
     """Subtract only verified native compact bodies; retain physical passives and wires."""
     from native_cells import shapes
@@ -500,7 +530,7 @@ def prepare(config):
             raise ValueError("Native RF fixture definitions or their declared wrapper are missing")
         Path("fixture-models.spice").write_text(models)
     field.top_cell().shapes(field.layer(1000, 0)).clear()
-    field.write("em.gds")
+    details["gds_multi_hole_polygons_encoded"] = write_field_gds(field, "em.gds")
     Path("ports.json").write_text(json.dumps(ports, indent=2))
     details["field_models"] = config["field_models"]
     details["rf_scope"] = "Native EM of physical passives and interconnect, with native compact devices at verified GDS pin planes."

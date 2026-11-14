@@ -47,7 +47,7 @@ class _NativeEMNetworkDocker:
                 "workflow": self.workflow, "stackup": self.stackup}
 
     def run(self, job, inputs):
-        keys(inputs, {"layout", "ports"}, {"circuit"}, "native EM inputs")
+        keys(inputs, {"layout", "ports"}, {"circuit", "models"}, "native EM inputs")
         outputs = dict(job.outputs)
         if (job.stage != "extract" or inputs["layout"].format != "gds"
                 or inputs["ports"].format != "json"
@@ -62,6 +62,8 @@ class _NativeEMNetworkDocker:
             raise ValueError("An assembled EM netlist requires a prepared circuit input")
         if "circuit" in inputs and inputs["circuit"].format != "spice":
             raise ValueError("An EM circuit input must be SPICE")
+        if "models" in inputs and ("circuit" not in inputs or inputs["models"].format != "spice"):
+            raise ValueError("EM circuit model definitions require a prepared SPICE circuit")
         config = Asset(json.dumps({**job.parameters, **self.extra_configuration, "workflow": self.workflow,
                                    "stackup": self.stackup}).encode(), "json")
         result = self.tool.run(["python", "run.py"], {
@@ -91,7 +93,10 @@ class _NativeEMNetworkDocker:
                 return JobResult("error", "Missing native EM SPICE model", evidence=evidence)
             produced["model"] = model
             if "netlist" in outputs:
-                produced["netlist"] = Asset(inputs["circuit"].content + b"\n" + model.content, "spice")
+                circuit = inputs["circuit"].content
+                if "models" in inputs:
+                    circuit += b"\n" + inputs["models"].content
+                produced["netlist"] = Asset(circuit + b"\n" + model.content, "spice")
         return JobResult("passed", outputs=produced, evidence=evidence)
 
 
@@ -115,7 +120,7 @@ class PalaceDocker(_NativeEMNetworkDocker):
     version_command = ("palace", "--help")
     required_settings = frozenset({"fstart", "fstop", "fstep", "cellsize", "margin", "meshsize_max",
         "air_around", "boundaries", "adaptive_sweep", "conductor_model", "order", "threads", "processes"})
-    optional_settings = frozenset({"model", "merge_polygon_size", "preprocess_gds", "adaptive_mesh_iterations", "adaptive_tolerance", "cad_threads"})
+    optional_settings = frozenset({"model", "merge_polygon_size", "preprocess_gds", "adaptive_mesh_iterations", "adaptive_tolerance", "cad_threads", "cad_boolean_simplify", "mesh_algorithm_3d", "fill_factor_correction", "excitation_batch_size", "parallel_batches", "linear_solver", "complex_coarse_solve", "solver_maxits", "solver_tol", "krylov_max_size"})
 
     def __init__(self, *, converter, timeout_seconds=10800, memory_mb=49152, **kwargs):
         self.converter = relative(converter, "native Palace CSV converter")

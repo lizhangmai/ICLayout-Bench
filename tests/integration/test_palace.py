@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from benchmarking.eda._scripts.palace_runner import prepare_mesh
+from benchmarking.eda._scripts.palace_runner import prepare_mesh, solve_prepared
 from benchmarking.eda.backends.openems import PalaceDocker
 from benchmarking.eda.images import DEFAULT_IMAGE
 from benchmarking.eda.resources.installation import prepare_installation
@@ -17,6 +17,27 @@ from benchmarking.execution.tools.docker import DockerTool
 from benchmarking.files import Asset
 
 pytestmark = [pytest.mark.integration, pytest.mark.acceptance_eda]
+
+
+def test_failed_excitation_batch_does_not_start_remaining_groups(tmp_path, monkeypatch):
+    """A native process failure must stop the serial source queue immediately."""
+    import subprocess
+
+    monkeypatch.chdir(tmp_path)
+    configuration = tmp_path / "config.json"
+    configuration.write_text(json.dumps({"Problem": {"Output": "output"},
+        "Boundaries": {"LumpedPort": [{"Index": i, "R": 50, "Excitation": i} for i in range(1, 6)]}}))
+    calls = []
+
+    def failed_native_call(command, **_kwargs):
+        calls.append(command[-1])
+        raise subprocess.CalledProcessError(143, command)
+
+    monkeypatch.setattr(subprocess, "run", failed_native_call)
+    with pytest.raises(subprocess.CalledProcessError):
+        solve_prepared({"excitation_batch_size": 1, "parallel_batches": 1, "processes": 2},
+                       [{}] * 5, configuration, tmp_path)
+    assert calls == [str(tmp_path / "config-batch-0.json")]
 
 
 @pytest.fixture(scope="module")
@@ -58,6 +79,27 @@ ports = [{"impedance":50} for _ in range(n)]
 config = {"fstart":1e9,"fstop":3e9,"fstep":1e9}
 network = read_network(Path("complete.csv"),Path("support/convert.py"),ports,config)
 np.testing.assert_allclose(network.s,expected,rtol=1e-12,atol=1e-15)
+batches = []
+for start in (1, 5, 9):
+    columns = list(range(start, start + 4))
+    partial = [list(row) for row in rows]
+    for row in partial:
+        for i in range(n):
+            for j in range(n):
+                if j + 1 not in columns:
+                    row[1 + 2*(i*n+j):3 + 2*(i*n+j)] = ["NULL", "NULL"]
+    path = Path(f"batch-{start}.csv")
+    path.write_text(header+"\n"+"\n".join(", ".join(row) for row in partial)+"\n")
+    batches.append((path, columns))
+combined = read_network(batches, Path("support/convert.py"), ports, config)
+np.testing.assert_allclose(combined.s, expected, rtol=1e-12, atol=1e-15)
+for damaged in (batches[:-1], batches + [batches[0]]):
+    try:
+        read_network(damaged, Path("support/convert.py"), ports, config)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Missing or duplicate excitation columns were accepted")
 rejected = []
 for kind in ("unsolved","truncated"):
     damaged = [list(row) for row in rows]
@@ -108,6 +150,133 @@ def test_native_fem_example_mesh(fem_resources, tmp_path, monkeypatch):
     mesh = directory / native["Model"]["Mesh"]
     assert mesh.is_file() and mesh.stat().st_size > 0
     assert len(native["Boundaries"]["LumpedPort"]) == len(ports)
+
+
+def test_native_cad_simplification_preserves_network(fem_resources, tmp_path):
+    """A native CAD optimization must retain the same physical response."""
+    import numpy as np
+    import skrf
+
+    image, prepared, files = fem_resources
+    ports = [{"number": number, "source_layer": 200 + number, "impedance": 50,
+              "from_layer": "Metal3" if number < 3 else "Metal2",
+              "to_layer": "TopMetal2" if number < 3 else "REF_FOR_TRANSISTOR", "direction": "z"}
+             for number in range(1, 6)]
+    networks = []
+    for simplify in (1, 0):
+        settings = {"fstart": 1e9, "fstop": 196e9, "fstep": 5e9, "cellsize": 1.,
+            "margin": 30, "meshsize_max": 30, "air_around": 10, "boundaries": ["ABC"] * 6,
+            "adaptive_sweep": True, "adaptive_tolerance": .001,
+            "conductor_model": "solve_inside_skin", "order": 2, "threads": 2, "processes": 4,
+            "cad_threads": 8, "cad_boolean_simplify": simplify,
+            "merge_polygon_size": 1.2, "preprocess_gds": True}
+        backend = PalaceDocker(image=image, support=str(prepared), workflow="workflow/gds2palace",
+            stackup="examples/core-stackup.xml", converter="convert.py", timeout_seconds=10800)
+        job = Job("fem", "extract", "layout.electromagnetic", (), (("network", "touchstone"),), (),
+                  None, json.dumps(settings))
+        result = backend.run(job, {"layout": Asset(files["examples/core.gds"].content, "gds"),
+                                  "ports": Asset(json.dumps(ports).encode(), "json")})
+        directory = tmp_path / str(simplify)
+        directory.mkdir()
+        for name, asset in {**result.evidence, **result.outputs}.items():
+            (directory / name.replace(":", "_")).write_bytes(asset.content)
+        assert result.status == "passed", result.reason
+        network = directory / "network.s5p"
+        network.write_bytes(result.outputs["network"].content)
+        networks.append(skrf.Network(network))
+    np.testing.assert_array_equal(networks[0].f, networks[1].f)
+    change = float(np.abs(networks[0].s - networks[1].s).max())
+    (tmp_path / "comparison.json").write_text(json.dumps({"maximum_complex_s_change": change}))
+    assert change < .003
+
+
+def test_native_batched_excitations_preserve_complete_network(fem_resources, tmp_path):
+    """Compare native source groups on exactly the same fully terminated mesh."""
+    image, prepared, files = fem_resources
+    ports = [{"number": number, "source_layer": 200 + number, "impedance": 50,
+              "from_layer": "Metal3" if number < 3 else "Metal2",
+              "to_layer": "TopMetal2" if number < 3 else "REF_FOR_TRANSISTOR", "direction": "z"}
+             for number in range(1, 6)]
+    settings = {"workflow": "workflow/gds2palace", "stackup": "examples/core-stackup.xml",
+        "converter": "convert.py", "fstart": 1e9, "fstop": 196e9, "fstep": 5e9, "cellsize": 1.,
+        "margin": 30, "meshsize_max": 30, "air_around": 10, "boundaries": ["ABC"] * 6,
+        "adaptive_sweep": True, "adaptive_tolerance": .001,
+        "conductor_model": "solve_inside_skin", "order": 1, "threads": 1, "processes": 2,
+        "cad_threads": 4, "cad_boolean_simplify": 0, "mesh_algorithm_3d": 10,
+        "merge_polygon_size": 1.2, "preprocess_gds": True, "fill_factor_correction": True,
+        "linear_solver": "AMS", "complex_coarse_solve": False,
+        "solver_maxits": 1000, "solver_tol": 1e-6, "krylov_max_size": 50,
+        "excitation_batch_size": 5, "parallel_batches": 2}
+    script = Asset(b'''
+import json
+import subprocess
+import tarfile
+from pathlib import Path
+import numpy as np
+import skrf
+from native_runner import prepare_mesh, solve_prepared
+config = json.loads(Path("config.json").read_text())
+ports = json.loads(Path("ports.json").read_text())
+try:
+    configuration, directory = prepare_mesh(config, ports)
+    generated = json.loads(configuration.read_text())
+    assert generated["Solver"]["Linear"] == {"Type": "AMS", "KSPType": "GMRES",
+        "Tol": 1e-6, "MaxIts": 1000, "MaxSize": 50, "ComplexCoarseSolve": False}
+    networks = []
+    for label, size, solver in (("5", 5, "Default"), ("ams", 5, "AMS"), ("2", 2, "AMS")):
+        native = json.loads(json.dumps(generated))
+        native["Problem"]["Output"] = "output/" + label
+        native["Solver"]["Linear"].update(Type=solver, ComplexCoarseSolve=solver != "AMS")
+        configuration.write_text(json.dumps(native))
+        config["excitation_batch_size"] = size
+        solve_prepared(config, ports, configuration, directory)
+        path = Path(f"network-{label}.s5p")
+        path.write_bytes(Path("network.snp").read_bytes())
+        networks.append(skrf.Network(path))
+    np.testing.assert_array_equal(networks[0].f, networks[1].f)
+    np.testing.assert_array_equal(networks[1].f, networks[2].f)
+    solver_change = float(np.abs(networks[0].s - networks[1].s).max())
+    change = float(np.abs(networks[1].s - networks[2].s).max())
+    assert solver_change < .003
+    assert change < .003
+    # A complete CSV from an unconverged native Krylov solve is still invalid.
+    native = json.loads(json.dumps(generated))
+    native["Problem"]["Output"] = "output/unconverged"
+    native["Solver"]["Linear"].update(MaxIts=1, MaxSize=1)
+    native["Solver"]["Driven"] = {"Samples": [{"Type": "Linear", "MinFreq": 1,
+        "MaxFreq": 2, "FreqStep": 1}], "AdaptiveTol": 0}
+    configuration.write_text(json.dumps(native))
+    config.update(excitation_batch_size=1, parallel_batches=1, fstop=2e9, fstep=1e9)
+    try:
+        solve_prepared(config, ports, configuration, directory)
+    except ValueError as error:
+        assert "solver tolerance" in str(error)
+    except subprocess.CalledProcessError:
+        assert "converg" in (directory / "solver-batch-0.log").read_text().lower()
+    else:
+        raise AssertionError("Unconverged native iterative response was accepted")
+    Path("comparison.json").write_text(json.dumps({"maximum_complex_s_change": change,
+        "maximum_native_linear_solver_change": solver_change, "iterative_nonconvergence_rejected": True,
+        "same_native_mesh": True, "matrix_entries_per_network": int(networks[0].s.size)}))
+finally:
+    with tarfile.open("fields.tar.gz", "w:gz") as archive:
+        if Path("fields").exists():
+            archive.add("fields")
+''', "python")
+    result = DockerTool(image, ["palace", "--help"], 10800, memory_mb=49152).run(
+        ["python", "control.py"], {"control.py": script,
+            "native_runner.py": Asset(package_source("eda/_scripts/palace_runner.py").read_bytes(), "python"),
+            "config.json": Asset(json.dumps(settings).encode(), "json"),
+            "ports.json": Asset(json.dumps(ports).encode(), "json"),
+            "candidate.gds": Asset(files["examples/core.gds"].content, "gds"),
+            **load_bundle(prepared).mounted_files()},
+        {"comparison.json": "json", "network-5.s5p": "touchstone", "network-2.s5p": "touchstone",
+         "network-ams.s5p": "touchstone",
+         "fields.tar.gz": "tar+gzip"},
+        environment={"OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1"})
+    for name, asset in {**result.evidence, **result.files}.items():
+        (tmp_path / name.replace(":", "_")).write_bytes(asset.content)
+    assert not result.returncode and not result.reason, result.evidence["console"].content.decode()
 
 
 @pytest.mark.parametrize("conductor_model", ["surface", "solve_inside_skin"])
