@@ -80,3 +80,11 @@ extend-select = ["I"]
 
 [tool.uv]
 cache-keys = [{ file = "pyproject.toml" }, { file = "setup.py" }, { git = { commit = true, tags = true } }]
+# Native PCells use NumPy 1.x on Python 3.12; Arrow 25 supports that ABI.
+constraint-dependencies = [
+    "pyarrow<26; python_version < '3.13'",
+    "numpy>=2; python_version >= '3.13'",
+]
+
+[tool.uv.dependency-groups]
+eda = { requires-python = ">=3.12,<3.13" }

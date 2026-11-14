@@ -19,6 +19,8 @@ uv sync --locked --extra results
 editable mode with the locked development dependencies. The offline checks below
 need no Docker, Dataset, agent CLI or model credentials. EDA checks require the
 additional tools and explicit inputs described in [verification](#verification).
+The `eda` dependency group targets Python 3.12 for upstream PCell compatibility;
+framework checks also run on Python 3.13.
 Keep credentials and generated experiment results out of tracked source; choose
 configuration and output paths to suit your workflow.
 
