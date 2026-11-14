@@ -189,10 +189,14 @@ def test_service_default_has_no_cpu_memory_or_pid_quota(executable_case, monkeyp
             return json.dumps([{'Id': 'sha256:fixture', 'Config': {}}])
         if command[:2] == ['docker', 'info']:
             return json.dumps(['name=rootless'])
+        raise AssertionError(command)
+
+    def create(command, **kwargs):
         commands.append(command)
         raise RuntimeError('Container creation observed')
 
     monkeypatch.setattr('benchmarking.execution.workspace.docker.subprocess.check_output', docker)
+    monkeypatch.setattr('benchmarking.execution.workspace.docker.ContainerLease', create)
     with pytest.raises(RuntimeError, match='Container creation observed'):
         DockerSession('fixture-image').run(task, config, {}, 'fixture')
     command, = commands

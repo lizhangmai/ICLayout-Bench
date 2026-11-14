@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -62,6 +63,93 @@ def execute(code, seconds=10, task=None):
     task = task or session_task()
     config = configuration(code, seconds)
     return DockerSession(config.image).run(task, config, {}, task_message(task, config))
+
+
+@pytest.mark.acceptance_container
+@pytest.mark.parametrize('during_create', [False, True])
+@pytest.mark.parametrize('owner_kind', ['session', 'tool'])
+def test_killed_container_owner_removes_its_container(tmp_path, during_create, owner_kind):
+    """Losing the host owner must not leave the isolated workspace alive."""
+    task = write_protocol_task(tmp_path / 'task')
+    ready = tmp_path / 'container-id'
+    environment = dict(os.environ)
+    if during_create:
+        # Delay the daemon's create receipt after it has allocated the real
+        # container. The caller dies without ever receiving its ID.
+        docker = shutil.which('docker')
+        binary = tmp_path / 'bin' / 'docker'
+        binary.parent.mkdir()
+        binary.write_text(f'''#!{sys.executable}
+import os, subprocess, sys, time
+from pathlib import Path
+command = [{docker!r}, *sys.argv[1:]]
+if sys.argv[1:2] == ['create']:
+    result = subprocess.run(command, capture_output=True, check=False)
+    if not result.returncode:
+        Path({str(ready)!r}).write_bytes(result.stdout.strip())
+        time.sleep(1)
+    sys.stdout.buffer.write(result.stdout)
+    sys.stderr.buffer.write(result.stderr)
+    sys.exit(result.returncode)
+os.execv(command[0], command)
+''')
+        binary.chmod(0o755)
+        environment['PATH'] = str(binary.parent) + os.pathsep + environment['PATH']
+    program = '''
+import sys, time
+from pathlib import Path
+from benchmarking.execution.workspace.config import RunConfig
+from benchmarking.execution.workspace.docker import DockerSession
+from benchmarking.execution.workspace.environment import task_message
+from benchmarking.files import Asset
+from benchmarking.tasks.contract import load_task
+task = load_task(Path(sys.argv[1]))
+config = RunConfig('lost-owner', sys.argv[2], ('/bin/sleep', 'infinity'),
+                   300, 256, 1, 32, 16, {}, {}, Asset(b'test', 'text'))
+def ready(workspace, recorder):
+    Path(sys.argv[3]).write_text(workspace.cid)
+    while True:
+        time.sleep(1)
+if sys.argv[4] == 'session':
+    DockerSession(config.image).run(task, config, {}, task_message(task, config), on_ready=ready)
+else:
+    import benchmarking.execution.tools.docker as tools
+    from benchmarking.execution.tools.cleanup import ContainerLease
+    def create(arguments, **kwargs):
+        lease = ContainerLease(arguments, **kwargs)
+        if kwargs['kind'] == 'tool':
+            Path(sys.argv[3]).write_text(lease.id)
+        return lease
+    tools.ContainerLease = create
+    tools.DockerTool(config.image, ['python', '--version'], 300).run(
+        ['python', '-c', 'import time; time.sleep(60)'], {}, {})
+'''
+    cid = None
+    with (tmp_path / 'owner.log').open('wb') as log:
+        owner = subprocess.Popen([sys.executable, '-c', program, str(task), IMAGE, str(ready), owner_kind],
+                                 stdout=log, stderr=subprocess.STDOUT, env=environment)
+        try:
+            deadline = time.monotonic() + 30
+            while not ready.exists() and owner.poll() is None and time.monotonic() < deadline:
+                time.sleep(.05)
+            assert ready.exists(), (tmp_path / 'owner.log').read_text()
+            cid = ready.read_text().strip()
+            owner.kill()
+            owner.wait(timeout=5)
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                remaining = subprocess.check_output(
+                    ['docker', 'ps', '-aq', '--no-trunc', '--filter', 'id=' + cid], text=True).strip()
+                if not remaining:
+                    break
+                time.sleep(.1)
+            assert not remaining, 'Killed session owner left its container alive'
+        finally:
+            if owner.poll() is None:
+                owner.kill()
+                owner.wait(timeout=5)
+            if cid:
+                subprocess.run(['docker', 'rm', '-f', cid], capture_output=True, timeout=30, check=False)
 
 
 @pytest.mark.acceptance_container
@@ -215,6 +303,8 @@ def test_cancelled_check_stops_host_eda_and_keeps_session_usable(tmp_path):
 @pytest.mark.acceptance_container
 @pytest.mark.parametrize('entry', ['solver', 'tool'])
 def test_unrestricted_execution_preserves_container_isolation(monkeypatch, entry):
+    from benchmarking.execution.tools.cleanup import ContainerLease
+
     observed = []
     original_output = subprocess.check_output
     scratch = '''from pathlib import Path
@@ -227,17 +317,18 @@ for name in ('/tmp', '/var/tmp'):
         assert path.read_text() == 'temporary data'
 '''
 
-    def output(command, **kwargs):
-        result = original_output(command, **kwargs)
-        if command[:2] == ['docker', 'create']:
+    def create(arguments, **kwargs):
+        lease = ContainerLease(arguments, **kwargs)
+        if kwargs['kind'] in {'session', 'tool'}:
             host = json.loads(original_output(
-                ['docker', 'inspect', '--format', '{{json .HostConfig}}', result.strip()], text=True))
+                ['docker', 'inspect', '--format', '{{json .HostConfig}}', lease.id], text=True))
             observed.append({name: host[name] for name in
                              ('Memory', 'MemorySwap', 'NanoCpus', 'CpuQuota', 'PidsLimit',
                               'NetworkMode', 'CapDrop', 'SecurityOpt', 'ReadonlyRootfs')})
-        return result
+        return lease
 
-    monkeypatch.setattr(subprocess, 'check_output', output)
+    monkeypatch.setattr('benchmarking.execution.workspace.docker.ContainerLease', create)
+    monkeypatch.setattr('benchmarking.execution.tools.docker.ContainerLease', create)
     if entry == 'solver':
         config = replace(configuration(scratch + '''
 output.write_bytes(b'unlimited-default')
@@ -279,16 +370,17 @@ def test_direct_container_jobs_share_the_unlimited_eda_default():
     'Fatal error (signal SIGSEGV) - crash handler invoked',
     'FLEXnet ERROR(-5, 0, 0): No such feature exists.'])
 def test_container_infrastructure_retries_use_fresh_containers_and_keep_failed_outputs(monkeypatch, diagnostic):
+    from benchmarking.execution.tools.cleanup import ContainerLease
+
     created = []
-    original = subprocess.check_output
 
-    def create(command, **kwargs):
-        result = original(command, **kwargs)
-        if command[:2] == ['docker', 'create']:
-            created.append(result.strip())
-        return result
+    def create(arguments, **kwargs):
+        lease = ContainerLease(arguments, **kwargs)
+        if kwargs['kind'] == 'tool':
+            created.append(lease.id)
+        return lease
 
-    monkeypatch.setattr(subprocess, 'check_output', create)
+    monkeypatch.setattr('benchmarking.execution.tools.docker.ContainerLease', create)
     tool = DockerTool(IMAGE, ['python', '--version'], 10)
     script = ('from pathlib import Path; '
               'Path("output.gds").write_bytes(Path("input.gds").read_bytes()); '
@@ -851,7 +943,9 @@ run_session(task, config, {}, {job.operation: object() for job in task.evaluatio
             process.kill()
         process.communicate(timeout=5)
         if cid:
-            subprocess.run(["docker", "rm", "-f", cid], check=True, capture_output=True, timeout=30)
+            from benchmarking.execution.tools.cleanup import remove_container
+
+            assert remove_container(cid)['state'] in {'removed', 'absent'}
         staging.cleanup()
 
 

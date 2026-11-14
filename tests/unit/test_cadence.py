@@ -7,6 +7,7 @@ and log-frequency crossings. They establish parser behavior, not EDA accuracy.
 import json
 import math
 import sys
+from contextlib import contextmanager
 from dataclasses import replace
 from types import SimpleNamespace
 
@@ -27,10 +28,15 @@ def test_spectre_memory_allocation_is_applied_and_recorded(monkeypatch):
     commands = []
 
     def version(command, **kwargs):
-        commands.append(command)
         return 'fixture-version'
 
+    @contextmanager
+    def container(arguments, **kwargs):
+        commands.append(arguments)
+        yield SimpleNamespace(id='fixture')
+
     monkeypatch.setattr('benchmarking.execution.tools.docker.subprocess.check_output', version)
+    monkeypatch.setattr('benchmarking.execution.tools.docker.ContainerLease', container)
     default = DockerTool('unused', ['spectre', '-W'], 10)
     assert not {'--memory', '--cpus', '--pids-limit'} & set(commands[-1])
     assert default.identity['limits'] == {'cpus': None, 'memory_mb': None, 'pids': None}

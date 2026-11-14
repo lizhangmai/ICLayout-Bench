@@ -992,6 +992,24 @@ It also finds workers retained after coordinator exit. Stopping preserves eviden
 and the original deadline; later continuation still requires a viable session.
 Repeated stops leave exited owners alone.
 
+Session and EDA job containers have an independent host cleanup process. It
+owns container creation and removes the container when its caller closes the
+private lifetime pipe or exits, including an abrupt host-process kill during
+creation. The container's existing execution and cancellation protocol is preserved.
+Committed submissions and durable checkpoints remain in the result directory.
+
+Inspect historical containers by their explicit IDs, then remove the selected
+containers when their owning sessions have ended:
+
+```bash
+python -m benchmarking.execution cleanup --container CONTAINER_ID
+python -m benchmarking.execution cleanup --container CONTAINER_ID --apply
+```
+
+Repeat `--container` for multiple IDs. Inspection is the default; `--apply`
+removes only the selected containers. This command does not prune images or
+volumes, select containers by image age, or alter retained run evidence.
+
 `.scheduler/` records coordinator ownership, dispatch, adoption, completion and
 cooldowns. Case summaries and `execution.capacity_recovery` /
 `execution.network_recovery` retain failure history and continuation outcomes.
