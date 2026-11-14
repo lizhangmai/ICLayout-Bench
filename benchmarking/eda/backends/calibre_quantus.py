@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from benchmarking.eda.backends.calibre import CalibreNative, lvs_summary
+from benchmarking.eda.environment import ExternalRuntime
 from benchmarking.eda.netlists.dspf import ExtractionRejected, bind_extracted_netlist
 from benchmarking.evaluation.contracts import JobResult
 from benchmarking.evidence.identity import package_source
@@ -48,20 +49,26 @@ class CalibreQuantusNative(CalibreNative):
                  subcircuit_mos_models=(), timeout_seconds=600, pdk_root_env=None):
         if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', ground):
             raise ValueError('Invalid Quantus parasitic reference')
+        if not isinstance(runtime, ExternalRuntime):
+            raise TypeError('Calibre/Quantus requires a resolved external runtime')
+        resources = runtime.select_pdk(pdk_root_env)
+        technology = resources.environment.get(technology_env)
+        if not technology:
+            raise ValueError(f'Missing declared native Quantus technology resource: {technology_env}. '
+                             'Configure its directory in the runtime environment and resource mounts.')
+        if (not re.fullmatch(r'[A-Za-z0-9_./-]+', technology)
+                or '..' in Path(technology).parts
+                or not any((Path(m['target']) == Path(technology)
+                            or Path(m['target']) in Path(technology).parents)
+                           and not m.get('credential')
+                           for m in resources.mounts)):
+            raise ValueError('Quantus technology must be inside a declared resource mount')
         super().__init__(check='rc', runtime=runtime, deck=deck, ground=ground,
                          source_libraries=source_libraries, includes=includes, defines=defines,
                          require_junctions=require_junctions,
                          case_insensitive_ports=case_insensitive_ports,
                          subcircuit_mos_models=subcircuit_mos_models,
                          timeout_seconds=timeout_seconds, pdk_root_env=pdk_root_env)
-        technology = self.runtime.environment.get(technology_env)
-        if (not technology or not re.fullmatch(r'[A-Za-z0-9_./-]+', technology)
-                or '..' in Path(technology).parts
-                or not any((Path(m['target']) == Path(technology)
-                            or Path(m['target']) in Path(technology).parents)
-                           and not m.get('credential')
-                           for m in self.runtime.mounts)):
-            raise ValueError('Quantus technology must be inside a declared resource mount')
         self.technology = technology
         self.technology_env = technology_env
         version_result = self.tool.probe(self.runtime.module_command('quantus', ['quantus', '-version']),

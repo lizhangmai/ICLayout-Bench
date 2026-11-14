@@ -129,7 +129,7 @@ support profiles through the normal session mount, `/resources`:
 - `support/<profile>/`: the case's evaluator support files, mounted directly from
   the PDK or shared derived cache. Generated startup paths are adapted for this mount.
 - `pdk-environment.json`: process identity, source release, container environment
-  and usage checks, also exposed through the `resources` field of `/protocol/task.json`.
+  and optional usage checks, also exposed through the `resources` field of `/protocol/task.json`.
 
 Case preparation stores path bindings, not another filesystem view of the PDK.
 Benchmark case references, other case directories and unrelated PDK roots are
@@ -141,11 +141,17 @@ identifier avoids conflicting with tool-owned settings such as gdsfactory's
 Python/KLayout search paths are appended; conflicting fixed settings are rejected.
 The PDK mounts are read-only and the Agent stays non-root and offline. Write
 generated layouts, simulator decks and tool caches under `/workspace` or `/tmp`.
-For ngspice, copy the selected support profile's `.spiceinit` into the working
-directory before invoking the simulator; it loads compiled models where needed.
+For ngspice, use the task's declared startup configuration and model selections;
+shared PDK profiles provide model files and compiled modules.
 
 Additional participant tools can be installed in a custom solver image selected
 through [participant tool schemes](running.md#participant-tool-schemes).
+
+The tools image resolves Python packages together with upstream PCell APIs.
+Its gdsfactory pin preserves `Component.add_array` and `geometry.boolean`, used
+by GF180's native generators; its NumPy and gdstk bounds also constrain compatible
+SciPy and pandas releases. Check native MOS, guard-ring and passive generation
+when changing this dependency line.
 
 ### Prepared Python tools
 
@@ -323,11 +329,23 @@ effective startup are retained in evaluation evidence. The CPU budget bounds
 this backend's job/thread allocation, not all simultaneous sessions. Concurrent
 jobs may have explicit container memory limits; by default they are uncapped.
 Operators must also account for aggregate CPU and memory use across sessions.
+When a job supplies an explicit `startup` input, that native file is used unchanged;
+its thread selection belongs to the case and the backend's thread environment
+continues to bound the allocation.
 
 ##### Simulation inputs
 
 ngspice writes each input role as `<role>.spice` and uses `deck.spice` as its entry
-point. The declared testbench selects analyses and measurements:
+point. The optional `startup` role accepts native startup text, written unchanged
+as `.spiceinit` and selected through `SPICE_USERINIT_DIR`. It takes precedence over
+support initialization; model loading, compatibility, search paths and simulator
+thread settings must be declared by the case. Do not also set backend
+`compatibility` when supplying a startup file. The declared testbench selects
+analyses and measurements:
+
+Model files may come from shared PDK resources. Model sections, process corners
+and statistical switches are selected by the case's SPICE testbench or its
+declared model-entry input.
 
 | Job parameter | Purpose |
 | --- | --- |
@@ -394,7 +412,16 @@ execution/cleanup failures and missing/malformed interface reports remain `error
 Optional `label_layers` is a
 nonempty list of GDS layer/datatype pairs that may contain electrical text;
 text on other layers is removed from the extraction copy without removing any
-geometry. `case_insensitive_ports=true` aliases case variants to unique internal
+geometry. Optional `gds_ignore_layers` lists unique GDS layer/datatype pairs
+that the task explicitly excludes from Magic import. The adapter adds native
+`ignore` and `calma` declarations to each inline `cifinput` style in a job-local
+copy of the technology file. It preserves the shared support bundle and candidate
+GDS; the selected pairs enter backend identity, and the effective technology is
+retained as `import_technology` evidence. No layers are ignored by default.
+Other unmapped layers still report native input errors; import warnings remain
+enabled. Styles defined through an `include` inside `cifinput` require an inline
+definition before using this setting.
+`case_insensitive_ports=true` aliases case variants to unique internal
 names before extraction, matching SPICE's port-name semantics. The defaults
 preserve all labels and use case-sensitive matching. Settings, alias mappings,
 ignored-label counts and the geometric flattening check are archived. The
@@ -409,6 +436,16 @@ to zero. These controls enter the extraction evidence.
 Raw extraction, resistance,
 topology, feedback, and port/geometry checks are retained with the result.
 
+An optional native model interface pairs `model_support` with
+`model_technology`, the KPEX technology JSON path inside that support bundle.
+Select a Magic extraction style that emits SI geometry. The interface reads
+Magic's `.ext` parameter declarations and the technology's model units to
+serialize the same extracted physical parameters for simulation. It preserves
+model names, terminal order and multiplicities, and copies native interconnect
+R/C cards without changing their values or connections. It reads no source
+circuit. Missing unit declarations, unsupported model interfaces and missing
+geometry are errors. The original native parameter export remains in evidence.
+
 When wire-resistance extraction is enabled, the RC adapter also compares port pairs
 joined by resistor cards in the native topology and final RC exports. It rejects a
 new resistor-only connection between previously separate topology ports,
@@ -421,75 +458,43 @@ Native network reduction can vary in low-level ordering, so byte-identical RC
 netlists are not guaranteed across tool versions or runs. Compare extracted
 results against the declared task measurements and tolerances.
 
-The supported RC interface has one declared port per conductor. A native
-topology check rejects multiple ports on one conductor: the installed Magic
-can otherwise duplicate the resistance network or bypass it with an alias
-resistor. A completed topology rejection is a candidate failure (`failed`) with
-zero score; its same-conductor reason is exposed in process feedback. Case-specific
-extraction warnings, models and calibration still require review against the
-selected contract.
+By default, the RC interface requires one declared port per conductor. A native
+topology check rejects aliases because repeated extraction can duplicate their
+resistance networks. `resistance_net_selection = "canonical"` instead selects
+only native `node`/`substrate` names from the `.ext` file with `extresist include`.
+This permits same-conductor ports while retaining the check against new resistor
+paths between originally distinct topology nets. Missing native gate, substrate,
+source/drain connections and orphaned nodes reject an incomplete extraction.
 
-#### Projected substrate and well sheets
+#### Native Magic external layout fixtures
 
-`substrate-sheet-docker` can bind to `layout.extract_substrate`. It accepts
-`layout`, the authoritative `netlist`, `constraints` and optional `task`, and
-exports a SPICE `netlist`. Require independent DRC, ordinary combined LVS and
-geometry gates before this extraction. Its additional native uncombined export
-preserves primitive MOS positions and parameters; that export's comparison is
-not a substitute for the independent LVS gate. Source devices never replace
-candidate devices.
+`magic-fixture-rc-docker` extracts a frozen candidate together with a separately
+declared external GDS fixture. It uses canonical native net selection. Inputs
+are `layout` and `fixture` GDS assets and `constraints` JSON; the output is one
+`netlist` SPICE asset. Independent DRC/LVS and geometry gates remain required
+for the candidate.
 
-The reviewed `support`/`profile` defines process layers, MOS body domains,
-contact/via sizes, sheet and cut resistances, and native extraction variables.
-`physical_support`/`physical_profile` selects the native LVS resource. The job's
-`fixture` defines domain-to-supply bindings, an `outline_constraint` identifying
-the existing bounding-box constraint, power-pin access windows, the fixed
-external return and numerical domain, four substrate excitation boxes, well
-boundary-band width, mesh steps, convergence tolerance and grid budget.
-Bounding-box registration removes translation only; it does not rescale or
-rotate a submission. Each supply requires one external power-pin label.
+Job parameters declare `top_cell`, ordered candidate `ports`, `fixture_top`,
+ordered `fixture_ports`, corresponding local `fixture_nets`, `outline_constraint`, and a SPICE identifier
+`fixture_flag`. Optional `excluded_layers` lists drawing-layer pairs outside
+the selected extraction scope. The alignment constraint must be a declared
+`bbox_max` constraint. The candidate's functional centre is translated to the
+origin on its native database grid. A native geometry comparison verifies the
+translation; reserved fixture-label or extraction-cell collisions, excluded drawing layers and
+fixture/candidate overlap reject the candidate. The supplied fixture is placed
+at its fixed coordinates. Its database unit must match the candidate.
 
-The native conductor database selects only actual supply-connected metal.
-Every primitive channel must map uniquely to the candidate's physical body
-domain. Manhattan material boundaries are discretized with harmonic half-cell
-face resistances; opposite-polarity domains have no galvanic connection.
-Same-polarity tap diffusion adds local parallel sheet conductance, with explicit
-contact/via cuts and finite supply metal. The resource and task must disclose
-the ideal vertical ohmic connection assumed by this projection.
-
-Four substrate footprints and four directional active-well boundary-strip
-unions form eight experiments. Unused wells do not dilute well excitation.
-The fixed testbench defines `lb_sheet_drive_0` through `lb_sheet_drive_7` as AC
-currents; all have zero DC injection. A reciprocal passive multiport is realized
-with native SPICE current sensors and CCVS elements, preserving nonlinear MOS
-body-current loading, all original model parameters and all non-body terminal
-connections. The result keeps the original named top-level interface.
-
-Retained evidence includes native geometry and SPICE, registration, primitive
-bindings, contact counts, every mesh's impedance matrix, reciprocity, KCL,
-return-current conservation, passivity and mesh convergence. Run source and
-candidate immunity simulations with the same fixture; ideal equipotential source
-bodies have zero disturbance. Declare and validate that source boundary.
-
-Each completed mesh is retained in `impedance.npz`, including when a subsequent
-solve fails. `audit.json` identifies the body and excitation ports, completed
-steps, the current step, conservation checks and each refinement's column-scaled
-errors. It distinguishes the full matrix from the body-response rows, body-loading
-block and excitation-to-body block, with the worst row/column and their impedance
-values. These additional diagnostics do not change the declared full-matrix
-convergence criterion.
-
-An exhausted mesh sequence returns an explicit `mesh_not_converged` numerical
-error with the measured change, tolerance and port names. Its matrices and audit
-remain available, while no qualified SPICE model is emitted. Candidate rejection
-remains `failed`; numerical uncertainty and tool crashes remain `error`, with
-their respective diagnostic evidence.
-
-This branch assumes ideal signal interconnect and projected ohmic silicon.
-It does not establish vertical/backside transport, depletion coupling, carrier
-collection, latch-up or silicon-calibrated isolation. Evaluate ordinary wire-RC
-performance in a separate declared branch. Coefficients, convergence, electrical
-loading and useful degraded-layout controls require author qualification.
+All devices and parasitic cards are emitted by Magic from that combined layout.
+The native combined layout is extracted under the reserved internal circuit name
+`LB_EXTERNAL_EXTRACTED`. The
+adapter appends a port-only wrapper under `top_cell`, binding candidate ports
+and the declared local `fixture_nets` to those existing native terminals, plus
+`.param <fixture_flag>=1`. The fixed simulation deck can then retain the same
+candidate interface as its ideal source anchor. It does not construct physical R/C models, patch native
+cards, or inject current at inferred body nodes. Evidence retains the supplied
+fixture, preparation report, combined GDS and unmodified native extraction.
+Physical coverage follows the selected technology and extraction model; adding
+an external fixture does not establish unmodeled well or substrate mechanisms.
 
 #### Magic and Netgen Physical Checks
 
@@ -499,6 +504,11 @@ Trusted settings select `check`, `technology`, `tech_name`, `style`, the frozen
 requires a bundled Netgen `setup`; DRC must not specify it. Top-cell and source
 subcircuit names come from the task. Candidate-provided extracted netlists are
 not accepted as LVS evidence.
+
+LVS also accepts the paired `model_support` and `model_technology` settings
+described under Magic extraction. In that mode it exports a flat native SI
+circuit, applies the declared model interface, and compares it with the original
+trusted source through Netgen. The model interface never reads that source.
 
 DRC imports the GDS, verifies the active native rule style, runs the complete
 check and requires a completion marker and a nonnegative native violation count.
@@ -532,12 +542,49 @@ these must agree with `task` when both are supplied.
 | DRC | Completed declared decks, required report categories and zero unwaived violations. |
 | LVS | Completed comparison against a nonempty trusted source, participation of the requested circuit and the declared named-port checks. |
 
-DRC/LVS read a JSON profile from the frozen support bundle, declaring `deck`,
-fixed `variables` and explanatory `scope`. DRC also declares `required_categories`;
-optional `additional_decks` entries each declare `deck` and `required_categories`
-with the same variables. Every deck runs independently. Any execution/report error
+DRC/LVS settings declare fixed `variables`, passed unchanged as KLayout `-rd`
+arguments. DRC requires a native `deck` path. LVS selects either a support `deck`
+or a job input named `lvs_macro` with format `text`, containing a native XML
+`.lylvs` macro. Declare a case-owned macro as an evaluator input when it is only
+needed for independent evaluation. The two LVS control sources are mutually
+exclusive; the input macro is retained in the run evidence.
+
+DRC decks accept plain `.drc` scripts and native XML `.lydrc` macros; LVS decks
+accept `.lvs` and `.lylvs`. XML macros run through KLayout's `RBA::Macro` API,
+using the native DRC or LVS interpreter
+and retaining the source path for relative includes. The runner adds its completion
+marker to the macro's in-memory body without modifying the declared source.
+An early exit, macro execution error or invalid report cannot establish a pass.
+An input `lvs_macro` is staged as `task.lylvs` at the support bundle root, so its
+native relative includes resolve against that bundle. This filename is reserved
+when an input macro is supplied.
+
+For LVS runsets with a fixed default output, `default_report` names that relative
+file. The runner omits the `report` variable and collects the native database as
+`report.db`; the runset source stays unchanged. XML macro instrumentation starts
+on a new line, including when the native macro has no final newline.
+
+LVS can explicitly set `flatten = true` to flatten the selected candidate top
+cell with KLayout before comparison. The copy preserves labels and is retained
+as `flat-candidate.gds`; the frozen submission and its binding stay unchanged.
+Hierarchy, tolerances, virtual connections and pin equivalence otherwise belong
+to the declared native controls. Port matching defaults to `named`, checking each
+matched pin's name. `port_matching = "native"` accepts the native comparer's pin
+correspondence while requiring the complete published pin-name set; callers must
+verify interface behavior through their declared electrical tests. This supports
+standard-cell tasks with interchangeable logic inputs without copying PDK pin
+tables into the adapter.
+
+DRC also declares `required_categories`; optional `additional_decks` entries each
+declare `deck` and `required_categories` with the same variables. Every deck runs
+independently. Any execution/report error
 takes precedence; otherwise the gate sums counts and fails if any deck fails.
 Required categories detect skipped groups rather than enumerating every rule.
+LVS may declare `layer_names` for geometry checks consuming its database.
+These settings can be shared in a [PDK backend declaration](#pdk-manifests).
+The existing `profile` setting reads a JSON resource containing the same settings;
+it cannot be combined with direct rule settings. Explanatory scope belongs in
+the task documentation and is not required by the native invocation.
 
 Per-deck `report.db`, `report-1.db`, logs and completion markers remain separate
 evidence with per-deck results. Reviewed case-local `parameters.waivers` select
@@ -631,71 +678,70 @@ ground context, frequency coverage and approximation limits, then validate
 negative geometry/connection controls and candidate-dependent performance.
 This boundary does not establish full-wave accuracy of inherited models.
 
-#### Candidate uniform transmission lines
+<a id="kpex-coupling-capacitance"></a>
 
-`rlc-line-docker` implements `layout.rf_line` with a trusted process bundle
-(`support`, `profile`), `image` and `timeout_seconds`. It consumes the prior
-macro-cut `layout` and `binding`, the untouched candidate as `original`, `task`
-and a trusted JSON `specification`. It exports `layout` (GDS), `binding` (JSON)
-and `netlist` (SPICE). Native DRC checks the original; native LVS and extraction
-check the resulting layout and retain its candidate and parent-proof digests.
+#### KPEX coupling capacitance and distributed RC
 
-The specification declares `cell`, `subcircuit`, `signal_layer`, `ground_layer`,
-`landing_um`, `window_um`, `guard_um`, `ground_anchor`, three ordered `ports` and all
-`conductor_layers`. Exactly one instance must contain a uniform rectangular
-strip at local origin and the complete prescribed return plane. Quarter turns
-and reflections preserve the grid. The process fixes width, return geometry,
-optional regular ground perforations and permitted length range. Extra
-conductors, branches, labels or altered cross-sections inside the modeled cell
-are rejected. Surrounding conductors may enter the isolation region only
-through the declared end access areas. Existing terminal metal, vias, return
-wiring and all free circuit geometry remain subject to native physical checks.
-`ground_anchor` names a separately verified fixed cell and a local `point_um`
-inside its return metal. The drawn return plane must share one continuous
-polygon on `ground_layer` with this transformed anchor. Net labels cannot
-replace that physical connection. This interface requires same-layer return
-wiring; multilayer return routes need a separately validated model boundary.
+The `kpex-cc-docker` backend provides nominal 2.5D coupling capacitance;
+`kpex-rc-docker` adds distributed wire and contact/via resistance. Both use
+KPEX's native consistency checks, blackbox modeled devices and retain coupling
+capacitance. RC extraction does not reduce the network. Neither mode extracts
+inductance or establishes device/well resistance coverage beyond its native
+technology definition.
 
-The model uses positive series DC resistance and inductance, parallel RL skin
-branches and shunt capacitance in a finite pi ladder. Values scale with the
-measured candidate length. The process must document its calibration source,
-independent accuracy checks and approximation limits. Reusing a calibrated
-cross-section permits routine RLC post-simulation without running a full-wave
-solver for every candidate. It does not establish accuracy for new widths,
-bends, return planes or neighboring conductors. Authors must validate physical
-length controls, invalid geometry and disconnected return paths separately.
-KPEX accepts the resulting SPICE as optional `model`, with its line proof in
-`derivation`. It checks the model digest against that proof, retains the model
-as evidence and appends its subcircuit definitions to the extracted candidate
-circuit. Other supplied circuit models are rejected. The simulation fixture and
-its other inputs remain identical between source and post-layout evaluation.
+For maintained KPEX resources, declare `support`, `pdk`, `deck` and `technology`
+together. `deck` and `technology` are paths within the prepared support profile;
+KPEX uses those selected files rather than its implicit package defaults.
+`variables` supplies native deck settings, `top_cell_variable` names its top-cell
+argument (default `topcell`), and `substrate_node` names the native ideal
+reference plane (default `VSUBS`). The job declares `ports`, `substrate` and the
+top cell. An optional `substrate_variable` passes the job's existing substrate
+name to the native deck (for example SKY130's `lvs_sub`). Only the reference-plane name may be aliased to the declared
+substrate port. Device models, terminal order and parameter conversions come
+from the unmodified KPEX technology definition. Unsupported models fail.
 
-#### KPEX coupling capacitance
+An independent LVS job supplies the candidate database and binding. The KPEX
+deck re-extracts the same GDS, then KLayout compares its native device netlist
+directly with that candidate database before PEX. The comparison must match.
+This comparison uses no source or reference-layout devices. RC output must
+preserve the existing named ports and native terminal-to-wire connections.
 
-The `kpex-cc-docker` backend provides nominal 2.5D coupling capacitance.
-Its `support` bundle and JSON `profile` declare the process name, bundled native
+The `kpex-netgen-docker` LVS backend extracts devices with the maintained KPEX
+deck, serializes their model calls through KPEX's native technology definition,
+and independently compares them with the original source SPICE using Netgen.
+It adds `netgen_support` and `setup` settings to the managed resource settings
+above. A check job supplies `layout`, `netlist`, and optionally `task`, declares
+the substrate port, and produces `database = "klayout-lvs"` and
+`binding = "json"`. Without a task input, it also declares `top_cell` and
+`subcircuit`. Only a successful full Netgen comparison exports those outputs.
+The PEX deck's comparison with a dummy schematic establishes geometry; it is
+not treated as a source LVS result.
+
+The CC backend also accepts the earlier explicit process interface:
+An explicit JSON `process` job input declares the process name, bundled native
 LVS deck, runset variables, substrate reference node and physical device
 interfaces. Each device declares terminal order, extracted parameter units,
 native reference-card prefix, and any supported-value constraints. Parameters
 are read from native devices; the adapter never supplies missing geometry.
-The process profile and support manifest enter backend identity. Tool settings
-also include `image` and `timeout_seconds`.
+The frozen process input enters job evidence. Tool settings include `image` and
+`timeout_seconds`. Legacy `support` and `profile` settings remain available as a
+pair, record their process and manifest in backend identity, and cannot be
+combined with a process input. Task-specific device limits belong to case inputs.
 
 Jobs consume candidate GDS, its native LVS database and a content binding.
 When a prior fixed-macro job emits an extraction copy, optional `original` and
 `derivation` inputs must be supplied together. Their content proof binds the
 original submission, cut GDS and top cell; the independent native LVS binding
 still binds that cut GDS to its candidate database. Both proofs enter evidence.
-The backend independently extracts annotated geometry, compares it against a
-reference exported from that candidate database, and consumes the persisted
-native LVS verdict. It preserves the process's device and terminal-equivalence
-rules. Physical classes are serialized through the declared interface, including
+For the earlier explicit process interface, the backend independently extracts
+annotated geometry, compares it against a reference exported from that candidate
+database, and consumes the persisted native LVS verdict. It preserves the
+process's device and terminal-equivalence rules. Physical classes are serialized through the declared interface, including
 classes whose native geometry differs from KPEX's primitive writer API.
 Undeclared models, unsupported geometry and missing or additional ports fail.
 The process reference plane is bound to the task's declared ideal substrate.
-Evidence includes both databases, candidate-derived reference, configuration,
-geometry log and extracted netlist. This backend declares **CC only**: no wire
-resistance or inductance. Tasks explicitly select this scope.
+The ordinary tool logs retain both databases, the candidate-derived reference,
+configuration and extracted netlist. Tasks explicitly choose CC or RC scope.
 
 #### Qucs-S and Qucsator
 
@@ -730,21 +776,24 @@ changes. Cases select their check profiles through `[toolchain]`.
 
 | Profile | Scope |
 |---|---|
-| `drc-upstream.json` | Pinned PDK GUI defaults: main plus extra `sg13g2_maximal.drc`, deep mode, density and antenna off. |
-| `lvs-upstream.json` | Pinned PDK GUI defaults: explicit taps, native simplification and strict named ports. |
+| `drc-main-maximal` | Main plus extra `sg13g2_maximal.drc`, deep mode, density and antenna off. |
+| `lvs-explicit-taps` | Explicit taps, native simplification and strict named ports. |
+| `lvs-logical-mos` | Native logical MOS comparison and physical body connectivity, without schematic tap devices. |
 
-The `model-calls` diagnostic profile accepts ngspice model calls for
-`sg13_lv_nmos`, `sg13_lv_pmos`, `cap_cmim`, `ntap1` and `ptap1`. Its
-`sg13g2-model-calls.lvs` entry point is generated from the KLayout support
-manifest and includes the unchanged upstream runset. This profile is selected
-explicitly when interpreting these model calls. A KLayout reader delegate maps these `X` calls to the native PDK device handlers, preserving their terminal
-mapping, parameter units, simplification and comparison rules. Other `X` calls
-retain normal hierarchy handling, and CDL primitive cards retain their
-native interpretation. Use circuit-local `.param` definitions and compact
-expressions on model calls; expression parsing and parameter scoping remain
-those of the pinned native reader. This is an input adapter, with no rule
-waivers or new device models. Candidate scoring simulates only GDS-derived PEX. Other source dialects require
-an explicitly validated adaptation.
+These are native backend declarations selected through `from_pdk`. The upstream
+LVS reader consumes the declared CDL representation. Dataset authors can use the
+PDK's Xschem simulation and `lvs_format` netlisting modes to derive both tool
+representations from one authoritative circuit. Author consistency checks belong
+with the case; no global model-call reader override is required.
+
+The `magic` support profile retains the pinned upstream technology files.
+The `kpex` profile reads SG13G2's maintained PEX deck, technology JSON and license
+from the pinned `klayout-pex` distribution in the tools image. Cases selecting
+`kpex-rc` use these native model interfaces and unreduced distributed RC, with
+candidate devices checked against their independent LVS database. These profiles
+require no Dataset-local PDK patches. Device and connectivity controls belong to
+the author qualification; they do not establish fabrication or RF signoff.
+Candidate scoring simulates only GDS-derived PEX.
 
 Evaluate the maintained circuit and candidate using the case's declared task
 plan. See the [evaluation command](running.md#standalone-evaluation) and each case problem
@@ -771,6 +820,9 @@ HBT extraction with Magic distributed interconnect R/C. Its `klayout_support`
 and `magic_support` settings use separately reviewed bundles; declare their
 profiles through `support_profiles` in the [resource manifest](#agent-resource-declarations). Physical LVS remains a
 separate gate against the maintained circuit, including the named interface.
+Choose its native KLayout LVS deck with `klayout_deck`, optional
+`klayout_variables` and `klayout_layer_names`. The alternative `klayout_profile`
+loads a JSON rule profile and cannot be combined with those direct settings.
 For the fixed `npn13G2` emitter, the native extractor reports bounding-box X/Y
 dimensions as `we`/`le`. The adapter accepts the complete 70 × 900 nm pair in
 either axis order, preserving native `Nx` and terminal connections and passing
@@ -822,6 +874,122 @@ The reviewer implementation and policy are included in backend identity.
 Distributed-RC compact-model simulation does not establish RF/EM behavior,
 noise or statistical corners. Those require separately declared extraction
 and validation scope in the selected task contract.
+
+### Native openEMS networks
+
+`openems-docker` runs an explicitly prepared EM geometry through a reviewed
+PDK's native GDS reader, material stack, mesh generator, FDTD setup and
+S-parameter postprocessor. The open EDA image includes the pinned upstream
+CSXCAD/openEMS Python bindings. The backend settings are `image`, `support`,
+`workflow` (the workflow module directory inside the support bundle),
+`stackup` (the native XML path), `timeout_seconds` and `memory_mb`.
+
+An extraction job accepts `layout` in GDS format and `ports` in JSON format,
+and returns `network` in Touchstone format. The port list is ordered and
+numbered consecutively from one. Every port uses a distinct non-material GDS
+layer containing its native port geometry:
+
+```json
+[
+  {"number": 1, "source_layer": 201, "impedance": 50,
+   "from_layer": "Metal3", "to_layer": "TopMetal2", "direction": "z"},
+  {"number": 2, "source_layer": 202, "impedance": 50,
+   "target_layer": "Metal2", "direction": "x"}
+]
+```
+
+Via ports declare `from_layer` and `to_layer`; in-plane ports declare
+`target_layer`. Directions are `x`, `y`, `z` or their negative forms. Job
+parameters explicitly supply `fstart`, `fstop`, `numfreq`, `cellsize`, `margin`,
+`energy_limit` in dB, six `boundaries`, and `threads`. Optional
+`merge_polygon_size` selects the native via-array merge distance; its default
+is zero. Lengths use micrometers and frequencies use Hz. Every port is excited
+separately, producing the complete network. Missing port geometry and port
+layers that collide with a native material layer are errors. Native field
+outputs and network diagnostics remain execution evidence.
+
+An optional `model` SPICE output requires a `model` parameter object with
+`real_poles`, `complex_poles`, `fit_constant` and `maximum_error`. The native
+scikit-rf vector fitter and exporter produce a stable, passive network within
+the declared maximum complex S error on the complete sampling grid. The
+subcircuit is named `EM_NETWORK` and orders its pins as
+`p1 p1_ref p2 p2_ref ...`. For ngspice, exported resistances smaller than its
+literal-value limit are expressed as `1 scale=<original resistance>` using
+the simulator's native instance parameter. The effective resistance is
+unchanged; both exported representations remain evidence. Passivity or fitting
+errors reject the model.
+
+
+An optional prepared SPICE `circuit` input requests an assembled `netlist`
+output. Optional SPICE `models` supplies its model definitions. The adapter
+concatenates these declared bytes and the fitted EM model without changing
+device cards or connections.
+
+The physical-GDS partitioner serializes multi-hole material using native
+KLayout trapezoids when their planar region is exactly preserved. This avoids
+ambiguous bridged GDS contours while retaining holes, zero-area port sheets
+and labels.
+
+This backend starts from explicit EM geometry and reference planes. A task
+must define and independently validate their relationship to the submitted
+physical layout, the compact-device boundaries, DC bias connections and any
+fixed RF fixtures. It must also validate mesh convergence and circuit assembly
+over its declared operating band. A successful field extraction alone does
+not qualify a circuit or establish its noise, startup or transient behavior.
+
+### Native Palace networks
+
+`palace-docker` uses a reviewed PDK's unmodified GDS-to-Palace workflow,
+native XML stackup and CSV parser. Its backend settings add `converter`, the
+native CSV module inside the support bundle, to the openEMS resource settings.
+The open EDA image supplies Palace and Gmsh. GDS port geometry, the ordered
+JSON port list and the optional SPICE network use the interfaces described
+above. Every port uses the same positive real reference impedance.
+
+Jobs declare `fstart`, `fstop` and `fstep` in Hz, with a positive start and an
+integral number of uniform steps; `cellsize`, `margin`, `meshsize_max` and
+`air_around` in micrometers; six `boundaries` (`ABC`, `PEC` or `PMC`);
+`adaptive_sweep`, `conductor_model` (`surface`, `solve_inside` or
+`solve_inside_skin`), basis `order` (1–3), OpenMP `threads` and MPI `processes`.
+Optional settings are `merge_polygon_size`, `preprocess_gds`,
+`adaptive_mesh_iterations`, `adaptive_tolerance`, `cad_threads`,
+`cad_boolean_simplify`, `mesh_algorithm_3d`, `fill_factor_correction`,
+`excitation_batch_size`, `parallel_batches`, `linear_solver`,
+`complex_coarse_solve`, `solver_maxits`, `solver_tol`, `krylov_max_size`
+and the native `model` fit.
+The declared CAD thread count enables Gmsh's native parallel OpenCASCADE
+operators; its default is the declared OpenMP thread count.
+The optional integer simplification mode sets Gmsh's native
+`Geometry.OCCBooleanSimplify` (0: disabled, 1: unions, 2: all boolean operations).
+The optional `mesh_algorithm_3d` selects Gmsh's native volume mesher:
+1 (Delaunay), 4 (Frontal), 7 (MMG3D), or 10 (HXT).
+The optional boolean `fill_factor_correction` enables the upstream workflow's
+conductivity correction for merged via arrays, using the original via metal
+area. Declare it explicitly when using that native homogenization method.
+Optional positive integers `excitation_batch_size` and `parallel_batches`
+schedule native Palace excitation groups on one fixed mesh. All port
+terminations remain active; only incident excitation indices change between
+groups. Every matrix column is required exactly once on the same frequency
+grid. Missing, unsolved or duplicate columns reject the result. Each group
+uses the declared MPI process and OpenMP thread counts, so parallel groups
+multiply the resource demand. Batching cannot be combined with adaptive mesh
+iterations, which could produce different meshes for different columns.
+The adaptive tolerance sets Palace's `Solver.Driven.AdaptiveTol` explicitly.
+`linear_solver` selects the upstream preconditioner (`Default`, `AMS`,
+`MUMPS`, `SuperLU`, `STRUMPACK` or `STRUMPACK-MP`); the selected solver must
+be available in the image. `complex_coarse_solve`, `solver_maxits` and
+`solver_tol` pass through to the native workflow. `krylov_max_size` bounds
+Palace's GMRES restart space through `Solver.Linear.MaxSize`. These settings
+control numerical solving and memory demand; the physical mesh, materials
+and complete response requirements still apply.
+
+The adapter requires every matrix entry at every requested frequency. Missing,
+unsolved or nonfinite responses, and an adaptive sweep that exhausts its sample
+limit before converging, or a linear solver that misses its residual tolerance,
+are errors. It preserves the native reference
+planes and frequency range without DC extrapolation or port de-embedding.
+Mesh convergence, assembly accuracy and circuit qualification remain separate
+author checks.
 
 ### Spectre measurement profiles
 
@@ -1124,16 +1292,50 @@ to a new binding.
 
 `pdk.toml` is an index of reviewed process resources. Keep release identities,
 module and mount selections, environment settings, profile selection and file
-references in the manifest. Maintain JSON configuration, SPICE entries, native
+references in the manifest. Shared tool backends may declare native entry paths
+and command parameters as TOML tables. Maintain file-format JSON configuration, SPICE entries, native
 rules, program text and license/attribution text as separate files in
 `resources/` beside it, including content that could fit on one line. Reuse
 one file for identical content serving the same purpose. Existing vendor
 files remain in their pinned installation rather than being copied into this
 directory. Project resources must not contain task solutions or complete DUTs.
 
+`[backends.<name>]` uses the same `type`, `settings` and `support_profiles` tables
+as a case backend. A case selects one complete declaration:
+
+```toml
+# pdk.toml
+[backends.drc]
+type = "klayout-docker"
+support_profiles = { support = "physical" }
+[backends.drc.settings]
+image = "docker.io/lizhangmai/iclayout-bench-tools:latest"
+check = "drc"
+support = "physical"
+deck = "drc/gf180mcu.drc"
+required_categories = ["'M1.1'"]
+[backends.drc.settings.variables]
+variant = "D"
+decks = "all,-density"
+
+# case.toml
+[toolchain.backends.drc]
+from_pdk = "drc"
+```
+
+The deck path names a file declared by the selected support profile. Runtime
+preparation replaces `support` with that profile's prepared path; no build-output
+path is needed in the declaration. `from_pdk` is supported only for Dataset cases
+with their adjacent process manifest. It cannot be mixed with local fields or
+chained through another reference. Standalone toolchains continue to declare
+complete backends directly. Image and resource selections supplied by the runtime
+still apply after resolution. Native rule or program bodies are referenced as files,
+not embedded in TOML strings.
+
 | Declaration | Path base | Meaning |
 | --- | --- | --- |
 | `profiles.<name>.files` / `compile_files` | Pinned installation | Existing tool/PDK files and compiler inputs. |
+| `profiles.<name>.source` | Profile-specific installation | Overrides the manifest source for this profile; installed Python-package resources use the selected tools image. |
 | `profiles.<name>.local_files.<target>` | Manifest directory | Project-owned file with `path` and `format`, prepared at the named support target. |
 | `replace[].old_file` / `new_file` | Manifest directory | Exact-match replacement fragments. Short single-line `old` / `new` literals are also supported. |
 | `agent.local_files.<target>` | Manifest directory | Reviewed Agent resource with `path` and `format`, exposed at `/resources/<target>`. |
@@ -1158,12 +1360,43 @@ Portable snapshots and publication inventories carry every declared local
 file, preserving its relative path, and exclude undeclared files. They do not
 copy external installations or credentials.
 
+A tool may distribute native process resources separately from the Ciel PDK.
+Select those files from its installed distribution with a profile-specific
+`python-package` source:
+
+```toml
+[profiles.kpex.source]
+kind = "python-package"
+distribution = "klayout-pex"
+version = "0.9.0"
+
+[profiles.kpex.files."kpex/sky130.lvs"]
+path = "klayout_pex/pdk/sky130A/libs.tech/kpex/sky130.lvs"
+format = "text"
+
+[profiles.kpex.files."kpex/rule_decks/auto_name_layers.rb"]
+path = "klayout_pex/pdk/sky130A/libs.tech/kpex/rule_decks/auto_name_layers.rb"
+format = "text"
+
+[profiles.kpex.files."sky130A_tech.pb.json"]
+path = "klayout_pex_protobuf/sky130A_tech.pb.json"
+format = "json"
+```
+
+Paths are relative to the distribution's installation root, as listed in its
+installed file inventory. Preparation reads only declared files, checks the
+exact installed version and stores the resources in the existing derived cache.
+No host Python dependency or additional Python environment is created. The
+selected image must already contain that distribution. Include the distribution
+license and retain the native files' attribution when declaring a complete profile.
+
 ### Agent resource declarations
 
 These declarations produce the [Agent PDK resources](#agent-pdk-resources) view.
 
 An `[agent]` table in `pdk.toml` declares process
-`id`, `sources`, `environment`, `checks`, and optional `support_profiles`.
+`id`, `sources`, and `environment`, with optional `checks`, `support_profiles`
+and `local_files`.
 Each source declares a pinned `repository` and `commit`, or `installation = true`
 for the manifest's installation. Optional `path` selects the PDK root within
 that checkout or installation. Optional `paths` is a nonempty list of normalized,
@@ -1171,24 +1404,27 @@ nonoverlapping paths below that root. Use it to expose technology files, device
 models and licenses while omitting reference cells and example layouts. Paths
 are bound directly from the installation; preparation does not copy the PDK.
 Changing this selection produces a new resource binding.
-Each support profile names an evaluator preparation profile. `checks` is a
-nonempty list of executable argument lists run inside the Agent container.
+Each support profile names an evaluator preparation profile. When declared,
+`checks` lists executable argument lists run inside the Agent container; each
+command must be nonempty.
 
 | Resource | Runtime behavior |
 |---|---|
 | PDK resources | The selected `pdk.toml` declares roots and container settings; selected roots are mounted read-only. |
 | Tool support bundle | Declared profiles select Magic, MOS models and KLayout rules; generated models are compiled in a separate container. |
-| PDK resource view | `resource.json` binds shared preparation; containers mount installed roots and derived files read-only. Sessions detect the selected PDK; `/protocol/task.json` → `resources` publishes its container-local import paths and a preflight import command without adding task or reference files |
+| PDK resource view | `resource.json` binds shared preparation; containers mount installed roots and derived files read-only. Sessions detect the selected PDK; `/protocol/task.json` → `resources` publishes its container-local import paths and any declared preflight commands without adding task or reference files |
 
-Keep upstream files byte-for-byte and register generated startup settings
-separately in the manifest. Preserve component license notices, including those
-for PSP models, PyCell and pypreprocessor.
+Keep upstream files byte-for-byte and maintain simulator startup settings with
+the task. Preserve component license notices, including those for PSP models,
+PyCell and pypreprocessor.
 
 Resource preflight runs the process's declared `checks` and any selected
-support-profile checks. A passing command establishes only the functionality it
-exercises; successful imports do not certify every device parameter or process
-rule. Physical and electrical coverage comes from the selected task's declared
-evaluation scope, as described under [qualification](tasks.md#qualification).
+support-profile checks. Process `checks` are optional and may be empty; a resource
+binding does not require a custom check script. A passing command establishes
+only the functionality it exercises; successful imports do not certify every
+device parameter or process rule. Physical and electrical coverage comes from
+the selected task's declared evaluation scope, as described under
+[qualification](tasks.md#qualification).
 
 ### Manual support preparation
 
@@ -1477,8 +1713,7 @@ count and zero results; LVS requires a finished named-port comparison of every
 reported cell without blackboxes. Failures and incomplete reports retain native
 evidence. RC runs LVS, xRC `-pdb -rcc` and `-fmt -all`, preserves distributed R,
 explicit coupling C and physical devices, and reorders only the extracted top
-port declaration. Floating fill uses Calibre's `REDUCED` equivalent capacitance
-network. No source circuit substitutes for extraction.
+port declaration. No source circuit substitutes for extraction.
 
 Recorded Calibre settings group rule bindings, DRC execution, LVS comparison,
 and RC adaptation separately. Quantus and StarRC record CCI connectivity and
@@ -1488,16 +1723,26 @@ their extraction settings alongside the shared Calibre configuration.
 files whose contents must be inserted before adapting run I/O. Each name must
 match once. This handles an xRC wrapper including an LVS deck with single-valued
 run controls, without duplicating those statements or changing device rules.
-Optional `rule_control = "@filename"` selects a fixed native process wrapper
-from `runtime.control_files`. The native rule author owns its device definitions
-and validation; the framework only binds run I/O. A TVF wrapper that reads another
-deck must itself exclude that deck's fixed run I/O before emitting its rules.
+An optional text job input `rule_control` selects the task's native SVRF or TVF
+entrypoint. Declare it as an evaluator input and bind it to each intended job.
+This entrypoint owns comparison, virtual-connection, ERC and floating-net
+policies. The adapter binds run I/O and enforces named-port comparison; it does
+not add `LVS EXECUTE ERC`, `VIRTUAL CONNECT COLON` or
+`PEX EXTRACT FLOATING NETS` to a task-supplied entrypoint. The effective control
+file remains evidence. Non-UTF-8 comment bytes are preserved.
+
+Alternatively, the backend setting `rule_control = "@filename"` selects a fixed
+native process wrapper from `runtime.control_files`; supplying both sources is
+an error. Without a task control input, the existing flow requests ERC, disables
+colon virtual connections and uses the `REDUCED` floating-metal capacitance
+network. A TVF wrapper that reads another deck must itself exclude that deck's
+fixed run I/O before emitting its rules.
 `require_erc_summary = false` is explicit for decks with no standalone ERC
 RuleChecks; the default still requires the ERC report.
 
-Process-specific LVS reduction and parameter-comparison rules belong to native
-process resources, selected by `rule_control` or `rule_includes`. The framework
-does not synthesize device policies. Extraction may declare `mos_parameters`,
+Task-specific LVS reduction and parameter-comparison rules belong to the task's
+native controls; process resources supply the device and layer definitions. The
+framework does not synthesize device policies. Extraction may declare `mos_parameters`,
 a mapping from native parameter names to `positive`, `nonnegative` or `positive_integer` domains. These checks reject
 unsupported native output without changing its models, parameters or nets.
 `require_junctions` independently selects conventional AS/AD/PS/PD checks.
@@ -1545,7 +1790,9 @@ execution](#host-execution) for Calibre LVS/CCI followed by Quantus coupled RC.
 It requires `deck`, `technology_env` (an environment entry naming a technology
 directory within a declared, noncredential resource mount), and `ground` (a
 declared top-level port). The technology can share the PDK mount; include its
-files or directory in that mount's `identity_paths`. The runtime selects both
+files or directory in that mount's `identity_paths`. An unset `technology_env`
+or a directory outside the declared resource mounts fails before tool probes;
+the adapter does not supply replacement extraction parameters. The runtime selects both
 `calibre` and `quantus` module profiles. Frozen GDS and source bytes remain
 unchanged; source data is used for LVS and naming, while devices and parasitics
 come from annotated candidate geometry. Jobs declare `ports` and optionally an
@@ -1584,21 +1831,29 @@ LVS and naming, not as a substitute for extraction.
 ### ICV with StarRC
 
 `icv-native` selects [operator host](#host-execution) ICV with `check = "drc"`,
-`"lvs"`, or `"rc"` and a mounted `deck`. Optional `lvs_control = "@filename"`
-selects a declared native runset wrapper, retaining the mounted deck's include
-directory. LVS and RC settings require `lvs_checks`, a mapping from native
-report check names to expected device-class counts. The adapter verifies this
+`"lvs"`, or `"rc"` and a mounted `deck`. An optional text job input
+`lvs_control` selects the task's native runset wrapper, retaining the mounted
+deck's include directory. Alternatively, the backend setting
+`lvs_control = "@filename"` selects a declared runtime control file; supplying
+both sources is an error. LVS and RC settings require `lvs_checks`, a mapping
+from native report check names to expected device-class counts. The adapter verifies this
 declared coverage and the native comparison verdict, and passes source inputs
-unchanged. Process resources own property comparison and device-equivalence
-policies. DRC requires a completed report for the requested top, positive rule
-coverage and zero violations. `allowed_unexecuted` records known inactive rules
+unchanged. Task controls own property comparison and device-equivalence
+policies; shared resources supply process interfaces. DRC requires a completed
+report for the requested top, positive rule coverage and zero violations.
+`allowed_unexecuted` records known inactive rules
 without suppressing checks.
 
 RC uses native ICV/StarRC, requiring `grid` and the job's ordered `ports`.
-It runs coupled RC at 25°C with `ground` (default `GND!`). Optional
-`starrc_control = "@filename"` appends declared native StarRC commands, including
-explicit process choices for power extraction. Three-terminal
-MOS models, geometry and RC cards remain as emitted by StarRC. The existing
+The adapter binds the block, grid, RC/SPF output and `ground` (default `GND!`).
+An optional text job input `starrc_control` appends the task's native StarRC
+commands. Alternatively, `starrc_control = "@filename"` selects a runtime
+control file; supplying both sources is an error. Native controls select
+extraction networks, power extraction, coupling, isolated ports, temperature
+and worker count. Controls are evaluator inputs and must be declared and bound
+to the corresponding jobs. DRC accepts neither control input, and LVS accepts
+only `lvs_control`. The effective runset and StarRC command file remain evidence.
+Three-terminal MOS models, geometry and RC cards remain as emitted by StarRC. The existing
 named interface may be reordered; missing supply ports and extra generated ports
 are rejected instead of added or removed. Native resource templates must produce
 the required model names and interface before the flow can be qualified.
@@ -1630,6 +1885,13 @@ measurement profile reads completed PSF ASCII `ac.ac` and `op.dc` data and repor
 differential AC gain, first downward unity/3 dB crossings, DC output and supply
 power. It does not replay general OCEAN/ADE expressions.
 [Measurements](#spectre-measurement-profiles) defines the AC, DC and transient profiles.
+
+The optional backend `environment` table declares case simulator startup
+settings, for example `SPECTRE_DEFAULTS = "-E"` to select native C preprocessing.
+These values are recorded in backend identity and applied after the declared
+tool module loads, so module defaults cannot silently replace the case choice.
+Empty values can explicitly clear inherited defaults. License values must use
+the runtime's named forwarding interface.
 
 The backend setting `max_parallel_jobs` defaults to 1; a positive integer opts
 into concurrent independent jobs with isolated tool workspaces. Select it within

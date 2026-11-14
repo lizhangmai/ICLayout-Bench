@@ -386,6 +386,53 @@ def test_export_preserves_termination_score_and_candidate_quality(tmp_path, inpu
         archive.final_evidence(dict(service, score=report['score']))
 
 
+@pytest.mark.parametrize('termination', ['closed', 'budget_exhausted', 'agent_error'])
+def test_service_verification_binds_candidate_and_termination_score(tmp_path, inputs, bindings, termination):
+    from benchmarking.evaluation.scoring import attempt_score
+    from benchmarking.evidence.journal import RunRecorder
+    from benchmarking.results.verification import verify_service_result
+
+    report = evaluate(tmp_path, inputs, bindings)
+    store = tmp_path / 'store'
+    run = store / 'session/run'
+    recorder = RunRecorder(run)
+    candidate = recorder.archive(inputs['candidate'])
+    recorder.event('submission', candidate=candidate,
+                   receipt={'accepted': True, **inputs['candidate'].identity()})
+    (tmp_path / 'report').rename(run / 'evaluation')
+    score = attempt_score(termination, report['outcome'], report['score'])
+    frozen = {'limits': {'wall_seconds': 3600}, 'evaluator': {'kind': 'fixture'}, 'resources': {},
+              'evaluation_plan_sha256': report['plan']['sha256'], 'backends': report['backends'],
+              'evaluation_inputs': {key: ref['sha256'] for key, ref in report['inputs'].items()
+                                    if key != 'candidate'}}
+    service = {'session_id': 'session', 'outcome': 'pass', 'task_success': True, 'score': score,
+               'limits': frozen['limits'], 'tool_identity': {'image_id': 'fixture', 'evaluator': frozen['evaluator']},
+               'submission': {'candidate_sha256': inputs['candidate'].sha256}}
+    record = {'candidate': candidate, 'termination': termination, 'outcome': report['outcome'],
+              'task_success': True, 'score': score, 'environment': {'image_id': 'fixture'}, 'resources': {}}
+
+    def save_evaluation():
+        raw = json.dumps(report).encode()
+        (run / 'evaluation/report.json').write_bytes(raw)
+        recorder.save(dict(record, evaluation={**Asset(raw, 'json').identity(), 'path': 'evaluation/report.json'}))
+
+    save_evaluation()
+    verify_service_result(store, service, frozen=frozen, image_id='fixture')
+    candidate_path = run / 'evaluation' / report['inputs']['candidate']['path']
+    candidate_path.chmod(0o600)
+    candidate_path.write_bytes(b'corrupt-evaluated-candidate')
+    with pytest.raises(ValueError, match='archive integrity'):
+        verify_service_result(store, service, frozen=frozen, image_id='fixture')
+    candidate_path.write_bytes(inputs['candidate'].content)
+    other = Asset(b'other-candidate', 'gds')
+    reference = {**other.identity(), 'path': 'artifacts/' + other.sha256}
+    (run / 'evaluation' / reference['path']).write_bytes(other.content)
+    report['inputs']['candidate'] = reference
+    save_evaluation()
+    with pytest.raises(ValueError, match='candidate|Candidate'):
+        verify_service_result(store, service, frozen=frozen, image_id='fixture')
+
+
 def test_attaching_invalid_evidence_leaves_terminal_result_and_files_unchanged(tmp_path, inputs, bindings, monkeypatch):
     from types import SimpleNamespace
 
@@ -713,7 +760,7 @@ def test_extractor_explicitly_distinguishes_rejection_from_evaluator_error(
 
 
 @pytest.mark.parametrize("problem,expected", [
-    ("event", 0), ("mixed", 0), ("missing", None), ("ambiguous", None),
+    ("event", 0), ("batch_event", 0), ("mixed", 0), ("missing", None), ("ambiguous", None),
     ("model", None), ("crash", None), ("timeout", None),
 ])
 def test_ngspice_event_rejection_scores_zero_but_execution_and_report_faults_do_not(
@@ -725,6 +772,10 @@ def test_ngspice_event_rejection_scores_zero_but_execution_and_report_faults_do_
     event_log = (b"No. of Data Rows : 100001\n"
                  b"Error: measure delay when(WHEN): out of interval\n"
                  b" meas tran delay when error=1m fall=last failed!\n")
+    if problem == "batch_event":
+        event_log = (b"No. of Data Rows : 9056\n"
+                     b"Error: measure delay trig(TARG) : out of interval\n"
+                     b" .meas tran delay trig v(a) val=0.5 rise=1 targ v(z) val=0.5 fall=1 failed!\n")
 
     class Tool:
         def __init__(self, *args):

@@ -38,6 +38,12 @@ METADATA = HarnessMetadata('dsh', 'DSH_HOME', '.dsh', None, 'settings.yaml')
 
 CAPABILITIES = {"resume_session": True, "capacity_resumes": False}
 
+NATIVE_ENVIRONMENT = frozenset({
+    'DEEPSEEK_API_KEY',
+    'DEEPSEEK_BASE_URL',
+    'DSH_HOME',
+})
+
 
 class ConfigLoader(yaml.SafeLoader):
     """Read composed metadata without executing Cordis !!js expressions."""

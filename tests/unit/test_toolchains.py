@@ -57,6 +57,60 @@ response = "absent"
         load_toolchain(config, factories={"custom": factory})
 
 
+def test_pdk_backend_is_shared_without_mutating_case_or_process(tmp_path):
+    process = tmp_path / 'tasks/open180'
+    case = process / 'cells/cases/gate/case.toml'
+    case.parent.mkdir(parents=True)
+    case.write_text('''kind = "layout_case"
+[toolchain.backends.physical]
+from_pdk = "drc"
+[toolchain.bindings]
+"layout.drc" = "physical"
+''')
+    manifest = process / 'pdk.toml'
+    manifest.write_text('''[backends.drc]
+type = "native-check"
+support_profiles = { support = "physical" }
+[backends.drc.settings]
+image = "declared-image"
+support = "physical"
+deck = "drc/native.drc"
+variables = { variant = "D" }
+''')
+    originals = case.read_bytes(), manifest.read_bytes()
+    calls = []
+
+    def factory(**settings):
+        calls.append(settings)
+        return object()
+
+    declaration = load_toolchain_spec(case, require_declared=True)
+    assert declaration.backends['physical'].type == 'native-check'
+    assert declaration.backends['physical'].settings['deck'] == 'drc/native.drc'
+    result = load_toolchain(case, profiles={'physical': tmp_path / 'prepared'},
+                           image='selected-image', factories={'native-check': factory})
+    assert 'layout.drc' in result
+    assert calls == [{'image': 'selected-image', 'support': str(tmp_path / 'prepared'),
+                      'deck': 'drc/native.drc', 'variables': {'variant': 'D'}}]
+    assert (case.read_bytes(), manifest.read_bytes()) == originals
+
+
+@pytest.mark.parametrize('entry,shared,match', [
+    ('from_pdk = "missing"', '[backends]', 'Unknown PDK backend'),
+    ('from_pdk = "drc"\nsettings = {}', '[backends]', 'unknown'),
+    ('from_pdk = "drc"', '[backends.drc]\nfrom_pdk = "other"', 'missing'),
+])
+def test_invalid_pdk_backend_fails_before_tool_creation(tmp_path, entry, shared, match):
+    process = tmp_path / 'tasks/open180'
+    case = process / 'cells/cases/gate/case.toml'
+    case.parent.mkdir(parents=True)
+    case.write_text('kind = "layout_case"\n[toolchain.backends.check]\n' + entry
+                    + '\n[toolchain.bindings]\n"layout.drc" = "check"\n')
+    (process / 'pdk.toml').write_text(shared)
+    with pytest.raises(ValueError, match=match):
+        load_toolchain(case, factories={})
+
+
 # Runtime profile binding must cover each composite support setting, including
 # paths with spaces. Missing profiles fail before external tool construction.
 @pytest.mark.parametrize("prepared", [False, True])
@@ -174,6 +228,55 @@ settings = {image = "test", support = "models", max_parallel_jobs = 2, threads =
     assert b'set num_threads=16\n' in files['support/.spiceinit'].content
     assert environment['OMP_NUM_THREADS'] == environment['OMP_THREAD_LIMIT'] == '16'
     assert config.read_bytes() == original
+
+
+def test_ngspice_uses_case_startup_bytes_and_paths_without_profile_defaults(monkeypatch):
+    import json
+
+    from benchmarking.eda.backends import ngspice
+    from benchmarking.evaluation import Job
+    from benchmarking.execution.tools import ToolResult
+    from benchmarking.files import Asset
+
+    calls = []
+
+    class Tool:
+        def __init__(self, *args):
+            self.identity = {}
+
+        def run(self, command, files, exports, *, environment):
+            calls.append((files, environment))
+            return ToolResult(0, '', {'ngspice.log': Asset(b'response = 1.25\n', 'text')},
+                              {'console': Asset(b'', 'text')})
+
+    class Support:
+        def mounted_files(self):
+            return {'support/.spiceinit': Asset(b'echo shared-default\n', 'text')}
+
+        def evidence(self):
+            return {}
+
+    monkeypatch.setattr(ngspice, 'DockerTool', Tool)
+    monkeypatch.setattr(ngspice, 'load_bundle', lambda path: Support())
+    startup = Asset(b'set num_threads=2\nset sourcepath=( . /case/models )\n', 'text')
+    inputs = {'deck': Asset(b'* Case control\n.end\n', 'spice'), 'startup': startup}
+    job = Job('op', 'simulate', 'circuit.simulate', (), (), (), None,
+              json.dumps({'measurements': {'response': 'V'}}))
+    backend = ngspice.NgspiceDocker(image='tools', support='models', threads=2)
+    result = backend.run(job, inputs)
+    assert result.status == 'passed'
+    files, environment = calls.pop()
+    assert files['.spiceinit'] == startup
+    assert 'startup.spice' not in files
+    assert environment['SPICE_USERINIT_DIR'] == '/workspace'
+    assert environment['OMP_NUM_THREADS'] == '2'
+    assert result.evidence['effective_startup'] == startup
+    with pytest.raises(ValueError, match='native startup text'):
+        backend.run(job, {**inputs, 'startup': Asset(startup.content, 'spice')})
+    compatible = ngspice.NgspiceDocker(image='tools', support='models', compatibility='hsa')
+    with pytest.raises(ValueError, match='supplied case startup'):
+        compatible.run(job, inputs)
+    assert not calls
 
 
 # The installation adapter is a new external-I/O boundary: unlike downloaded

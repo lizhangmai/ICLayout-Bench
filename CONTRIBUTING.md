@@ -19,6 +19,8 @@ uv sync --locked --extra results
 editable mode with the locked development dependencies. The offline checks below
 need no Docker, Dataset, agent CLI or model credentials. EDA checks require the
 additional tools and explicit inputs described in [verification](#verification).
+The `eda` dependency group targets Python 3.12 for upstream PCell compatibility;
+framework checks also run on Python 3.13.
 Keep credentials and generated experiment results out of tracked source; choose
 configuration and output paths to suit your workflow.
 
@@ -40,8 +42,9 @@ resources rather than shared orchestration modules.
 | `service/` | `application.py` translates HTTP routes; `controller.py` owns authenticated mutations and replay; `views.py` projects responses; `state.py` stores service records. `session.py` composes solver execution with independent evaluation; `supervisor.py` owns live session handles. A controller can receive a dedicated supervisor, runner and workspace factory. |
 | `results/` | `package.py` exports explicit immutable evaluation and participant evidence; `verification.py` checks terminal records; `analysis.py` and the statistics modules return structured data. `preview.py` and `native_preview.py` produce EDA preview assets. `importing.py` validates artifacts before `store.py` transactionally imports metadata; `objects.py` stores content-addressed files. `outbox.py` and `transfer.py` own handoff. Charts and website publishing belong to consuming applications. |
 
-`results.retention` owns purpose-based terminal retention, compressed evidence
-resolution and maintenance migration. Extend `test_result_retention.py` and the
+`files.py` owns byte-exact compressed-file resolution and integrity checks without
+depending on result processing. `results.retention` owns purpose-based terminal
+retention and maintenance migration. Extend `test_result_retention.py` and the
 evaluation/export regressions when changing retention: functional rejection is
 distinct from a successful simulator exit; final evidence, observed feedback,
 unknown usage and portable byte identities must survive collection. Test corruption,
@@ -58,7 +61,9 @@ Presentation code uses `ResultStore` operations rather than its SQL engine.
 
 Related tool modes share an implementation: Spectre base/X/APS and native
 construction live in `eda/backends/spectre.py`; each harness owns its native
-records and events. Keep small files only where they establish a distinct
+records, events, environment allowlist and shared credential-directory declarations.
+Native isolation validates and mounts those explicit credential directories.
+Keep small files only where they establish a distinct
 responsibility, rather than splitting one operation across forwarding modules.
 Include new evaluation/session implementation files in their recorded identities.
 

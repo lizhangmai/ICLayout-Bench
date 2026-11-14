@@ -7,6 +7,7 @@ and log-frequency crossings. They establish parser behavior, not EDA accuracy.
 import json
 import math
 import sys
+from contextlib import contextmanager
 from dataclasses import replace
 from types import SimpleNamespace
 
@@ -27,10 +28,15 @@ def test_spectre_memory_allocation_is_applied_and_recorded(monkeypatch):
     commands = []
 
     def version(command, **kwargs):
-        commands.append(command)
         return 'fixture-version'
 
+    @contextmanager
+    def container(arguments, **kwargs):
+        commands.append(arguments)
+        yield SimpleNamespace(id='fixture')
+
     monkeypatch.setattr('benchmarking.execution.tools.docker.subprocess.check_output', version)
+    monkeypatch.setattr('benchmarking.execution.tools.docker.ContainerLease', container)
     default = DockerTool('unused', ['spectre', '-W'], 10)
     assert not {'--memory', '--cpus', '--pids-limit'} & set(commands[-1])
     assert default.identity['limits'] == {'cpus': None, 'memory_mb': None, 'pids': None}
@@ -62,6 +68,55 @@ def test_native_spectre_keeps_frozen_deck_and_rejects_crash_exit():
     assert result.returncode == 139 and 'Native spectre' in result.reason
     assert tool.identity['execution'] == 'operator-native'
     assert 'image_id' not in tool.identity and 'limits' not in tool.identity
+
+
+def test_case_spectre_environment_overrides_module_defaults_without_shell_evaluation(monkeypatch):
+    from benchmarking.eda.environment import ExternalRuntime
+    from benchmarking.execution.tools.native import NativeEDATool
+
+    runtime = ExternalRuntime('native-test', {'image': 'unused', 'environment': {}, 'mounts': []})
+    monkeypatch.setattr(runtime, 'module_command', lambda module, command:
+        ['bash', '-c', 'export SPECTRE_DEFAULTS=module-default; exec "$@"', 'module', *command])
+    tool = NativeEDATool(runtime, 'spectre', [sys.executable, '-c', 'print("fixture")'], 5)
+    chosen = '-E $(touch unexpected); literal'
+    result = tool.run([sys.executable, '-c',
+        ('import os,pathlib; pathlib.Path("observed").write_text(os.environ["SPECTRE_DEFAULTS"]); '
+         'assert not pathlib.Path("unexpected").exists()')], {}, {'observed': 'text'},
+        environment={'SPECTRE_DEFAULTS': chosen})
+    assert result.returncode == 0 and not result.reason
+    assert result.files['observed'].content.decode() == chosen
+    for invalid in ([], {'CDS_LIC_FILE': 'secret'}, {'BAD=NAME': 'value'}, {'PATH': 4}):
+        with pytest.raises(ValueError, match='environment'):
+            tool.run(['true'], {}, {}, environment=invalid)
+
+
+@pytest.mark.parametrize('backend_name', ['SpectreNative', 'SpectreAPSNative', 'SpectreXNative'])
+def test_spectre_case_environment_is_recorded_and_forwarded(monkeypatch, backend_name):
+    from benchmarking.eda.backends import spectre
+    from benchmarking.eda.environment import ExternalRuntime
+
+    seen = []
+    class Tool:
+        def __init__(self, *args):
+            self.identity = {'tool_version': 'fixture'}
+        def run(self, command, files, exports, **kwargs):
+            seen.append(kwargs)
+            return ToolResult(1, 'fixture-stop', {}, {})
+
+    monkeypatch.setattr('benchmarking.eda.backends.spectre.NativeEDATool', Tool)
+    monkeypatch.setattr(ExternalRuntime, 'pdk_file', lambda *args: (None, '/pdk/model'))
+    monkeypatch.setattr(spectre.os, 'sched_getaffinity', lambda pid: set(range(4)))
+    runtime = ExternalRuntime('test', {'image': 'unused', 'environment': {}, 'mounts': []})
+    settings = {'runtime': runtime, 'model': 'model', 'section': 'tt'}
+    backend_type = getattr(spectre, backend_name)
+    backend = backend_type(**settings, environment={'SPECTRE_DEFAULTS': '-E'})
+    assert backend.identity['environment'] == {'SPECTRE_DEFAULTS': '-E'}
+    job = Job('probe', 'simulate', 'circuit.simulate', (), (), (), None,
+              json.dumps({'measurements': {'value': 'V'}, 'waveform': {}}))
+    backend.run(job, {'deck': Asset(b'fixture', 'spice'), 'dut': Asset(b'circuit', 'spice')})
+    assert seen == [{'environment': {'SPECTRE_DEFAULTS': '-E'}}]
+    with pytest.raises(ValueError, match='environment'):
+        backend_type(**settings, environment={'CDS_LIC_FILE': 'secret'})
 
 
 def test_aps_is_explicit_preserves_inputs_and_propagates_native_failure(monkeypatch):
@@ -181,11 +236,13 @@ def test_spectre_calibration_selects_eligible_setting_and_reuses_frozen_paramete
     backend = object.__new__(SpectreNative)
     backend.runtime = SimpleNamespace(pdk_file=lambda name: (None, '/pdk/model'))
     backend.model, backend.section = 'models', 'tt'
+    backend.environment = {'SPECTRE_DEFAULTS': '-E'}
     monkeypatch.setattr('benchmarking.eda.environment.ExternalRuntime.pdk_file', lambda *args: (None, '/pdk/model'))
     seen, fail = [], False
 
     class Tool:
-        def run(self, command, files, exports):
+        def run(self, command, files, exports, *, environment):
+            assert environment == {'SPECTRE_DEFAULTS': '-E'}
             assert b'include "selection.scs"' in files['deck.scs'].content
             value = float(files['selection.scs'].content.decode().split('setting=')[1])
             seen.append(value)

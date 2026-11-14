@@ -77,6 +77,8 @@ jobs:
           docker run --rm --network none "$IMAGE@$DIGEST" bash -euc '
             test "$(id -u)" != 0
             klayout -v
+            kpex --version
+            kpex extract --help > /dev/null
             ngspice --version
             magic --version
             openvaf --version

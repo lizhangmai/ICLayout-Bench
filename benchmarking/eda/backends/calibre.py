@@ -144,26 +144,35 @@ class CalibreBackend:
         return {'LAYOUT PATH': '"candidate.gds"', 'LAYOUT PRIMARY': '"'+top+'"',
                 'LAYOUT SYSTEM': 'GDSII'}
 
-    def _lvs_controls(self, top, *, execute_erc=True):
+    def _lvs_controls(self, top, *, execute_erc=True, bind_policy=True):
         libraries = [self.runtime.pdk_file(path)[1] for path in self.configuration.lvs.source_libraries]
         query = (' CCI' if self.configuration.connectivity == 'cci' else ' XRC') if self.check == 'rc' else ''
         controls = self._layout_controls(top) | {
             'SOURCE PATH': ' '.join('"'+path+'"' for path in ['source.spice', *libraries]),
             'SOURCE PRIMARY': '"'+top+'"', 'SOURCE SYSTEM': 'SPICE',
             'LVS REPORT': '"lvs.report"', 'LVS IGNORE PORTS': 'NO',
-            'LVS CHECK PORT NAMES': 'YES', 'VIRTUAL CONNECT COLON': 'NO',
+            'LVS CHECK PORT NAMES': 'YES',
             'ERC RESULTS DATABASE': '"erc.results"',
             'ERC SUMMARY REPORT': '"erc.summary"'}
-        if execute_erc:
-            controls['LVS EXECUTE ERC'] = 'YES'
+        if bind_policy:
+            controls['VIRTUAL CONNECT COLON'] = 'NO'
+            if execute_erc:
+                controls['LVS EXECUTE ERC'] = 'YES'
         controls['MASK SVDB DIRECTORY'] = '"svdb" QUERY' + query
         return controls
 
-    def _rule_deck(self, controls):
+    def _rule_deck(self, controls, rule_control=None):
         path, _ = self.runtime.pdk_file(self.configuration.rules.deck)
         includes = {original: self.runtime.pdk_file(replacement)[1]
                     for original, replacement in self.configuration.rules.includes.items()}
-        if self.configuration.rules.rule_control:
+        if rule_control is not None:
+            if self.configuration.rules.rule_control is not None:
+                raise ValueError('Calibre rule_control must have exactly one source')
+            if (rule_control.format != 'text' or not rule_control.content.strip()
+                    or b'\0' in rule_control.content):
+                raise ValueError('Calibre rule_control requires nonempty native text')
+            raw = rule_control.content.decode(errors='surrogateescape')
+        elif self.configuration.rules.rule_control:
             self.runtime.control_path(self.configuration.rules.rule_control)
             raw = self.runtime.control_files[self.configuration.rules.rule_control[1:]]
         elif self.configuration.drc.deck_member:
@@ -198,7 +207,8 @@ class CalibreBackend:
         return Asset(text.encode(errors='surrogateescape'), 'text')
 
     def run(self, job, inputs):
-        keys(inputs, {'layout', 'task'} | ({'netlist'} if self.check != 'drc' else set()), set(), 'Calibre inputs')
+        keys(inputs, {'layout', 'task'} | ({'netlist'} if self.check != 'drc' else set()),
+             {'rule_control'}, 'Calibre inputs')
         if inputs['layout'].format != 'gds' or inputs['task'].format != 'json':
             raise ValueError('Calibre requires frozen GDS and task description')
         if job.stage != ('extract' if self.check == 'rc' else 'check'):
@@ -208,6 +218,7 @@ class CalibreBackend:
         if top != task['netlist_subcircuit'] or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', top):
             raise ValueError('Calibre requires identical simple layout/source top names')
         files = {'candidate.gds': inputs['layout']}
+        rule_control = inputs.get('rule_control')
         controls = self._layout_controls(top)
         exports = {'calibre.log': 'text'}
         if self.check == 'drc':
@@ -222,7 +233,7 @@ class CalibreBackend:
             if inputs['netlist'].format != 'spice':
                 raise ValueError('Calibre requires a SPICE source')
             files['source.spice'] = inputs['netlist']
-            controls = self._lvs_controls(top)
+            controls = self._lvs_controls(top, bind_policy=rule_control is None)
             command = ('calibre -lvs -hier -spice '+shlex.quote('svdb/'+top+'.sp')+
                        (' -hcell '+shlex.quote(self.runtime.pdk_file(self.configuration.lvs.hcell_file)[1])
                         if self.configuration.lvs.hcell_file else '')+
@@ -232,7 +243,8 @@ class CalibreBackend:
                 exports['erc.summary'] = 'text'
             if self.check == 'rc':
                 controls['PEX NETLIST'] = '"extracted.spice" HSPICE SOURCENAMES SINGLEFILE'
-                controls['PEX EXTRACT FLOATING NETS'] = 'REDUCED'
+                if rule_control is None:
+                    controls['PEX EXTRACT FLOATING NETS'] = 'REDUCED'
                 if self.configuration.rc.ground is not None:
                     if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', self.configuration.rc.ground):
                         raise ValueError('Invalid Calibre parasitic ground')
@@ -243,10 +255,10 @@ class CalibreBackend:
                             'control.svrf > pdb.log 2>&1\n'
                             'calibre -xrc -fmt -all control.svrf > fmt.log 2>&1\n')
                 exports.update({'pdb.log': 'text', 'fmt.log': 'text', 'extracted.spice': 'spice'})
-        files['control.svrf'] = self._rule_deck(controls)
+        files['control.svrf'] = self._rule_deck(controls, rule_control)
         files['run.sh'] = Asset(('set -eu\n'+self.runtime.module_setup('calibre')+'\n'+command).encode(), 'text')
         result = self._run_tool(['bash', 'run.sh'], files, exports)
-        evidence = result.evidence | result.files
+        evidence = result.evidence | result.files | {'control': files['control.svrf']}
         failure = native_failure(asset.content for name, asset in evidence.items()
                                  if asset.format == 'text' and not name.startswith('tool-attempts/'))
         if {'execution_error', 'cleanup_error'} & result.evidence.keys() or failure:

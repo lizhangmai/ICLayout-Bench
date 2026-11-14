@@ -4,12 +4,19 @@ import hashlib
 import json
 import shutil
 import sqlite3
+import subprocess
+import sys
 
 import pytest
 
-from benchmarking.files import Asset, EvidenceError, checked, read_file
-from benchmarking.results.retention import (
+from benchmarking.files import (
+    Asset,
+    EvidenceError,
     EvidenceUnavailable,
+    checked,
+    read_file,
+)
+from benchmarking.results.retention import (
     compact,
     inventory,
     verify_archive,
@@ -144,6 +151,33 @@ def test_corrupt_compressed_object_is_rejected(tmp_path):
         p.write_bytes(b'corrupt')
     with pytest.raises(EvidenceError):
         checked(root / 'evaluation', refs['evaluation'][0])
+
+
+def test_retained_file_reads_are_independent_of_result_processing(tmp_path):
+    root = tmp_path / 'run'
+    references = archive(root)
+    compact(root)
+    reference = references['evaluation'][0]
+    script = '''
+import importlib.abc, sys
+from pathlib import Path
+from benchmarking.files import Asset, read_file
+class ResultImports(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == 'benchmarking.results' or fullname.startswith('benchmarking.results.'):
+            raise AssertionError('File reads must be independent of result processing')
+sys.meta_path.insert(0, ResultImports())
+root = Path(sys.argv[1])
+assert Asset(read_file(root / 'evaluation', sys.argv[2]), 'text').sha256 == sys.argv[3]
+try:
+    read_file(root, 'missing.spice')
+except FileNotFoundError:
+    pass
+else:
+    raise AssertionError('A missing ordinary file must stay missing')
+'''
+    subprocess.run([sys.executable, '-I', '-c', script, str(root), reference['path'], reference['sha256']],
+                   check=True, capture_output=True, text=True, timeout=10)
 
 
 def test_unfinished_and_changed_content_are_not_removed(tmp_path):

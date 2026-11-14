@@ -11,7 +11,6 @@ from benchmarking.eda.resources.cache import bind_resources, cached_resources
 from benchmarking.eda.resources.installation import installation_path
 from benchmarking.eda.resources.support import load_profile, prepare_support_cache
 from benchmarking.evidence.bundles import load_bundle
-from benchmarking.evidence.identity import package_source
 from benchmarking.execution.workspace.environment import DESCRIPTOR
 from benchmarking.files import Asset, keys, read_file, relative
 
@@ -21,13 +20,13 @@ def agent_spec(manifest):
     spec = data.get("agent")
     if spec is None:
         return None
-    keys(spec, {"id", "sources", "environment", "checks"},
-         {"support_profiles", "local_files"}, "Agent PDK")
+    keys(spec, {"id", "sources", "environment"},
+         {"checks", "support_profiles", "local_files"}, "Agent PDK")
     if not re.fullmatch(r"[A-Za-z0-9_-]+", spec["id"]) or not spec["sources"]:
         raise ValueError("Agent PDK needs an ID and sources")
     for target, local in spec.get('local_files', {}).items():
         relative(target, 'Agent resource target')
-        if target.split('/')[0] in {'pdks', 'support', DESCRIPTOR, 'pdk-check.py'}:
+        if target.split('/')[0] in {'pdks', 'support', DESCRIPTOR}:
             raise ValueError('Agent local files must not replace PDK, support or environment resources')
         keys(local, {'path', 'format'}, set(), 'Agent local file')
         relative(local['path'], 'manifest Agent file')
@@ -87,7 +86,7 @@ def prepare_agent_cache(manifest, *, profiles=None, image=None,
             sources[name] = {**source, "commit": commit}
         locations[name] = locations[name] / source.get("path", "")
     selected_profiles = spec.get("support_profiles", []) if selected is None else sorted(selected)
-    checks = list(spec["checks"])
+    checks = list(spec.get("checks", []))
     local_files = {name: read_file(manifest.parent, local['path'])
                    for name, local in spec.get('local_files', {}).items()}
     for profile in selected_profiles:
@@ -95,15 +94,13 @@ def prepare_agent_cache(manifest, *, profiles=None, image=None,
         if "check" in profile_data:
             checks.append(profile_data["check"])
         output = selected[profile] if selected is not None else prepare_support_cache(
-            installation_path(profile_data["source"]), f"{manifest}#{profile}",
+            None if profile_data["source"].get("kind") == "python-package"
+            else installation_path(profile_data["source"]), f"{manifest}#{profile}",
             compiler_image=image, diagnostics=Path(diagnostics) / profile)
         profiles[profile] = load_bundle(Path(output))
-    probe = package_source("eda/_scripts/pdk_probe.py")
-    needs_probe = any("/resources/pdk-check.py" in command for command in checks)
     info = {"id": spec["id"], "environment": spec["environment"], "checks": checks, "sources": sources}
     recipe = {"kind": "pdk-mounts", **info, "roots": {k: str(v) for k, v in locations.items()},
-              "profiles": {k: v.manifest.sha256 for k, v in profiles.items()},
-              "probe": Asset(probe.read_bytes(), "python").sha256 if needs_probe else None}
+              "profiles": {k: v.manifest.sha256 for k, v in profiles.items()}}
     if local_files:
         recipe['local_files_sha256'] = {name: Asset(content, 'binary').sha256 for name, content in local_files.items()}
 
@@ -128,8 +125,6 @@ def prepare_agent_cache(manifest, *, profiles=None, image=None,
                     target.write_bytes(relocated)
                 else:
                     mounts[f"support/{profile}/{name}"] = str(asset.path)
-        if needs_probe:
-            (stage / "pdk-check.py").write_bytes(probe.read_bytes())
         for name, content in local_files.items():
             target = stage / name
             target.parent.mkdir(parents=True, exist_ok=True)

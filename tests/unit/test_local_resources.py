@@ -71,6 +71,56 @@ def test_portable_inventory_includes_only_declared_local_files():
         manifest_local_paths(manifest)
 
 
+def test_package_profile_pins_native_files_without_a_host_installation(tmp_path, monkeypatch):
+    from benchmarking.eda._scripts.package_resources import collect
+    from benchmarking.evidence.bundles import load_bundle
+    from benchmarking.execution.tools import ToolResult
+    from benchmarking.files import Asset
+
+    monkeypatch.setenv("ICLAYOUT_BENCH_CACHE_DIR", str(tmp_path / "cache"))
+    installed = tmp_path / "installed"
+    (installed / "native").mkdir(parents=True)
+    (installed / "native/deck.lvs").write_text("source($input)\n")
+    (installed / "native/stack.json").write_text('{"thickness": 1.2}')
+    (installed / "unreviewed.py").write_text("raise RuntimeError('not a resource')")
+    class Distribution:
+        version = "2.0"
+        files = ("native/deck.lvs", "native/stack.json", "unreviewed.py")
+        def locate_file(self, name):
+            return installed / name
+    monkeypatch.setattr("importlib.metadata.distribution", lambda name: Distribution())
+    class Tool:
+        def __init__(self, *args):
+            self.image_id = "sha256:fixture"
+        def run(self, command, files, exports):
+            data = collect(json.loads(files["package.json"].content))
+            assert "unreviewed.py" not in data["files"]
+            return ToolResult(0, "", {"resources.json": Asset(json.dumps(data).encode(), "json")}, {})
+    monkeypatch.setattr("benchmarking.execution.tools.docker.DockerTool", Tool)
+    manifest = tmp_path / "pdk.toml"
+    manifest.write_text('''
+[source]
+kind = "ciel"
+version = "unused-installation"
+[profiles.native.source]
+kind = "python-package"
+distribution = "fixture"
+version = "2.0"
+[profiles.native.files.rules]
+path = "native"
+format = "directory"
+''')
+    prepared = prepare_support_cache(None, f"{manifest}#native", diagnostics=tmp_path / "failure")
+    bundle = load_bundle(prepared)
+    provenance = json.loads(bundle.manifest.content)["provenance"]
+    assert provenance["profile"]["source"]["version"] == "2.0"
+    rules = dict(bundle.paths)["rules"]
+    assert (rules / "deck.lvs").read_bytes() == (installed / "native/deck.lvs").read_bytes()
+    assert not (rules.parent / "unreviewed.py").exists()
+    with pytest.raises(ValueError, match="Expected fixture==3.0"):
+        collect({"distribution": "fixture", "version": "3.0", "files": {}})
+
+
 def test_external_control_paths_preserve_native_text_and_module_clones(tmp_path):
     import tomli_w
 

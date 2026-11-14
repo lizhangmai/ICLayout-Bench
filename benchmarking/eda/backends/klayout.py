@@ -52,38 +52,65 @@ def validate_drc_waivers(value: object) -> list[dict]:
 class KLayoutDocker:
     """Check one concern. Technology settings live in a reviewed support bundle.
 
-    The profile selects a deck and fixed -rd variables, not arbitrary commands.
-    The task supplies only its top cell, authoritative netlist and size limit.
+    Settings select a native deck and fixed -rd variables, not arbitrary commands.
+    LVS may receive a task-owned native XML macro as an evaluator input.
     DRC jobs may add exact, case-local marker waivers; they never alter the deck.
     """
 
     def __init__(self, *, image: str, check: str, support: str | None = None,
-                 profile: str | None = None, timeout_seconds: float = 120):
+                 deck: str | None = None, variables: dict | None = None,
+                 required_categories: list | None = None, layer_names: dict | None = None,
+                 additional_decks: list | None = None, profile: str | None = None,
+                 flatten: bool | None = None, default_report: str | None = None,
+                 port_matching: str | None = None,
+                 timeout_seconds: float = 120):
         if check not in {"artifact", "drc", "lvs"}:
             raise ValueError("Unknown KLayout check")
         self.check = check
         self.support = load_bundle(Path(support)) if support else None
         self.settings = {}
+        direct = {name: value for name, value in {
+            "deck": deck, "variables": variables, "required_categories": required_categories,
+            "layer_names": layer_names, "additional_decks": additional_decks,
+            "flatten": flatten, "default_report": default_report, "port_matching": port_matching,
+        }.items() if value is not None}
         if check == "artifact":
-            if support is not None or profile is not None:
+            if support is not None or profile is not None or direct:
                 raise ValueError("Artifact checks do not use technology support")
         else:
             if self.support is None:
                 raise ValueError("DRC/LVS requires a reviewed support bundle")
-            profile = relative(profile, "KLayout check profile")
-            self.settings = json.loads(dict(self.support.files)[profile].content)
-            required = {"deck", "variables", "scope"}
+            if profile is not None:
+                if direct:
+                    raise ValueError("KLayout checks cannot mix a JSON profile with direct rule settings")
+                profile = relative(profile, "KLayout check profile")
+                self.settings = json.loads(dict(self.support.files)[profile].content)
+            else:
+                self.settings = {"variables": {}, **direct}
+            required = {"variables"}
             if check == "drc":
-                required.add("required_categories")
-            keys(self.settings, required, {"layer_names"} if check == "lvs" else {"additional_decks"}, "KLayout check profile")
+                required.update({"deck", "required_categories"})
+            optional = ({"deck", "scope", "layer_names", "flatten", "default_report", "port_matching"} if check == "lvs"
+                        else {"scope", "additional_decks"})
+            keys(self.settings, required, optional, "KLayout rule settings")
+            if "flatten" in self.settings and type(self.settings["flatten"]) is not bool:
+                raise ValueError("KLayout flatten must be a boolean")
+            if "default_report" in self.settings:
+                relative(self.settings["default_report"], "KLayout default report")
+            if self.settings.get("port_matching", "named") not in {"named", "native"}:
+                raise ValueError("KLayout port matching must be named or native")
             for name, variable in self.settings.get("layer_names", {}).items():
                 if not re.fullmatch(r"[a-z][a-z0-9_]*", name) or not re.fullmatch(r"[a-z][a-z0-9_]*", variable):
                     raise ValueError("LVS layer names must be simple identifiers")
-            deck = relative(self.settings["deck"], "KLayout deck")
-            if (deck not in dict(self.support.files) or not deck.endswith("." + check)
-                    or not re.fullmatch(r"[A-Za-z0-9_./-]+", deck)):
-                raise ValueError("Missing or incorrectly typed KLayout deck")
-            text(self.settings["scope"], "check scope")
+            deck = self.settings.get("deck")
+            extensions = (".drc", ".lydrc") if check == "drc" else (".lvs", ".lylvs")
+            if deck is not None:
+                deck = relative(deck, "KLayout deck")
+                if (deck not in dict(self.support.files) or not deck.endswith(extensions)
+                        or not re.fullmatch(r"[A-Za-z0-9_./-]+", deck)):
+                    raise ValueError("Missing or incorrectly typed KLayout deck")
+            if "scope" in self.settings:
+                text(self.settings["scope"], "check scope")
             variables = self.settings["variables"]
             if not isinstance(variables, dict):
                 raise TypeError("KLayout variables must be a mapping")
@@ -107,7 +134,7 @@ class KLayoutDocker:
                     keys(entry, {"deck", "required_categories"}, set(), "Additional DRC deck")
                     path = relative(entry["deck"], "Additional DRC deck")
                     if (path in seen or path not in dict(self.support.files)
-                            or not path.endswith(".drc") or not re.fullmatch(r"[A-Za-z0-9_./-]+", path)):
+                            or not path.endswith(extensions) or not re.fullmatch(r"[A-Za-z0-9_./-]+", path)):
                         raise ValueError("Missing, duplicate or incorrectly typed additional DRC deck")
                     seen.add(path)
                     required_names = entry["required_categories"]
@@ -128,7 +155,8 @@ class KLayoutDocker:
 
     def run(self, job: Job, inputs: dict[str, Asset]) -> JobResult:
         required = {"layout", "netlist"} if self.check == "lvs" else {"layout"}
-        keys(inputs, required, {"task"} | ({"original", "binding"} if self.check == "lvs" else set()), "KLayout check inputs")
+        keys(inputs, required, {"task"} | ({"original", "binding", "lvs_macro"}
+                                         if self.check == "lvs" else set()), "KLayout check inputs")
         derivation = validate_layout_derivation(inputs)
         if job.gate not in {None, self.check}:
             raise ValueError("KLayout check does not implement the declared gate")
@@ -161,12 +189,27 @@ class KLayoutDocker:
             text(params.get("subcircuit"), "reference subcircuit")
             if inputs["netlist"].format not in {"spice", "text"}:
                 raise ValueError("LVS requires an authoritative SPICE/CDL netlist")
-        config = Asset(json.dumps({"check": self.check, **params, **self.settings}).encode(), "json")
+        settings = dict(self.settings)
+        if self.check == "lvs":
+            macro = inputs.get("lvs_macro")
+            if macro is not None:
+                if settings.get("deck") is not None:
+                    raise ValueError("KLayout LVS rules must have exactly one source")
+                if macro.format != "text" or not macro.content.strip() or b"\0" in macro.content:
+                    raise ValueError("KLayout LVS macro requires nonempty native XML text")
+                settings["deck"] = "task.lylvs"
+                if settings["deck"] in dict(self.support.files):
+                    raise ValueError("Task LVS macro collides with a support file")
+            elif settings.get("deck") is None:
+                raise ValueError("KLayout LVS requires a deck or lvs_macro input")
+        config = Asset(json.dumps({"check": self.check, **params, **settings}).encode(), "json")
         files = {"candidate.gds": inputs["layout"], "run.py": self.runner, "config.json": config}
         if "netlist" in inputs:
             files["reference.spice"] = inputs["netlist"]
         if self.support:
             files.update(self.support.mounted_files())
+        if "lvs_macro" in inputs:
+            files["support/task.lylvs"] = inputs["lvs_macro"]
         # The runner always creates diagnostic files, even for a rejected GDS.
         exports = {"result.json": "json", "tool.log": "text"}
         if self.check != "artifact":
@@ -177,9 +220,13 @@ class KLayoutDocker:
         if self.check == "lvs":
             exports["extracted.spice"] = "spice"
             exports["layer-map.json"] = "json"
+            if self.settings.get("flatten"):
+                exports["flat-candidate.gds"] = "gds"
         result = self.tool.run(["python", "run.py"], files, exports)
         evidence = {**(self.support.evidence() if self.support else {}), **result.evidence, **derivation,
                     **result.files, "runner": self.runner, "configuration": config}
+        if "lvs_macro" in inputs:
+            evidence["lvs_macro"] = inputs["lvs_macro"]
         if result.returncode != 0 or result.reason:
             return JobResult("error", result.reason or "KLayout runner did not complete", evidence=evidence)
         try:

@@ -10,73 +10,32 @@ import hashlib
 import json
 import os
 import re
-from functools import lru_cache
 from pathlib import Path
 
 import zstandard
 
 from benchmarking.files import (
+    RETAINED_MANIFEST as MANIFEST,
+)
+from benchmarking.files import (
+    RETAINED_SCHEMA as SCHEMA,
+)
+from benchmarking.files import (
     EvidenceError,
+    EvidenceUnavailable,
     atomic_write,
     read_file,
+    read_retained_file,
     relative,
+    retained_manifest,
+    retained_object,
     sync_directory,
+    verify_compressed,
     write_json,
 )
-from benchmarking.results.objects import FileObjects, verify_compressed
+from benchmarking.results.objects import FileObjects
 
-SCHEMA = 'retained-evidence-v1'
-MANIFEST = '.retained/manifest.json'
 MIN_BYTES = 64 * 1024
-
-
-class EvidenceUnavailable(EvidenceError):
-    """A recorded attachment was explicitly omitted by the retention policy."""
-
-
-@lru_cache(maxsize=64)
-def _manifest(path, modified, size):
-    value = json.loads(Path(path).read_bytes())
-    if value.get('schema') != SCHEMA:
-        raise EvidenceError('Unsupported retained evidence manifest')
-    return value
-
-
-def _load(root):
-    path = root / MANIFEST
-    if path.resolve() != path or not path.is_file():
-        raise EvidenceError('Invalid retained evidence manifest')
-    info = path.stat()
-    return _manifest(str(path), info.st_mtime_ns, info.st_size)
-
-
-def _object(root, record):
-    sha, size = record.get('sha256'), record.get('bytes')
-    if (not isinstance(sha, str) or not re.fullmatch('[0-9a-f]{64}', sha)
-            or type(size) is not int or size < 0 or record.get('codec') != 'zstd'):
-        raise EvidenceError('Invalid retained object reference')
-    return root / '.retained/objects' / sha[:2] / (sha + '.zst')
-
-
-def read_retained_file(path):
-    """Resolve a missing logical file only through an explicit local manifest."""
-    path = Path(path).absolute()
-    for parent in path.parents:
-        marker = parent / MANIFEST
-        if not marker.exists():
-            continue
-        manifest = _load(parent)
-        name = relative(path.relative_to(parent).as_posix(), 'retained file')
-        if name in manifest.get('omitted', {}):
-            reason = manifest['omitted'][name]['reason']
-            raise EvidenceUnavailable(f'{name}: {reason}')
-        record = manifest.get('files', {}).get(name)
-        if record is not None:
-            try:
-                return verify_compressed(_object(parent, record), record['sha256'], record['bytes'], collect=True)
-            except (OSError, ValueError, zstandard.ZstdError) as error:
-                raise EvidenceError('Invalid compressed result evidence: ' + name) from error
-    raise FileNotFoundError(path)
 
 
 def _terminal(root):
@@ -222,14 +181,14 @@ def _validate_sources(root):
 def verify_archive(root):
     """Verify every unique compressed object and any pending original copies."""
     root = Path(os.path.abspath(root))
-    manifest = _load(root)
+    manifest = retained_manifest(root)
     seen = set()
     for name, record in manifest['files'].items():
         relative(name, 'retained file')
         key = (record['sha256'], record['bytes'])
         if key not in seen:
             try:
-                verify_compressed(_object(root, record), *key)
+                verify_compressed(retained_object(root, record), *key)
             except (OSError, ValueError, zstandard.ZstdError) as error:
                 raise EvidenceError('Compressed evidence verification failed: ' + name) from error
             seen.add(key)
@@ -245,7 +204,7 @@ def _inherit_objects(root, manifest):
     for parent in root.parents:
         if not (parent / MANIFEST).is_file():
             continue
-        inherited = _load(parent)
+        inherited = retained_manifest(parent)
         prefix = root.relative_to(parent).as_posix() + '/'
         for group in ('files', 'omitted'):
             for name, record in inherited.get(group, {}).items():
@@ -255,8 +214,8 @@ def _inherit_objects(root, manifest):
                 if local in manifest['files'] or local in manifest['omitted']:
                     continue
                 if group == 'files':
-                    source = _object(parent, record)
-                    target = _object(root, record)
+                    source = retained_object(parent, record)
+                    target = retained_object(root, record)
                     if record['sha256'] not in verified:
                         verify_compressed(source, record['sha256'], record['bytes'])
                         verified.add(record['sha256'])

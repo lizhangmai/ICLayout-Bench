@@ -14,7 +14,7 @@ from benchmarking.execution.tools.budget import (
     tool_timeout,
     wait_for_tool,
 )
-from benchmarking.execution.tools.cleanup import remove_container
+from benchmarking.execution.tools.cleanup import ContainerLease
 from benchmarking.files import Asset, ReadOnlyMount, relative
 
 _LOAD = '''import sys, tarfile
@@ -84,14 +84,17 @@ class DockerTool:
         self.image_id = subprocess.check_output(
             ["docker", "image", "inspect", "--format", "{{.Id}}", image], text=True,
         ).strip()
-        self.version = subprocess.check_output(
-            ["docker", "run", "--rm", "--network", self.network, "--cap-drop", "ALL",
+        with ContainerLease(
+            ["--network", self.network, "--cap-drop", "ALL",
              "--security-opt", "no-new-privileges", "--read-only", "--log-driver", "none",
              *self._workspace_args(), *self._limit_args(),
              "--user", "1000:1000", *(runtime.docker_args() if runtime else []), self.image_id,
              *(runtime.module_command(version_command[0], version_command) if runtime else version_command)],
-            text=True, stderr=subprocess.STDOUT, timeout=self.timeout_seconds,
-        ).strip()
+            kind='tool-probe',
+        ) as probe:
+            self.version = subprocess.check_output(
+                ['docker', 'start', '-a', probe.id], text=True, stderr=subprocess.STDOUT,
+                timeout=self.timeout_seconds).strip()
 
     def _workspace_args(self):
         execution = ',exec' if self.executable_workspace else ''
@@ -148,14 +151,15 @@ class DockerTool:
         mounts = [arg for name, asset in files.items() if isinstance(asset, ReadOnlyMount)
                   for arg in read_only_mount_args(asset, f'/workspace/{name}')]
         env_args = [arg for k, v in (environment or {}).items() for arg in ('--env', f'{k}={v}')]
-        cid = subprocess.check_output([
-            'docker', 'create', '--network', self.network, '--cap-drop', 'ALL',
+        lease = ContainerLease([
+            '--network', self.network, '--cap-drop', 'ALL',
             '--security-opt', 'no-new-privileges', '--read-only', '--log-driver', 'none',
             *self._workspace_args(), *self._limit_args(), '--user', '1000:1000', '--workdir', '/workspace',
             *(self.runtime.docker_args() if self.runtime else []),
             *env_args, *mounts, self.image_id, '/usr/bin/python3', '-I', '-c',
             'import signal; signal.pause()',
-        ], text=True).strip()
+        ], kind='tool')
+        cid = lease.id
         process = None
         try:
             subprocess.run(['docker', 'start', cid], check=True, capture_output=True)
@@ -192,7 +196,7 @@ class DockerTool:
             reason = f'{type(error).__name__}: {error}'
             evidence['execution_error'] = Asset(str(error).encode(), 'text')
         finally:
-            cleanup = remove_container(cid)
+            cleanup = lease.close()
             if process is not None and process.poll() is None:
                 process.kill()
                 process.communicate(timeout=10)

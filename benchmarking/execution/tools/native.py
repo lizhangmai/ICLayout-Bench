@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import signal
 import subprocess
 import tempfile
@@ -154,5 +155,17 @@ class NativeEDATool(NativeTool):
     def identity(self):
         return super().identity | {'module': self.module, 'tool_version': self.version}
 
-    def run(self, command, files, exports, **kwargs):
+    def run(self, command, files, exports, *, environment=None, **kwargs):
+        # Apply declared job settings after module loading, which may itself
+        # define simulator defaults. Keep argv values out of shell source.
+        if environment is not None:
+            if (not isinstance(environment, dict)
+                    or any(not isinstance(name, str)
+                           or not re.fullmatch(r'[A-Z][A-Z0-9_]*', name)
+                           or re.search(r'LIC|LICENSE', name)
+                           or not isinstance(value, str) or '\0' in value
+                           for name, value in environment.items())):
+                raise ValueError('Invalid native tool environment; forward licenses through the runtime')
+            if environment:
+                command = ['env', *(f'{name}={value}' for name, value in environment.items()), *command]
         return super().run(self.runtime.module_command(self.module, command), files, exports, **kwargs)

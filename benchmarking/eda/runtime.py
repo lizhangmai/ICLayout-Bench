@@ -74,9 +74,8 @@ def load_case(config, *, image=None, include_agent=True, factories=None):
             raise ValueError('External PDK release differs from the task declaration')
         if declaration.get('profiles') or declaration.get('agent'):
             raise ValueError('External PDKs cannot use public cached profiles or Agent bundles')
-        data = tomllib.loads(config.read_text())
-        for backend in data['toolchain']['backends'].values():
-            selected = backend['settings'].get('runtime')
+        for backend in load_toolchain_spec(config).backends.values():
+            selected = backend.settings.get('runtime')
             if selected is not None and selected != source['runtime']:
                 raise ValueError('Backend runtime differs from the external PDK declaration')
     # Commercial evaluation runs on the operator host. Its solver image is
@@ -91,7 +90,7 @@ def load_case(config, *, image=None, include_agent=True, factories=None):
     for _, _, profile, spec in case_resources(config):
         if profile not in profiles:
             source = json.loads(load_profile(spec).content)["source"]
-            installation = prepare_installation(source)
+            installation = None if source.get("kind") == "python-package" else prepare_installation(source)
             profiles[profile] = prepare_support_cache(
                 installation, spec, compiler_image=image_id, diagnostics=diagnostics / profile)
     shared = prepare_agent_cache(manifest,

@@ -29,6 +29,18 @@ METADATA = HarnessMetadata('zcode', 'ZCODE_DATA_BASE_DIR', '.zcode/cli', None, '
 
 CAPABILITIES = {"resume_session": True, "capacity_resumes": True}
 
+NATIVE_ENVIRONMENT = frozenset({
+    'OTEL_SDK_DISABLED',
+    'ZCODE_CREDENTIAL_SECRET',
+    'ZCODE_DATA_BASE_DIR',
+    'ZCODE_HOME',
+    'ZCODE_MODEL_RETRY_MAX_RETRIES',
+    'ZCODE_MODEL_TELEMETRY_ENABLED',
+    'ZCODE_PERSONAL_PROVIDER_CONFIG_FILE',
+    'ZCODE_SESSION_DB_PATH',
+    'ZCODE_STORAGE_DIR',
+})
+
 
 WIRE_APIS = {'anthropic': 'anthropic-messages', 'openai': 'openai-responses',
              'openai-compatible': 'openai-chat-completions'}
@@ -155,6 +167,11 @@ def resolve(model, effort, env, *, home=None):
     if auth is not None:
         settings.update(subscription=auth, credential_fields=fields)
     return ParticipantSelection(condition, env, settings)
+
+
+def credential_mounts(context: LaunchContext) -> tuple[Path, ...]:
+    auth = context.selection.settings.get('subscription')
+    return (Path(auth['credential_home']),) if auth else ()
 
 
 def prepare(context: LaunchContext) -> list[str]:

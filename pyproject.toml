@@ -13,7 +13,7 @@ requires-python = ">=3.12"
 dependencies = [
     "tomli-w>=1.2.0",
     "PyYAML>=6,<7",
-    "ciel>=2.6.1,<3",
+    "ciel>=3.2.0,<4",
     "huggingface-hub>=1.0,<2",
     "datasets>=5,<6",
     "markdown-it-py>=4,<5",
@@ -27,22 +27,35 @@ postgres = ["psycopg[binary]>=3.2,<4"]
 
 [dependency-groups]
 agent-tools = [
-    "numpy>=1.26.4,<2",
-    "scipy>=1.14,<2",
-    "pandas>=2.2,<3",
-    "matplotlib>=3.9,<4",
-    "shapely>=2,<3",
-    "sympy>=1.13,<2",
-    "networkx>=3,<4",
-    "pillow>=10,<13",
-    "PyYAML>=6,<7",
-    "psutil>=7,<8",
+    "gdstk>=0.9.62,<2",
+    "numpy>=1.26.4,<3",
+    "scipy>=1.17.1,<2",
+    "pandas>=2.3.3,<4",
+    "matplotlib>=3.11.2,<4",
+    "shapely>=2.2.0,<3",
+    "sympy>=1.14.0,<2",
+    "networkx>=3.7,<4",
+    "pillow>=13.0.0,<14",
+    "PyYAML>=6.0.3,<7",
+    "psutil>=7.2.2,<8",
 ]
 eda = [
     { include-group = "agent-tools" },
-    "klayout==0.30.11",
+    "klayout==0.30.13",
+    # GF180's upstream PCells require add_array and geometry.boolean from 7.x.
     "gdsfactory==7.27.2",
-    "klayout-pex==0.3.12",
+    "klayout-pex==0.9.0",
+    "gdspy==1.6.13",
+    "gmsh>=4.14,<5",
+    "h5py>=3.15,<4",
+    "scikit-rf==2.2.0",
+]
+native-build = [
+    "cython>=3,<4",
+    "setuptools>=77",
+    "setuptools-scm>=8",
+    "wheel",
+    "pip",
 ]
 dev = [
     "pytest>=8.4.1",
@@ -67,3 +80,11 @@ extend-select = ["I"]
 
 [tool.uv]
 cache-keys = [{ file = "pyproject.toml" }, { file = "setup.py" }, { git = { commit = true, tags = true } }]
+# Native PCells use NumPy 1.x on Python 3.12; Arrow 25 supports that ABI.
+constraint-dependencies = [
+    "pyarrow<26; python_version < '3.13'",
+    "numpy>=2; python_version >= '3.13'",
+]
+
+[tool.uv.dependency-groups]
+eda = { requires-python = ">=3.12,<3.13" }

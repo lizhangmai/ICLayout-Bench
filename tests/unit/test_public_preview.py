@@ -269,6 +269,42 @@ def test_runtime_uses_source_case_and_only_materializes_declared_inputs(preview_
     assert case.witness().content == (source / "reference.gds").read_bytes()
 
 
+def test_package_resources_load_through_runtime_prefetch_and_agent(preview, preview_case, monkeypatch):
+    from benchmarking.eda import runtime
+    from benchmarking.eda.resources import installation
+    from benchmarking.eda.resources.agent import prepare_agent_resources
+    from benchmarking.evidence.bundles import load_bundle
+
+    root, source = preview_case
+    installed = root / "third_party/synthetic-pdk"
+    (installed / "native.lvs").write_text("source($input)\n")
+    manifest = root / "tasks/synthetic-pdk/pdk.toml"
+    declaration = tomllib.loads(manifest.read_text())
+    declaration["profiles"]["klayout"] = {
+        "source": {"kind": "python-package", "distribution": "native-fixture", "version": "2.0"},
+        "files": {"deck.lvs": {"path": "native.lvs", "format": "text"}},
+    }
+    declaration["agent"] = {"id": "fixture", "environment": {}, "support_profiles": ["klayout"],
+                            "sources": {"fixture": {"installation": True, "path": "ihp-sg13g2"}}}
+    manifest.write_text(tomli_w.dumps(declaration))
+
+    def prepare(spec):
+        assert "repository" in spec, "Package resources must not be installed as a PDK checkout"
+        return installed
+
+    monkeypatch.setattr(installation, "prepare_installation", prepare)
+    monkeypatch.setattr(runtime, "prepare_installation", prepare)
+    monkeypatch.setattr(installation, "prepare_package_resources", lambda *args: installed)
+    monkeypatch.setattr(runtime.subprocess, "check_output", lambda *args, **kwargs: "sha256:tools")
+    preview.ensure_case_pdks(load_task(source / "case.toml").id)
+    selected = load_case(source / "case.toml", factories={
+        "klayout-docker": lambda **settings: settings, "ngspice-docker": lambda **settings: settings})
+    support = load_bundle(Path(selected.backends["check"]["support"]))
+    assert dict(support.files)["deck.lvs"].content == b"source($input)\n"
+    bundle = prepare_agent_resources(manifest, root / "agent-resources", image="sha256:tools")
+    assert dict(bundle.files)["support/klayout/deck.lvs"].content == b"source($input)\n"
+
+
 def test_reference_inputs_load_without_pdk_or_tool_image(preview_case, monkeypatch):
     from benchmarking.eda import runtime
 

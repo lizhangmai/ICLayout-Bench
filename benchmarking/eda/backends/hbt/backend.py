@@ -92,14 +92,18 @@ class SG13G2HBTRCDocker:
 
     wire_resistance = True
 
-    def __init__(self, *, image: str, klayout_support: str, klayout_profile: str,
+    def __init__(self, *, image: str, klayout_support: str, klayout_profile: str | None = None,
+                 klayout_deck: str | None = None, klayout_variables: dict | None = None,
+                 klayout_layer_names: dict | None = None,
                  magic_support: str, technology: str, tech_name: str, style: str,
                  timeout_seconds: float = 180, disable_tap_extraction: bool = False):
         if type(disable_tap_extraction) is not bool:
             raise TypeError("disable_tap_extraction must be a boolean")
         self.disable_tap_extraction = disable_tap_extraction
         self.klayout = KLayoutDocker(image=image, check="lvs", support=klayout_support,
-                                     profile=klayout_profile, timeout_seconds=timeout_seconds)
+                                     profile=klayout_profile, deck=klayout_deck,
+                                     variables=klayout_variables, layer_names=klayout_layer_names,
+                                     timeout_seconds=timeout_seconds)
         self.magic = _HBTMagicRCDocker(image=image, support=magic_support, technology=technology,
                                      tech_name=tech_name, style=style,
                                      timeout_seconds=timeout_seconds)

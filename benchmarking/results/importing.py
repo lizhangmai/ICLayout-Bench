@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from benchmarking.evaluation.scoring import attempt_score
+from benchmarking.evidence.archive import verify_evaluated_candidate
 from benchmarking.files import read_file
 from benchmarking.results.normalization import digest, normalize
 
@@ -76,6 +77,8 @@ def prepare_result(path, namespace):
         files[name] = content
     if "evaluation/report.json" in files:
         report = json.loads(files["evaluation/report.json"])
+        if 'inputs' in report and run_data['candidate_sha256']:
+            verify_evaluated_candidate(report, run_data['candidate_sha256'])
         expected = report.get("score")
         if expected is not None:
             expected = attempt_score(evaluation.get("termination"), evaluation.get("outcome"),

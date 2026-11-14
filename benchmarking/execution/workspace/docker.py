@@ -14,7 +14,7 @@ from benchmarking.evidence.identity import SESSION_SOURCE_FILES, package_source
 from benchmarking.evidence.journal import RecordingError
 from benchmarking.execution._scripts import benchmark_feedback as opinions
 from benchmarking.execution.inference import INFERENCE_SOCKET
-from benchmarking.execution.tools.cleanup import remove_container
+from benchmarking.execution.tools.cleanup import ContainerLease
 from benchmarking.execution.workspace import SessionResult
 from benchmarking.execution.workspace.access import SessionWorkspace
 from benchmarking.execution.workspace.environment import (
@@ -165,7 +165,7 @@ class DockerSession:
             env = [arg for k, v in agent_environment.items() for arg in ("--env", f"{k}={v}")]
             # Agent-specific loader/locale settings must not affect the trusted reader.
             reader_env = [arg for k in agent_environment for arg in ("--env", f"{k}=")]
-            cid, process, reader, workspace = None, None, None, None
+            cid, lease, process, reader, workspace = None, None, None, None, None
             protocol = None
             attached = False
             try:
@@ -176,8 +176,8 @@ class DockerSession:
                     limits.extend(["--cpus", str(config.cpus)])
                 if config.pids is not None:
                     limits.extend(["--pids-limit", str(config.pids)])
-                cid = subprocess.check_output([
-                    "docker", "create", "--network", self.runtime.network if self.runtime else "none", "--read-only", "--cap-drop", "ALL",
+                lease = ContainerLease([
+                    "--network", self.runtime.network if self.runtime else "none", "--read-only", "--cap-drop", "ALL",
                     "--security-opt", "no-new-privileges", "--user", f"{uid}:{gid}", "--workdir", "/workspace",
                     *limits, "--shm-size", "16m",
                     "--tmpfs", f"/workspace:rw,nosuid,nodev,size={config.workspace_mb}m,uid={uid},gid={gid},mode=700"
@@ -186,7 +186,8 @@ class DockerSession:
                     "--tmpfs", "/var/tmp:rw,nosuid,nodev,size=64m,mode=1777",
                     "--env", "HOME=/tmp", "--env", "PYTHONDONTWRITEBYTECODE=1",
                     *env, *mounts, "--entrypoint", config.command[0], self.image_id, *config.command[1:],
-                ], text=True, stderr=subprocess.PIPE, timeout=30).strip()
+                ], kind='session')
+                cid = lease.id
                 record("session.created", container_id=cid, environment=identity)
                 now = time.monotonic()
                 started = (now - max(0, time.time() - (self.resume['state']['deadline_epoch'] - config.wall_seconds))
@@ -293,7 +294,7 @@ class DockerSession:
                 if inference:
                     inference.stop()
                 if cid:
-                    cleanup = remove_container(cid)
+                    cleanup = lease.close()
                     record('session.cleanup', **cleanup, primary_termination=termination, primary_reason=reason)
                     if cleanup['state'] == 'error':
                         if termination not in {'infrastructure_error', 'agent_error'} or not reason:

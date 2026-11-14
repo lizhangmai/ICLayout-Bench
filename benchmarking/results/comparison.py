@@ -3,7 +3,7 @@
 from statistics import mean
 
 from benchmarking.protocol import evaluation_tools
-from benchmarking.results.normalization import digest
+from benchmarking.results.normalization import condition_key, digest, planned_condition
 from benchmarking.results.statistics import model_usage_summary, score_summary
 
 
@@ -53,29 +53,24 @@ def aggregate(rows, schedules, filters):
 
     # Planned but unexecuted circuits are visible and count against coverage.
     for plan in schedules:
+        planned = planned_condition(plan)
         if any(
-            filters.get(key) and filters[key] != plan.get(key)
+            filters.get(key) and filters[key] != planned.get('effort_resolved' if key == 'effort' else key)
             for key in ("model", "harness", "effort")
         ):
             continue
         matches = [
             column
             for column in columns.values()
-            if column.get("model") == plan.get("model")
-            and column.get("harness") == plan.get("harness")
-            and column.get("effort_resolved") == plan.get("effort")
+            if condition_key(column) == condition_key(planned)
         ]
         if not matches and not any(
             filters.get(key) for key in ("evaluation_mode", "pdk", "outcome")
         ):
-            cid = digest(
-                ["planned", plan.get("model"), plan.get("harness"), plan.get("effort")]
-            )
+            cid = digest(['planned', condition_key(planned)])
             columns[cid] = {
                 "id": cid,
-                "model": plan.get("model"),
-                "harness": plan.get("harness"),
-                "effort_resolved": plan.get("effort"),
+                **planned,
                 "planned": True,
             }
         for task_id in plan.get("tasks", []):

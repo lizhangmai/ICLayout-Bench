@@ -29,6 +29,11 @@ METADATA = HarnessMetadata('kimi', 'KIMI_CODE_HOME', '.kimi-code', None, 'config
 
 CAPABILITIES = {"resume_session": True, "capacity_resumes": True}
 
+NATIVE_ENVIRONMENT = frozenset({
+    'KIMI_CODE_HOME',
+    'KIMI_DISABLE_TELEMETRY',
+})
+
 
 def _credential_path(oauth):
     key = oauth.get('key', '')
@@ -85,6 +90,12 @@ def resolve(model, effort, env, *, home=None):
             "provider_effective_effort": None,
             "native_max_attempts_per_step": max_attempts}
     return ParticipantSelection(condition, env, settings)
+
+
+def credential_mounts(context: LaunchContext) -> tuple[Path, ...]:
+    settings = context.selection.settings
+    return (tuple(Path(settings['credential_home']) / name for name in ('credentials', 'oauth'))
+            if settings.get('credentials') else ())
 
 
 def prepare(context: LaunchContext) -> list[str]:

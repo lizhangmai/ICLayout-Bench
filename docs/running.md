@@ -602,6 +602,9 @@ project ancestors, other runs and undeclared files are absent. HOME, XDG
 directories and the passwd home refer to private storage. Only selected provider
 settings, transport settings, scoped session variables and explicitly declared
 command variables survive; arbitrary inherited environment variables do not.
+Each adapter declares its native environment and any shared credential directories
+needed for authentication refresh. The common launcher validates those directories
+and mounts only the selected stores; profile settings and histories stay private.
 Skills bundled with the harness distribution may initialize in its private home.
 External user/project skills, rules, memories and plugins are not copied or
 mounted. Additional professional knowledge must be explicitly declared as a
@@ -991,6 +994,24 @@ remaining owned trees after its shutdown allowance (up to 60 seconds per tree).
 It also finds workers retained after coordinator exit. Stopping preserves evidence
 and the original deadline; later continuation still requires a viable session.
 Repeated stops leave exited owners alone.
+
+Session and EDA job containers have an independent host cleanup process. It
+owns container creation and removes the container when its caller closes the
+private lifetime pipe or exits, including an abrupt host-process kill during
+creation. The container's existing execution and cancellation protocol is preserved.
+Committed submissions and durable checkpoints remain in the result directory.
+
+Inspect historical containers by their explicit IDs, then remove the selected
+containers when their owning sessions have ended:
+
+```bash
+python -m benchmarking.execution cleanup --container CONTAINER_ID
+python -m benchmarking.execution cleanup --container CONTAINER_ID --apply
+```
+
+Repeat `--container` for multiple IDs. Inspection is the default; `--apply`
+removes only the selected containers. This command does not prune images or
+volumes, select containers by image age, or alter retained run evidence.
 
 `.scheduler/` records coordinator ownership, dispatch, adoption, completion and
 cooldowns. Case summaries and `execution.capacity_recovery` /
@@ -1426,6 +1447,8 @@ contexts; coverage and the common-task count remain visible. Unknown scoring
 methods form separate contexts.
 Planned but unexecuted tasks from runner schedules appear as `Not run`; only
 automatic indexing records a schedule, so manual imports list imported runs only.
+Planned conditions retain their participant-tool scheme and resolved effort, including
+schemes with no completed run yet.
 Missing provenance is not inferred from directory names.
 
 #### Task presentations and interactive layouts

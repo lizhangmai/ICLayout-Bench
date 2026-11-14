@@ -61,6 +61,43 @@ def test_new_process_binds_original_root_without_flattening_links(declared_pdk):
     assert resource_preflight(files)["checks"] == [["python", "-c", "print('synthetic')"]]
 
 
+@pytest.mark.parametrize('checks', [None, []])
+def test_resource_preflight_checks_are_optional(declared_pdk, checks):
+    import tomllib
+
+    from benchmarking.execution.workspace.environment import (
+        resource_environment,
+        resource_preflight,
+    )
+
+    root, source, manifest, _git = declared_pdk
+    spec = tomllib.loads(manifest.read_text())
+    if checks is None:
+        del spec['agent']['checks']
+    else:
+        spec['agent']['checks'] = checks
+    manifest.write_text(tomli_w.dumps(spec))
+    bundle = prepare_agent_resources(manifest, root/'resources')
+    files = dict(bundle.files)
+    assert files['pdks/synthetic'].path == source
+    assert resource_environment(files)['PDK_PATH'] == '/resources/pdks/synthetic'
+    assert resource_preflight(files)['checks'] == []
+
+
+def test_empty_preflight_command_is_rejected(declared_pdk):
+    import tomllib
+
+    from benchmarking.execution.workspace.environment import resource_preflight
+
+    root, _source, manifest, _git = declared_pdk
+    spec = tomllib.loads(manifest.read_text())
+    spec['agent']['checks'] = [[]]
+    manifest.write_text(tomli_w.dumps(spec))
+    bundle = prepare_agent_resources(manifest, root/'resources')
+    with pytest.raises(ValueError, match='PDK checks must be argument lists'):
+        resource_preflight(dict(bundle.files))
+
+
 @pytest.mark.parametrize('selected', ['model.lib', 'tech'])
 def test_selected_resources_replace_whole_root_binding(declared_pdk, selected):
     import tomllib
@@ -97,7 +134,8 @@ def test_selected_resource_cannot_escape_installation(declared_pdk):
         prepare_agent_resources(manifest, root / 'selected')
 
 
-def test_agent_local_checks_and_native_support_paths_are_portable(declared_pdk, monkeypatch):
+@pytest.mark.parametrize('check_owner', ['agent', 'profile'])
+def test_agent_local_checks_and_native_support_paths_are_portable(declared_pdk, monkeypatch, check_owner):
     import tomllib
 
     from benchmarking.execution.workspace.environment import resource_preflight
@@ -112,6 +150,8 @@ def test_agent_local_checks_and_native_support_paths_are_portable(declared_pdk, 
     spec['agent'].update(local_files={'checks/smoke.py': {'path': 'resources-src/smoke.py', 'format': 'python'}},
                          checks=[['python', '/resources/checks/smoke.py']], support_profiles=['models'])
     spec['profiles'] = {'models': {'local_files': {'.spiceinit': {'path': 'resources-src/spiceinit', 'format': 'text'}}}}
+    if check_owner == 'profile':
+        spec['profiles']['models']['check'], = spec['agent'].pop('checks')
     manifest.write_text(tomli_w.dumps(spec))
     monkeypatch.setattr('benchmarking.eda.resources.agent.installation_path', lambda _: source)
     first = prepare_agent_resources(manifest, root/'prepared-one')

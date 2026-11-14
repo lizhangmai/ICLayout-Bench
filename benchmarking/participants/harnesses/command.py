@@ -12,6 +12,8 @@ METADATA = HarnessMetadata(None, 'CLAUDE_CONFIG_DIR', '.claude', None)
 
 CAPABILITIES = {"resume_session": False, "capacity_resumes": False}
 
+NATIVE_ENVIRONMENT = frozenset()
+
 
 def usage(agent, native):
     evidence = UsageEvidence()

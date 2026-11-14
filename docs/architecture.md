@@ -455,6 +455,9 @@ explicit frozen task, agent, execution and implementation bindings. The caller
 supplies the run directory and frozen asset root; the verifier owns archive paths,
 event interpretation and evaluation input checks. `verify_service_result` checks
 an HTTP result against the retained service store and frozen task/tool bindings.
+Both verifiers bind the evaluator's candidate input to the accepted submission.
+Candidate quality and attempt score remain distinct: attempt termination rules
+apply when comparing the service score with independent evaluation evidence.
 `benchmarking.results.scoring.verified_run_score` recomputes verified evidence and
 applies the same attempt termination rules as execution.
 

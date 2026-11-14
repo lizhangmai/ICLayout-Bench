@@ -8,7 +8,7 @@ from pathlib import Path
 
 import zstandard
 
-from benchmarking.files import atomic_write, sync_directory
+from benchmarking.files import atomic_write, sync_directory, verify_compressed
 from benchmarking.results.normalization import digest
 
 
@@ -71,22 +71,3 @@ class FileObjects:
             return sha, size, destination
         finally:
             Path(temporary).unlink(missing_ok=True)
-
-
-def verify_compressed(path, sha, size, *, collect=False):
-    """Validate the uncompressed identity, optionally returning its original bytes."""
-    path = Path(path).absolute()
-    if path.resolve() != path or not path.is_file():
-        raise ValueError('Compressed object must be a regular non-symlink file')
-    digest, count, chunks = hashlib.sha256(), 0, []
-    with path.open('rb') as stream, zstandard.ZstdDecompressor().stream_reader(stream) as decoder:
-        while chunk := decoder.read(min(1024 * 1024, max(1, size + 1 - count))):
-            count += len(chunk)
-            if count > size:
-                raise ValueError('Compressed object exceeds recorded size')
-            digest.update(chunk)
-            if collect:
-                chunks.append(chunk)
-    if count != size or digest.hexdigest() != sha:
-        raise ValueError('Compressed object identity mismatch')
-    return b''.join(chunks) if collect else None
