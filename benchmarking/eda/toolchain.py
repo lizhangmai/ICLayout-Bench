@@ -123,6 +123,9 @@ _BUILTINS = {
     "kpex-cc-docker": ("kpex", "KpexCCDocker"),
     "kpex-rc-docker": ("kpex", "KpexRCDocker"),
     "kpex-netgen-docker": ("kpex", "KpexNetgenDocker"),
+    "openems-docker": ("openems", "OpenEMSDocker"),
+    "em-layout-docker": ("openems", "EMLayoutDocker"),
+    "palace-docker": ("openems", "PalaceDocker"),
     "klayout-geometry-docker": ("geometry", "KLayoutGeometryDocker"),
     "fixed-macros-docker": ("fixed_macros", "FixedMacrosDocker"),
 }

@@ -16,6 +16,9 @@ import subprocess
 import gdsfactory as gf
 from gdsfactory.generic_tech import get_generic_pdk
 import gdstk
+import gdspy
+import gmsh
+import h5py
 import matplotlib.pyplot as plt
 import networkx
 import numpy
@@ -24,13 +27,26 @@ import PIL.Image
 import pya
 import psutil
 import scipy.optimize
+import skrf
 import shapely.geometry
 import sympy
 import tkinter
 import yaml
+from CSXCAD import ContinuousStructure
+from openEMS import openEMS
 assert pya.__version__ in subprocess.check_output(['klayout', '-b', '-v'], text=True)
 assert pya.Box(0, 0, 10, 20).area() == 200
 assert gdstk.rectangle((0, 0), (2, 3)).area() == 6
+assert gdspy.Rectangle((0, 0), (2, 3)).area() == 6
+gmsh.initialize()
+gmsh.option.setNumber('General.Terminal', 0)
+volume = gmsh.model.occ.addBox(0, 0, 0, 1, 2, 3)
+gmsh.model.occ.synchronize()
+assert abs(gmsh.model.occ.getMass(3, volume) - 6) < 1e-12
+gmsh.finalize()
+fdtd = openEMS(EndCriteria=1e-5)
+fdtd.SetCSX(ContinuousStructure())
+assert numpy.allclose(skrf.Network(frequency=skrf.Frequency.from_f([1e9], unit='Hz'), s=[[[0]]], z0=50).y, 0.02)
 get_generic_pdk().activate()
 rectangle = gf.components.rectangle(size=(2, 3), layer=(1, 0))
 assert rectangle.area() == 6
@@ -112,4 +128,6 @@ QT_QPA_PLATFORM=offscreen qucs-s --version
 qucsator --version
 qucsator_rf --version
 qucsconv --version
+palace --help > /dev/null
+palace-x86_64.bin --help > /dev/null
 CHECK

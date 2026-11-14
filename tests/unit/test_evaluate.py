@@ -713,7 +713,7 @@ def test_extractor_explicitly_distinguishes_rejection_from_evaluator_error(
 
 
 @pytest.mark.parametrize("problem,expected", [
-    ("event", 0), ("mixed", 0), ("missing", None), ("ambiguous", None),
+    ("event", 0), ("batch_event", 0), ("mixed", 0), ("missing", None), ("ambiguous", None),
     ("model", None), ("crash", None), ("timeout", None),
 ])
 def test_ngspice_event_rejection_scores_zero_but_execution_and_report_faults_do_not(
@@ -725,6 +725,10 @@ def test_ngspice_event_rejection_scores_zero_but_execution_and_report_faults_do_
     event_log = (b"No. of Data Rows : 100001\n"
                  b"Error: measure delay when(WHEN): out of interval\n"
                  b" meas tran delay when error=1m fall=last failed!\n")
+    if problem == "batch_event":
+        event_log = (b"No. of Data Rows : 9056\n"
+                     b"Error: measure delay trig(TARG) : out of interval\n"
+                     b" .meas tran delay trig v(a) val=0.5 rise=1 targ v(z) val=0.5 fall=1 failed!\n")
 
     class Tool:
         def __init__(self, *args):

@@ -144,12 +144,12 @@ RUN curl --fail --show-error --silent --location --retry 3 \
 # and judge container is an isolated invocation of this same EDA toolchain.
 # Harness runtimes are supplied by the harness (or its selected image); the
 # benchmark image does not install or privilege a particular Agent framework.
-FROM common AS tools
+FROM common AS tools-base
 LABEL org.opencontainers.image.title="ICLayout open EDA" \
       org.iclayout.eda="open"
 USER root
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git jq make ripgrep \
+    && apt-get install -y --no-install-recommends git jq make ripgrep g++ python3-dev \
         libklu2 libreadline8t64 binutils tk libxpm4 libcairo2 libjpeg-turbo8 \
     && rm -rf /var/lib/apt/lists/*
 ARG QUCS_S_VERSION=26.1.1-1
@@ -192,5 +192,84 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bc bzip2 coreutils debianutils diffutils file findutils gawk grep gzip \
         less patch procps sed tar time tree unzip util-linux wget xz-utils zip \
+    && rm -rf /var/lib/apt/lists/*
+USER ubuntu
+
+# The IHP EM workflow uses upstream Cython bindings that are not on PyPI.
+# Compile against the locked Python/NumPy of the final tools image.
+FROM tools-base AS openems-build
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential cmake python3-dev \
+        libboost-thread-dev libboost-date-time-dev libboost-serialization-dev \
+        libboost-chrono-dev libboost-program-options-dev \
+        libhdf5-dev libvtk9-dev libcgal-dev libtinyxml-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/root/.cache/uv \
+    cd /opt/iclayout-bench-build \
+    && uv sync --locked --only-group eda --only-group native-build --no-install-project --python /usr/bin/python3
+ARG OPENEMS_COMMIT=974294ba7d812ef5a46a4760593057aee7ce6866
+RUN git init /opt/src/openEMS-Project \
+    && cd /opt/src/openEMS-Project \
+    && git remote add origin https://github.com/thliebig/openEMS-Project.git \
+    && git fetch --depth 1 origin "$OPENEMS_COMMIT" \
+    && git checkout --detach FETCH_HEAD \
+    && git submodule update --init --recursive --depth 1 \
+    && { PIP_NO_INDEX=1 PIP_NO_DEPS=1 ./update_openEMS.sh /opt/openEMS --disable-GUI --skip-dep-check --njobs=8 \
+             --python --python-venv-mode=disable --python-use-network=disable \
+         || { tail -n 160 build_*.log; exit 1; }; } \
+    && LD_LIBRARY_PATH=/opt/openEMS/lib python -c 'import CSXCAD, openEMS' \
+    && python -c 'import shutil, sysconfig; from pathlib import Path; p=Path(sysconfig.get_path("purelib")); out=Path("/opt/openEMS/python"); out.mkdir(); [shutil.copytree(x,out/x.name) for pattern in ("CSXCAD*", "csxcad*", "openEMS*", "openems*") for x in p.glob(pattern) if x.is_dir()]'
+RUN install -d /opt/openEMS/share/licenses \
+    && cd /opt/src/openEMS-Project \
+    && find . -type f \( -iname 'COPYING*' -o -iname 'LICENSE*' -o -iname 'NOTICE*' \) \
+        -not -path '*/.git/*' -exec cp --parents '{}' /opt/openEMS/share/licenses/ \; \
+    && test -s /opt/openEMS/share/licenses/openEMS/COPYING
+
+FROM native-build AS palace-build
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git gfortran libopenmpi-dev libopenblas-dev \
+    && rm -rf /var/lib/apt/lists/*
+ARG PALACE_COMMIT=0dc74cdf8c36c58b69b21c4a06e816048ec0b83f
+RUN git init /opt/src/palace \
+    && cd /opt/src/palace \
+    && git remote add origin https://github.com/awslabs/palace.git \
+    && git fetch --depth 1 origin "$PALACE_COMMIT" \
+    && git checkout --detach FETCH_HEAD \
+    && cmake -S . -B /opt/build/palace \
+        -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/palace \
+        -DPALACE_WITH_OPENMP=ON -DPALACE_WITH_SLEPC=OFF -DPALACE_WITH_ARPACK=ON \
+        -DPALACE_WITH_SUNDIALS=OFF \
+    && cmake --build /opt/build/palace --parallel 8 \
+    && test -x /opt/palace/bin/palace
+RUN install -d /opt/palace/share/licenses \
+    && cd /opt/src/palace \
+    && find . -type f \( -iname 'COPYING*' -o -iname 'LICENSE*' -o -iname 'NOTICE*' \) \
+        -not -path '*/.git/*' -exec cp --parents '{}' /opt/palace/share/licenses/ \; \
+    && cd /opt/build/palace \
+    && find . -type f \( -iname 'COPYING*' -o -iname 'LICENSE*' -o -iname 'NOTICE*' \) \
+        -not -path '*/.git/*' -exec cp --parents '{}' /opt/palace/share/licenses/ \;
+
+FROM tools-base AS tools
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libboost-thread1.83.0 libboost-system1.83.0 \
+        libboost-filesystem1.83.0 libboost-date-time1.83.0 libboost-regex1.83.0 \
+        libboost-serialization1.83.0 libboost-chrono1.83.0 libboost-program-options1.83.0 \
+        libhdf5-103-1t64 libvtk9.1t64 libtinyxml2.6.2v5 \
+        libopenmpi3t64 openmpi-bin libopenblas0-pthread libgfortran5 libglu1-mesa \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=openems-build /opt/openEMS /opt/openEMS
+RUN python -c 'import shutil,sysconfig; from pathlib import Path; p=Path(sysconfig.get_path("purelib")); [shutil.copytree(x,p/x.name) for x in Path("/opt/openEMS/python").iterdir()]' \
+    && printf '%s\n' /opt/openEMS/lib > /etc/ld.so.conf.d/openems.conf \
+    && ldconfig \
+    && python -c 'import CSXCAD, openEMS'
+ENV PATH=/opt/openEMS/bin:${PATH}
+COPY --from=palace-build /opt/palace /opt/palace
+ENV PATH=/opt/palace/bin:${PATH}
+
+# The headless Gmsh wheel links its FLTK window libraries at import time.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libxcursor1 libxfixes3 libxinerama1 \
     && rm -rf /var/lib/apt/lists/*
 USER ubuntu

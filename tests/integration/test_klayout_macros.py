@@ -149,9 +149,9 @@ def resistor_candidate(tmp_path, *, wrapped=False, wrong_label=False):
     return Asset(path.read_bytes(), 'gds')
 
 
-def check_lvs(prepared, layout, deck, *, macro=None, resistance=4, flatten=False):
+def check_lvs(prepared, layout, deck, *, macro=None, resistance=4, flatten=False, **settings):
     backend = KLayoutDocker(image=os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', DEFAULT_IMAGE),
-                            check='lvs', support=prepared, deck=deck, flatten=flatten)
+                            check='lvs', support=prepared, deck=deck, flatten=flatten, **settings)
     job = Job('lvs', 'check', 'layout.lvs', (), (('database', 'klayout-lvs'), ('binding', 'json')),
               (), 'lvs', json.dumps({'top_cell': 'DUT', 'subcircuit': 'DUT', 'max_bytes': 1000000}))
     inputs = {'layout': layout, 'netlist': Asset(f'.subckt DUT A B\nR0 A B {resistance}\n.ends DUT\n'.encode(), 'spice')}
@@ -186,6 +186,46 @@ def test_native_lvs_macro_resolves_relative_includes(tmp_path):
     prepared, macro = lvs_support(tmp_path / 'support', body='# %include resistor.lvs\n')
     result = check_lvs(prepared, resistor_candidate(tmp_path), None, macro=macro)
     assert result.status == 'passed', (result.reason, result.evidence['tool.log'].content)
+
+
+@pytest.mark.parametrize('resistance,expected', [(4, 'passed'), (8, 'failed')])
+def test_native_lvs_fixed_report_preserves_comparison_verdict(tmp_path, resistance, expected):
+    body = LVS_RULES.replace('report_lvs($report)',
+                             'raise "Unexpected report argument" if $report\nreport_lvs("native.lvsdb")').rstrip()
+    prepared, _ = lvs_support(tmp_path / 'support', body=body)
+    result = check_lvs(prepared, resistor_candidate(tmp_path), 'compare.lylvs',
+                       default_report='native.lvsdb', resistance=resistance)
+    assert result.status == expected, (result.reason, result.evidence['tool.log'].content)
+    assert result.evidence['complete.txt'].content == b'complete\n'
+    assert result.evidence['report.db'].content
+
+
+@pytest.mark.parametrize('matching,wrong_label,expected', [
+    ('named', False, 'failed'), ('native', False, 'passed'), ('native', True, 'failed')])
+def test_native_pin_correspondence_keeps_the_declared_interface(tmp_path, matching, wrong_label, expected):
+    db = pytest.importorskip('klayout.db')
+    layout = db.Layout()
+    layout.dbu = 0.001
+    top = layout.create_cell('DUT')
+    # Two unequal, independently sized resistors share C. Swapping A/B forces
+    # a crossed pin correspondence while retaining both physical resistances.
+    for y, height, label in [(0, 2000, 'B'), (4000, 1000, 'WRONG' if wrong_label else 'A')]:
+        top.shapes(layout.layer(1, 0)).insert(db.Box(1000, y, 9000, y + height))
+        top.shapes(layout.layer(2, 0)).insert(db.Box(0, y, 1000, y + height))
+        top.shapes(layout.layer(2, 0)).insert(db.Text(label, db.Trans(500, y + height // 2)))
+    top.shapes(layout.layer(2, 0)).insert(db.Box(9000, 0, 10000, 5000))
+    top.shapes(layout.layer(2, 0)).insert(db.Text('C', db.Trans(9500, 1000)))
+    path = tmp_path / 'candidate.gds'
+    layout.write(str(path))
+    body = LVS_RULES.replace('\ncompare\n', '\nequivalent_pins("DUT", "A", "B")\ncompare\n')
+    prepared, _ = lvs_support(tmp_path / 'support', body=body)
+    backend = KLayoutDocker(image=os.environ.get('ICLAYOUT_BENCH_TEST_IMAGE', DEFAULT_IMAGE),
+                            check='lvs', support=prepared, deck='compare.lylvs', port_matching=matching)
+    job = Job('lvs', 'check', 'layout.lvs', (), (), (), 'lvs',
+              json.dumps({'top_cell': 'DUT', 'subcircuit': 'DUT', 'max_bytes': 1000000}))
+    source = Asset(b'.subckt DUT A B C\nRA A C 4\nRB B C 8\n.ends DUT\n', 'spice')
+    result = backend.run(job, {'layout': Asset(path.read_bytes(), 'gds'), 'netlist': source})
+    assert result.status == expected, (result.reason, result.evidence['tool.log'].content)
 
 
 @pytest.mark.parametrize('failure', ['body', 'early_exit', 'report'])

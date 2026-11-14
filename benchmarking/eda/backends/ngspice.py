@@ -177,7 +177,7 @@ class NgspiceDocker:
             r"\s*:\s*out of interval\s*$", re.MULTILINE | re.IGNORECASE)
         failed_events = {m[1].casefold() for m in event_pattern.finditer(log)
                          if m[1].casefold() in {name.casefold() for name in units}
-                         and re.search(rf"^\s*meas(?:ure)?\s+(?:tran|ac|dc)\s+{re.escape(m[1])}\b"
+                         and re.search(rf"^\s*\.?meas(?:ure)?\s+(?:tran|ac|dc)\s+{re.escape(m[1])}\b"
                                        r"[^\n]*\bfailed!\s*$", log,
                                        re.MULTILINE | re.IGNORECASE)}
         remaining = event_pattern.sub(lambda m: "" if m[1].casefold() in failed_events else m[0], log)

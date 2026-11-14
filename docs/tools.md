@@ -559,12 +559,21 @@ An input `lvs_macro` is staged as `task.lylvs` at the support bundle root, so it
 native relative includes resolve against that bundle. This filename is reserved
 when an input macro is supplied.
 
+For LVS runsets with a fixed default output, `default_report` names that relative
+file. The runner omits the `report` variable and collects the native database as
+`report.db`; the runset source stays unchanged. XML macro instrumentation starts
+on a new line, including when the native macro has no final newline.
+
 LVS can explicitly set `flatten = true` to flatten the selected candidate top
 cell with KLayout before comparison. The copy preserves labels and is retained
 as `flat-candidate.gds`; the frozen submission and its binding stay unchanged.
 Hierarchy, tolerances, virtual connections and pin equivalence otherwise belong
-to the declared native controls. A shared extraction module can supply process
-layers and devices while each case owns its comparison policy.
+to the declared native controls. Port matching defaults to `named`, checking each
+matched pin's name. `port_matching = "native"` accepts the native comparer's pin
+correspondence while requiring the complete published pin-name set; callers must
+verify interface behavior through their declared electrical tests. This supports
+standard-cell tasks with interchangeable logic inputs without copying PDK pin
+tables into the adapter.
 
 DRC also declares `required_categories`; optional `additional_decks` entries each
 declare `deck` and `required_categories` with the same variables. Every deck runs
@@ -778,12 +787,13 @@ representations from one authoritative circuit. Author consistency checks belong
 with the case; no global model-call reader override is required.
 
 The `magic` support profile retains the pinned upstream technology files.
-Cases needing the reviewed `npn13G2` emitter connection explicitly select
-`magic-hbt` instead. That variant declares the local `gec`-to-Metal1 connection,
-matching the pinned native LVS EmWind connection semantics. Its PCell topology
-controls cover the intact device, removed emitter metal, removed window and a
-separate nearby metal net. This establishes neither fabrication correctness nor
-distributed-RC accuracy. Candidate scoring simulates only GDS-derived PEX.
+The `kpex` profile reads SG13G2's maintained PEX deck, technology JSON and license
+from the pinned `klayout-pex` distribution in the tools image. Cases selecting
+`kpex-rc` use these native model interfaces and unreduced distributed RC, with
+candidate devices checked against their independent LVS database. These profiles
+require no Dataset-local PDK patches. Device and connectivity controls belong to
+the author qualification; they do not establish fabrication or RF signoff.
+Candidate scoring simulates only GDS-derived PEX.
 
 Evaluate the maintained circuit and candidate using the case's declared task
 plan. See the [evaluation command](running.md#standalone-evaluation) and each case problem
@@ -864,6 +874,83 @@ The reviewer implementation and policy are included in backend identity.
 Distributed-RC compact-model simulation does not establish RF/EM behavior,
 noise or statistical corners. Those require separately declared extraction
 and validation scope in the selected task contract.
+
+### Native openEMS networks
+
+`openems-docker` runs an explicitly prepared EM geometry through a reviewed
+PDK's native GDS reader, material stack, mesh generator, FDTD setup and
+S-parameter postprocessor. The open EDA image includes the pinned upstream
+CSXCAD/openEMS Python bindings. The backend settings are `image`, `support`,
+`workflow` (the workflow module directory inside the support bundle),
+`stackup` (the native XML path), `timeout_seconds` and `memory_mb`.
+
+An extraction job accepts `layout` in GDS format and `ports` in JSON format,
+and returns `network` in Touchstone format. The port list is ordered and
+numbered consecutively from one. Every port uses a distinct non-material GDS
+layer containing its native port geometry:
+
+```json
+[
+  {"number": 1, "source_layer": 201, "impedance": 50,
+   "from_layer": "Metal3", "to_layer": "TopMetal2", "direction": "z"},
+  {"number": 2, "source_layer": 202, "impedance": 50,
+   "target_layer": "Metal2", "direction": "x"}
+]
+```
+
+Via ports declare `from_layer` and `to_layer`; in-plane ports declare
+`target_layer`. Directions are `x`, `y`, `z` or their negative forms. Job
+parameters explicitly supply `fstart`, `fstop`, `numfreq`, `cellsize`, `margin`,
+`energy_limit` in dB, six `boundaries`, and `threads`. Optional
+`merge_polygon_size` selects the native via-array merge distance; its default
+is zero. Lengths use micrometers and frequencies use Hz. Every port is excited
+separately, producing the complete network. Missing port geometry and port
+layers that collide with a native material layer are errors. Native field
+outputs and network diagnostics remain execution evidence.
+
+An optional `model` SPICE output requires a `model` parameter object with
+`real_poles`, `complex_poles`, `fit_constant` and `maximum_error`. The native
+scikit-rf vector fitter and exporter produce a stable, passive network within
+the declared maximum complex S error on the complete sampling grid. The
+subcircuit is named `EM_NETWORK` and orders its pins as
+`p1 p1_ref p2 p2_ref ...`. For ngspice, exported resistances smaller than its
+literal-value limit are expressed as `1 scale=<original resistance>` using
+the simulator's native instance parameter. The effective resistance is
+unchanged; both exported representations remain evidence. Passivity or fitting
+errors reject the model.
+
+This backend starts from explicit EM geometry and reference planes. A task
+must define and independently validate their relationship to the submitted
+physical layout, the compact-device boundaries, DC bias connections and any
+fixed RF fixtures. It must also validate mesh convergence and circuit assembly
+over its declared operating band. A successful field extraction alone does
+not qualify a circuit or establish its noise, startup or transient behavior.
+
+### Native Palace networks
+
+`palace-docker` uses a reviewed PDK's unmodified GDS-to-Palace workflow,
+native XML stackup and CSV parser. Its backend settings add `converter`, the
+native CSV module inside the support bundle, to the openEMS resource settings.
+The open EDA image supplies Palace and Gmsh. GDS port geometry, the ordered
+JSON port list and the optional SPICE network use the interfaces described
+above. Every port uses the same positive real reference impedance.
+
+Jobs declare `fstart`, `fstop` and `fstep` in Hz, with a positive start and an
+integral number of uniform steps; `cellsize`, `margin`, `meshsize_max` and
+`air_around` in micrometers; six `boundaries` (`ABC`, `PEC` or `PMC`);
+`adaptive_sweep`, `conductor_model` (`surface`, `solve_inside` or
+`solve_inside_skin`), basis `order` (1–3), OpenMP `threads` and MPI `processes`.
+Optional settings are `merge_polygon_size`, `preprocess_gds`,
+`adaptive_mesh_iterations`, `adaptive_tolerance`, `cad_threads` and the native `model` fit.
+The declared CAD thread count enables Gmsh's native parallel OpenCASCADE
+operators; its default is the declared OpenMP thread count.
+The adaptive tolerance sets Palace's `Solver.Driven.AdaptiveTol` explicitly.
+
+The adapter requires every matrix entry at every requested frequency. Missing,
+unsolved or nonfinite responses are errors. It preserves the native reference
+planes and frequency range without DC extrapolation or port de-embedding.
+Mesh convergence, assembly accuracy and circuit qualification remain separate
+author checks.
 
 ### Spectre measurement profiles
 

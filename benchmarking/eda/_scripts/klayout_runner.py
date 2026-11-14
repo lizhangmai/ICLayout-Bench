@@ -183,10 +183,19 @@ def lvs(config):
         } for pair in port_pairs]
         valid_ports = len(port_pairs) == len(list(reference.each_pin())) and all(
             pair.first() and pair.second()
-            and pair.first().name().casefold() == pair.second().name().casefold()
             and pair.status() == db.NetlistCrossReference.Match
             for pair in port_pairs
         )
+        if config.get("port_matching", "named") == "native":
+            # Keep the public interface while accepting the native comparer's
+            # pin correspondence. Electrical jobs still test that interface.
+            valid_ports = valid_ports and {
+                pair.first().name().casefold() for pair in port_pairs if pair.first()
+            } == {pair.second().name().casefold() for pair in port_pairs if pair.second()}
+        else:
+            valid_ports = valid_ports and all(
+                pair.first().name().casefold() == pair.second().name().casefold()
+                for pair in port_pairs)
         if not valid_ports:
             return "failed", "LVS top-level ports are missing or mislabeled", details
     return "passed", "", details
@@ -239,7 +248,7 @@ def run_deck(config, suffix="", used=None):
         # Let KLayout retain the XML macro's interpreter, metadata and source
         # path. A completion marker inside the body also detects early exit(0).
         wrapper.write_text(f'macro = RBA::Macro.new({json.dumps(str(deck.resolve()))})\n'
-                           f'macro.text += {json.dumps(names + completion)}\n'
+                           f'macro.text += {json.dumps("\n" + names + completion)}\n'
                            f'raise "KLayout {mode.upper()} macro failed" unless macro.run == 0\n')
     else:
         wrapper = deck.with_name(f"check{suffix}.{mode}")
@@ -255,12 +264,20 @@ def run_deck(config, suffix="", used=None):
         layout.write(input_path)
     variables = {**config["variables"], "input": input_path, "topcell": config["top_cell"],
                  "report": f"/workspace/report{suffix}.db", "log": f"/workspace/deck{suffix}.log"}
+    if config.get("default_report"):
+        # Some native runsets select report_lvs only when $report is absent.
+        # Consume their declared fixed output without rewriting the runset.
+        variables.pop("report")
     if mode == "lvs":
         variables.update(schematic="/workspace/reference.spice", target_netlist="/workspace/extracted.spice")
     command = ["klayout", "-b", "-r", str(wrapper)]
     command.extend(arg for k, v in variables.items() for arg in ("-rd", f"{k}={v}"))
     with Path(f"tool{suffix}.log").open("wb") as log:
         run = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=False)
+    if config.get("default_report"):
+        native_report = Path(config["default_report"])
+        if native_report.is_file():
+            native_report.replace(f"report{suffix}.db")
     if run.returncode or Path(f"complete{suffix}.txt").read_text() != "complete\n" or not Path(f"report{suffix}.db").stat().st_size:
         return "error", "KLayout did not produce a complete check report", {"returncode": run.returncode}
     return drc(config, f"report{suffix}.db", used) if mode == "drc" else lvs(config)

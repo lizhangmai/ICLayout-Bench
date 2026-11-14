@@ -61,7 +61,8 @@ class KLayoutDocker:
                  deck: str | None = None, variables: dict | None = None,
                  required_categories: list | None = None, layer_names: dict | None = None,
                  additional_decks: list | None = None, profile: str | None = None,
-                 flatten: bool | None = None,
+                 flatten: bool | None = None, default_report: str | None = None,
+                 port_matching: str | None = None,
                  timeout_seconds: float = 120):
         if check not in {"artifact", "drc", "lvs"}:
             raise ValueError("Unknown KLayout check")
@@ -71,7 +72,7 @@ class KLayoutDocker:
         direct = {name: value for name, value in {
             "deck": deck, "variables": variables, "required_categories": required_categories,
             "layer_names": layer_names, "additional_decks": additional_decks,
-            "flatten": flatten,
+            "flatten": flatten, "default_report": default_report, "port_matching": port_matching,
         }.items() if value is not None}
         if check == "artifact":
             if support is not None or profile is not None or direct:
@@ -89,11 +90,15 @@ class KLayoutDocker:
             required = {"variables"}
             if check == "drc":
                 required.update({"deck", "required_categories"})
-            optional = ({"deck", "scope", "layer_names", "flatten"} if check == "lvs"
+            optional = ({"deck", "scope", "layer_names", "flatten", "default_report", "port_matching"} if check == "lvs"
                         else {"scope", "additional_decks"})
             keys(self.settings, required, optional, "KLayout rule settings")
             if "flatten" in self.settings and type(self.settings["flatten"]) is not bool:
                 raise ValueError("KLayout flatten must be a boolean")
+            if "default_report" in self.settings:
+                relative(self.settings["default_report"], "KLayout default report")
+            if self.settings.get("port_matching", "named") not in {"named", "native"}:
+                raise ValueError("KLayout port matching must be named or native")
             for name, variable in self.settings.get("layer_names", {}).items():
                 if not re.fullmatch(r"[a-z][a-z0-9_]*", name) or not re.fullmatch(r"[a-z][a-z0-9_]*", variable):
                     raise ValueError("LVS layer names must be simple identifiers")
