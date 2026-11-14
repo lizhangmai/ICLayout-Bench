@@ -7,7 +7,10 @@ import re
 import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path, PurePosixPath
+
+import zstandard
 
 
 class EvidenceError(ValueError):
@@ -66,8 +69,6 @@ def read_file(root: Path, name: str) -> bytes:
     try:
         resolved = path.resolve(strict=True)
     except FileNotFoundError:
-        from benchmarking.results.retention import read_retained_file
-
         return read_retained_file(path)
     if not path.is_file() or (resolved != path and not is_hub_file(path)):
         raise ValueError(f"Input must be a regular, non-symlink file: {name}")
@@ -166,3 +167,75 @@ def append_event(path, event, *, durable=False, **fields):
     finally:
         os.close(descriptor)
     return value
+
+
+RETAINED_SCHEMA = "retained-evidence-v1"
+RETAINED_MANIFEST = ".retained/manifest.json"
+
+
+class EvidenceUnavailable(EvidenceError):
+    """A recorded attachment was explicitly omitted by the retention policy."""
+
+
+@lru_cache(maxsize=64)
+def _retained_manifest(path, modified, size):
+    value = json.loads(Path(path).read_bytes())
+    if value.get('schema') != RETAINED_SCHEMA:
+        raise EvidenceError('Unsupported retained evidence manifest')
+    return value
+
+
+def retained_manifest(root):
+    path = root / RETAINED_MANIFEST
+    if path.resolve() != path or not path.is_file():
+        raise EvidenceError('Invalid retained evidence manifest')
+    info = path.stat()
+    return _retained_manifest(str(path), info.st_mtime_ns, info.st_size)
+
+
+def retained_object(root, record):
+    sha, size = record.get('sha256'), record.get('bytes')
+    if (not isinstance(sha, str) or not re.fullmatch('[0-9a-f]{64}', sha)
+            or type(size) is not int or size < 0 or record.get('codec') != 'zstd'):
+        raise EvidenceError('Invalid retained object reference')
+    return root / '.retained/objects' / sha[:2] / (sha + '.zst')
+
+
+def read_retained_file(path):
+    """Resolve a missing logical file only through an explicit local manifest."""
+    path = Path(path).absolute()
+    for parent in path.parents:
+        marker = parent / RETAINED_MANIFEST
+        if not marker.exists():
+            continue
+        manifest = retained_manifest(parent)
+        name = relative(path.relative_to(parent).as_posix(), 'retained file')
+        if name in manifest.get('omitted', {}):
+            reason = manifest['omitted'][name]['reason']
+            raise EvidenceUnavailable(f'{name}: {reason}')
+        record = manifest.get('files', {}).get(name)
+        if record is not None:
+            try:
+                return verify_compressed(retained_object(parent, record), record['sha256'], record['bytes'], collect=True)
+            except (OSError, ValueError, zstandard.ZstdError) as error:
+                raise EvidenceError('Invalid compressed result evidence: ' + name) from error
+    raise FileNotFoundError(path)
+
+
+def verify_compressed(path, sha, size, *, collect=False):
+    """Validate the uncompressed identity, optionally returning its original bytes."""
+    path = Path(path).absolute()
+    if path.resolve() != path or not path.is_file():
+        raise ValueError('Compressed object must be a regular non-symlink file')
+    digest, count, chunks = hashlib.sha256(), 0, []
+    with path.open('rb') as stream, zstandard.ZstdDecompressor().stream_reader(stream) as decoder:
+        while chunk := decoder.read(min(1024 * 1024, max(1, size + 1 - count))):
+            count += len(chunk)
+            if count > size:
+                raise ValueError('Compressed object exceeds recorded size')
+            digest.update(chunk)
+            if collect:
+                chunks.append(chunk)
+    if count != size or digest.hexdigest() != sha:
+        raise ValueError('Compressed object identity mismatch')
+    return b''.join(chunks) if collect else None

@@ -44,6 +44,20 @@ def media(name):
     )
 
 
+def planned_condition(plan):
+    """Project the declared condition fields shared by plans and result rows."""
+    resolved = plan.get('resolved') or {}
+    return {'model': plan.get('model'), 'harness': plan.get('harness'),
+            'effort_resolved': resolved.get('effort_resolved', plan.get('effort')),
+            'scheme': scheme_identity(plan.get('scheme', {}))}
+
+
+def condition_key(condition):
+    """Match a planned condition without dropping its declared participant tools."""
+    return digest({key: condition.get(key) for key in ('model', 'harness', 'effort_resolved')}
+                  | {'scheme': condition.get('scheme', scheme_identity({}))})
+
+
 def normalize(raw):
     """Read compact exports and disclosed protocol results without inventing identities."""
     if raw.get("test_only"):
@@ -70,6 +84,7 @@ def normalize(raw):
     plans = identity.get("plan") or [{}]
     plan = next((p for p in plans if task_id in p.get("tasks", [])), plans[0])
     resolved = plan.get("resolved") or {}
+    planned = planned_condition(plan)
     condition = dict(evaluation.get("condition") or {})
     condition.update(
         harness=plan.get("harness", condition.get("harness_id")),
@@ -79,7 +94,7 @@ def normalize(raw):
             "effort_requested", resolved.get("effort_requested", plan.get("effort"))
         ),
         effort_resolved=summary.get(
-            "effort_resolved", resolved.get("effort_resolved", plan.get("effort"))
+            "effort_resolved", planned['effort_resolved']
         ),
         provider_effective_effort=summary.get(
             "provider_effective_effort", resolved.get("provider_effective_effort")
@@ -90,7 +105,7 @@ def normalize(raw):
         condition["solver_image"] = tools.get("image_id")
         condition["solver_resources"] = tools.get("solver_resources")
     if "scheme" in plan:
-        condition["scheme"] = scheme_identity(plan["scheme"])
+        condition["scheme"] = planned['scheme']
         condition["scheme_name"] = plan.get("name")
         condition["scheme_sha256"] = digest(condition["scheme"])
     task_identity = {

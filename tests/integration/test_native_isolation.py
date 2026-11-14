@@ -87,3 +87,27 @@ def test_unisolated_native_history_is_not_silently_imported(tmp_path):
     with pytest.raises(ValueError, match='no isolated origin'):
         NativeRuntime(context).__enter__()
     assert original.read_text() == 'undeclared_skill_from_old_run\n'
+
+
+def test_adapter_credential_access_preserves_authentication_without_profile_access(tmp_path):
+    profile = tmp_path / 'selected-profile'
+    credentials = profile / '.zcode/v2'
+    credentials.mkdir(parents=True)
+    (credentials / 'credentials.json').write_text('fixture-credentials')
+    unrelated = profile / 'settings.json'
+    unrelated.write_text('unreviewed-profile-settings')
+    work = tmp_path / 'result/.private/workspace'
+    work.mkdir(parents=True)
+    mcp = work / 'mcp.json'
+    mcp.write_text('{"mcpServers":{}}')
+    context = LaunchContext(ParticipantSelection({'harness': 'zcode'},
+        {**os.environ, 'ZCODE_CREDENTIAL_SECRET': 'fixture-cipher-context'},
+        {'subscription': {'credential_home': str(credentials)}}),
+        mcp, work, work.parent.parent, work / 'bridge.py', 'fixture')
+    probe = ('import os,pathlib; '
+             'assert os.environ["ZCODE_CREDENTIAL_SECRET"] == "fixture-cipher-context"; '
+             f'assert pathlib.Path({str(credentials / "credentials.json")!r}).read_text() == "fixture-credentials"; '
+             f'assert not pathlib.Path({str(unrelated)!r}).exists()')
+    with NativeRuntime(context) as runtime:
+        argv, env = runtime.command([sys.executable, '-I', '-c', probe])
+        subprocess.run(argv, env=env, capture_output=True, text=True, timeout=10, check=True)

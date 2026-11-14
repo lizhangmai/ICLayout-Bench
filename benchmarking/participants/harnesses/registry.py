@@ -41,11 +41,12 @@ def get(harness: str) -> HarnessAdapter:
 
     return HarnessAdapter(
         METADATA=implementation.METADATA, CAPABILITIES=implementation.CAPABILITIES,
+        environment=implementation.NATIVE_ENVIRONMENT,
         resolve=implementation.resolve, prepare=implementation.prepare, usage=implementation.usage,
         native_traces=getattr(implementation, "native_traces", lambda output: {}),
         harness_failure=getattr(implementation, "harness_failure", default_failure),
         **{name: getattr(implementation, name, None) for name in
-           ("session_id", "stage_credentials", "credential_redactions", "observe_usage")},
+           ("session_id", "stage_credentials", "credential_redactions", "observe_usage", "credential_mounts")},
     )
 
 

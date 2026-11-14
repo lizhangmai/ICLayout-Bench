@@ -332,6 +332,28 @@ def test_comparison_aggregation_uses_rows_and_schedules_without_database():
     ]
 
 
+@pytest.mark.parametrize('completed', [False, True])
+@pytest.mark.parametrize('requested,resolved', [('medium', 'medium'), ('xhigh', 'high')])
+def test_comparison_preserves_distinct_planned_tool_schemes(tmp_path, completed, requested, resolved):
+    store = ResultStore(tmp_path / 'archive')
+    plans = [{'model': 'model-a', 'harness': 'codex', 'effort': requested,
+              'resolved': {'effort_resolved': resolved},
+              'tasks': ['circuit-a'], 'scheme': {'instructions': instructions}}
+             for instructions in ('baseline', 'method-b')]
+    experiment = store.register_experiment('methods', plans)
+    if completed:
+        source = result(tmp_path / 'source', effort=requested)
+        change(source, lambda raw: raw['identity']['plan'][0].update(
+            scheme=plans[0]['scheme'], resolved=plans[0]['resolved']))
+        store.import_result(source, experiment='methods')
+    comparison = store.comparison(experiment=experiment, effort=resolved)
+    assert len(comparison['conditions']) == 2
+    assert {item['scheme']['instructions'] for item in comparison['conditions']} == {'baseline', 'method-b'}
+    assert sorted(item['coverage'] for item in comparison['totals']) == [0, int(completed)]
+    assert all(item['mean'] is None for item in comparison['totals'])
+    store.close()
+
+
 def test_candidate_integrity_path_isolation_and_interrupted_transaction(
     tmp_path, monkeypatch
 ):
@@ -394,6 +416,22 @@ def test_outbox_retries_without_reexecuting_model(tmp_path, monkeypatch):
     assert retry(archive)[0]["status"] == "imported"
     assert retry(archive) == []
     assert real(archive).list_runs()["total"] == 1
+
+
+def test_automatic_indexing_preserves_planned_scheme_and_resolved_effort(tmp_path):
+    from benchmarking.results.outbox import archive_result
+
+    output = tmp_path / 'batch'
+    result(output / 'slot')
+    plans = [{'model': 'model-a', 'harness': 'codex', 'effort': 'medium', 'repetitions': 1,
+              'tasks': ['circuit-a'], 'scheme': {'instructions': name},
+              'resolved': {'effort_resolved': 'medium'}} for name in ('method-a', 'method-b')]
+    archive_result(tmp_path / 'archive', output, 'slot', plans)
+    store = ResultStore(tmp_path / 'archive')
+    comparison = store.comparison()
+    assert {item.get('scheme', {}).get('instructions') for item in comparison['conditions']} == {
+        None, 'method-a', 'method-b'}
+    store.close()
 
 
 

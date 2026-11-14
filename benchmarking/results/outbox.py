@@ -67,7 +67,8 @@ def archive_result(data, output, name, rows):
     try:
         status = enqueue(data, source, experiment=Path(output).name,
                          schedule=[{"tasks": r["tasks"], "repetitions": r["repetitions"],
-                                    "harness": r["harness"], "model": r["model"], "effort": r["effort"]} for r in rows])
+                                    "harness": r["harness"], "model": r["model"], "effort": r["effort"],
+                                    **{key: r[key] for key in ('scheme', 'resolved') if key in r}} for r in rows])
         print("Result archive: " + json.dumps(status), flush=True)
     except OSError as error:
         print(f"Result archive pending ({type(error).__name__}); retry by importing {source}", flush=True)

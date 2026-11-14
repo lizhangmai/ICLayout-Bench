@@ -602,6 +602,9 @@ project ancestors, other runs and undeclared files are absent. HOME, XDG
 directories and the passwd home refer to private storage. Only selected provider
 settings, transport settings, scoped session variables and explicitly declared
 command variables survive; arbitrary inherited environment variables do not.
+Each adapter declares its native environment and any shared credential directories
+needed for authentication refresh. The common launcher validates those directories
+and mounts only the selected stores; profile settings and histories stay private.
 Skills bundled with the harness distribution may initialize in its private home.
 External user/project skills, rules, memories and plugins are not copied or
 mounted. Additional professional knowledge must be explicitly declared as a
@@ -1444,6 +1447,8 @@ contexts; coverage and the common-task count remain visible. Unknown scoring
 methods form separate contexts.
 Planned but unexecuted tasks from runner schedules appear as `Not run`; only
 automatic indexing records a schedule, so manual imports list imported runs only.
+Planned conditions retain their participant-tool scheme and resolved effort, including
+schemes with no completed run yet.
 Missing provenance is not inferred from directory names.
 
 #### Task presentations and interactive layouts

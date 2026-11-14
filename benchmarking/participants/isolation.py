@@ -18,6 +18,7 @@ import uuid
 from dataclasses import replace
 from pathlib import Path
 
+from benchmarking.participants.harnesses import registry as adapters
 from benchmarking.participants.harnesses.contracts import ParticipantSelection
 
 POLICY = "native-filesystem-v1"
@@ -26,19 +27,7 @@ TRANSPORT_ENV = {
     "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
     "http_proxy", "https_proxy", "all_proxy", "no_proxy",
 }
-HARNESS_ENV = {
-    "codex": {"CODEX_HOME", "OPENAI_API_KEY"},
-    "claude-code": {"CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
-                    "CLAUDE_CODE_EFFORT_LEVEL", "CLAUDE_CODE_MAX_OUTPUT_TOKENS", "MAX_THINKING_TOKENS",
-                    "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY", "CLAUDE_CODE_MAX_RETRIES",
-                    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "DISABLE_AUTOUPDATER", "API_TIMEOUT_MS"},
-    "dsh": {"DSH_HOME", "DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL"},
-    "kimi-code": {"KIMI_CODE_HOME", "KIMI_DISABLE_TELEMETRY"},
-    "zcode": {"ZCODE_HOME", "ZCODE_DATA_BASE_DIR", "ZCODE_MODEL_RETRY_MAX_RETRIES",
-              "ZCODE_PERSONAL_PROVIDER_CONFIG_FILE", "ZCODE_STORAGE_DIR", "ZCODE_SESSION_DB_PATH",
-              "ZCODE_MODEL_TELEMETRY_ENABLED", "OTEL_SDK_DISABLED"},
-    "command": set(),
-}
+
 
 
 def referenced_environment(value):
@@ -224,9 +213,8 @@ class NativeRuntime:
         (config / "group").write_text(f"participant:x:{os.getgid()}:\n")
         (config / "nsswitch.conf").write_text("passwd: files\ngroup: files\nhosts: files dns\n")
         harness = self.harness
-        if harness not in HARNESS_ENV:
-            raise ValueError("Harness has no declared native environment policy: " + harness)
-        allowed = TRANSPORT_ENV | HARNESS_ENV[harness] | referenced_environment(context.selection.settings) | set(self.env_vars)
+        adapter = adapters.get(harness)
+        allowed = TRANSPORT_ENV | adapter.environment | referenced_environment(context.selection.settings) | set(self.env_vars)
         isolated = {k: v for k, v in env.items() if k in allowed or k.startswith("ICLAYOUT_BENCH_")}
         isolated.update(HOME=str(home), USER="participant", LOGNAME="participant", TMPDIR="/tmp",
                         XDG_CONFIG_HOME=str(home / ".config"), XDG_CACHE_HOME=str(home / ".cache"),
@@ -288,13 +276,13 @@ class NativeRuntime:
         task = env.get("ICLAYOUT_BENCH_TASK_FILE")
         if task and Path(task).is_file():
             command += ["--ro-bind", task, task]
-        # Only provider-owned credential stores explicitly selected by the Kimi
-        # adapter need shared refresh locks outside this attempt.
-        settings = context.selection.settings
-        if harness == "kimi-code" and settings.get("credentials"):
-            for name in ("credentials", "oauth"):
-                path = str(Path(settings["credential_home"]) / name)
-                command += ["--bind", path, path]
+        directories = adapter.credential_mounts(context) if adapter.credential_mounts else ()
+        for directory in directories:
+            path = Path(directory).absolute()
+            if path.resolve(strict=True) != path or not path.is_dir() or private.is_relative_to(path):
+                raise ValueError("Credential mount must be a regular dedicated directory")
+            if not path.is_relative_to(private):
+                command += ["--bind", str(path), str(path)]
         command += ["--chdir", str(context.directory.resolve()), "--", str(launch_executable), *argv[1:]]
         (context.output / 'native-isolation.json').write_text(json.dumps({
             'policy': POLICY, 'state': 'configured', 'harness': harness,

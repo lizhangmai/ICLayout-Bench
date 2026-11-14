@@ -5,6 +5,8 @@ import math
 from pathlib import Path
 
 from benchmarking.evaluation import parse_evaluation
+from benchmarking.evaluation.scoring import attempt_score
+from benchmarking.evidence.archive import verify_evaluated_candidate
 from benchmarking.evidence.identity import source_key
 from benchmarking.evidence.journal import recover_submissions
 from benchmarking.execution._scripts import benchmark_feedback as opinions
@@ -76,6 +78,8 @@ def _verify_evaluation_inputs(root, run_root, evaluation, report, task):
         if expected[reference] is None:
             raise ValueError(f"Evaluation input is not frozen: {reference}")
     actual = evaluation.get("inputs")
+    if 'candidate' in expected:
+        verify_evaluated_candidate(evaluation, expected['candidate']['sha256'])
     if actual != expected:
         raise ValueError("Evaluation inputs differ from the frozen task inputs")
     for reference, archive in actual.items():
@@ -304,6 +308,9 @@ def verify_service_result(store, result, *, frozen, image_id):
         if Asset(evaluation, "json").sha256 != report["evaluation"]["sha256"]:
             raise ValueError("Evaluation digest mismatch")
         evaluated = json.loads(evaluation)
+        verify_evaluated_candidate(evaluated, (report.get('candidate') or {}).get('sha256'))
+        read_archived_asset((run_root / report['evaluation']['path']).parent,
+                            evaluated['inputs']['candidate'], 'evaluation candidate')
         if evaluated["plan"]["sha256"] != frozen["evaluation_plan_sha256"]:
             raise ValueError("Evaluation plan differs from frozen task")
         if evaluated["backends"] != frozen["backends"]:
@@ -312,5 +319,9 @@ def verify_service_result(store, result, *, frozen, image_id):
             "evaluation_inputs"
         ]:
             raise ValueError("Evaluation inputs differ from frozen task")
-        if evaluated.get("score") != result["score"]:
+        expected_score = evaluated.get('score')
+        if expected_score is not None:
+            expected_score = attempt_score(report.get('termination'), report['outcome'], expected_score,
+                                           method=expected_score['method'])
+        if expected_score != result["score"]:
             raise ValueError("Score differs from trusted evaluation")

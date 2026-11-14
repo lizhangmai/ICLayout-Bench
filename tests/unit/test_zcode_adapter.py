@@ -3,6 +3,7 @@
 import json
 import shutil
 import sqlite3
+import sys
 from pathlib import Path
 
 import pytest
@@ -110,6 +111,14 @@ def test_subscription_reuses_managed_authentication_with_isolated_runtime(tmp_pa
     assert selection == {'providerId': provider, 'modelId': 'GLM-5.3', 'options': {'reasoningLevel': 'high'}}
     assert json.loads((home / '.zcode/v2/provider_config.json').read_text()) == {'operator_selection': 'preserve'}
     assert 'subscription-access-secret' not in str(argv) + personal.read_text()
+    from benchmarking.participants.isolation import NativeRuntime
+
+    isolated_argv, isolated_env = NativeRuntime(context).command([sys.executable, '-I', '-c', 'pass'])
+    assert isolated_env['ZCODE_CREDENTIAL_SECRET'] == selected.environment['ZCODE_CREDENTIAL_SECRET']
+    source = str(home / '.zcode/v2')
+    assert any(isolated_argv[index:index + 3] == ['--bind', source, source]
+               for index in range(len(isolated_argv) - 2))
+    assert 'ZCODE_API_KEY' not in isolated_env
     assert {'subscription-access-secret', 'subscription-jwt-secret'} <= adapters.credential_redactions('zcode', output)
     credentials[f'oauth:{family}:access_token'] = 'refreshed-subscription-secret'
     # Native atomic replacement must reach the same managed directory and locks.

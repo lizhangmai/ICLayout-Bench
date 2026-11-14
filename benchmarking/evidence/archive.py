@@ -29,6 +29,15 @@ def _read_report(root, name):
         raise EvidenceError('Invalid archived report: ' + name) from error
 
 
+def verify_evaluated_candidate(evaluation, candidate_sha256):
+    """Bind an evaluator's input to the accepted immutable submission."""
+    inputs = evaluation.get('inputs')
+    reference = inputs.get('candidate') if isinstance(inputs, dict) else None
+    if (candidate_sha256 is None or not isinstance(reference, dict)
+            or reference.get('sha256') != candidate_sha256 or reference.get('format') != 'gds'):
+        raise EvidenceError('Evaluation candidate differs from accepted submission')
+
+
 class EvaluationArchive:
     """Read a frozen evaluation through its report, plan and declared artifacts."""
 
@@ -134,6 +143,9 @@ class RunArchive:
             checked(self.root, self.report['evaluation'])
             evaluation = EvaluationArchive(self.root / 'evaluation')
             judged = evaluation.report
+            if result.get('submission'):
+                verify_evaluated_candidate(judged, result['submission']['candidate_sha256'])
+                evaluation.artifact(judged['inputs']['candidate'])
             expected = judged.get('score')
             if expected is not None:
                 expected = attempt_score(self.report.get('termination'), self.report.get('outcome'),

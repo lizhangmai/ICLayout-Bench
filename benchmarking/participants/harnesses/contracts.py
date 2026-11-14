@@ -67,6 +67,7 @@ class HarnessAdapter:
 
     METADATA: HarnessMetadata
     CAPABILITIES: dict[str, bool]
+    environment: frozenset[str]
     resolve: Callable[..., ParticipantSelection]
     prepare: Callable[[LaunchContext], list[str]]
     usage: Callable[..., Any]
@@ -76,3 +77,4 @@ class HarnessAdapter:
     stage_credentials: Callable[..., set[str]] | None = None
     credential_redactions: Callable[..., set[str]] | None = None
     observe_usage: Callable[..., Any] | None = None
+    credential_mounts: Callable[[LaunchContext], tuple[Path, ...]] | None = None

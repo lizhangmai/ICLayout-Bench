@@ -37,6 +37,11 @@ METADATA = HarnessMetadata('codex', 'CODEX_HOME', '.codex', 'auth.json', 'config
 
 CAPABILITIES = {"resume_session": True, "capacity_resumes": True}
 
+NATIVE_ENVIRONMENT = frozenset({
+    'CODEX_HOME',
+    'OPENAI_API_KEY',
+})
+
 CONNECTION_FIELDS = {"model_provider", "model_providers", "cli_auth_credentials_store",
                      "forced_login_method", "forced_chatgpt_workspace_id", "chatgpt_base_url"}
 PROVIDER_FIELDS = {"name", "base_url", "env_key", "wire_api", "requires_openai_auth",

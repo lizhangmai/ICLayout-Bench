@@ -29,6 +29,21 @@ METADATA = HarnessMetadata('claude', 'CLAUDE_CONFIG_DIR', '.claude', '.credentia
 
 CAPABILITIES = {"resume_session": True, "capacity_resumes": True}
 
+NATIVE_ENVIRONMENT = frozenset({
+    'ANTHROPIC_API_KEY',
+    'ANTHROPIC_AUTH_TOKEN',
+    'ANTHROPIC_BASE_URL',
+    'API_TIMEOUT_MS',
+    'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+    'CLAUDE_CODE_EFFORT_LEVEL',
+    'CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY',
+    'CLAUDE_CODE_MAX_OUTPUT_TOKENS',
+    'CLAUDE_CODE_MAX_RETRIES',
+    'CLAUDE_CONFIG_DIR',
+    'DISABLE_AUTOUPDATER',
+    'MAX_THINKING_TOKENS',
+})
+
 
 def resolve(model, effort, env, *, home=None):
     path = Path(env.get("CLAUDE_CONFIG_DIR", str(Path.home() / ".claude"))) / "settings.json"

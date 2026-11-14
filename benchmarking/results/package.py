@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from urllib.parse import quote
 
 from benchmarking.evidence.archive import FeedbackEvidence, FinalRunEvidence
-from benchmarking.files import atomic_write, checked, read_file
+from benchmarking.files import EvidenceUnavailable, atomic_write, checked, read_file
 
 __all__ = [
     "AttemptEvidence", "AttemptRunEvidence", "ParticipantEvidence", "TraceEvidence",
@@ -84,7 +84,7 @@ def verify(root, result):
 def evaluation_export(evidence, root, files, prefix='evaluation', *, process=False):
     from benchmarking.evaluation.plans import parse_evaluation
     from benchmarking.evaluation.scoring import recompute_score
-    from benchmarking.results.retention import EvidenceUnavailable, process_omissions
+    from benchmarking.results.retention import process_omissions
 
     report = evidence.report
     omissions = process_omissions(report) if process else {}
