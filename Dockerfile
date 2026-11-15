@@ -90,9 +90,8 @@ USER ubuntu
 
 FROM native-build AS magic-build
 # MAGIC_VERSION is an upstream make variable containing only major.minor.
-ARG MAGIC_RELEASE=8.3.698
-ARG MAGIC_SHA256=65a74e4aec240f8635dfc34f20eb72430f441cfb42c32dd1154e468d766c3846
-COPY scripts/patches/magic-resistance-traversal.patch /tmp/magic-resistance-traversal.patch
+ARG MAGIC_RELEASE=8.3.701
+ARG MAGIC_SHA256=a6d6f6af0c85f5bbf2ba86f6fc1db2aaefd538fec9995fbbb9ba8f2b99dbf12c
 RUN curl --fail --show-error --silent --location --retry 3 \
         --retry-all-errors --connect-timeout 20 \
         "https://codeload.github.com/RTimothyEdwards/magic/tar.gz/refs/tags/$MAGIC_RELEASE" \
@@ -101,14 +100,11 @@ RUN curl --fail --show-error --silent --location --retry 3 \
     && tar -xzf /tmp/magic.tar.gz -C /tmp \
     && cd "/tmp/magic-$MAGIC_RELEASE" \
     && python3 -c 'from pathlib import Path; p=Path("resis/ResRex.c"); s=p.read_text(); old="int\t\ttotWL, maxWL = 0;"; assert s.count(old)==1; p.write_text(s.replace(old,"float totWL, maxWL = 0.0;"))' \
-    && patch -p1 < /tmp/magic-resistance-traversal.patch \
     && ./configure --prefix=/opt/magic --without-opengl --without-cairo --disable-magic-builddate \
     && make -j4 \
     && make install \
     && test "$(/opt/magic/bin/magic --version)" = "$MAGIC_RELEASE" \
-    && install -D LICENSE /opt/magic/share/doc/LICENSE \
-    && install -D /tmp/magic-resistance-traversal.patch \
-        /opt/magic/share/doc/magic-resistance-traversal.patch
+    && install -D LICENSE /opt/magic/share/doc/LICENSE
 
 FROM native-build AS xschem-build
 # Release 3.4.7 supplies ev7, required by the pinned SG13G2 tap symbols.
