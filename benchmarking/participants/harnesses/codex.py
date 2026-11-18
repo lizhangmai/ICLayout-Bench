@@ -308,6 +308,8 @@ def native_traces(output):
 
 
 CAPACITY_MESSAGE = "Selected model is at capacity. Please try a different model."
+CAPACITY_RECONNECT_MESSAGE = re.compile(
+    rf"Reconnecting\.\.\. [1-9][0-9]*/[1-9][0-9]* \({re.escape(CAPACITY_MESSAGE)}\)")
 
 RECONNECT_MESSAGE = re.compile(
     r"Reconnecting\.\.\. (?:[1-9][0-9]*/[1-9][0-9]* \("
@@ -382,7 +384,8 @@ def native_error(event):
     explicit = [code for code in explicit if code is not None]
     message = event.get("message") or (detail.get("message") if isinstance(detail, dict) else None)
     codes = explicit or [None]
-    if event.get("type") in {"error", "turn.failed"} and not explicit and message == CAPACITY_MESSAGE:
+    if (event.get("type") in {"error", "turn.failed"} and not explicit and isinstance(message, str)
+            and (message == CAPACITY_MESSAGE or CAPACITY_RECONNECT_MESSAGE.fullmatch(message))):
         codes = ["model_at_capacity"]
     if (event.get('type') in {'error', 'turn.failed'} and not explicit
             and isinstance(message, str)

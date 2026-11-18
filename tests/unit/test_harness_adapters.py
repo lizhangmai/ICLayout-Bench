@@ -400,6 +400,10 @@ def test_terminal_cleanup_preserves_native_reasoning_and_logs(tmp_path, harness,
     ({'type': 'error', 'error': {'type': 'authentication_error'}}, 1, 'authentication'),
     ({'type': 'turn.failed', 'error': {'code': 'rate_limit_exceeded'}}, 1, 'rate_limit'),
     ({'type': 'error', 'message': 'Selected model is at capacity. Please try a different model.'}, 1, 'provider_overloaded'),
+    ({'type': 'error', 'message': 'Reconnecting... 2/5 (Selected model is at capacity. Please try a different model.)'},
+     1, 'provider_overloaded'),
+    ({'type': 'error', 'message': 'Reconnecting... 2/5 (Selected model is at capacity. Please try a different model.)',
+      'error': {'code': 'invalid_api_key'}}, 0, 'authentication'),
     ({'type': 'turn.failed', 'error': {'message': 'Selected model is at capacity. Please try a different model.'}}, 1, 'provider_overloaded'),
     ({'type': 'turn.failed', 'error': {'code': 'server_is_overloaded', 'retry_after': 45}}, 1, 'provider_overloaded'),
     ({'type': 'item.completed', 'item': {'type': 'agent_message', 'text': 'Selected model is at capacity. Please try a different model.'}}, 1, 'unknown'),
@@ -479,6 +483,7 @@ def test_capacity_error_cannot_hide_another_failure(tmp_path):
     'Reconnecting... 2/5 (workspace routing discovery timed out)',
     'Reconnecting... waiting for network (Connection failed: error sending request)',
     'Reconnecting... 2/5 (unexpected status 503 Service Unavailable: upstream connect error)',
+    'Reconnecting... 2/5 (Selected model is at capacity. Please try a different model.)',
 ])
 @pytest.mark.parametrize('completed', [False, True])
 def test_observed_reconnect_variants_require_successful_completion(tmp_path, message, completed):
