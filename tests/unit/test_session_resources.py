@@ -73,6 +73,7 @@ def test_harness_helpers_describe_only_available_commands(tmp_path, executable_c
     metadata = json.loads((tmp_path / 'protocol/harness.json').read_text())
     assert metadata['budget'] == {'phase_budgets': config.phase_budgets.identity()}
     assert ('process_check' in metadata['helpers']) == feedback
+    assert metadata.get('check_files') == ('/checks' if feedback else None)
     for helper in metadata['helpers'].values():
         assert (tmp_path / helper['command'][-1].removeprefix('/')).is_file()
     assert metadata['helpers']['benchmark_feedback']['command'] == [

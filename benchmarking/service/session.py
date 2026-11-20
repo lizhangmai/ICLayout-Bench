@@ -1,11 +1,17 @@
 """Record an explicitly supplied session and independently evaluate its accepted snapshot."""
 
 import json
+import shutil
 import time
 from dataclasses import replace
 from pathlib import Path
 
-from benchmarking.evaluation.feedback import feedback_details
+from benchmarking.evaluation.feedback import (
+    CHECK_FILES_MOUNT,
+    feedback_details,
+    participant_files,
+    publish_check_files,
+)
 from benchmarking.evaluation.runner import run_evaluation
 from benchmarking.evaluation.scoring import attempt_score
 from benchmarking.evidence.identity import (
@@ -26,6 +32,8 @@ from benchmarking.execution.workspace.environment import task_message
 from benchmarking.files import Asset, ReadOnlyMount, atomic_write
 
 __all__ = ["run_session"]
+
+CHECK_FILES_DIRECTORY = ".participant-checks"
 
 
 def run_session(task, config, resources, backends, destination: Path, *, session, inference=None, execution=None, resume=False):
@@ -101,6 +109,16 @@ def run_session(task, config, resources, backends, destination: Path, *, session
     if not resume:
         recorder.event("run.started", task_sha256=task.digest, agent_id=config.id)
     feedback_enabled = PROCESS_FEEDBACK_CAPABILITY in config.harness.capabilities
+    # Raw files of each process check, mounted read-only for the solver. The
+    # trusted copies remain under feedback/; this tree is removed after the solve.
+    check_files = destination / CHECK_FILES_DIRECTORY
+    if feedback_enabled:
+        check_files.mkdir(mode=0o755, exist_ok=True)
+        check_files.chmod(0o755)
+        # A resumed solve keeps reading the files of its earlier checks.
+        for previous in sorted((destination / "feedback").glob("check-*/report.json")):
+            publish_check_files(previous.parent, participant_files(json.loads(previous.read_bytes())),
+                                check_files / previous.parent.name)
 
     def process_feedback(candidate, sequence):
         feedback_root = destination / "feedback" / f"check-{sequence}"
@@ -114,27 +132,34 @@ def run_session(task, config, resources, backends, destination: Path, *, session
             task_witnessed=task.witnessed,
         )
         raw = (feedback_root / "report.json").read_bytes()
+        files = participant_files(evaluated)
+        publish_check_files(feedback_root, files, check_files / f"check-{sequence}")
+        mounted = f"{CHECK_FILES_MOUNT}/check-{sequence}"
         participant_report = {
             "report_id": f"check-{sequence}", "candidate_sha256": candidate.sha256,
             "evaluator_identity": evaluation_identity(task, backends),
             **{key: evaluated.get(key) for key in
                ("outcome", "physical_valid", "specs_pass", "task_success")},
-            "details": feedback_details(evaluated, feedback_root, bounded=False),
+            "details": feedback_details(evaluated, bounded=False, files=files, files_root=mounted),
         }
         atomic_write(feedback_root / "participant-report.json",
                      json.dumps(participant_report, ensure_ascii=False, allow_nan=False).encode())
         return {
             "report": evaluated,
             "evaluator_identity": evaluation_identity(task, backends),
-            "details": feedback_details(evaluated, feedback_root),
+            "details": feedback_details(evaluated, files=files, files_root=mounted),
             "report_id": f"check-{sequence}",
             "report_ref": archive(Asset(raw, "json")),
         }
 
     session_kwargs = {"inference": inference, "recorder": recorder}
     if feedback_enabled:
-        session_kwargs["feedback"] = process_feedback
-    result = session.run(task, config, resources, message, **session_kwargs)
+        session_kwargs.update(feedback=process_feedback, check_files=check_files)
+    try:
+        result = session.run(task, config, resources, message, **session_kwargs)
+    finally:
+        # The solver can no longer read the mount; trusted copies stay in feedback/.
+        shutil.rmtree(check_files, ignore_errors=True)
     if inference:
         if inference.shutdown_incomplete:
             raise RecordingError("Inference worker did not stop; run evidence remains incomplete")

@@ -4,6 +4,7 @@ Public session tests cover in-container clients, not the HTTP boundary. These
 checks independently compare archived bytes/digests, access denial and process
 exit. They protect replay and path isolation, not layout qualification.
 """
+import base64
 import hashlib
 import json
 import os
@@ -400,7 +401,17 @@ def test_remote_snapshot_retry_and_independent_evaluation(host, tmp_path):
     assert diagnostic['candidate_sha256'] == feedback['candidate']['sha256']
     assert diagnostic['details']['metrics']
     for details in (feedback['details'], diagnostic['details']):
-        assert set(details) == {'jobs', 'metrics', 'omitted_jobs', 'omitted_metrics'}
+        assert set(details) == {'jobs', 'metrics', 'omitted_jobs', 'omitted_metrics', 'files'}
+        assert 'evidence' not in details['jobs']['artifact']
+    index = diagnostic['details']['files']
+    assert index['root'] == '/checks/check-1' and index['jobs']['artifact']
+    # The solver reads the complete native files of its own check, read-only.
+    listed = client.execute(sid, 'cd /checks/check-1 && find . -type f | sort && touch artifact/x', 10, key='list')
+    listed = complete(client, sid, listed['execution_id'])
+    assert listed['exit_code'] != 0
+    output = base64.b64decode(listed['log_base64']).decode()
+    found = {line[2:] for line in output.splitlines() if line.startswith('./')}
+    assert found == {f'{job}/{name}' for job, names in index['jobs'].items() for name in names}
     assert client.result(sid)['score'] is None
     assert 'report_path' not in feedback
     with pytest.raises(ClientError) as denied:

@@ -159,7 +159,11 @@ def test_magic_candidate_rejection_reaches_feedback_and_zero_score_despite_conso
 
     from benchmarking.eda.backends.magic import MagicRCDocker
     from benchmarking.evaluation import parse_evaluation
-    from benchmarking.evaluation.feedback import feedback_details
+    from benchmarking.evaluation.feedback import (
+        feedback_details,
+        participant_files,
+        publish_check_files,
+    )
     from benchmarking.evaluation.runner import run_evaluation
     from benchmarking.evidence.bundles import publish_bundle
     from benchmarking.execution.tools import ToolResult
@@ -194,11 +198,14 @@ def test_magic_candidate_rejection_reaches_feedback_and_zero_score_despite_conso
     assert report['jobs']['parasitics']['reason'] == reason
     assert report['jobs']['nominal']['status'] == report['jobs']['slow']['status'] == 'blocked'
     assert report['outcome'] == 'failed' and report['score']['value'] == 0
+    files = participant_files(report)
+    publish_check_files(directory, files, tmp_path / 'checks')
+    # The participant reads the complete native console instead of an excerpt.
+    assert 'Substrate tile' in (tmp_path / 'checks/parasitics/console').read_text()
     for bounded in (True, False):
-        feedback = feedback_details(report, directory, bounded=bounded)
-        assert feedback['jobs']['parasitics']['status'] == 'failed'
-        assert feedback['jobs']['parasitics']['reason'] == reason
-        assert 'Substrate tile' in feedback['jobs']['parasitics']['evidence']['console']['text']
+        feedback = feedback_details(report, bounded=bounded, files=files, files_root='/checks/check-1')
+        assert feedback['jobs']['parasitics'] == {'status': 'failed', 'reason': reason}
+        assert feedback['files']['jobs']['parasitics']['console'] == len(console)
         assert not {'score', 'plan', 'inputs', 'pre_layout'} & feedback.keys()
 
 

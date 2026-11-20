@@ -39,9 +39,9 @@ TOOLS = [
          {"execution_id": STRING}, ["execution_id"]),
     tool("submit", "Snapshot the declared GDS candidate for independent judging. Use the task's output.path with its /workspace/ prefix removed: /workspace/output/final.gds becomes output/final.gds. Acceptance is not success.",
          {"path": STRING}, ["path"]),
-    tool("report", "Read diagnostic JSON for a check report_id. Concatenate content pages using next_offset while has_more is true. Report access is scoped to this session.",
+    tool("report", "Read diagnostic JSON for a check report_id. Concatenate content pages using next_offset while has_more is true. Report access is scoped to this session. details.files lists the native tool files of that check, readable with execute under /checks/check-N/<job>/.",
          {"report_id": STRING, "offset": {"type": "integer", "minimum": 0}}, ["report_id"]),
-    tool("check", "Check the current declared GDS output with the final evaluator's full plan. Returns physical/electrical diagnostics and candidate measurements, without scores or normalized quality factors; does not submit. May return running after wait_seconds (default 10); use poll. Consumes solve time; a started soft-budget check may finish after expiry. Do not request a new check at zero remaining time; submit immediately. Requires process-feedback capability.", {"wait_seconds": WAIT}),
+    tool("check", "Check the current declared GDS output with the final evaluator's full plan. Returns job verdicts and candidate measurements, without scores or normalized quality factors; does not submit. The native files of every job (reports, logs, extracted netlists, databases, waveforms) are listed in details.files and readable with execute under /checks/check-N/<job>/. May return running after wait_seconds (default 10); use poll. Consumes solve time; a started soft-budget check may finish after expiry. Do not request a new check at zero remaining time; submit immediately. Requires process-feedback capability.", {"wait_seconds": WAIT}),
 ]
 
 

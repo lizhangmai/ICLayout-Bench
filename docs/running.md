@@ -806,7 +806,9 @@ manifest and `/protocol/harness.json` for capabilities, budget and available
 helper commands; the full evaluation plan is held by the framework.
 
 Use `check` when `process-feedback` is advertised. It evaluates the current GDS
-with the final plan and returns physical/electrical diagnostics without a score.
+with the final plan and returns job verdicts and candidate measurements without a
+score. Each job's native files are readable under
+[`/checks/check-N`](architecture.md#check-files) in the EDA workspace.
 It consumes solve time and creates no submission. `execute` and `check` may return
 `running`; poll their execution IDs until terminal and drained, or cancel them.
 Only one workspace operation can run at a time. Submit the declared output

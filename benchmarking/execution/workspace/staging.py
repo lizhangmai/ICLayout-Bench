@@ -2,6 +2,7 @@
 
 import json
 
+from benchmarking.evaluation.feedback import CHECK_FILES_MOUNT
 from benchmarking.evidence.identity import package_source
 from benchmarking.execution._scripts import benchmark_feedback as opinions
 from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY
@@ -33,6 +34,7 @@ def stage_inputs(root, task, config, resources, message, resource_info, *, infer
         **config.harness.identity(),
         'budget': {'phase_budgets': config.phase_budgets.identity()},
         'helpers': helpers,
+        **({'check_files': CHECK_FILES_MOUNT} if feedback_enabled else {}),
     }, sort_keys=True).encode(), 'json')
     groups = {"agent": config.files, "resources": resources, "protocol": protocol_files}
     if inference:

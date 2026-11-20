@@ -1,27 +1,83 @@
-"""Participant diagnostics with explicit truncation and private evidence filtering."""
+"""Participant diagnostics: verdicts, candidate measurements and raw check files."""
 
 import json
+import os
+import shutil
+from pathlib import Path
+
+from benchmarking.files import relative
+
+# Bench provenance (host cache paths), not a tool product. The trusted report,
+# plan and evaluator inputs are never job files and stay private as well.
+PRIVATE_FILE_NAMES = frozenset({"support_manifest"})
+CHECK_FILES_MOUNT = "/checks"
+BOUNDED_INDEX_BYTES = 12000
 
 
-def feedback_details(report, directory, *, bounded=True):
-    """Candidate diagnostics only; scores, evaluator inputs and reference assets stay private."""
+def participant_files(report):
+    """List every job output and evidence file that the participant may read."""
+    files, seen = [], set()
+    for job_id, job in report["jobs"].items():
+        relative(job_id, "job id")
+        for group in ("evidence", "outputs"):
+            for name, ref in (job.get(group) or {}).items():
+                path = ref.get("path")
+                if not path or name in PRIVATE_FILE_NAMES:
+                    continue
+                target = relative(f"{job_id}/{name}", "check file")
+                if target in seen:
+                    if any(f["target"] == target and f["path"] == path for f in files):
+                        continue
+                    target = relative(f"{job_id}/{group}/{name}", "check file")
+                seen.add(target)
+                files.append({"target": target, "path": relative(path, "check artifact"),
+                              "bytes": ref.get("bytes")})
+    return files
+
+
+def publish_check_files(source, files, destination):
+    """Expose immutable check files read-only without copying them when possible."""
+    destination = Path(destination)
+    destination.mkdir(parents=True, exist_ok=True)
+    for item in files:
+        target = destination / item["target"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if not target.exists():
+            origin = Path(source) / item["path"]
+            try:
+                os.link(origin, target)
+            except OSError:
+                shutil.copyfile(origin, target)
+        # A rootless solver UID reads through the bind mount as "other".
+        target.chmod(0o444)
+    for directory in [destination, *(p for p in destination.rglob("*") if p.is_dir())]:
+        directory.chmod(0o755)
+
+
+def file_index(files, root, *, limit=None):
+    """Group file sizes by job; a bounded reply lists as many files as fit."""
+    index = {"root": root, "jobs": {}, "omitted_files": 0}
+    for item in files:
+        job, name = item["target"].split("/", 1)
+        index["jobs"].setdefault(job, {})[name] = item["bytes"]
+    if limit is not None:
+        while len(json.dumps(index).encode()) > limit and index["jobs"]:
+            job = next(reversed(index["jobs"]))
+            entries = index["jobs"][job]
+            entries.pop(next(reversed(entries)))
+            index["omitted_files"] += 1
+            if not entries:
+                index["jobs"].pop(job)
+    return index
+
+
+def feedback_details(report, *, bounded=True, files=None, files_root=None):
+    """Candidate verdicts and measurements; scores and evaluator inputs stay private."""
     jobs = {}
-    log_budget = 6000
     for name, job in report["jobs"].items():
         detail = {"status": job["status"], "reason": job.get("reason", "")[:512]}
         if job.get('failure'):
             detail['failure'] = job['failure']
-        if job["status"] in {"failed", "error"}:
-            logs = {}
-            for key in ("log", "console", "result.json"):
-                asset = job.get("evidence", {}).get(key, {})
-                if asset.get("path") and log_budget:
-                    raw = (directory / asset["path"]).read_bytes()
-                    limit = min(log_budget, 2000)
-                    logs[key] = {"text": raw[-limit:].decode(errors="replace"),
-                                 "truncated": len(raw) > limit}
-                    log_budget -= min(len(raw), limit)
-            detail["evidence"] = logs
         jobs[name] = detail
     metrics = {}
     for name, metric in report.get("metrics", {}).items():
@@ -48,4 +104,6 @@ def feedback_details(report, directory, *, bounded=True):
             detail["omitted_metrics"] += 1
         else:
             break
+    if files is not None:
+        detail["files"] = file_index(files, files_root, limit=BOUNDED_INDEX_BYTES if bounded else None)
     return detail

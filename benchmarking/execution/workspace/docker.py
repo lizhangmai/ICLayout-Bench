@@ -10,6 +10,7 @@ import threading
 import time
 from pathlib import Path
 
+from benchmarking.evaluation.feedback import CHECK_FILES_MOUNT
 from benchmarking.evidence.identity import SESSION_SOURCE_FILES, package_source
 from benchmarking.evidence.journal import RecordingError
 from benchmarking.execution._scripts import benchmark_feedback as opinions
@@ -70,7 +71,8 @@ class DockerSession:
         self.runtime = runtime
         self.resume = resume
         if runtime:
-            reserved = tuple(Path(p) for p in ('/task', '/agent', '/resources', '/protocol', '/usr', '/bin', '/lib', '/lib64', '/etc'))
+            reserved = tuple(Path(p) for p in ('/task', '/agent', '/resources', '/protocol', CHECK_FILES_MOUNT,
+                                               '/usr', '/bin', '/lib', '/lib64', '/etc'))
             for mount in runtime.mounts:
                 target = Path(mount['target'])
                 if any(target == p or target in p.parents or p in target.parents for p in reserved):
@@ -108,7 +110,8 @@ class DockerSession:
             str(uid), str(gid), *paths,
         ], check=True, capture_output=True, timeout=30)
 
-    def run(self, task, config, resources, message, *, inference=None, recorder=None, feedback=None, on_ready=None):
+    def run(self, task, config, resources, message, *, inference=None, recorder=None, feedback=None,
+            check_files=None, on_ready=None):
         if self.resume and on_ready is None:
             raise ValueError('Workspace recovery requires an attached local session')
         if inference and recorder:
@@ -160,6 +163,9 @@ class DockerSession:
             mounts = [arg for name in ("task", "agent", "resources", "protocol")
                       for arg in ("--mount", f"type=bind,src={root/name},dst=/{name},readonly")]
             mounts.extend(resource_mounts)
+            if check_files is not None:
+                # Process-check files appear here as the session publishes them.
+                mounts.extend(("--mount", f"type=bind,src={Path(check_files).absolute()},dst={CHECK_FILES_MOUNT},readonly"))
             if self.runtime:
                 mounts.extend(self.runtime.docker_args())
             env = [arg for k, v in agent_environment.items() for arg in ("--env", f"{k}={v}")]

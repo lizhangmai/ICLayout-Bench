@@ -109,7 +109,7 @@ def _sources(root):
             path = Path(base) / name
             if path.is_symlink():
                 raise EvidenceError('Symlink in retained archive: ' + str(path))
-            if name in {'.retained', '.runtime', '.private', '__pycache__', '.objects'}:
+            if name in {'.retained', '.runtime', '.private', '.participant-checks', '__pycache__', '.objects'}:
                 directories.remove(name)
         for name in files:
             path = Path(base) / name

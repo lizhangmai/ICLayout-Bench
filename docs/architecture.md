@@ -356,8 +356,21 @@ credentials remain with your controller; EDA commands run in the service workspa
 
 `check` evaluates the current GDS through the final trusted plan without
 submitting it. It consumes solve time, has no request-count cap and returns
-physical/electrical diagnostics without score, weights or normalized quality
-factors. It does not expose trusted source-paired scoring breakdowns.
+job verdicts and candidate measurements without score, weights or normalized
+quality factors. It does not expose trusted source-paired scoring breakdowns.
+
+<a id="check-files"></a>
+Every job's native files from a check are mounted read-only in the solver
+session at `/checks/check-N/<job>/<name>`: tool reports and logs, extracted
+netlists, LVS/DRC databases, waveforms and the job's run scripts, unmodified
+and untruncated. A name repeated between a job's evidence and outputs keeps the
+evidence file there and the output under `<job>/outputs/<name>`. The trusted
+report, evaluation plan, evaluator inputs and Bench's support-provenance
+manifest are not published; the declared task inputs are already under `/task`.
+`/protocol/harness.json` names the mount as `check_files` when process feedback
+is enabled. The files remain readable for the rest of the solve, including
+after workspace recovery, and are removed from the solver view when it ends;
+the run's trusted evaluation directories keep the originals.
 
 MCP `execute` and `check` return after `wait_seconds` (default 10, range 0–30).
 A `running` reply retains `execution_id` and `next_offset`; use `poll`, or `cancel`
@@ -366,7 +379,11 @@ propagates to evaluator jobs and retains failure evidence. New workspace
 operations require the active execution to stop.
 
 A completed feedback response includes the candidate binding, evaluator identity,
-physical/electrical outcomes, metric values/units and bounded job diagnostics.
+physical/electrical outcomes, metric values/units, each job's status, reason and
+infrastructure-failure category, and `details.files`: the `/checks/check-N` root
+with file sizes grouped by job. Native output is read from those files; the
+response does not quote log excerpts. A long index in the immediate response
+counts the files left out as `omitted_files`; the full report lists every file.
 A successful command exit means the check was accepted: inspect
 `feedback.outcome` for the verdict. Read the full `report_id` using MCP `report`
 or `Client.report`, concatenating `content` until `has_more` is false. Report

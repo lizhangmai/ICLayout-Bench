@@ -281,7 +281,7 @@ def test_drc_lvs_success_is_not_performance_success(tmp_path, inputs, bindings):
     assert report["metrics"]["delay"]["observations"]["slow:delay"]["status"] == "failed"
     assert report["score"]["value"] == 0
     # Successful simulator execution must still expose failing spec measurements.
-    details = feedback_details(report, tmp_path)
+    details = feedback_details(report)
     assert details["jobs"]["slow"]["status"] == "passed"
     metric = details["metrics"]["delay"]
     assert metric["status"] == "failed"
@@ -498,7 +498,7 @@ def test_feedback_preserves_candidate_diagnostics_without_scoring(tmp_path, inpu
     original = json.dumps(report, sort_keys=True)
     assert report["score"]["value"] > 0
 
-    details = feedback_details(report, tmp_path, bounded=bounded)
+    details = feedback_details(report, bounded=bounded)
 
     assert set(details) == {"jobs", "metrics", "omitted_jobs", "omitted_metrics"}
     assert details["metrics"]["delay"]["observations"] == report["metrics"]["delay"]["observations"]
@@ -512,8 +512,8 @@ def test_bounded_feedback_marks_omissions_and_full_report_keeps_diagnostics(tmp_
     report = evaluate(tmp_path, inputs, bindings)
     report["jobs"].update({f"diagnostic_{i}": {"status": "passed", "reason": "x" * 512}
                            for i in range(100)})
-    full = feedback_details(report, tmp_path, bounded=False)
-    bounded = feedback_details(report, tmp_path)
+    full = feedback_details(report, bounded=False)
+    bounded = feedback_details(report)
 
     assert len(json.dumps(bounded).encode()) <= 28000
     assert bounded["omitted_jobs"] > 0
@@ -528,7 +528,7 @@ def test_summary_cannot_hide_a_failing_case(tmp_path, inputs, bindings):
     assert report["metrics"]["delay"]["value"] == 3.0
     assert report["metrics"]["delay"]["status"] == "failed"
     # The aggregate passes, but a lower-valued corner violates the lower bound.
-    assert feedback_details(report, tmp_path)["metrics"]["delay"]["shortfall"] == pytest.approx(1.0)
+    assert feedback_details(report)["metrics"]["delay"]["shortfall"] == pytest.approx(1.0)
 
 
 @pytest.mark.parametrize('parallel_jobs', [1, 2])
@@ -968,3 +968,109 @@ def test_measurement_bounds_are_inclusive_for_signed_and_zero_values(
     assert report['specs_pass'] is accepted
     assert report['metrics']['voltage']['status'] == ('passed' if accepted else 'failed')
     assert report['task_success'] is None
+
+
+def test_check_files_publish_raw_job_files_and_keep_trusted_records_private(tmp_path, inputs, bindings):
+    import os
+    import stat
+
+    from benchmarking.evaluation.feedback import participant_files, publish_check_files
+
+    original = bindings['extract'].run
+
+    def with_manifest(job, assets):
+        result = original(job, assets)
+        evidence = {**result.evidence, 'support_manifest': Asset(b'{"source_root": "/home/maintainer"}', 'json'),
+                    'netlist': Asset(b'evidence copy', 'text'), 'native/result.json': Asset(b'{}', 'json')}
+        return JobResult(result.status, result.reason, outputs=result.outputs, evidence=evidence)
+
+    bindings['extract'].run = with_manifest
+    report = evaluate(tmp_path, inputs, bindings)
+    files = participant_files(report)
+    targets = {item['target'] for item in files}
+    assert {'parasitics/log', 'parasitics/netlist', 'parasitics/outputs/netlist',
+            'parasitics/native/result.json'} <= targets
+    assert not any(item['target'].endswith('support_manifest') for item in files)
+    trusted = {report['plan']['path'], *(ref['path'] for ref in report['inputs'].values())}
+    assert not trusted & {item['path'] for item in files}
+
+    checks = tmp_path / 'checks' / 'check-1'
+    for _ in range(2):  # Republishing after recovery is idempotent.
+        publish_check_files(tmp_path / 'report', files, checks)
+    output = checks / 'parasitics/outputs/netlist'
+    assert output.read_bytes() == b'derived-from-layout'
+    assert (checks / 'parasitics/netlist').read_bytes() == b'evidence copy'
+    assert os.path.samefile(output, tmp_path / 'report' / report['jobs']['parasitics']['outputs']['netlist']['path'])
+    for path in [checks, *checks.rglob('*')]:
+        mode = stat.S_IMODE(path.stat().st_mode)
+        assert mode == (0o755 if path.is_dir() else 0o444), path
+    assert not (checks.parent / 'report.json').exists() and not list(checks.rglob('report.json'))
+
+
+def test_feedback_lists_check_files_without_log_excerpts(tmp_path, inputs, bindings):
+    from benchmarking.evaluation.feedback import BOUNDED_INDEX_BYTES, participant_files
+
+    report = evaluate(tmp_path, inputs, bindings)
+    files = participant_files(report)
+    files += [{'target': f'nominal/many/{i:04d}.raw', 'path': 'artifacts/x', 'bytes': i} for i in range(2000)]
+    full = feedback_details(report, bounded=False, files=files, files_root='/checks/check-3')
+    bounded = feedback_details(report, files=files, files_root='/checks/check-3')
+
+    assert full['files']['root'] == bounded['files']['root'] == '/checks/check-3'
+    assert full['files']['omitted_files'] == 0
+    assert sum(map(len, full['files']['jobs'].values())) == len(files)
+    assert len(json.dumps(bounded['files']).encode()) <= BOUNDED_INDEX_BYTES
+    assert bounded['files']['omitted_files'] == len(files) - sum(map(len, bounded['files']['jobs'].values())) > 0
+    assert full['files']['jobs']['parasitics']['log'] == len(b'extraction evidence')
+    for details in (full, bounded):
+        assert all(set(job) <= {'status', 'reason', 'failure'} for job in details['jobs'].values())
+
+
+def test_session_mounts_each_check_and_republishes_after_recovery(tmp_path, inputs, bindings):
+    from types import SimpleNamespace
+
+    from benchmarking.execution.budgets import PhaseBudgets
+    from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY, HarnessSpec
+    from benchmarking.execution.workspace import SessionResult
+    from benchmarking.execution.workspace.config import RunConfig
+    from benchmarking.service.session import run_session
+
+    task = SimpleNamespace(hours=None, problem='Synthetic check-file publication',
+                           evaluation=parse_evaluation(PLAN), digest='fixture', witnessed=True,
+                           evaluation_inputs=lambda: {**inputs, 'task': Asset(b'{}', 'json')},
+                           input_assets=lambda: {'netlist': inputs['input:netlist']})
+    config = RunConfig('fixture', 'unused', ('fixture',), 10, None, None, None, 16, {}, {},
+                       Asset(b'fixture', 'text'),
+                       HarnessSpec(capabilities=(PROCESS_FEEDBACK_CAPABILITY,)), PhaseBudgets(10))
+    destination = tmp_path / 'session'
+    seen = {}
+
+    class Interrupted(Exception):
+        pass
+
+    class First:
+        def run(self, task, config, resources, message, *, feedback, check_files, **kwargs):
+            seen['mount'] = check_files
+            details = feedback(inputs['candidate'], 1)['details']
+            seen['index'] = details['files']
+            seen['published'] = sorted(p.relative_to(check_files).as_posix()
+                                       for p in check_files.rglob('*') if p.is_file())
+            raise Interrupted
+
+    with pytest.raises(Interrupted):
+        run_session(task, config, {}, bindings, destination, session=First())
+    index = seen['index']
+    assert index['root'] == '/checks/check-1'
+    assert seen['published'] == sorted(f'check-1/{job}/{name}'
+                                       for job, names in index['jobs'].items() for name in names)
+    assert not seen['mount'].exists()  # Removed with the solver view; feedback/ keeps the originals.
+    assert (destination / 'feedback/check-1/report.json').is_file()
+
+    class Recovered:
+        def run(self, task, config, resources, message, *, feedback, check_files, **kwargs):
+            seen['recovered'] = sorted(p.relative_to(check_files).as_posix()
+                                       for p in check_files.rglob('*') if p.is_file())
+            return SessionResult('completed', '', 0, 0, [], None, Asset(b'', 'text'), False, {})
+
+    run_session(task, config, {}, bindings, destination, session=Recovered(), resume=True)
+    assert seen['recovered'] == seen['published']

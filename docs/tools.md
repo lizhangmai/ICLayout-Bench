@@ -407,7 +407,8 @@ substitutions reject an unusable candidate extraction even if Magic writes a
 netlist. Native interface validation reports explicit `passed`/`failed` verdicts;
 after successful tool execution, an explicit candidate rejection takes precedence
 over generic console-error matching. Its reason is returned in `check` and report
-feedback, with the native console retained as supporting evidence. Tool crashes,
+feedback; the native console and other job files are readable under
+[`/checks`](architecture.md#check-files) during the solve. Tool crashes,
 execution/cleanup failures and missing/malformed interface reports remain `error`.
 Optional `label_layers` is a
 nonempty list of GDS layer/datatype pairs that may contain electrical text;
