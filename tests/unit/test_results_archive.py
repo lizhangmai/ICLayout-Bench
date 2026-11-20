@@ -501,7 +501,7 @@ def test_runner_storage_configuration_does_not_change_frozen_conditions(
     args = ["--config", str(config), "--endpoint", "https://example.invalid"]
     assert cli.main(args) == 0
     config.write_text('results_data="results/archive"\n' + base)
-    assert read_configs([config])[0]["results_data"] == "results/archive"
+    assert read_configs([config])[0]["results_data"] == str((config.parent / "results/archive").resolve())
     assert cli.main(args) == 0
     assert identities[0] == identities[1]
     config.write_text("results_data=false\n" + base)

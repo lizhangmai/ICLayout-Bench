@@ -134,9 +134,7 @@ name = "core"                         # "core" benchmark or "all" tasks
 split = "test"
 ```
 
-`harness_home` and a local Dataset `source` resolve from this file's directory;
-see [paths](docs/running.md#paths-and-environment-variables) for other fields.
-The full field list is in the
+Paths in this file resolve from its own directory. The full field list is in the
 [configuration reference](docs/running.md#configuration-reference).
 
 ### 4. Check the setup, then solve one task

@@ -123,7 +123,7 @@ name = "core"                         # "core" 标准评测集或 "all" 全部�
 split = "test"
 ```
 
-`harness_home` 和本地题库 `source` 相对于该文件所在目录解析，其他字段见[路径规则](docs/running.md#paths-and-environment-variables)。完整字段见[配置参考](docs/running.md#configuration-reference)。
+文件中的路径相对于该文件所在目录解析。完整字段见[配置参考](docs/running.md#configuration-reference)。
 
 ### 4. 检查配置，再求解一道题
 

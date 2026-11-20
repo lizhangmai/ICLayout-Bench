@@ -164,8 +164,9 @@ def _scheme(row, base):
     from benchmarking.participants.harnesses.scheme import resolve_scheme
     if "harness_home" in row:
         row["harness_home"] = str((base / row["harness_home"]).resolve())
-    if 'archive_objects' in row:
-        row['archive_objects'] = str((base / row['archive_objects']).resolve())
+    for key in ('archive_objects', 'results_data'):
+        if key in row:
+            row[key] = str((base / row[key]).resolve())
     if "scheme" in row or row["harness"] == "command":
         row["scheme"] = resolve_scheme(row.get("scheme", {}), base, row["harness"])
     return row

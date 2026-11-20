@@ -120,7 +120,7 @@ names do not imply equal computation.
 | `pricing_file` or `[pricing]` | Optional explicit [model price snapshot](#pricing); use one source. |
 | `[recovery]` | Optional overrides of [recovery defaults](#recovery-settings). |
 | `[scheme]` | Optional declared [participant tools](#participant-tool-schemes) or [custom controller](#custom-controllers). |
-| `results_data` | Optional [local archive](#automatic-indexing-and-recovery) directory. |
+| `results_data` | Optional [local archive](#automatic-indexing-and-recovery) directory, relative to the configuration file. |
 | `archive_objects` | Optional shared compressed object directory, relative to the configuration file. Storage location is not part of the model condition. |
 
 #### Static Dataset inputs
@@ -158,10 +158,10 @@ PDK and derived [resource caches](tools.md#resource-caches).
 
 #### Paths and environment variables
 
-CLI paths resolve from the command's working directory. Dataset sources,
-`harness_home`, `pricing_file` and declared scheme files in TOML resolve from that
-configuration's directory. `--output` and `results_data` resolve from the command's
-working directory. Commands do not search parent directories for `.env` files.
+CLI paths and environment variables resolve from the command's working
+directory. Paths in a TOML configuration (Dataset sources, `harness_home`,
+`pricing_file`, `results_data`, `archive_objects` and declared scheme files)
+resolve from that configuration's directory. Commands do not search parent directories for `.env` files.
 
 Explicit CLI arguments override environment-backed defaults; process variables
 override an explicitly selected dotenv file; application defaults apply last.
@@ -1502,8 +1502,9 @@ not overlaid.
 Set `results_data = "results/archive"` in an experiment TOML, add
 `--results-data results/archive` to `benchmarking.run`, or set
 `ICLAYOUT_BENCH_RESULTS_DATA` to the archive directory. The command-line/environment
-setting overrides the TOML setting. Relative paths resolve from the invocation
-directory; this storage setting is excluded from frozen experiment conditions. This requires the optional
+setting overrides the TOML setting. A relative TOML path resolves from the
+configuration's directory; command-line and environment paths resolve from the
+invocation directory. This storage setting is excluded from frozen experiment conditions. This requires the optional
 `results` dependencies. Once a terminal export is committed, the runner enqueues its
 path and experiment schedule, imports it, then removes the outbox entry. Existing
 completed cases are also indexed on skip. An indexing failure does not alter the
