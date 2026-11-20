@@ -3,9 +3,11 @@
 import json
 import math
 from pathlib import Path
+from typing import NamedTuple
 
 from benchmarking.evaluation import parse_evaluation
-from benchmarking.evaluation.scoring import attempt_score
+from benchmarking.evaluation.contracts import EvaluationPlan
+from benchmarking.evaluation.scoring import check_service_score
 from benchmarking.evidence.archive import verify_evaluated_candidate
 from benchmarking.evidence.identity import source_key
 from benchmarking.evidence.journal import recover_submissions
@@ -13,6 +15,13 @@ from benchmarking.execution._scripts import benchmark_feedback as opinions
 from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY
 from benchmarking.files import Asset, read_file
 
+
+class FrozenRun(NamedTuple):
+    """A verified run report, its evaluator report and the frozen plan it was scored with."""
+
+    report: dict
+    evaluation: dict | None
+    plan: EvaluationPlan | None
 
 def read_archived_asset(root, reference, label):
     """Read and verify an archive reference from a trusted run directory."""
@@ -254,7 +263,7 @@ def verify_frozen_run(run_root, report, *, frozen_root, task, agent, execution, 
     recovered = recover_submissions(run_root)
     if recovered["candidate"] != report.get("candidate"):
         raise ValueError("Reported candidate differs from the last durable submission")
-    evaluation = None
+    evaluation = plan = None
     if report.get("evaluation"):
         ref = report["evaluation"]
         raw = read_file(run_root, ref["path"])
@@ -268,10 +277,10 @@ def verify_frozen_run(run_root, report, *, frozen_root, task, agent, execution, 
         if (evaluation.get("task_sha256") != task["task_sha256"] or evaluation["backends"] != expected_backends
                 or evaluation.get("task_witnessed") != task["witnessed"]):
             raise ValueError("Evaluation does not match its task, candidate or toolchain")
-        evaluation["_frozen_plan"] = _verify_evaluation_inputs(root, run_root, evaluation, report, task)
+        plan = _verify_evaluation_inputs(root, run_root, evaluation, report, task)
     _verify_process_feedback(run_root, report, implementation, task)
     read_benchmark_feedback(run_root, report)
-    return report, evaluation
+    return FrozenRun(report, evaluation, plan)
 
 
 def verify_service_result(store, result, *, frozen, image_id):
@@ -319,9 +328,5 @@ def verify_service_result(store, result, *, frozen, image_id):
             "evaluation_inputs"
         ]:
             raise ValueError("Evaluation inputs differ from frozen task")
-        expected_score = evaluated.get('score')
-        if expected_score is not None:
-            expected_score = attempt_score(report.get('termination'), report['outcome'], expected_score,
-                                           method=expected_score['method'])
-        if expected_score != result["score"]:
-            raise ValueError("Score differs from trusted evaluation")
+        check_service_score(result["score"], report.get('termination'), report['outcome'],
+                            evaluated.get('score'))

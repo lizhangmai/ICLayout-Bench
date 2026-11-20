@@ -468,15 +468,18 @@ share budget interpretation, session settlement and terminal result waiting.
 Arbitrary commands are not automatically restarted after interruption.
 
 `benchmarking.results.verification.verify_frozen_run` checks one run against
-explicit frozen task, agent, execution and implementation bindings. The caller
-supplies the run directory and frozen asset root; the verifier owns archive paths,
-event interpretation and evaluation input checks. `verify_service_result` checks
-an HTTP result against the retained service store and frozen task/tool bindings.
-Both verifiers bind the evaluator's candidate input to the accepted submission.
-Candidate quality and attempt score remain distinct: attempt termination rules
-apply when comparing the service score with independent evaluation evidence.
-`benchmarking.results.scoring.verified_run_score` recomputes verified evidence and
-applies the same attempt termination rules as execution.
+explicit frozen task, agent, execution and implementation bindings and returns a
+`FrozenRun` with the run report, the evaluator report and the frozen evaluation
+plan. The caller supplies the run directory and frozen asset root; the verifier
+owns archive paths, event interpretation and evaluation input checks.
+`verify_service_result` checks an HTTP result against the retained service store
+and frozen task/tool bindings. Both verifiers bind the evaluator's candidate input
+to the accepted submission. Candidate quality and attempt score remain distinct:
+attempt termination rules apply when comparing the service score with independent
+evaluation evidence. `benchmarking.results.scoring.verified_run_score` takes a
+`FrozenRun`, recomputes the score from its plan and job evidence, applies the same
+attempt termination rules as execution, and requires the copied evaluator and run
+scores to agree in method and value.
 
 `benchmarking.participants.attempt.attachments.attach_session_evidence` attaches the exact
 scored candidate, independent evaluation and optional EDA preview to a terminal

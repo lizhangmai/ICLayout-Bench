@@ -83,15 +83,14 @@ def verify(root, result):
 
 def evaluation_export(evidence, root, files, prefix='evaluation', *, process=False):
     from benchmarking.evaluation.plans import parse_evaluation
-    from benchmarking.evaluation.scoring import recompute_score
+    from benchmarking.evaluation.scoring import verified_score
     from benchmarking.results.retention import process_omissions
 
     report = evidence.report
     omissions = process_omissions(report) if process else {}
     plan_raw = evidence.plan.content
     plan = parse_evaluation(plan_raw, file_format=evidence.plan.format)
-    if recompute_score(plan, report) != report.get('score'):
-        raise ValueError('Evaluation measurements do not reproduce the stored score')
+    verified_score(plan, report)
     put(root, prefix + '/plan.json', plan_raw, files)
     report['plan']['path'] = 'plan.json'
     # Freeze exactly the evaluated inputs. These are declared task materials,

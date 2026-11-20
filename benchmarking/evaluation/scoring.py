@@ -22,6 +22,8 @@ from collections.abc import Mapping
 from typing import Any
 
 from benchmarking.evaluation.contracts import EvaluationPlan, Metric
+from benchmarking.files import EvidenceError
+from benchmarking.protocol import layout_score_value
 
 _FAILED = "failed"
 _UNKNOWN = frozenset({"error", "blocked"})
@@ -233,6 +235,28 @@ def recompute_score(plan: EvaluationPlan, report: Mapping[str, Any]) -> dict | N
     return score_layout(plan, jobs)
 
 
+def same_score(first: Mapping[str, Any] | None, second: Mapping[str, Any] | None) -> bool:
+    """Whether two score records share a method and agree in value within float noise.
+
+    Score records may gain descriptive fields across releases; the method and
+    the scalar value are the contract every verifier compares.
+    """
+    if first is None or second is None:
+        return first is None and second is None
+    if first.get("method") != second.get("method"):
+        return False
+    a, b = layout_score_value(first), layout_score_value(second)
+    return (a is None) == (b is None) and (a is None or math.isclose(a, b, rel_tol=1e-12, abs_tol=1e-12))
+
+
+def verified_score(plan: EvaluationPlan, report: Mapping[str, Any]) -> dict | None:
+    """Recompute a report's score from raw job evidence; the stored score must agree."""
+    recomputed = recompute_score(plan, report)
+    if not same_score(recomputed, report.get("score")):
+        raise ValueError("Evaluation measurements do not reproduce the stored score")
+    return recomputed
+
+
 def attempt_score(termination, outcome, candidate_score, *, method="layout"):
     """Apply solve termination semantics to an independently evaluated candidate.
 
@@ -246,3 +270,16 @@ def attempt_score(termination, outcome, candidate_score, *, method="layout"):
         return {"method": method, "value": 0.0, "maximum": 100, "reference": 100,
                 "components": {"G": 0.0, "E": None, "Q": None}}
     return candidate_score
+
+
+def service_score(termination, outcome, evaluation_score):
+    """Score a service result must report for an evaluator score and solve termination."""
+    if evaluation_score is None:
+        return None
+    return attempt_score(termination, outcome, evaluation_score, method=evaluation_score["method"])
+
+
+def check_service_score(declared, termination, outcome, evaluation_score):
+    """Require a service or run score to be exactly the one implied by its evaluator report."""
+    if service_score(termination, outcome, evaluation_score) != declared:
+        raise EvidenceError("Service score differs from the evaluator report")

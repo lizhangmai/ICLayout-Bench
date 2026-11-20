@@ -571,3 +571,57 @@ def test_shared_layout_score_rejects_invalid_values(value):
 
     with pytest.raises(ValueError):
         layout_score_value({'method': 'layout', 'maximum': 100, 'reference': 100, 'value': value})
+
+
+def test_stored_scores_must_reproduce_from_raw_evidence(tmp_path, inputs, bindings):
+    from benchmarking.evaluation.scoring import same_score, verified_score
+
+    plan, report = reference_report(tmp_path, inputs, bindings)
+    assert verified_score(plan, report) == report["score"]
+    # A copied scalar may differ by float noise; a changed value or method may not.
+    score = report["score"]
+    assert same_score(score, dict(score, value=score["value"] * (1 + 1e-14)))
+    assert not same_score(score, dict(score, value=score["value"] - 1e-6))
+    assert not same_score(score, dict(score, method="other"))
+    assert same_score(None, None) and not same_score(score, None)
+    tampered = copy.deepcopy(report)
+    tampered["jobs"]["slow"]["measurements"]["delay"]["value"] = 8
+    with pytest.raises(ValueError, match="do not reproduce"):
+        verified_score(plan, tampered)
+
+
+def test_service_score_must_be_the_one_implied_by_its_evaluator_report():
+    from benchmarking.evaluation.scoring import check_service_score, service_score
+    from benchmarking.files import EvidenceError
+
+    evaluator = {"method": "layout", "value": 73, "maximum": 100, "reference": 100}
+    check_service_score(evaluator, "completed", "passed", evaluator)
+    check_service_score(None, "completed", "passed", None)
+    # An agent error scores zero even when its last candidate was evaluated.
+    zero = service_score("agent_error", "passed", evaluator)
+    assert zero["value"] == 0
+    check_service_score(zero, "agent_error", "passed", evaluator)
+    with pytest.raises(EvidenceError, match="evaluator report"):
+        check_service_score(evaluator, "agent_error", "passed", evaluator)
+    with pytest.raises(EvidenceError, match="evaluator report"):
+        check_service_score(dict(evaluator, value=72), "completed", "passed", evaluator)
+
+
+def test_verified_run_score_recomputes_with_the_frozen_plan(tmp_path, inputs, bindings):
+    from benchmarking.results.scoring import verified_run_score
+    from benchmarking.results.verification import FrozenRun
+
+    plan, evaluation = reference_report(tmp_path, inputs, bindings)
+    run = {"termination": "completed", "outcome": "passed", "candidate": {"sha256": "0" * 64},
+           "score": copy.deepcopy(evaluation["score"])}
+    assert verified_run_score(FrozenRun(run, evaluation, plan)) == pytest.approx(100 * math.sqrt(1 / 1.5))
+    # Copied scores are never trusted without the frozen plan.
+    assert verified_run_score(FrozenRun(run, evaluation, None)) is None
+    assert verified_run_score(FrozenRun(dict(run, termination="infrastructure_error"), evaluation, plan)) is None
+    assert verified_run_score(FrozenRun(dict(run, termination="agent_error"), evaluation, plan)) == 0
+    with pytest.raises(ValueError, match="Run task score differs"):
+        verified_run_score(FrozenRun(dict(run, score=dict(run["score"], value=1.0)), evaluation, plan))
+    altered = copy.deepcopy(evaluation)
+    altered["score"]["value"] = 1.0
+    with pytest.raises(ValueError, match="Evaluation task score differs"):
+        verified_run_score(FrozenRun(run, altered, plan))

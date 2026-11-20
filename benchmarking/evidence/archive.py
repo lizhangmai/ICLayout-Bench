@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from benchmarking.evaluation.scoring import attempt_score
+from benchmarking.evaluation.scoring import check_service_score
 from benchmarking.evidence.journal import read_journal, recover_submissions
 from benchmarking.files import Asset, EvidenceError, checked, read_file
 
@@ -146,12 +146,8 @@ class RunArchive:
             if result.get('submission'):
                 verify_evaluated_candidate(judged, result['submission']['candidate_sha256'])
                 evaluation.artifact(judged['inputs']['candidate'])
-            expected = judged.get('score')
-            if expected is not None:
-                expected = attempt_score(self.report.get('termination'), self.report.get('outcome'),
-                                         expected, method=expected['method'])
-            if expected != result.get('score'):
-                raise EvidenceError('Service score differs from independent evaluator report')
+            check_service_score(result.get('score'), self.report.get('termination'),
+                                self.report.get('outcome'), judged.get('score'))
         return FinalRunEvidence(candidate, top_cell, evaluation, self.report.get('termination'))
 
     def feedback(self):

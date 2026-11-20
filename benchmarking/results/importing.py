@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from benchmarking.evaluation.scoring import attempt_score
+from benchmarking.evaluation.scoring import check_service_score
 from benchmarking.evidence.archive import verify_evaluated_candidate
 from benchmarking.files import read_file
 from benchmarking.protocol import digest
@@ -80,12 +80,8 @@ def prepare_result(path, namespace):
         report = json.loads(files["evaluation/report.json"])
         if 'inputs' in report and run_data['candidate_sha256']:
             verify_evaluated_candidate(report, run_data['candidate_sha256'])
-        expected = report.get("score")
-        if expected is not None:
-            expected = attempt_score(evaluation.get("termination"), evaluation.get("outcome"),
-                                     expected, method=expected["method"])
-        if expected != evaluation.get("score"):
-            raise ValueError("Evaluation report and service score disagree")
+        check_service_score(evaluation.get("score"), evaluation.get("termination"),
+                            evaluation.get("outcome"), report.get("score"))
     run_data["imported_candidate_sha256"] = (
         digest(files["final.gds"]) if "final.gds" in files else None
     )

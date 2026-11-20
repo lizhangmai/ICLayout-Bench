@@ -100,7 +100,7 @@ def test_import_preserves_zero_run_score_and_nonzero_candidate_quality(tmp_path,
     assert json.loads(store.artifact(artifact['sha256']).read_bytes())['score'] == candidate_score
 
     change(source, lambda raw: raw['evaluation'].update(score=candidate_score))
-    with pytest.raises(ValueError, match='Evaluation report and service score disagree'):
+    with pytest.raises(ValueError, match='Service score differs from the evaluator report'):
         store.import_result(source)
 
 
