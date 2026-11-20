@@ -123,7 +123,7 @@ name = "core"                         # "core" 标准评测集或 "all" 全部�
 split = "test"
 ```
 
-文件中的路径相对于该文件所在目录解析。完整字段见[配置参考](docs/running.md#configuration-reference)。
+`harness_home` 和本地题库 `source` 相对于该文件所在目录解析，其他字段见[路径规则](docs/running.md#paths-and-environment-variables)。完整字段见[配置参考](docs/running.md#configuration-reference)。
 
 ### 4. 检查配置，再求解一道题
 
@@ -147,8 +147,8 @@ dry-run 不检查登录、额度或 Docker，这些在第一次真实运行时�
 python -m benchmarking.run --status --output results/experiment
 ```
 
-输出列出每次运行的 `state`、独立评测结论 `outcome`（`pass` 或 `fail`）和
-`score`（0–100）。每个运行目录 `results/experiment/<task-id>/<timestamp>/` 保留证据：
+输出列出每次运行的 `state`、独立评测结论 `outcome`（`pass`、`fail`、`no_submission`
+或 `error`）和 `score`（0–100；`outcome` 为 `error` 时无法评判版图，`score` 为 `null`）。每个运行目录 `results/experiment/<task-id>/<timestamp>/` 保留证据：
 
 | 文件 | 内容 |
 | --- | --- |
@@ -182,7 +182,8 @@ python -m benchmarking.run --config experiment.toml --output results/my-model --
   见[多条件实验](docs/running.md#multiple-conditions-and-repetitions)。
 - **统计用量与费用：** 添加 `[pricing]` 表，然后用
   `python -m benchmarking.analyze results/my-model/*/*/result.json --output results/my-model-analysis`
-  导出每次运行的 token、费用和耗时。见[用量与费用](docs/running.md#model-usage-and-cost)。
+  导出每次运行的 token、费用和耗时；`repetitions` 大于 1 时改用
+  `results/my-model/*/*/repetition-*/result.json`。见[用量与费用](docs/running.md#model-usage-and-cost)。
 - **添加参评工具：** 在 `[scheme]` 中声明 MCP 服务器、说明或求解镜像。
   见[参评工具方案](docs/running.md#participant-tool-schemes)。
 

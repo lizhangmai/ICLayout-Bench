@@ -134,7 +134,9 @@ name = "core"                         # "core" benchmark or "all" tasks
 split = "test"
 ```
 
-Paths in this file resolve from its own directory. The full field list is in the
+`harness_home` and a local Dataset `source` resolve from this file's directory;
+see [paths](docs/running.md#paths-and-environment-variables) for other fields.
+The full field list is in the
 [configuration reference](docs/running.md#configuration-reference).
 
 ### 4. Check the setup, then solve one task
@@ -161,7 +163,8 @@ python -m benchmarking.run --status --output results/experiment
 ```
 
 The status lists every task run with its `state`, independent `outcome`
-(`pass` or `fail`) and `score` (0–100). Each run directory,
+(`pass`, `fail`, `no_submission` or `error`) and `score` (0–100, or `null`
+when the outcome is `error` and the layout could not be judged). Each run directory,
 `results/experiment/<task-id>/<timestamp>/`, keeps the evidence:
 
 | File | Contents |
@@ -199,7 +202,8 @@ resources and your provider's rate limits. See
   See [multiple conditions](docs/running.md#multiple-conditions-and-repetitions).
 - **Track usage and cost:** add a `[pricing]` table, then export per-run tokens,
   cost and duration with
-  `python -m benchmarking.analyze results/my-model/*/*/result.json --output results/my-model-analysis`.
+  `python -m benchmarking.analyze results/my-model/*/*/result.json --output results/my-model-analysis`
+  (with `repetitions` above 1, use `results/my-model/*/*/repetition-*/result.json`).
   See [usage and cost](docs/running.md#model-usage-and-cost).
 - **Add participant tools:** declare MCP servers, instructions or a solver image
   in a `[scheme]`. See [participant tool schemes](docs/running.md#participant-tool-schemes).
