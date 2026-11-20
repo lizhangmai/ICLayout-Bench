@@ -73,20 +73,17 @@ Select checks by change scope and delivery stage from [CONTRIBUTING](CONTRIBUTIN
 Check changed links and commands, and report actual validation scope and Git status.
 Verify affected repositories separately; commit only when authorized, with one repository per commit.
 
-## Branches and Pull Requests
+## Branches and Pushes
 
-`main` accepts changes only through pull requests; direct pushes, force pushes and
-merge commits are rejected.
+The maintainer commits on `main` and pushes it directly. GitHub rejects force
+pushes, deletion of `main` and merge commits; pull requests are not required.
 
-1. Create a feature branch from the latest `origin/main` and commit there.
-2. Push the branch and open a pull request against `main` with `gh pr create`.
-3. Wait for the required checks `checks (3.12)`, `checks (3.13)` and `Build package`
-   (`gh pr checks --watch --required`). Fix failures and review comments with new
-   commits on the branch.
-4. Squash merge with `gh pr merge --squash --delete-branch`. Pass `--subject` and
-   `--body` in the repository commit style; the default body concatenates every
-   branch commit message.
+1. Rebase local work onto the latest `origin/main` so history stays linear.
+2. Run the verification for the change scope before pushing; pushes to `main`
+   then run `checks (3.12)`, `checks (3.13)` and `Build package` in CI
+   (`gh run watch`). Fix failures with new commits; never rewrite pushed history.
+3. Optional pull requests from feature branches use `gh pr merge --squash
+   --delete-branch` with `--subject` and `--body` in the repository commit style.
 
-The squash commit is the only one `main` keeps: build distributions, tag releases
-and pin downstream consumers from that `main` commit. Pushing, opening a pull
-request and merging are authorized separately from committing.
+Build distributions, tag releases and pin downstream consumers from `main`
+commits whose checks passed. Committing and pushing are authorized separately.
