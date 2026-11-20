@@ -19,7 +19,7 @@ class CaseRecord:
     """Own a case's durable scheduling state and runtime summary commits.
 
     Callers hold the case lease before mutating a record. Terminal evidence
-    publication and runtime removal belong to terminal.finish_case.
+    publication and runtime removal belong to participants.attempt.worker.finish_case.
     """
 
     def __init__(self, root):

@@ -259,7 +259,7 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
                   task_success=task_success,
                   quality_eligible=task_success is True)
     if plan.scoring is not None and plan.mode == "post_layout":
-        report["score"] = score_layout(plan, report["jobs"], report["metrics"], physical_valid)
+        report["score"] = score_layout(plan, report["jobs"])
         if plan.scoring.method == "layout" and report["score"]["value"] is None:
             report.update(outcome="error", task_success=None, quality_eligible=False)
             report["scoring_error"] = "Cannot establish finite candidate quality normalization"

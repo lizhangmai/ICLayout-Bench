@@ -253,8 +253,6 @@ def test_caps_prevent_cross_metric_compensation(tmp_path, inputs, bindings, area
 
 
 def test_challenging_quality_target_keeps_valid_reference_and_source_evidence(tmp_path, inputs, bindings):
-    from benchmarking.evaluation.scoring import score_breakdown
-
     data = reference_plan(quality_target={
         "value": 0.25, "rationale": "Quarter-second response reserves time for downstream work."})
     plan = parse_evaluation(json.dumps(data).encode(), file_format="json")
@@ -265,10 +263,6 @@ def test_challenging_quality_target_keeps_valid_reference_and_source_evidence(tm
     # target attainment is 0.25/2, independent of the source values.
     assert report["score"]["value"] == pytest.approx(100 * math.sqrt((0.25 / 2) / 1.5))
     assert report["score"] == recompute_score(plan, report)
-    detail = score_breakdown(plan, report["jobs"], report["score"])["metrics"]["delay"]
-    assert [pair["source_value"] for pair in detail["observations"]] == [2, 4]
-    assert [pair["quality_target"] for pair in detail["observations"]] == [0.25, 0.25]
-    assert detail["quality_target_rationale"] == data["metrics"][0]["quality_target"]["rationale"]
     report["jobs"]["slow"]["measurements"]["delay"]["value"] = -1
     assert recompute_score(plan, report)["value"] == 0
 

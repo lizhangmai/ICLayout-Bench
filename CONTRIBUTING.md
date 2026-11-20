@@ -69,8 +69,8 @@ Include new evaluation/session implementation files in their recorded identities
 
 Commands use `benchmarking.evaluation`, `benchmarking.execution` and
 `benchmarking.eda`. Existing documented client imports (`benchmarking.dataset`,
-`benchmarking.task_documents`, `benchmarking.transfer`, result progress/finalization
-and the resource cache resolver) and legacy engine CLI commands have explicit
+`benchmarking.task_documents`, `benchmarking.transfer` and the resource cache
+resolver `benchmarking.engine.resources.installation`) have explicit
 compatibility facades. Framework code and updated consumers import the owning
 modules directly; do not add compatibility wrappers for internal implementations.
 

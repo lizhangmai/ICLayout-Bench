@@ -31,16 +31,16 @@ def _report_status(report: Mapping[str, Any] | None) -> str | None:
     return report.get("status") if isinstance(report, Mapping) else None
 
 
-def _job_state(plan: EvaluationPlan, jobs: Mapping[str, Any],
-               physical_valid: bool | None = None, *, baseline_jobs=frozenset()) -> float | None:
-    """Resolve G while preserving known-invalid versus evaluator-error states."""
+def _job_state(plan: EvaluationPlan, jobs: Mapping[str, Any], *, baseline_jobs=frozenset()) -> float | None:
+    """Resolve G while preserving known-invalid versus evaluator-error states.
+
+    Derived report summaries such as ``physical_valid`` are not authoritative:
+    G comes from the frozen plan's job identities and their durable statuses,
+    so summary tampering cannot change a score.
+    """
 
     gate_jobs = [job for job in plan.jobs if job.gate in {"artifact", "drc", "lvs", "constraint"}]
     gate_statuses = [_report_status(jobs.get(job.id)) for job in gate_jobs]
-    # ``physical_valid`` is a derived report summary and is deliberately not
-    # authoritative here.  Recompute G from the frozen plan's job identities
-    # and their durable statuses so summary tampering cannot change a score.
-    del physical_valid
     if _FAILED in gate_statuses:
         return 0.0
     # Every declared job belongs to the frozen evaluation contract.  A
@@ -127,98 +127,7 @@ def _relative_quality(metric: Metric, value: float, baseline: float) -> float:
     return ratio
 
 
-def score_breakdown(plan: EvaluationPlan, jobs: Mapping[str, Any],
-                    score: Mapping[str, Any] | None) -> dict | None:
-    """Build final per-condition evidence for the reported score.
-
-    The output includes source measurement values used by the scoring formula,
-    but never includes the evaluation plan, tool inputs, or reference assets.
-    """
-    if plan.scoring is None or plan.mode != "post_layout":
-        return None
-    weights = dict(plan.scoring.weights)
-    frozen = {name: {"status": "passed", "measurements": source["measurements"]}
-              for name, source in plan.pre_layout.items()}
-    score = score if isinstance(score, Mapping) else {}
-    breakdown = {
-        "maximum": score.get("maximum"),
-        "value": score.get("value"),
-        "reference": score.get("reference", 100),
-        "components": score.get("components", {"G": None, "E": None, "Q": None}),
-        "dimensions": score.get("dimensions", {}),
-        "weights": weights,
-        "metrics": {},
-        "omitted_metrics": 0,
-        "area": None,
-    }
-    for metric in plan.metrics:
-        if metric.id == plan.scoring.area_metric:
-            status, value = _raw_observation(metric, jobs, metric.observations[0])
-            quality = (plan.scoring.area_target / value
-                       if value is not None and value > 0 else None)
-            if quality is not None and not math.isfinite(quality):
-                quality = None
-            breakdown["area"] = {
-                "metric": metric.id,
-                "status": status,
-                "value": value,
-                "target": plan.scoring.area_target,
-                "quality_factor": quality,
-                "credited_quality": min(1.0, quality) if quality is not None else None,
-                "weight": weights[metric.id],
-            }
-            continue
-        if not metric.baseline:
-            continue
-        pairs = []
-        for candidate_ref, source_ref in zip(metric.observations, metric.baseline, strict=True):
-            candidate_status, candidate_value = _raw_observation(metric, jobs, candidate_ref)
-            source_status, source_value = _raw_observation(metric, frozen, source_ref)
-            quality = None
-            if candidate_value is not None and source_value is not None:
-                try:
-                    quality = _relative_quality(metric, candidate_value, source_value)
-                except (OverflowError, ZeroDivisionError, TypeError, ValueError):
-                    pass
-            pairs.append({
-                "candidate_observation": candidate_ref,
-                "candidate_status": candidate_status,
-                "candidate_value": candidate_value,
-                "source_observation": source_ref,
-                "source_status": source_status,
-                "source_value": source_value,
-                "quality_target": metric.quality_target if metric.quality_target is not None else source_value,
-                "quality_factor": quality,
-                "credited_quality": min(1.0, quality) if quality is not None else None,
-            })
-        reported_quality = (score.get("metrics", {}).get(metric.id)
-                            if isinstance(score.get("metrics"), Mapping) else None)
-        pair_qualities = [pair["quality_factor"] for pair in pairs]
-        if reported_quality is None and pairs and all(value is not None for value in pair_qualities):
-            # A failed requirement can gate the official score before it stores
-            # metric factors. Keep the paired diagnostic useful while the G
-            # component explains why it did not affect the total.
-            reported_quality = min(pair_qualities)
-        breakdown["metrics"][metric.id] = {
-            "dimension": metric.dimension,
-            "unit": metric.unit,
-            "direction": metric.direction,
-            "normalization": metric.normalization,
-            "scale": metric.scale,
-            "quality_target": metric.quality_target,
-            "quality_target_rationale": metric.quality_target_rationale,
-            "quality_aggregation": "minimum",
-            "aggregate_quality": reported_quality,
-            "credited_quality": min(1.0, reported_quality) if reported_quality is not None else None,
-            "weight": weights[metric.id],
-            "observations": pairs,
-            "omitted_observations": 0,
-        }
-    return breakdown
-
-
-def score_layout(plan: EvaluationPlan, jobs: Mapping[str, Any],
-                 metrics: Mapping[str, Any], physical_valid: bool | None) -> dict | None:
+def score_layout(plan: EvaluationPlan, jobs: Mapping[str, Any]) -> dict | None:
     """Compute weighted quality from raw evidence and the frozen task plan.
 
     Display summaries do not determine the score. Rejection is zero; missing
@@ -321,7 +230,7 @@ def recompute_score(plan: EvaluationPlan, report: Mapping[str, Any]) -> dict | N
     jobs = report.get("jobs", {})
     if not isinstance(jobs, Mapping):
         raise TypeError("Evaluation report jobs must be a mapping")
-    return score_layout(plan, jobs, {}, None)
+    return score_layout(plan, jobs)
 
 
 def attempt_score(termination, outcome, candidate_score, *, method="layout"):

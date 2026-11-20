@@ -1,1 +1,1 @@
-"""Compatibility entry points for installed clients."""
+"""Compatibility imports for installed clients."""
