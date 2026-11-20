@@ -1,9 +1,10 @@
 """Exercise real KLayout geometry measurement without native LVS or Docker."""
 
 import importlib.util
-from pathlib import Path
 
 import pytest
+
+from benchmarking.evidence.identity import package_source
 
 pytestmark = [pytest.mark.integration, pytest.mark.acceptance_eda]
 LOWER_LAYER = [1, 0]
@@ -14,9 +15,9 @@ FUNCTIONAL_LAYERS = [LOWER_LAYER, UPPER_LAYER]
 @pytest.fixture
 def native_geometry_runner(monkeypatch):
     db = pytest.importorskip("klayout.db")
-    engine = Path(__file__).parents[2] / "benchmarking" / "engine" / "container_scripts"
-    monkeypatch.syspath_prepend(str(engine))
-    spec = importlib.util.spec_from_file_location("geometry_runner_under_test", engine / "geometry_runner.py")
+    runner = package_source("eda/_scripts/geometry_runner.py")
+    monkeypatch.syspath_prepend(str(runner.parent))
+    spec = importlib.util.spec_from_file_location("geometry_runner_under_test", runner)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module, db
