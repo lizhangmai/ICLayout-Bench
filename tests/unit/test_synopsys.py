@@ -7,6 +7,7 @@ import pytest
 
 from benchmarking.eda.backends.synopsys import (
     HspiceNative,
+    MeasurementRejected,
     _native_version,
     hspice_measures,
     icv_drc_summary,
@@ -89,8 +90,12 @@ def test_hspice_completion_finite_scalars_and_atto_units():
                 listing.replace('5.25p', 'nan'), listing + '**error** no convergence\n'):
         with pytest.raises(ValueError):
             hspice_measures(bad, {'delay': 's'})
-    with pytest.raises(ValueError, match='required event measurement failed'):
-        hspice_measures(listing.replace('5.25p', 'failed'), {'delay': 's'})
+    with pytest.raises(MeasurementRejected, match='delay'):
+        hspice_measures(listing.replace('5.25p', 'failed'), {'delay': 's', 'energy': 'J'})
+    # A rejection does not hide an unusable requested measurement.
+    with pytest.raises(ValueError) as unusable:
+        hspice_measures(listing.replace('5.25p', 'failed').replace('32a', 'nan'), {'delay': 's', 'energy': 'J'})
+    assert not isinstance(unusable.value, MeasurementRejected)
 
 
 @pytest.mark.parametrize('sections,statement', [([], '.include "/models/tt.pm"'),
@@ -108,7 +113,9 @@ def test_hspice_model_cards_and_library_sections(monkeypatch, sections, statemen
             assert statement in deck and '* ICLAYOUT_MODELS' not in deck
             assert files['dut.spice'].content == b'.subckt inv a y\n.ends\n'
             return SimpleNamespace(returncode=0, reason='', evidence={},
-                                   files={'result.lis': Asset(b'delay= 5p\n***** job concluded\n', 'text')})
+                                   files={'result.lis': Asset(listing[0], 'text')})
+
+    listing = [b'delay= 5p\n***** job concluded\n']
 
     monkeypatch.setattr('benchmarking.eda.backends.synopsys.NativeTool', Tool)
     runtime = SimpleNamespace(pdk_file=lambda name: (None, '/models/tt.pm'),
@@ -119,6 +126,10 @@ def test_hspice_model_cards_and_library_sections(monkeypatch, sections, statemen
                                'dut': Asset(b'.subckt inv a y\n.ends\n', 'spice')})
     assert result.status == 'passed'
     assert result.measurements['delay'].value == pytest.approx(5e-12)
+    listing[0] = b'delay= failed\n***** job concluded\n'
+    rejected = backend.run(job, {'deck': Asset(b'* ICLAYOUT_MODELS\n.include "dut.spice"\n.end\n', 'spice'),
+                                 'dut': Asset(b'.subckt inv a y\n.ends\n', 'spice')})
+    assert rejected.status == 'failed' and 'delay' in rejected.reason
     with pytest.raises(ValueError, match='model sections'):
         HspiceNative(runtime=runtime, model='tt.pm', sections=['TT\n.end'])
 

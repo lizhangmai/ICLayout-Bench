@@ -1865,8 +1865,11 @@ supplies SPICE `deck` and `dut`, with a nonempty
 `parameters.measurements` map of measurement names to units. The deck includes
 `dut.spice` and one `* ICLAYOUT_MODELS` marker, replaced with the trusted model
 library statements. Acceptance requires normal completion, no reported errors,
-and exactly one finite scalar for each requested measurement. Failed event
-measurements are errors; engineering suffixes include atto (`a`).
+and exactly one finite scalar for each requested measurement. After normal
+completion, a requested measurement that HSPICE reports as `failed` because its
+event did not occur is a candidate rejection (`failed`). Missing, duplicate or
+nonfinite scalars remain `error` and take precedence over that rejection.
+Engineering suffixes include atto (`a`).
 
 ### Spectre
 

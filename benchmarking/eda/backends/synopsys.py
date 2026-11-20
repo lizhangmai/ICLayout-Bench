@@ -236,21 +236,29 @@ class ICVNative:
         return JobResult('passed', outputs={'netlist': Asset(adapted.encode(), 'spice')}, evidence=evidence)
 
 
+class MeasurementRejected(ValueError):
+    """A completed analysis establishes that a required measurement event did not occur."""
+
+
 def hspice_measures(listing, requested):
     if 'job concluded' not in listing.lower() or re.search(r'\*\*error\*\*', listing, re.IGNORECASE):
         raise ValueError('HSPICE did not complete all measurements')
-    result = {}
+    if not requested:
+        raise ValueError('HSPICE needs explicit measurements')
+    result, rejected = {}, []
     for name, unit in requested.items():
         if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', name):
             raise ValueError('Invalid HSPICE measurement name')
         values = re.findall(r'^\s*' + re.escape(name) + r'\s*=\s*(\S+)', listing, re.MULTILINE | re.IGNORECASE)
-        if values and any(value.lower() == 'failed' for value in values):
-            raise ValueError('HSPICE required event measurement failed: ' + name)
+        if len(values) == 1 and values[0].lower() == 'failed':
+            rejected.append(name)
+            continue
         if len(values) != 1 or not math.isfinite(number(values[0])):
             raise ValueError('Missing or nonfinite HSPICE measurement: ' + name)
         result[name] = Measurement(number(values[0]), unit)
-    if not result:
-        raise ValueError('HSPICE needs explicit measurements')
+    # Validation errors in any requested measurement take precedence over a rejection.
+    if rejected:
+        raise MeasurementRejected('Required HSPICE measurement event did not occur: ' + ', '.join(rejected))
     return result
 
 
@@ -294,6 +302,8 @@ class HspiceNative:
             return JobResult('error', result.reason or 'HSPICE did not finish', evidence=evidence)
         try:
             measures = hspice_measures(result.files['result.lis'].content.decode(), job.parameters['measurements'])
+        except MeasurementRejected as error:
+            return JobResult('failed', str(error), evidence=evidence)
         except ValueError as error:
             return JobResult('error', str(error), evidence=evidence)
         return JobResult('passed', measurements=measures, evidence=evidence)
