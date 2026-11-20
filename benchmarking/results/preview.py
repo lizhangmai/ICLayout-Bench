@@ -7,7 +7,8 @@ from pathlib import Path
 
 from benchmarking.evidence.identity import package_source
 from benchmarking.execution.tools.docker import DockerTool
-from benchmarking.files import Asset, atomic_write, read_file
+from benchmarking.files import Asset, atomic_write, read_file, write_json
+from benchmarking.protocol import PARTICIPANT_RESULT_FORMAT
 from benchmarking.results.preview_diagnostics import (
     PreviewRenderError,
     save_diagnostics,
@@ -21,7 +22,7 @@ def export_layout(case_dir, *, image=None, runtime=None):
     if not compact_path.is_file():
         return {"status": "unavailable", "reason": "no_terminal_result"}
     compact = json.loads(compact_path.read_text())
-    if compact.get("format") != "participant-result":
+    if compact.get("format") != PARTICIPANT_RESULT_FORMAT:
         raise ValueError("Unsupported participant result format")
     result = compact.get("evaluation") or {}
     if not (case_dir / "final.gds").exists():
@@ -64,7 +65,7 @@ def export_layout(case_dir, *, image=None, runtime=None):
     if "layout.png" not in compact["files"]:
         compact["files"].append("layout.png")
     compact["image"] = metadata
-    atomic_write(compact_path, (json.dumps(compact, indent=2) + "\n").encode())
+    write_json(compact_path, compact)
     return metadata
 
 
@@ -85,7 +86,7 @@ def ensure_layout_preview(case_dir, *, image=None, runtime=None):
                 compact["image"] = status
                 if 'diagnostics' in status and status['diagnostics'] not in compact.setdefault('files', []):
                     compact['files'].append(status['diagnostics'])
-                atomic_write(path, (json.dumps(compact, indent=2) + "\n").encode())
+                write_json(path, compact)
         except (OSError, ValueError, TypeError):
             pass  # An unwritable preview directory must not invalidate a scored result.
         detail = (f" diagnostics={status['diagnostics']}" if 'diagnostics' in status else

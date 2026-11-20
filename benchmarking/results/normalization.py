@@ -5,7 +5,7 @@ import mimetypes
 from pathlib import Path
 
 from benchmarking.execution.harness import scheme_identity
-from benchmarking.protocol import digest
+from benchmarking.protocol import PARTICIPANT_RESULT_FORMAT, digest
 
 
 def finite(value):
@@ -51,7 +51,7 @@ def normalize(raw):
     if raw.get("test_only"):
         raise ValueError("Protocol fixtures are not model measurements")
     if "evaluation" in raw:
-        if raw.get("format") != "participant-result" or raw.get("state") != "finished":
+        if raw.get("format") != PARTICIPANT_RESULT_FORMAT or raw.get("state") != "finished":
             raise ValueError("Expected a finished supported compact result")
         evaluation = raw["evaluation"]
         identity, summary = raw.get("identity", {}), raw.get("summary", {})

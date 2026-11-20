@@ -7,8 +7,8 @@ from pathlib import Path
 from benchmarking.eda.images import tool_image
 from benchmarking.evidence.archive import RunArchive
 from benchmarking.execution.leases import CaseLease
-from benchmarking.files import atomic_write, read_file
-from benchmarking.protocol import json_bytes
+from benchmarking.files import read_file, write_json
+from benchmarking.protocol import PARTICIPANT_RESULT_FORMAT
 from benchmarking.results.package import (
     compact_result,
     evaluation_export,
@@ -25,7 +25,7 @@ def attach_session_evidence(path, store, *, renderer_image=None, renderer_runtim
     path = Path(path)
     with CaseLease(path.parent):
         state = json.loads(path.read_bytes())
-        if state.get('format') != 'participant-result' or state.get('state') != 'finished':
+        if state.get('format') != PARTICIPANT_RESULT_FORMAT or state.get('state') != 'finished':
             raise ValueError('Cannot attach evidence to an unfinished participant result')
         result = state['evaluation']
         archive = RunArchive.for_session(store, result['session_id'])
@@ -52,7 +52,7 @@ def attach_session_evidence(path, store, *, renderer_image=None, renderer_runtim
                     raise ValueError('Refusing to replace different result artifact: ' + name)
             for name in files:
                 put(path.parent, name, (staging / name).read_bytes(), state['files'])
-            atomic_write(path, json_bytes(compact_result(state)))
+            write_json(path, compact_result(state))
         image = tool_image(renderer_image) if renderer_runtime is None else renderer_image
         preview = ensure_layout_preview(path.parent, image=image, runtime=renderer_runtime)
         verify(path.parent, json.loads(path.read_bytes()))

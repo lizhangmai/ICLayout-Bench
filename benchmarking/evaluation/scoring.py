@@ -21,12 +21,12 @@ import math
 from collections.abc import Mapping
 from typing import Any
 
-from benchmarking.evaluation.contracts import EvaluationPlan, Metric
+from benchmarking.evaluation.contracts import GATES, EvaluationPlan, JobStatus, Metric
 from benchmarking.files import EvidenceError
 from benchmarking.protocol import layout_score_value
 
-_FAILED = "failed"
-_UNKNOWN = frozenset({"error", "blocked"})
+_FAILED = JobStatus.FAILED
+_UNKNOWN = frozenset({JobStatus.ERROR, JobStatus.BLOCKED})
 
 
 def _report_status(report: Mapping[str, Any] | None) -> str | None:
@@ -41,7 +41,7 @@ def _job_state(plan: EvaluationPlan, jobs: Mapping[str, Any], *, baseline_jobs=f
     so summary tampering cannot change a score.
     """
 
-    gate_jobs = [job for job in plan.jobs if job.gate in {"artifact", "drc", "lvs", "constraint"}]
+    gate_jobs = [job for job in plan.jobs if job.gate in GATES]
     gate_statuses = [_report_status(jobs.get(job.id)) for job in gate_jobs]
     if _FAILED in gate_statuses:
         return 0.0

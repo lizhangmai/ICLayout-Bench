@@ -5,6 +5,7 @@ import math
 import re
 
 from benchmarking.evaluation.contracts import (
+    GATES,
     SCORING_DIMENSIONS,
     SCORING_METHOD,
     EvaluationPlan,
@@ -322,7 +323,7 @@ def _parse_jobs(data):
             raise ValueError(f"Unknown stage in {name}")
         operation = text(entry["operation"], "operation")
         gate = entry.get("gate")
-        if gate is not None and (gate not in {"artifact", "drc", "lvs", "constraint"}
+        if gate is not None and (gate not in GATES
                                  or entry["stage"] != "check"):
             raise ValueError(f"Invalid gate in {name}")
         if not isinstance(entry["inputs"], dict) or not entry["inputs"]:

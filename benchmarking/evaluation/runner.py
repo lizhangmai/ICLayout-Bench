@@ -12,6 +12,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from benchmarking.evaluation.contracts import (
+    GATES,
     Backend,
     EvaluationPlan,
     Job,
@@ -235,7 +236,7 @@ def run_evaluation(plan: EvaluationPlan, inputs: dict[str, Asset],
         }
 
     gate_status = [results[j.id].status for j in plan.jobs
-                   if j.gate in {"artifact", "drc", "lvs", "constraint"}]
+                   if j.gate in GATES]
     physical_valid = (None if plan.mode == "characterization"
                       else False if "failed" in gate_status
                       else True if all(s == "passed" for s in gate_status) else None)

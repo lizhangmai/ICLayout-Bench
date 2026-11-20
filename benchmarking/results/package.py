@@ -7,6 +7,7 @@ from urllib.parse import quote
 
 from benchmarking.evidence.archive import FeedbackEvidence, FinalRunEvidence
 from benchmarking.files import EvidenceUnavailable, atomic_write, checked, read_file
+from benchmarking.protocol import PARTICIPANT_RESULT_FORMAT
 
 __all__ = [
     "AttemptEvidence", "AttemptRunEvidence", "ParticipantEvidence", "TraceEvidence",
@@ -57,7 +58,7 @@ def compact_result(result):
         for key in ('task_sha256', 'condition', 'submission'):
             if key in evaluation_identity:
                 evaluation[key] = evaluation_identity[key]
-    result['format'] = 'participant-result'
+    result['format'] = PARTICIPANT_RESULT_FORMAT
     result['files'] = list(result.get('files', []))
     result.pop('resources', None)
     if 'tool_identity' in evaluation_identity:

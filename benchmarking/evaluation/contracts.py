@@ -4,6 +4,7 @@ import hashlib
 import json
 import tomllib
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Protocol
 
 from benchmarking.files import Asset
@@ -109,14 +110,30 @@ class Measurement:
     unit: str
 
 
+# Check gates that decide physical validity; any other job is a measurement step.
+GATES = frozenset({"artifact", "drc", "lvs", "constraint"})
+
+
+class JobStatus(StrEnum):
+    """Status of one evaluation job, as recorded in evaluation reports."""
+
+    PASSED = "passed"
+    FAILED = "failed"  # a completed check, extraction or measurement rejected the candidate
+    ERROR = "error"  # evaluation could not judge the candidate; the score is unknown
+    BLOCKED = "blocked"  # a prerequisite job did not pass, so this job did not run
+
+
 @dataclass
 class JobResult:
-    status: str  # passed, failed (candidate rejection), or error (no valid result)
+    status: str  # a JobStatus value
     reason: str = ""
     measurements: dict[str, Measurement] = field(default_factory=dict)
     outputs: dict[str, Asset] = field(default_factory=dict)
     evidence: dict[str, Asset] = field(default_factory=dict)
     failure: dict | None = None
+
+    def __post_init__(self):
+        JobStatus(self.status)  # reject misspelled statuses at their source
 
 
 class Backend(Protocol):

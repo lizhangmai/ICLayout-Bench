@@ -14,6 +14,7 @@ from benchmarking.evidence.journal import recover_submissions
 from benchmarking.execution._scripts import benchmark_feedback as opinions
 from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY
 from benchmarking.files import Asset, read_file
+from benchmarking.protocol import PUBLIC_OUTCOMES
 
 
 class FrozenRun(NamedTuple):
@@ -293,9 +294,7 @@ def verify_service_result(store, result, *, frozen, image_id):
     run_root = archive.root
     report = json.loads((run_root / "run.json").read_bytes())
 
-    outcome = {"passed": "pass", "failed": "fail", "no_submission": "no_submission", "error": "error"}[
-        report["outcome"]
-    ]
+    outcome = PUBLIC_OUTCOMES.get(report["outcome"])
     if (
         result["outcome"] != outcome
         or result["task_success"] != report["task_success"]

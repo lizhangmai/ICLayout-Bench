@@ -34,6 +34,7 @@ from benchmarking.files import (
     verify_compressed,
     write_json,
 )
+from benchmarking.protocol import PARTICIPANT_RESULT_FORMAT
 from benchmarking.results.objects import FileObjects
 
 MIN_BYTES = 64 * 1024
@@ -385,7 +386,7 @@ def _archives(root):
                 continue
             if not isinstance(record, dict):
                 continue
-            if name == 'result.json' and record.get('format') != 'participant-result':
+            if name == 'result.json' and record.get('format') != PARTICIPANT_RESULT_FORMAT:
                 continue
             if field not in record:
                 continue

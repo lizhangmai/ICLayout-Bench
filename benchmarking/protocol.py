@@ -12,6 +12,9 @@ SESSION_STARTUP_RESPONSE_GRACE_SECONDS = 30
 ID = re.compile(r"[A-Za-z0-9_.-]{1,128}\Z")
 USAGE_FIELDS = ("input_tokens", "output_tokens", "cached_input_tokens", "reasoning_output_tokens", "cost")
 EVALUATION_MODES = ("self_run", "controlled_run")
+PARTICIPANT_RESULT_FORMAT = "participant-result"
+# Run-report outcomes and the verdicts that public results report for them.
+PUBLIC_OUTCOMES = {"passed": "pass", "failed": "fail", "no_submission": "no_submission", "error": "error"}
 # Solver-visible read-only directory holding each process check's tool files.
 CHECK_FILES_MOUNT = "/checks"
 

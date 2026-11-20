@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from benchmarking.protocol import PARTICIPANT_RESULT_FORMAT
 from benchmarking.results.analysis import export_participant_results, export_results
 
 
@@ -20,7 +21,7 @@ def main():
             results.extend(data["results"])
         else:
             results.extend(data if isinstance(data, list) else [data])
-    participant = [r.get("format") == "participant-result" for r in results]
+    participant = [r.get("format") == PARTICIPANT_RESULT_FORMAT for r in results]
     if any(participant) and not all(participant):
         parser.error("Analyze participant exports and service results separately")
     exporter = export_participant_results if all(participant) else export_results

@@ -1,7 +1,7 @@
 """Pure HTTP projections of durable runs, workspace state and judge reports."""
 
 from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY
-from benchmarking.protocol import USAGE_FIELDS
+from benchmarking.protocol import PUBLIC_OUTCOMES, USAGE_FIELDS
 
 
 def status(data, workspace, events, now):
@@ -57,7 +57,7 @@ def status(data, workspace, events, now):
 
 def result(data, status, judged=None):
     report = data.get('report', {})
-    verdict = {'passed':'pass', 'failed':'fail', 'no_submission':'no_submission', 'error':'error'}.get(report.get('outcome'))
+    verdict = PUBLIC_OUTCOMES.get(report.get('outcome'))
     recovery_failed = data.get('interrupted') and not (report and status['last_submission'])
     if recovery_failed:
         verdict = 'error'

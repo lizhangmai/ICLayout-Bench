@@ -21,6 +21,7 @@ from benchmarking.participants.attempt.state import ParticipantAttempt
 from benchmarking.participants.attempt.storage import CaseRecord, case_lease_root
 from benchmarking.participants.harnesses.contracts import ParticipantSelection
 from benchmarking.participants.harnesses.scheme import check as check_scheme
+from benchmarking.protocol import PARTICIPANT_RESULT_FORMAT
 from benchmarking.results.outbox import archive_result
 from benchmarking.results.package import (
     compact_result,
@@ -58,7 +59,7 @@ def finish_case(root, *, output=None, results_data=None, schedule=None):
 def _finish_case(record, state):
     root, runtime = record.root, record.runtime
     if state.get('state') == 'finished':
-        if state.get('format') != 'participant-result':
+        if state.get('format') != PARTICIPANT_RESULT_FORMAT:
             raise ValueError('Unsupported participant result format')
         verify(root, state)
         if runtime.exists():
@@ -74,7 +75,7 @@ def _finish_case(record, state):
     with ExitStack() as stack:
         for store in sorted(runtime.rglob('service-store')):
             stack.enter_context(BatchLease(store))
-        result = {'format': 'participant-result', 'identity': state['identity'], 'state': 'finalizing',
+        result = {'format': PARTICIPANT_RESULT_FORMAT, 'identity': state['identity'], 'state': 'finalizing',
                   'summary': dict(summary, result='result.json'), 'files': []}
         files = result['files']
         export_run(root, read_participant_evidence(runtime), result)

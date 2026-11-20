@@ -1074,3 +1074,11 @@ def test_session_mounts_each_check_and_republishes_after_recovery(tmp_path, inpu
 
     run_session(task, config, {}, bindings, destination, session=Recovered(), resume=True)
     assert seen['recovered'] == seen['published']
+
+
+@pytest.mark.parametrize("status", ["pass", "Passed", "rejected", ""])
+def test_job_results_reject_statuses_outside_the_report_contract(status):
+    from benchmarking.evaluation.contracts import JobResult
+
+    with pytest.raises(ValueError):
+        JobResult(status)
