@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from benchmarking.client import Client, ClientError
-from benchmarking.execution.leases import BatchLease
+from benchmarking.execution.leases import BatchLease, CaseLease
 from benchmarking.files import write_json as save
 from benchmarking.participants.attempt import runner
 from benchmarking.participants.attempt import service as local_service
@@ -18,11 +18,7 @@ from benchmarking.participants.attempt.evidence import (
 )
 from benchmarking.participants.attempt.recovery import classify, policy
 from benchmarking.participants.attempt.state import ParticipantAttempt
-from benchmarking.participants.attempt.storage import (
-    CaseLease,
-    CaseRecord,
-    case_lease_root,
-)
+from benchmarking.participants.attempt.storage import CaseRecord, case_lease_root
 from benchmarking.participants.harnesses.contracts import ParticipantSelection
 from benchmarking.participants.harnesses.scheme import check as check_scheme
 from benchmarking.results.outbox import archive_result
@@ -35,6 +31,7 @@ from benchmarking.results.package import (
     verify,
 )
 from benchmarking.results.preview import ensure_layout_preview
+from benchmarking.results.retention import compact
 from benchmarking.results.usage import combine_usage
 
 
@@ -49,7 +46,6 @@ def finish_case(root, *, output=None, results_data=None, schedule=None):
     if state['state'] == 'finished':
         ensure_layout_preview(record.root)
     summary = _finish_case(record, state)
-    from benchmarking.results.retention import compact
 
     selected_pool = next((row['archive_objects'] for row in schedule or [] if row.get('archive_objects')), None)
     compact(record.root, objects=selected_pool or (Path(output) / '.objects' if output is not None else None))

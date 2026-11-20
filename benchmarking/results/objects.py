@@ -9,7 +9,7 @@ from pathlib import Path
 import zstandard
 
 from benchmarking.files import atomic_write, sync_directory, verify_compressed
-from benchmarking.results.normalization import digest
+from benchmarking.protocol import digest
 
 
 class FileObjects:

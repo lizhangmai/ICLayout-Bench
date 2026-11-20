@@ -8,10 +8,10 @@ import time
 from contextlib import contextmanager
 
 from benchmarking.client import Client
-from benchmarking.eda.resources.installation import cache_root
+from benchmarking.eda.resources.cache import cache_root
 from benchmarking.execution.process import process_start
 from benchmarking.files import append_event, write_json
-from benchmarking.participants.batch.config import clean_env
+from benchmarking.participants.isolation import clean_env
 from benchmarking.service.launch import launch_service
 
 

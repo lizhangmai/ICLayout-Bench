@@ -904,7 +904,7 @@ def test_batch_resume_skips_completed_and_rejects_config_change(tmp_path, monkey
 
 
 def test_concurrent_batch_resume_cannot_launch(tmp_path, monkeypatch):
-    from benchmarking.participants.attempt.storage import CaseLease
+    from benchmarking.execution.leases import CaseLease
     from benchmarking.run import main
     config = tmp_path / 'trial.toml'
     config.write_text('harness="codex"\nmodel="fixture"\neffort="high"\ntasks=["test"]\nconcurrency=1\nrepetitions=1\n')
@@ -1385,8 +1385,7 @@ def test_case_lease_remains_exclusive_after_scheduler_closes_its_descriptor(tmp_
     import subprocess
     import sys
 
-    from benchmarking.execution.leases import BatchLeaseError
-    from benchmarking.participants.attempt.storage import CaseLease
+    from benchmarking.execution.leases import BatchLeaseError, CaseLease
 
     child = None
     try:
@@ -1593,7 +1592,7 @@ def test_timestamped_results_and_explicit_case_reuse(tmp_path, monkeypatch, caps
                 slot = directory if repetitions == 1 else directory / f'repetition-{repetition}'
                 assert json.loads((slot / 'result.json').read_text())['summary']['task'] == task
         assert {p.name for p in root.iterdir() if not p.name.startswith(".")} == {'library.cell', 'other.cell'}
-        from benchmarking.participants.attempt.storage import CaseLease
+        from benchmarking.execution.leases import CaseLease
         count = launch.call_count
         directory = case_run(root, 'library.cell')
         with CaseLease(directory), pytest.raises(SystemExit):
@@ -2106,7 +2105,8 @@ def test_resume_observes_orphans_and_refills_before_the_slow_case_finishes(tmp_p
     import threading
     import time
 
-    from benchmarking.participants.attempt.storage import CaseLease, CaseRecord
+    from benchmarking.execution.leases import CaseLease
+    from benchmarking.participants.attempt.storage import CaseRecord
     from benchmarking.run import main
 
     config = tmp_path / 'trial.toml'
@@ -2231,8 +2231,7 @@ def test_collect_only_waits_for_the_shared_case_lease(tmp_path, repetitions):
     import sys
     import time
 
-    from benchmarking.execution.leases import BatchLeaseError
-    from benchmarking.participants.attempt.storage import CaseLease
+    from benchmarking.execution.leases import BatchLeaseError, CaseLease
     from benchmarking.participants.attempt.worker import CollectRequest, collect_batch
 
     output = tmp_path / 'batch'
@@ -2323,9 +2322,8 @@ def test_live_scheduler_prevents_orphan_adoption_and_pid_reuse_does_not_authoriz
 
 
 def test_resume_rejects_an_unverified_live_owner_outside_the_selected_cases(tmp_path):
-    from benchmarking.execution.leases import BatchLeaseError
+    from benchmarking.execution.leases import BatchLeaseError, CaseLease
     from benchmarking.files import write_json
-    from benchmarking.participants.attempt.storage import CaseLease
     from benchmarking.participants.batch.coordinator import live_slots
 
     case = tmp_path / 'unselected'

@@ -1,5 +1,6 @@
 """Public HTTP protocol identifiers and validation; no execution dependencies."""
 
+import hashlib
 import json
 import math
 import re
@@ -11,6 +12,8 @@ SESSION_STARTUP_RESPONSE_GRACE_SECONDS = 30
 ID = re.compile(r"[A-Za-z0-9_.-]{1,128}\Z")
 USAGE_FIELDS = ("input_tokens", "output_tokens", "cached_input_tokens", "reasoning_output_tokens", "cost")
 EVALUATION_MODES = ("self_run", "controlled_run")
+# Solver-visible read-only directory holding each process check's tool files.
+CHECK_FILES_MOUNT = "/checks"
 
 
 def evaluation_mode(result):
@@ -29,6 +32,11 @@ def identifier(value):
 
 def json_bytes(value):
     return json.dumps(value, sort_keys=True, allow_nan=False, separators=(",", ":")).encode()
+
+
+def digest(value):
+    """SHA-256 of raw bytes, or of a value's canonical JSON."""
+    return hashlib.sha256(value if isinstance(value, bytes) else json_bytes(value)).hexdigest()
 
 
 def condition(value):

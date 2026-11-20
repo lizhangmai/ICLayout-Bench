@@ -4,17 +4,11 @@ import math
 import re
 from pathlib import Path
 
-from benchmarking.evaluation.contracts import (
-    Job,
-    JobResult,
-    Measurement,
-    identifier,
-    number,
-)
+from benchmarking.evaluation.contracts import Job, JobResult, Measurement
 from benchmarking.evidence.bundles import load_bundle
 from benchmarking.execution.tools.diagnostics import native_failure
 from benchmarking.execution.tools.docker import DockerTool
-from benchmarking.files import Asset, keys, relative
+from benchmarking.files import Asset, identifier, keys, number, relative
 
 
 def branch_resistors(asset: Asset) -> Asset:

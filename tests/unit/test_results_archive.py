@@ -16,8 +16,8 @@ from benchmarking.participants.harnesses.contracts import ParticipantSelection
 
 pytest.importorskip("sqlalchemy")
 
+from benchmarking.protocol import digest
 from benchmarking.results import ResultStore
-from benchmarking.results.normalization import digest
 
 pytestmark = pytest.mark.unit
 

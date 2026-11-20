@@ -10,14 +10,10 @@ import threading
 from dataclasses import asdict
 from pathlib import Path
 
-from benchmarking.execution.leases import BatchLease, BatchLeaseError
+from benchmarking.execution.leases import BatchLease, BatchLeaseError, CaseLease
 from benchmarking.execution.process import process_start, stop_process_tree
 from benchmarking.files import append_event, write_json
-from benchmarking.participants.attempt.storage import (
-    CaseLease,
-    CaseRecord,
-    case_lease_root,
-)
+from benchmarking.participants.attempt.storage import CaseRecord, case_lease_root
 from benchmarking.results.package import verify
 
 

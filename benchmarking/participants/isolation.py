@@ -21,6 +21,12 @@ from pathlib import Path
 from benchmarking.participants.harnesses import registry as adapters
 from benchmarking.participants.harnesses.contracts import ParticipantSelection
 
+
+def clean_env():
+    """Process environment for participant tools, without benchmark settings."""
+    return {k: v for k, v in os.environ.items()
+            if not k.startswith(("ICLAYOUT_BENCH_", "LAYOUT_BENCH_")) and k != "PYTHONPATH"}
+
 POLICY = "native-filesystem-v1"
 TRANSPORT_ENV = {
     "PATH", "LANG", "LC_ALL", "LC_CTYPE", "TZ", "TERM", "SSL_CERT_FILE", "SSL_CERT_DIR",

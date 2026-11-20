@@ -7,10 +7,9 @@ from benchmarking.evaluation.contracts import (
     Job,
     Metric,
     ScoringSpec,
-    identifier,
-    number,
 )
 from benchmarking.evaluation.plans import parse_evaluation
+from benchmarking.files import identifier, number
 
 __all__ = ["SCORING_DIMENSIONS", "SCORING_METHOD", "EvaluationPlan", "Job", "Metric",
            "ScoringSpec", "identifier", "number", "parse_evaluation"]

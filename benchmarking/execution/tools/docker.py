@@ -6,7 +6,6 @@ import subprocess
 import tarfile
 from pathlib import Path
 
-from benchmarking.evaluation.contracts import number
 from benchmarking.execution.tools import ToolResult, run_with_retries, tool_retry_policy
 from benchmarking.execution.tools.budget import (
     ToolCancelled,
@@ -15,7 +14,7 @@ from benchmarking.execution.tools.budget import (
     wait_for_tool,
 )
 from benchmarking.execution.tools.cleanup import ContainerLease
-from benchmarking.files import Asset, ReadOnlyMount, relative
+from benchmarking.files import Asset, ReadOnlyMount, number, relative
 
 _LOAD = '''import sys, tarfile
 def regular(member, root):

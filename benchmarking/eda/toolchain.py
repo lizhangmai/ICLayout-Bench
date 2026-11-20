@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 
-from benchmarking.evaluation.contracts import Backend, identifier
-from benchmarking.files import keys, read_file, text
+from benchmarking.evaluation.contracts import Backend
+from benchmarking.files import identifier, keys, read_file, text
 
 
 def support_bindings(backend_name, backend, *, require_declared=True):

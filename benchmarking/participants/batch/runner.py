@@ -10,11 +10,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
 
-from benchmarking.execution.leases import BatchLeaseError
+from benchmarking.execution.leases import BatchLeaseError, CaseLease
 from benchmarking.participants.attempt import worker as case
 from benchmarking.participants.attempt.recovery import policy
 from benchmarking.participants.attempt.storage import (
-    CaseLease,
     CaseRecord,
     case_identity,
     case_lease_root,

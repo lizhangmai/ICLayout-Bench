@@ -8,11 +8,11 @@ from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from benchmarking.protocol import evaluation_mode, layout_score_value
-from benchmarking.results import schema as s
+import benchmarking.results.schema as s
+from benchmarking.protocol import digest, evaluation_mode, layout_score_value
 from benchmarking.results.comparison import aggregate
 from benchmarking.results.importing import prepare_result
-from benchmarking.results.normalization import digest, finite, media
+from benchmarking.results.normalization import finite, media
 from benchmarking.results.objects import FileObjects
 
 __all__ = ["ResultStore", "ensure_record", "now"]

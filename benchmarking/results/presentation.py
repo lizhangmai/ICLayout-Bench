@@ -6,7 +6,7 @@ import subprocess
 import tomllib
 from pathlib import Path, PurePosixPath
 
-from benchmarking.results.normalization import digest
+from benchmarking.protocol import digest
 
 
 def reader_summary(case):

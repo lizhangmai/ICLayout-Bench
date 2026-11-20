@@ -1,23 +1,11 @@
 """Pure normalization and identity helpers for archived result records."""
 
-import hashlib
-import json
 import math
 import mimetypes
 from pathlib import Path
 
 from benchmarking.execution.harness import scheme_identity
-
-
-def digest(value):
-    raw = (
-        value
-        if isinstance(value, bytes)
-        else json.dumps(
-            value, sort_keys=True, separators=(",", ":"), allow_nan=False
-        ).encode()
-    )
-    return hashlib.sha256(raw).hexdigest()
+from benchmarking.protocol import digest
 
 
 def finite(value):

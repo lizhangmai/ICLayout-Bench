@@ -2,8 +2,8 @@
 
 from statistics import mean
 
-from benchmarking.protocol import evaluation_tools
-from benchmarking.results.normalization import condition_key, digest, planned_condition
+from benchmarking.protocol import digest, evaluation_tools
+from benchmarking.results.normalization import condition_key, planned_condition
 from benchmarking.results.statistics import model_usage_summary, score_summary
 
 

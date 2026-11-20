@@ -4,20 +4,13 @@ import base64
 import fcntl
 import hashlib
 import json
-import os
 import subprocess
 import tempfile
 from pathlib import Path
 
+from benchmarking.eda.resources.cache import cache_root, cached_resources
+
 DATA_SOURCE = "https://fossi-foundation.github.io/ciel-releases"
-
-
-def cache_root():
-    """Resolve the shared disposable cache independently of the checkout."""
-    override = os.environ.get("ICLAYOUT_BENCH_CACHE_DIR")
-    if override:
-        return Path(override).expanduser().absolute()
-    return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache").expanduser().absolute() / "iclayout-bench"
 
 
 def installation_path(source):
@@ -76,7 +69,6 @@ def prepare_package_resources(source, files, image):
     This cache holds native resources, never an importable Python environment.
     Package code and dependencies stay in the selected image.
     """
-    from benchmarking.eda.resources.cache import cached_resources
     from benchmarking.evidence.identity import package_source
     from benchmarking.execution.tools.docker import DockerTool
     from benchmarking.files import Asset, keys, relative

@@ -17,7 +17,6 @@ from benchmarking.evaluation.contracts import (
     Job,
     JobResult,
     Measurement,
-    number,
 )
 from benchmarking.evaluation.scoring import score_layout
 from benchmarking.evidence.identity import EVALUATION_SOURCE_FILES, package_source
@@ -31,7 +30,7 @@ from benchmarking.execution.tools.budget import (
     tool_time_limits,
 )
 from benchmarking.execution.tools.diagnostics import native_failure
-from benchmarking.files import Asset
+from benchmarking.files import Asset, number
 
 __all__ = ["Backend", "JobResult", "Measurement", "run_evaluation"]
 

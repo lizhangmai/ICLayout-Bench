@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 
-from benchmarking.participants.attempt.storage import CaseLease
+from benchmarking.execution.leases import CaseLease
 from benchmarking.results.preview import ensure_layout_preview, export_layout
 
 __all__ = ["ensure_layout_preview", "export_layout", "main"]

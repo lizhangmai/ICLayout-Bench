@@ -10,7 +10,6 @@ from benchmarking.files import relative
 # Bench provenance (host cache paths), not a tool product. The trusted report,
 # plan and evaluator inputs are never job files and stay private as well.
 PRIVATE_FILE_NAMES = frozenset({"support_manifest"})
-CHECK_FILES_MOUNT = "/checks"
 BOUNDED_INDEX_BYTES = 12000
 
 

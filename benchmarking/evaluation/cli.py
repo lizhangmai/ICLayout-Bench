@@ -9,10 +9,9 @@ from pathlib import Path
 
 from benchmarking.eda.runtime import load_case, load_case_inputs
 from benchmarking.eda.toolchain import load_toolchain, load_toolchain_spec
-from benchmarking.evaluation.contracts import identifier
 from benchmarking.evaluation.plans import parse_evaluation
 from benchmarking.evaluation.runner import run_evaluation
-from benchmarking.files import Asset, read_file
+from benchmarking.files import Asset, identifier, read_file
 from benchmarking.tasks.contract import load_task
 from benchmarking.tasks.dataset import load_dataset
 

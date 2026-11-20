@@ -3,10 +3,10 @@
 import json
 from pathlib import Path
 
-from benchmarking.evaluation.contracts import JobResult, Measurement, identifier, number
+from benchmarking.evaluation.contracts import JobResult, Measurement
 from benchmarking.evidence.identity import package_source
 from benchmarking.execution.tools.docker import DockerTool
-from benchmarking.files import Asset, keys, text
+from benchmarking.files import Asset, identifier, keys, number, text
 
 
 def validate_constraints(data):

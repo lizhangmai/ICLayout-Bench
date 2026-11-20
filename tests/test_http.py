@@ -260,9 +260,8 @@ def test_case_worker_submits_evaluates_and_archives_after_scheduler_exit(host, t
 
     import tomli_w
 
-    from benchmarking.execution.leases import BatchLeaseError
+    from benchmarking.execution.leases import BatchLeaseError, CaseLease
     from benchmarking.participants.attempt.service import process_start
-    from benchmarking.participants.attempt.storage import CaseLease
 
     service, endpoint = host
     # Local services use isolated installed-package imports. A development

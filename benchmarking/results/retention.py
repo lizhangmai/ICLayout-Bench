@@ -14,6 +14,7 @@ from pathlib import Path
 
 import zstandard
 
+from benchmarking.execution.leases import BatchLease, CaseLease
 from benchmarking.files import (
     RETAINED_MANIFEST as MANIFEST,
 )
@@ -305,7 +306,6 @@ def compact(root, *, objects=None, keep_checks=()):
 
 def compact_service(store, *, objects=None):
     """Seal stopped service evidence; active stores retain their recovery data."""
-    from benchmarking.execution.leases import BatchLease
 
     store = Path(store)
     results = []
@@ -347,7 +347,6 @@ def _retire_http(root):
 
 def retire_services(root):
     """Retire only verified, stopped sessions; unfinished recovery stays intact."""
-    from benchmarking.execution.leases import BatchLease
 
     results = []
     root = Path(os.path.abspath(root))
@@ -395,8 +394,6 @@ def _archives(root):
 
 def retain_tree(root, *, apply=False, report=None, keep_checks=()):
     """Inventory or migrate an explicit result scope, preserving incomplete runs."""
-    from benchmarking.execution.leases import BatchLease
-    from benchmarking.participants.attempt.storage import CaseLease
 
     root = Path(os.path.abspath(root))
     records = []
@@ -462,8 +459,6 @@ def main(argv=None):
     elif args.verify:
         result = verify_archive(args.root)
     elif args.apply:
-        from benchmarking.execution.leases import BatchLease
-        from benchmarking.participants.attempt.storage import CaseLease
 
         root = Path(os.path.abspath(args.root))
         lease = (BatchLease(root.parent.parent) if root.name == 'run'

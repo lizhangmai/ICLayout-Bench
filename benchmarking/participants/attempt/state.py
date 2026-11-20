@@ -9,8 +9,8 @@ from pathlib import Path
 from benchmarking.evidence.identity import package_identity
 from benchmarking.execution.harness import scheme_identity
 from benchmarking.files import write_json
-from benchmarking.participants.batch.config import digest
 from benchmarking.participants.harnesses import registry as adapters
+from benchmarking.protocol import digest
 
 
 def protocol_condition(frozen, *, harness=None):

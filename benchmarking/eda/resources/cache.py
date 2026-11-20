@@ -2,11 +2,19 @@
 
 import fcntl
 import json
+import os
 import tempfile
 from pathlib import Path
 
-from benchmarking.eda.resources.installation import cache_root
 from benchmarking.files import Asset
+
+
+def cache_root():
+    """Resolve the shared disposable cache independently of the checkout."""
+    override = os.environ.get("ICLAYOUT_BENCH_CACHE_DIR")
+    if override:
+        return Path(override).expanduser().absolute()
+    return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache").expanduser().absolute() / "iclayout-bench"
 
 
 def cached_resources(kind, recipe, build):

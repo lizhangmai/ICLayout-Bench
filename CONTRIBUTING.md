@@ -42,8 +42,11 @@ resources rather than shared orchestration modules.
 | `service/` | `application.py` translates HTTP routes; `controller.py` owns authenticated mutations and replay; `views.py` projects responses; `state.py` stores service records. `session.py` composes solver execution with independent evaluation; `supervisor.py` owns live session handles. A controller can receive a dedicated supervisor, runner and workspace factory. |
 | `results/` | `package.py` exports explicit immutable evaluation and participant evidence; `verification.py` checks terminal records; `analysis.py` and the statistics modules return structured data. `preview.py` and `native_preview.py` produce EDA preview assets. `importing.py` validates artifacts before `store.py` transactionally imports metadata; `objects.py` stores content-addressed files. `outbox.py` and `transfer.py` own handoff. Charts and website publishing belong to consuming applications. |
 
-`files.py` owns byte-exact compressed-file resolution and integrity checks without
-depending on result processing. `results.retention` owns purpose-based terminal
+`files.py` owns byte-exact compressed-file resolution, integrity checks and the
+shared declaration validators (`keys`, `text`, `relative`, `identifier`, `number`)
+without depending on result processing. `protocol.py` owns canonical JSON, its
+`digest` and solver-visible protocol constants. These two modules import no other
+package module, so every package can use them. `results.retention` owns purpose-based terminal
 retention and maintenance migration. Extend `test_result_retention.py` and the
 evaluation/export regressions when changing retention: functional rejection is
 distinct from a successful simulator exit; final evidence, observed feedback,
@@ -54,9 +57,10 @@ from accidental missing evidence.
 
 The evaluation core depends on backend contracts rather than concrete EDA tools;
 CLI and service composition choose implementations. Adapters depend on execution
-primitives and evaluation contracts. Batch orchestration calls attempt operations.
-Result packaging accepts explicit evidence records rather than interpreting
-participant runtime directories. SQL remains optional for previews and handoff.
+primitives and evaluation contracts. Execution does not import evaluation, and
+results do not import participants. Batch orchestration calls attempt operations;
+attempts do not import batch modules. Result packaging accepts explicit evidence
+records rather than interpreting participant runtime directories. SQL remains optional for previews and handoff.
 Presentation code uses `ResultStore` operations rather than its SQL engine.
 
 Related tool modes share an implementation: Spectre base/X/APS and native

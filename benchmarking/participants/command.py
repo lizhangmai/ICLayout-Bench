@@ -10,7 +10,7 @@ from benchmarking.participants.attempt.settlement import (
     settle_session,
     wait_result,
 )
-from benchmarking.participants.batch.config import clean_env
+from benchmarking.participants.isolation import clean_env
 from benchmarking.protocol import json_bytes
 from benchmarking.results.analysis import export_session_result
 

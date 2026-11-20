@@ -2,25 +2,11 @@
 
 import hashlib
 import json
-import math
-import re
 import tomllib
 from dataclasses import dataclass, field
 from typing import Protocol
 
 from benchmarking.files import Asset
-
-
-def identifier(value: object) -> str:
-    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", value):
-        raise ValueError(f"Invalid identifier: {value!r}")
-    return value
-
-
-def number(value: object) -> float:
-    if type(value) not in {int, float} or not math.isfinite(value):
-        raise ValueError("Expected a finite numeric value")
-    return float(value)
 
 
 @dataclass(frozen=True)

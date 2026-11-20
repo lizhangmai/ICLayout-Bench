@@ -7,7 +7,6 @@ from dataclasses import replace
 from pathlib import Path
 
 from benchmarking.evaluation.feedback import (
-    CHECK_FILES_MOUNT,
     feedback_details,
     participant_files,
     publish_check_files,
@@ -30,6 +29,7 @@ from benchmarking.execution.inference import (
 from benchmarking.execution.tools.budget import tool_deadline
 from benchmarking.execution.workspace.environment import task_message
 from benchmarking.files import Asset, ReadOnlyMount, atomic_write
+from benchmarking.protocol import CHECK_FILES_MOUNT
 
 __all__ = ["run_session"]
 

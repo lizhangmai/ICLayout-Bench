@@ -10,7 +10,6 @@ import threading
 import time
 from pathlib import Path
 
-from benchmarking.evaluation.feedback import CHECK_FILES_MOUNT
 from benchmarking.evidence.identity import SESSION_SOURCE_FILES, package_source
 from benchmarking.evidence.journal import RecordingError
 from benchmarking.execution._scripts import benchmark_feedback as opinions
@@ -25,6 +24,7 @@ from benchmarking.execution.workspace.environment import (
 from benchmarking.execution.workspace.protocol import SessionProtocol
 from benchmarking.execution.workspace.staging import stage_inputs
 from benchmarking.files import Asset
+from benchmarking.protocol import CHECK_FILES_MOUNT
 
 MAX_CONSOLE_BYTES = 64 * 1024 * 1024
 CONSOLE_PREVIEW_BYTES = 64 * 1024

@@ -10,8 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from benchmarking.evaluation import identifier
-from benchmarking.files import keys, text
+from benchmarking.files import identifier, keys, text
 
 SESSION_PROTOCOL = "layout-session"
 DEFAULT_HARNESS_ID = "external-cli"

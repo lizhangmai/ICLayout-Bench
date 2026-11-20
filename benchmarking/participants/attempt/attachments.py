@@ -6,8 +6,8 @@ from pathlib import Path
 
 from benchmarking.eda.images import tool_image
 from benchmarking.evidence.archive import RunArchive
+from benchmarking.execution.leases import CaseLease
 from benchmarking.files import atomic_write, read_file
-from benchmarking.participants.attempt.storage import CaseLease
 from benchmarking.protocol import json_bytes
 from benchmarking.results.package import (
     compact_result,

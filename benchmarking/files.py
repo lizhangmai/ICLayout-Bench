@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 import os
 import re
 import tempfile
@@ -29,6 +30,20 @@ def text(value: object, name: str) -> str:
     if not isinstance(value, str) or not value.strip() or "\x00" in value:
         raise ValueError(f"{name} must be a nonempty string without NUL")
     return value
+
+
+def identifier(value: object) -> str:
+    """Validate a declared plan, job, metric or tool identifier."""
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", value):
+        raise ValueError(f"Invalid identifier: {value!r}")
+    return value
+
+
+def number(value: object) -> float:
+    """Validate a finite declared number and return it as a float."""
+    if type(value) not in {int, float} or not math.isfinite(value):
+        raise ValueError("Expected a finite numeric value")
+    return float(value)
 
 
 def relative(value: object, name: str) -> str:

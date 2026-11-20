@@ -11,7 +11,6 @@ from benchmarking.files import Asset, read_file, relative
 from benchmarking.participants.attempt.storage import CaseRecord, case_lease_root
 from benchmarking.participants.batch import runner as batch
 from benchmarking.participants.batch.config import (
-    digest,
     read_configs,
     read_matrix,
     resolve,
@@ -20,6 +19,7 @@ from benchmarking.participants.batch.config import (
 from benchmarking.participants.batch.runner import path_component
 from benchmarking.participants.harnesses.contracts import ParticipantSelection
 from benchmarking.participants.harnesses.registry import harness_version
+from benchmarking.protocol import digest
 from benchmarking.tasks.contract import load_task
 from benchmarking.tasks.dataset import dataset_root, load_dataset, process_manifest
 from benchmarking.version import package_version

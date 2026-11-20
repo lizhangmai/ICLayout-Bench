@@ -4,12 +4,12 @@ import json
 import re
 from pathlib import Path
 
-from benchmarking.evaluation.contracts import Job, JobResult, number
+from benchmarking.evaluation.contracts import Job, JobResult
 from benchmarking.evidence.bundles import load_bundle
 from benchmarking.evidence.identity import package_source
 from benchmarking.execution.tools.diagnostics import native_failure
 from benchmarking.execution.tools.docker import DockerTool
-from benchmarking.files import Asset, keys, relative, text
+from benchmarking.files import Asset, keys, number, relative, text
 
 
 def _tcl_word(value: str) -> str:

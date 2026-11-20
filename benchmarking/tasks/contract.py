@@ -13,8 +13,8 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-from benchmarking.evaluation import EvaluationPlan, identifier, parse_evaluation
-from benchmarking.files import Asset, is_hub_file
+from benchmarking.evaluation import EvaluationPlan, parse_evaluation
+from benchmarking.files import Asset, identifier, is_hub_file
 from benchmarking.files import keys as _keys
 from benchmarking.files import read_file as _read_file
 from benchmarking.files import relative as _relative

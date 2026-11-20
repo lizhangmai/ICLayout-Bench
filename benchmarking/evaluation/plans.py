@@ -12,10 +12,8 @@ from benchmarking.evaluation.contracts import (
     Metric,
     ScoringSpec,
     _decode_evaluation,
-    identifier,
-    number,
 )
-from benchmarking.files import keys, text
+from benchmarking.files import identifier, keys, number, text
 
 
 def _order_jobs(jobs):

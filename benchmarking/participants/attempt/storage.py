@@ -4,15 +4,7 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
-from benchmarking.execution.leases import BatchLease
 from benchmarking.files import write_json
-
-
-class CaseLease(BatchLease):
-    filename = ".case.lock"
-
-    # Closing one owner must not unlock descriptors inherited by its workers.
-    unlock_on_exit = False
 
 
 class CaseRecord:

@@ -9,7 +9,8 @@ from pathlib import Path
 from benchmarking.eda.environment import ExternalRuntime
 from benchmarking.eda.images import tool_image
 from benchmarking.eda.resources.agent import prepare_agent_cache
-from benchmarking.eda.resources.installation import cache_root, prepare_installation
+from benchmarking.eda.resources.cache import cache_root
+from benchmarking.eda.resources.installation import prepare_installation
 from benchmarking.eda.resources.support import load_profile, prepare_support_cache
 from benchmarking.eda.toolchain import load_toolchain, load_toolchain_spec
 from benchmarking.evidence.bundles import Bundle, load_bundle

@@ -53,3 +53,12 @@ class BatchLease:
         finally:
             stream.close()
         return False
+
+
+class CaseLease(BatchLease):
+    """Exclusive ownership of one experiment case directory."""
+
+    filename = ".case.lock"
+
+    # Closing one owner must not unlock descriptors inherited by its workers.
+    unlock_on_exit = False

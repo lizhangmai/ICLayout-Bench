@@ -7,7 +7,8 @@ from pathlib import Path
 from benchmarking.evaluation.scoring import attempt_score
 from benchmarking.evidence.archive import verify_evaluated_candidate
 from benchmarking.files import read_file
-from benchmarking.results.normalization import digest, normalize
+from benchmarking.protocol import digest
+from benchmarking.results.normalization import normalize
 
 
 @dataclass(frozen=True)

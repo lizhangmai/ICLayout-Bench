@@ -1,27 +1,20 @@
 """Resolve experiment conditions without persisting provider credentials."""
 
-import hashlib
-import json
 import os
 import re
 import tomllib
 from pathlib import Path
 
+from benchmarking.participants.attempt.recovery import policy
 from benchmarking.participants.harnesses import registry as adapters
 from benchmarking.participants.harnesses.contracts import EFFORTS, HARNESSES
+from benchmarking.participants.harnesses.scheme import resolve_scheme
+from benchmarking.participants.isolation import clean_env
+from benchmarking.protocol import digest
 from benchmarking.results.usage import validate_pricing
 
 FIELDS = {"name", "harness", "harness_home", "model", "effort", "tasks", "dataset", "concurrency", "repetitions", "recovery", "results_data", "archive_objects", "scheme", "pricing"}
 INPUT_FIELDS = FIELDS | {"pricing_file"}
-
-
-def digest(value):
-    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-
-
-def clean_env():
-    return {k: v for k, v in os.environ.items()
-            if not k.startswith(("ICLAYOUT_BENCH_", "LAYOUT_BENCH_")) and k != "PYTHONPATH"}
 
 
 def resolve(harness, model=None, effort=None, *, harness_home=None):
@@ -63,7 +56,6 @@ def validate(row):
         raise ValueError('archive_objects must be a nonempty directory path')
     if "pricing" in row:
         validate_pricing(row["pricing"])
-    from benchmarking.participants.attempt.recovery import policy
     settings = policy(row.get("recovery"), harness=row["harness"])
     capabilities = adapters.capabilities(row["harness"])
     if not capabilities["resume_session"] and settings["resume_session"]:
@@ -161,7 +153,6 @@ def read_matrix(path, *, dataset=None, revision=None, offline=False):
 
 
 def _scheme(row, base):
-    from benchmarking.participants.harnesses.scheme import resolve_scheme
     if "harness_home" in row:
         row["harness_home"] = str((base / row["harness_home"]).resolve())
     for key in ('archive_objects', 'results_data'):

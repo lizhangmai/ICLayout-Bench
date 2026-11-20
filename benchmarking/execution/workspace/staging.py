@@ -2,13 +2,13 @@
 
 import json
 
-from benchmarking.evaluation.feedback import CHECK_FILES_MOUNT
 from benchmarking.evidence.identity import package_source
 from benchmarking.execution._scripts import benchmark_feedback as opinions
 from benchmarking.execution.harness import PROCESS_FEEDBACK_CAPABILITY
 from benchmarking.execution.tools.docker import read_only_mount_args
 from benchmarking.execution.workspace.environment import task_description
 from benchmarking.files import Asset, ReadOnlyMount, relative
+from benchmarking.protocol import CHECK_FILES_MOUNT
 
 
 def stage_inputs(root, task, config, resources, message, resource_info, *, inference=None, feedback=None):

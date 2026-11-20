@@ -5,10 +5,9 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from benchmarking.evaluation.contracts import number
 from benchmarking.execution.budgets import PhaseBudgets
 from benchmarking.execution.harness import HarnessSpec, prepare_harness
-from benchmarking.files import Asset, keys, read_file, relative, text
+from benchmarking.files import Asset, keys, number, read_file, relative, text
 
 _CREDENTIAL_ENVIRONMENT_NAME = re.compile(
     r"(?:^|_)(?:KEY|TOKEN|SECRET|PASSWORD)$", re.IGNORECASE

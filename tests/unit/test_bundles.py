@@ -119,7 +119,8 @@ def test_ciel_reuses_installation_and_agent_mounts_only_selected_paths(tmp_path,
     from ciel.common import Version
 
     from benchmarking.eda.resources.agent import prepare_agent_resources
-    from benchmarking.eda.resources.installation import cache_root, prepare_installation
+    from benchmarking.eda.resources.cache import cache_root
+    from benchmarking.eda.resources.installation import prepare_installation
 
     monkeypatch.delenv('ICLAYOUT_BENCH_CACHE_DIR', raising=False)
     monkeypatch.delenv('XDG_CACHE_HOME', raising=False)
