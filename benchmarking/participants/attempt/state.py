@@ -12,8 +12,6 @@ from benchmarking.files import write_json
 from benchmarking.participants.batch.config import digest
 from benchmarking.participants.harnesses import registry as adapters
 
-ROOT = Path(__file__).resolve().parents[1]
-
 
 def protocol_condition(frozen, *, harness=None):
     selection = frozen["selection"]
@@ -150,8 +148,6 @@ class ParticipantAttempt:
                   "prompt": instructions, "scheme": scheme_identity(scheme), "recovery": recovery,
                   "native_store_sha256": digest({"cwd": str(private.resolve()),
                       "home": str(adapters.get(row["harness"]).METADATA.home(env))}),
-                  "adapter_sha256": digest({p.relative_to(ROOT).as_posix(): p.read_text()
-                                            for p in sorted(ROOT.rglob("*.py"))}),
                   "cli_version": adapters.cli_version(row["harness"], scheme)}
         if "pricing" in row:
             frozen["pricing"] = row["pricing"]
