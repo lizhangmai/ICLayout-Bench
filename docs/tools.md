@@ -926,11 +926,6 @@ output. Optional SPICE `models` supplies its model definitions. The adapter
 concatenates these declared bytes and the fitted EM model without changing
 device cards or connections.
 
-The physical-GDS partitioner serializes multi-hole material using native
-KLayout trapezoids when their planar region is exactly preserved. This avoids
-ambiguous bridged GDS contours while retaining holes, zero-area port sheets
-and labels.
-
 This backend starts from explicit EM geometry and reference planes. A task
 must define and independently validate their relationship to the submitted
 physical layout, the compact-device boundaries, DC bias connections and any
