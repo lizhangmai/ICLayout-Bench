@@ -479,3 +479,64 @@ def test_http_audit_retains_diagnostics_without_request_or_response_secrets(tmp_
         assert event['exception_frames'][-1]['function'] == 'handle'
     assert event['elapsed_seconds'] >= 0 and event['timestamp']
     assert journal.stat().st_mode & 0o777 == 0o600
+
+
+def test_service_restart_terminates_lost_execution_and_preserves_receipt(tmp_path, executable_case):
+    """Durable HTTP metadata after abrupt loss; no Docker or model is started."""
+    import time
+
+    from benchmarking.evidence.journal import RunRecorder
+    from benchmarking.files import Asset
+    from benchmarking.participants.attempt.evidence import read_participant_evidence
+    from benchmarking.results.package import export_run
+    from benchmarking.service.server import APIError, LocalService
+    from benchmarking.tasks.contract import load_task
+    runtime = tmp_path / '.runtime'
+    root = runtime / 'service/service-store'
+    sid = 'interrupted'
+    (root / sid).mkdir(parents=True)
+    candidate = Asset(b'accepted-before-reboot', 'gds')
+    receipt = {'submission_id': '1', 'sequence': 1, 'candidate_sha256': candidate.sha256}
+    data = {'session_id': sid, 'token': 'scoped', 'created_at': 'original-start', 'deadline': 'original-deadline',
+            'deadline_epoch': time.time() + 60, 'retained_epoch': time.time() + 600,
+            'task_id': 'fixture', 'task_sha256': 'b' * 64, 'condition': {}, 'tool_identity': {}, 'limits': {'wall_seconds': 60},
+            'creation_key': 'create', 'creation_body': {'task_id': 'fixture', 'condition': {}},
+            'submissions': {'accepted': receipt}, 'executions': {'e': {'execution_id': 'e', 'state': 'running',
+            'exit_code': None, 'truncated': False, 'log_size': 0}},
+            'requests': {'submissions:same': {'body': {'path': 'answer.gds'}, 'status': 200, 'response': receipt}}}
+    (root / sid / 'http.json').write_text(json.dumps(data))
+    recorder = RunRecorder(root / sid / 'run')
+    frozen_task = recorder.archive(Asset(json.dumps({
+        'task_sha256': data['task_sha256'], 'output': {'top_cell': 'fixture'},
+    }).encode(), 'json'))
+    recorder.save({'phase': 'running', 'task': frozen_task})
+    recorder.event('submission', receipt={'accepted': True, 'sequence': 1, **candidate.identity()},
+                   candidate=recorder.archive(candidate))
+    service = LocalService(root, load_task(executable_case), {}, {}, 'unused', 'access', seconds=60)
+    try:
+        _, status = service.handle('GET', f'/sessions/{sid}', {}, 'scoped', None, None)
+        assert status['state'] == 'error'
+        assert status['active_execution_id'] is None
+        assert status['deadline'] == data['deadline']
+        _, replay = service.handle('POST', f'/sessions/{sid}/submissions', {}, 'scoped', {'path': 'answer.gds'}, 'same')
+        assert replay == receipt
+        with pytest.raises(APIError):
+            service.handle('POST', f'/sessions/{sid}/executions', {}, 'scoped', {'command': 'increment'}, 'new')
+        _, result = service.handle('GET', f'/sessions/{sid}/result', {}, 'scoped', None, None)
+        assert result['failure_category'] == 'service_failure'
+        assert result['score'] is None
+        participant = runtime / 'participant'
+        (participant / 'analysis').mkdir(parents=True)
+        (participant / 'analysis/result.json').write_text(json.dumps(result))
+        exported = {'files': []}
+        export_root = tmp_path / 'export'
+        export_run(export_root, read_participant_evidence(runtime), exported)
+        assert (export_root / 'final.gds').read_bytes() == candidate.content
+        assert exported['evaluation']['submission'] == result['submission']
+        assert exported['evaluation']['outcome'] == 'error'
+        assert exported['evaluation']['score'] is None
+        # Unacknowledged creation after restart must never create a replacement.
+        with pytest.raises(APIError):
+            service.handle('POST', '/sessions', {}, 'access', data['creation_body'], 'create')
+    finally:
+        service.shutdown()

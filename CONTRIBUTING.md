@@ -38,7 +38,7 @@ resources rather than shared orchestration modules.
 | `eda/` | `toolchain.py` validates declarations and lazily constructs adapters; `runtime.py` binds declared case inputs and resources. `backends/` owns tool invocation and native report acceptance; `oa/` provides native authoring interfaces; `resources/` prepares reviewed installations and support bundles; `netlists/` parses native circuit representations. `_scripts/` contains only EDA job helpers. Process and case policies remain in declared task resources. |
 | `execution/` | `tools/` executes bounded frozen jobs through Docker or native tools; `workspace/` stages and operates isolated solver workspaces; `process.py`, `leases.py` and `retry.py` provide shared process control. `inference/` owns the controlled model gateway. `harness.py` defines portable tool schemes. `_scripts/` contains staged workspace/protocol helpers. Execution does not schedule experiments or judge a design. |
 | `evidence/` | `bundles.py` validates immutable artifact bundles; `journal.py` writes and reads ordered committed events; `archive.py` reconstructs recorded run evidence; `identity.py` records the installed implementation. Only an unfinished final journal line may be ignored; malformed committed lines and sequence gaps are errors. |
-| `participants/` | `batch/` resolves experiment configuration, schedules repetitions and supervises independent workers. `attempt/` owns one solve's durable state, launch, continuation, recovery, settlement and terminal evidence collection. `harnesses/` registers native adapters and keeps each provider's configuration, event parsing, traces and usage interpretation in that provider's module. `mcp.py` exposes the participant HTTP tools. |
+| `participants/` | `batch/` resolves experiment configuration, schedules repetitions and supervises independent workers. `attempt/` owns one solve's durable state, launch, continuation, recovery, settlement and terminal evidence collection. `harnesses/` registers native adapters and keeps each provider's configuration, event parsing, traces and usage interpretation in that provider's module. `mcp.py` exposes the participant HTTP tools. Attempts receive service, native-process, version-probe and clock effects as `attempt/boundaries.py` `AttemptBoundaries`; planning and dispatch take `HostProbes` and `BatchBoundaries`. |
 | `service/` | `application.py` translates HTTP routes; `controller.py` owns authenticated mutations and replay; `views.py` projects responses; `state.py` stores service records. `session.py` composes solver execution with independent evaluation; `supervisor.py` owns live session handles. A controller can receive a dedicated supervisor, runner and workspace factory. |
 | `results/` | `package.py` exports explicit immutable evaluation and participant evidence; `verification.py` checks terminal records; `analysis.py` and the statistics modules return structured data. `preview.py` and `native_preview.py` produce EDA preview assets. `importing.py` validates artifacts before `store.py` transactionally imports metadata; `objects.py` stores content-addressed files. `outbox.py` and `transfer.py` own handoff. Charts and website publishing belong to consuming applications. |
 
@@ -152,8 +152,16 @@ Shared plans, backend doubles and result builders belong in `tests/helpers/`;
 fixtures belong in the nearest `conftest.py`. Do not import test modules from
 other tests or register test modules as fixture plugins.
 
-`test_participant_runner.py` owns shared recovery and settlement workflows, with
-decision tables for bounded waits and representative subprocess continuations;
+Participant tests are split by owned behavior: `test_participant_planning.py`
+(selections, case paths and recorded identities), `test_participant_scheduling.py`
+(dispatch, blocking, cooldowns and resumed owners), `test_participant_replacement.py`,
+`test_participant_attempts.py` (one attempt's outcome and collection),
+`test_participant_continuation.py` (continuation decision tables and representative
+subprocess continuations), `test_participant_settlement.py` (settlement and bounded
+waits) and `test_participant_launch.py` (launch inputs and command participants).
+They replace services, native processes, version probes and clocks through
+`AttemptBoundaries`, `HostProbes` and `BatchBoundaries`, built by
+`tests/helpers/participant.py`, rather than patching module attributes.
 `test_harness_adapters.py` owns native event classification and persisted-history
 binding. Exercise shared stopping rules with one representative harness and keep
 each adapter's native success, binding and format-specific failure checks. Expand
@@ -454,7 +462,7 @@ do not establish redistribution rights or resolve missing upstream notices.
 Participant recovery regressions run without models or Docker:
 
 ```bash
-uv run --locked pytest tests/unit/test_client.py tests/unit/test_participant_config.py tests/unit/test_participant_runner.py
+uv run --locked pytest tests/unit/test_client.py tests/unit/test_participant_*.py tests/unit/test_service_state.py
 ```
 
 These inject response loss after a server-side execution commit, bounded transport
@@ -476,7 +484,7 @@ Install the optional result-storage dependencies:
 
 ```bash
 uv sync --locked --extra results
-uv run --locked --extra results pytest tests/unit/test_results_archive.py tests/unit/test_layout_preview.py tests/unit/test_participant_runner.py
+uv run --locked --extra results pytest tests/unit/test_results_archive.py tests/unit/test_layout_preview.py tests/unit/test_participant_*.py
 ```
 
 The archive regressions use independent synthetic terminal records to verify SQL

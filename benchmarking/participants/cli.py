@@ -17,7 +17,9 @@ from benchmarking.participants.batch.plan import (
 )
 
 
-def main(argv=None):
+def main(argv=None, *, probes=None, boundaries=None):
+    """Run the participant CLI; ``probes`` and ``boundaries`` replace host and process effects."""
+    boundaries = boundaries or batch.BatchBoundaries()
     parser = argparse.ArgumentParser(description=__doc__)
     inputs = parser.add_mutually_exclusive_group()
     inputs.add_argument("--config", type=Path, nargs="+", help="TOML files with explicit experiment conditions")
@@ -65,15 +67,16 @@ def main(argv=None):
         if args.collect_only:
             if not args.output or args.config or args.matrix or args.resume or args.replace_unfinished or args.dry_run:
                 raise ValueError("--collect-only requires --output and no config, matrix, resume or dry-run")
-            return case.collect_batch(case.CollectRequest(args.output, args.case, args.results_data))
+            return case.collect_batch(case.CollectRequest(args.output, args.case, args.results_data),
+                                      boundaries=boundaries.attempt)
         request = ExperimentRequest(**{key: getattr(args, key) for key in ExperimentRequest.__dataclass_fields__})
-        experiment = plan_conditions(request)
+        experiment = plan_conditions(request, probes=probes)
         if args.dry_run:
             print(json.dumps([dict(c.description(), **({"results_data": c.row["results_data"]}
                               if "results_data" in c.row else {}))
                               for c in experiment.conditions], indent=2, ensure_ascii=False))
             return 0
-        options, slots = prepare_batch(request, experiment)
+        options, slots = prepare_batch(request, experiment, probes=probes)
         if args.detach:
             if len(slots) != 1:
                 raise ValueError('--detach requires exactly one condition')
@@ -82,7 +85,7 @@ def main(argv=None):
         blocked = set()
         for slot in slots:
             code = max(code, batch.execute_condition(options, slot.planned.row, slot.planned.selection,
-                                                    slot.output, slot.identity, blocked))
+                                                    slot.output, slot.identity, blocked, boundaries))
         return code
     except (OSError, TypeError, ValueError, subprocess.SubprocessError) as error:
         parser.error(str(error))

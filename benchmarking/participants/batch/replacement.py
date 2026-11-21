@@ -47,7 +47,7 @@ def same_solve_conditions(recorded, current):
     return recorded == current
 
 
-def validate_replacement(root, identity):
+def validate_replacement(root, identity, *, client=Client):
     journal = root / '.replacement.json'
     transaction = json.loads(journal.read_text()) if journal.exists() else None
     record = transaction['previous'] if transaction else CaseRecord(root).read()
@@ -67,7 +67,7 @@ def validate_replacement(root, identity):
         if state.created is None:
             raise ValueError('Uncertain session creation must be reconciled before replacement')
         created = state.created
-        session = Client(endpoint, created['session_token'], timeout=60).session(created['session_id'])
+        session = client(endpoint, created['session_token'], timeout=60).session(created['session_id'])
         if session['state'] not in {'complete', 'error'}:
             raise ValueError('Collect the existing remote session before replacement')
     return transaction or {'previous': record, 'identity': identity, 'name': uuid4().hex,

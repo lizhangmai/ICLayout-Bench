@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 import pytest
-from helpers.participant import ServiceFixture
+from helpers.participant import ServiceFixture, attempt_boundaries
 
 from benchmarking.participants.attempt.runner import run_participant
 from benchmarking.participants.harnesses.contracts import (
@@ -24,19 +24,19 @@ def test_every_runner_denies_host_files_and_undeclared_environment(tmp_path, mon
     fixture = ServiceFixture()
     host_file = tmp_path / 'unreviewed-host-context.txt'
     host_file.write_text('unreviewed-host-context-249cc')
-    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: fixture)
+    # Host credential discovery is not under test; native isolation runs for real.
     monkeypatch.setattr('benchmarking.participants.harnesses.registry.stage_credentials', lambda *a: set())
     probe = ('import json,os,pathlib; print(json.dumps({"visible":pathlib.Path(' + repr(str(host_file))
              + ').exists(), "inherited":os.environ.get("UNREVIEWED_CONTEXT")}))')
-    monkeypatch.setattr('benchmarking.participants.harnesses.registry.prepare',
-                        lambda context: [sys.executable, '-I', '-c', probe])
+    boundaries = attempt_boundaries(fixture, isolation=NativeRuntime,
+                                    native_command=lambda context: [sys.executable, '-I', '-c', probe])
     selected = ParticipantSelection({'harness': harness, 'model': 'fixture', 'effort_resolved': 'low'},
                                     {**os.environ, 'UNREVIEWED_CONTEXT': 'unreviewed-environment-935cd'}, {})
     output = tmp_path / 'repository/results/participant'
     output.parent.mkdir(parents=True)
     result, error = run_participant(fixture, {'harness': harness, 'task': 'fixture',
                                             'scheme': {'version': 'fixture'} if harness == 'command' else {}},
-                                     output, selected)
+                                     output, selected, boundaries=boundaries)
     assert error is None and result['outcome'] == 'no_submission'
     assert json.loads((output / 'harness.jsonl').read_text()) == {'visible': False, 'inherited': None}
 

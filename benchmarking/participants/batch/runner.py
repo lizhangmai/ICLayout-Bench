@@ -4,14 +4,20 @@ import json
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from urllib.parse import quote
 
 from benchmarking.execution.leases import BatchLeaseError, CaseLease
 from benchmarking.participants.attempt import worker as case
+from benchmarking.participants.attempt.boundaries import (
+    DEFAULT_BOUNDARIES,
+    AttemptBoundaries,
+)
 from benchmarking.participants.attempt.recovery import policy
 from benchmarking.participants.attempt.storage import (
     CaseRecord,
@@ -48,16 +54,34 @@ class BatchOptions:
     cases: dict
 
 
-def execute_condition(options, row, selection, output, identity, blocked, *, scheduler_fd=None):
+@dataclass(frozen=True)
+class BatchBoundaries:
+    """Batch effects outside its case records; the defaults are the production effects.
+
+    ``run_slot`` has :func:`execute_slot`'s signature; ``None`` runs each slot in
+    its own worker process through :func:`execute_slot`. ``clock`` times dispatch
+    cooldowns. ``attempt`` supplies service clients for replacement checks.
+    """
+
+    run_slot: Callable | None = None
+    clock: Any = time
+    attempt: AttemptBoundaries = DEFAULT_BOUNDARIES
+
+
+DEFAULT_BATCH = BatchBoundaries()
+
+
+def execute_condition(options, row, selection, output, identity, blocked, boundaries=None, *, scheduler_fd=None):
     if (options.resume or options.replace_unfinished) and not output.exists():
         raise ValueError("Cannot resume missing output: " + str(output))
     with scheduler.Coordinator(output, row, scheduler_fd) as coordinator:
-        code = _execute_condition(options, row, selection, output, identity, blocked, coordinator)
+        code = _execute_condition(options, row, selection, output, identity, blocked, coordinator,
+                                  boundaries or DEFAULT_BATCH)
         coordinator.exit_code = code
         return code
 
 
-def _execute_condition(options, row, selection, output, identity, blocked, coordinator):
+def _execute_condition(options, row, selection, output, identity, blocked, coordinator, boundaries):
     """Each timestamped case run owns its identity and lock beneath the condition root."""
     leases, new_manifests, replacements = {}, [], []
     active = scheduler.live_slots(output) if options.resume else {}
@@ -115,7 +139,8 @@ def _execute_condition(options, row, selection, output, identity, blocked, coord
                     recorded = data["identity"]
                     finished = data.get("state") == "finished"
                     if options.replace_unfinished:
-                        replacements.append((slot, validate_replacement(slot, current)))
+                        replacements.append((slot, validate_replacement(slot, current,
+                                                                        client=boundaries.attempt.client)))
                         lease_replacement(slot, store_leases)
                     elif content_identity(recorded) != content_identity(current):
                         raise ValueError("Case configuration, benchmark version or endpoint changed: " + task)
@@ -137,15 +162,19 @@ def _execute_condition(options, row, selection, output, identity, blocked, coord
             CaseRecord(path.parent).initialize(contents["identity"])
         store_leases.close()
         return execute_batch(options, row, selection, output, leases, blocked,
-                             coordinator=coordinator, active=active, lease_stack=stack)
+                             coordinator=coordinator, active=active, lease_stack=stack, boundaries=boundaries)
 
 
-def execute_slot(options, row, selection, repetition, name, output, lease):
-    request = case.SlotRequest(
+def slot_request(options):
+    """Launch inputs a slot worker receives from the batch options."""
+    return case.SlotRequest(
         endpoint=options.endpoint, image=options.image, token_env=options.token_env,
         cases=options.cases, results_data=options.results_data,
     )
-    return worker.supervise_slot(request, row, selection, repetition, name, output, lease)
+
+
+def execute_slot(options, row, selection, repetition, name, output, lease):
+    return worker.supervise_slot(slot_request(options), row, selection, repetition, name, output, lease)
 
 
 def slot_name(row, task, repetition, case_paths):
@@ -166,15 +195,146 @@ def dispatch_block(issue, row, endpoint):
             (row.get('resolved') or {}).get('provider'))
 
 
-def execute_batch(options, row, selection, output, lease, blocked=None, *, coordinator, active, lease_stack):
+def dispatch_blocks(summary, row, endpoint):
+    """Shared resources blocked by a case's stop-dispatch or finalization failure."""
+    issues = (summary.get('failure') or {}, (summary.get('finalization_error') or {}).get('failure') or {})
+    targets = (dispatch_block(issue, row, endpoint) for issue in issues if issue.get('stop_dispatch'))
+    return {target for target in targets if target is not None}
+
+
+def dispatch_blocked(blocked, row, endpoint):
+    """Whether a recorded block covers this condition's runtime, endpoint or provider."""
+    provider = dispatch_block({'stop_dispatch': True, 'scope': 'provider'}, row, endpoint)
+    return any(target in blocked for target in (('runtime',), ('endpoint', endpoint), provider))
+
+
+@dataclass
+class CapacityCooldown:
+    """Pause new dispatch after consecutive capacity-interrupted cases of one provider/model."""
+
+    seconds: float
+    until: float = 0
+    streak: int = 0
+
+    def observe(self, summary, now):
+        """Count one collected case; return the started pause, or ``None``."""
+        interrupted = (bool((summary.get('capacity_recovery') or {}).get('interruptions'))
+                       or (summary.get('failure') or {}).get('category') == 'provider_overloaded')
+        self.streak = self.streak + 1 if interrupted else 0
+        if self.streak < 2:
+            return None
+        self.streak, self.until = 0, now + self.seconds
+        return self.seconds
+
+
+def poll_timeout(cooldown_remaining, deferred):
+    """Wake for leases released by other owners and for cooldown expiry."""
+    if deferred:
+        return min(cooldown_remaining, .05) if cooldown_remaining > 0 else .05
+    return cooldown_remaining if cooldown_remaining > 0 else None
+
+
+class _ConditionDispatch:
+    """Dispatch one condition's slots and record skipped, blocked and completed cases."""
+
+    def __init__(self, options, row, selection, output, lease, blocked, coordinator, lease_stack, boundaries):
+        self.options, self.row, self.selection, self.output = options, row, selection, output
+        self.lease, self.blocked = lease, blocked
+        self.coordinator, self.lease_stack = coordinator, lease_stack
+        self.clock = boundaries.clock
+        self.run_slot = boundaries.run_slot or execute_slot
+        recovery = policy(row.get("recovery"), harness=row["harness"])
+        self.capacity_resumes = recovery['capacity_resumes']
+        self.cooldown = CapacityCooldown(recovery['capacity_cooldown_seconds'])
+        self.provider = (row["harness"], selection.condition.get("provider"), row["model"])
+        self.summaries = []
+
+    def submit(self, pool, slots, pending):
+        """Submit ready slots up to the concurrency cap; return how many await a case lease."""
+        row, options = self.row, self.options
+        deferred = 0
+        available = len(slots)
+        while slots and len(pending) < row["concurrency"] and available:
+            available -= 1
+            task, repetition = slots.popleft()
+            name = slot_name(row, task, repetition, options.case_paths)
+            stored = CaseRecord(self.output / name)
+            slot_row = frozen_pricing(row, stored.read()["identity"]["plan"][0])
+            previous = stored.previous_summary()
+            if previous and previous.get("state", "finished") == "finished":
+                self._skip(stored, task, repetition, slot_row, previous)
+            elif not self._lease(task):
+                slots.append((task, repetition))
+                deferred += 1
+            elif dispatch_blocked(self.blocked, row, options.endpoint):
+                self._block(stored, task, repetition, name)
+            elif self.clock.monotonic() < self.cooldown.until:
+                slots.appendleft((task, repetition))
+                break
+            else:
+                self.coordinator.event('case_dispatched', case=name, repetition=repetition)
+                future = pool.submit(self.run_slot, options, dict(slot_row, task=task), self.selection,
+                                     repetition, name, self.output, self.lease[task])
+                pending[future] = name
+        return deferred
+
+    def _skip(self, stored, task, repetition, slot_row, previous):
+        verify(stored.root, stored.read())
+        if self.lease[task] is not None:
+            previous = finish_case(stored.root, output=self.output, results_data=self.options.results_data,
+                                   schedule=[slot_row])
+        self.summaries.append(previous)
+        print(f"SKIP case={task} condition={self.row['name']} repetition={repetition} "
+              f"outcome={previous.get('outcome')} result={stored.manifest}", flush=True)
+        self.blocked.update(dispatch_blocks(previous, slot_row, self.options.endpoint))
+
+    def _lease(self, task):
+        """Hold the case lease, acquiring it once a resumed independent owner has exited."""
+        if self.lease[task] is None:
+            first = self.output / slot_name(self.row, task, 1, self.options.case_paths)
+            try:
+                self.lease[task] = self.lease_stack.enter_context(
+                    CaseLease(case_lease_root(first, self.row['repetitions'])))
+            except BatchLeaseError:
+                return False
+        return True
+
+    def _block(self, stored, task, repetition, name):
+        summary = {'name': self.row['name'], 'task': task, 'repetition': repetition,
+                   'directory': name, **self.selection.condition, 'state': 'blocked',
+                   'outcome': None, 'score': None}
+        stored.block(summary)
+        self.summaries.append(summary)
+        self.coordinator.event('case_blocked', case=name)
+
+    def complete(self, name, summary, selected):
+        if selected:
+            self.summaries.append(summary)
+        problem = summary.get('failure') or {}
+        self.coordinator.event('case_completed', case=name, state=summary.get('state'),
+                               outcome=summary.get('outcome'), score=summary.get('score'),
+                               failure_category=problem.get('category'), selected=selected)
+        recorded = CaseRecord(self.output / name).read()['identity']['plan'][0]
+        self.blocked.update(dispatch_blocks(summary, recorded, self.options.endpoint))
+        source_provider = (recorded['harness'], (recorded.get('resolved') or {}).get('provider'), recorded['model'])
+        if source_provider != self.provider:
+            return
+        if self.capacity_resumes:
+            delay = self.cooldown.observe(summary, self.clock.monotonic())
+            if delay is not None:
+                self.coordinator.event('capacity_cooldown', delay_seconds=delay)
+                print(f"CAPACITY_COOLDOWN model={self.row['model']} delay_seconds={delay:.3f}", flush=True)
+        print(json.dumps(summary, ensure_ascii=False), flush=True)
+
+
+def execute_batch(options, row, selection, output, lease, blocked=None, *, coordinator, active, lease_stack,
+                  boundaries=DEFAULT_BATCH):
     print(f"Experiment outputs: {output}", flush=True)
-    summaries = []
-    blocked = set() if blocked is None else blocked
-    capacity_streak, cooldown_until = {}, {}
     # Conditions run in order; concurrency caps independent case/repetition sessions
     # within the current condition, never multiplying across configuration files.
-    provider = (row["harness"], selection.condition.get("provider"), row["model"])
-    recovery = policy(row.get("recovery"), harness=row["harness"])
+    dispatch = _ConditionDispatch(options, row, selection, output, lease, set() if blocked is None else blocked,
+                                  coordinator, lease_stack, boundaries)
+    clock = boundaries.clock
     selected = {slot_name(row, task, rep, options.case_paths)
                 for rep in range(1, row['repetitions'] + 1) for task in row['tasks']}
     slots = deque((task, repetition) for repetition in range(1, row["repetitions"] + 1)
@@ -188,93 +348,18 @@ def execute_batch(options, row, selection, output, lease, blocked=None, *, coord
                 coordinator.event('worker_adopted', case=name, pid=owner['pid'], selected=name in selected)
                 pending[pool.submit(scheduler.observe_worker, output / name, owner, cancelled)] = name
             while slots or any(name in selected for name in pending.values()):
-                deferred = 0
-                available = len(slots)
-                while slots and len(pending) < row["concurrency"] and available:
-                    available -= 1
-                    task, repetition = slots.popleft()
-                    name = slot_name(row, task, repetition, options.case_paths)
-                    stored = CaseRecord(output / name)
-                    slot_row = frozen_pricing(row, stored.read()["identity"]["plan"][0])
-                    previous = stored.previous_summary()
-                    if previous and previous.get("state", "finished") == "finished":
-                        verify(stored.root, stored.read())
-                        if lease[task] is not None:
-                            previous = finish_case(stored.root, output=output, results_data=options.results_data,
-                                                   schedule=[slot_row])
-                        summaries.append(previous)
-                        print(f"SKIP case={task} condition={row['name']} repetition={repetition} "
-                              f"outcome={previous.get('outcome')} result={stored.manifest}", flush=True)
-                        for issue in (previous.get('failure') or {}, (previous.get('finalization_error') or {}).get('failure') or {}):
-                            if issue.get('stop_dispatch'):
-                                target = dispatch_block(issue, slot_row, options.endpoint)
-                                if target is not None:
-                                    blocked.add(target)
-                        continue
-                    if lease[task] is None:
-                        first = output / slot_name(row, task, 1, options.case_paths)
-                        try:
-                            lease[task] = lease_stack.enter_context(CaseLease(case_lease_root(first, row['repetitions'])))
-                        except BatchLeaseError:
-                            slots.append((task, repetition))
-                            deferred += 1
-                            continue
-                    if any(target in blocked for target in (
-                            ('runtime',), ('endpoint', options.endpoint),
-                            dispatch_block({'stop_dispatch': True, 'scope': 'provider'}, row, options.endpoint))):
-                        summary = {'name': row['name'], 'task': task, 'repetition': repetition,
-                                   'directory': name, **selection.condition, 'state': 'blocked',
-                                   'outcome': None, 'score': None}
-                        stored.block(summary)
-                        summaries.append(summary)
-                        coordinator.event('case_blocked', case=name)
-                        continue
-                    if time.monotonic() < cooldown_until.get(provider, 0):
-                        slots.appendleft((task, repetition))
-                        break
-                    coordinator.event('case_dispatched', case=name, repetition=repetition)
-                    future = pool.submit(execute_slot, options, dict(slot_row, task=task), selection,
-                                         repetition, name, output, lease[task])
-                    pending[future] = name
+                deferred = dispatch.submit(pool, slots, pending)
                 if not slots and not any(name in selected for name in pending.values()):
                     break
+                cooling = dispatch.cooldown.until - clock.monotonic()
                 if pending:
-                    delay = cooldown_until.get(provider, 0) - time.monotonic()
-                    timeout = min(delay, .05) if delay > 0 and deferred else .05 if deferred else delay if delay > 0 else None
-                    done, _ = wait(pending, timeout=timeout, return_when=FIRST_COMPLETED)
+                    done, _ = wait(pending, timeout=poll_timeout(cooling, deferred), return_when=FIRST_COMPLETED)
                     for future in done:
                         name = pending.pop(future)
-                        summary = future.result()
-                        if name in selected:
-                            summaries.append(summary)
-                        problem = summary.get('failure') or {}
-                        coordinator.event('case_completed', case=name, state=summary.get('state'),
-                                          outcome=summary.get('outcome'), score=summary.get('score'),
-                                          failure_category=problem.get('category'), selected=name in selected)
-                        recorded = CaseRecord(output / name).read()['identity']['plan'][0]
-                        source_provider = (recorded['harness'], (recorded.get('resolved') or {}).get('provider'), recorded['model'])
-                        for issue in (problem, (summary.get('finalization_error') or {}).get('failure') or {}):
-                            if issue.get('stop_dispatch'):
-                                target = dispatch_block(issue, recorded, options.endpoint)
-                                if target is not None:
-                                    blocked.add(target)
-                        if source_provider != provider:
-                            continue
-                        if recovery['capacity_resumes']:
-                            interrupted = bool((summary.get('capacity_recovery') or {}).get('interruptions'))
-                            interrupted |= problem.get('category') == 'provider_overloaded'
-                            capacity_streak[provider] = capacity_streak.get(provider, 0) + 1 if interrupted else 0
-                            if capacity_streak[provider] >= 2:
-                                delay = recovery['capacity_cooldown_seconds']
-                                cooldown_until[provider] = time.monotonic() + delay
-                                capacity_streak[provider] = 0
-                                coordinator.event('capacity_cooldown', delay_seconds=delay)
-                                print(f"CAPACITY_COOLDOWN model={row['model']} delay_seconds={delay:.3f}", flush=True)
-                        print(json.dumps(summary, ensure_ascii=False), flush=True)
+                        dispatch.complete(name, future.result(), name in selected)
                 elif slots:
-                    delay = cooldown_until.get(provider, 0) - time.monotonic()
-                    time.sleep(min(60, delay) if delay > 0 else .05)
+                    clock.sleep(min(60, cooling) if cooling > 0 else .05)
         finally:
             cancelled.set()
     return 1 if any(s.get("harness_error") or s.get("outcome") == "error" or s.get("state") in {"suspended", "blocked"}
-                    for s in summaries) else 0
+                    for s in dispatch.summaries) else 0

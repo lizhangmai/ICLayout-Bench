@@ -25,12 +25,12 @@ def local_service_owner(output):
     return None
 
 
-def local_service_client(output):
+def local_service_client(output, *, client=Client):
     owner = local_service_owner(output)
     if owner is None:
         raise RuntimeError("Existing local service is unavailable; retained session was not relaunched")
     token = json.loads((output / ".private/access.json").read_text())["token"]
-    return Client(owner["endpoint"], token, timeout=60)
+    return client(owner["endpoint"], token, timeout=60)
 
 
 def stop_local_service(output):

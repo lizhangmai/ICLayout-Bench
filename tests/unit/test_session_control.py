@@ -198,3 +198,77 @@ def test_command_log_is_bounded_and_close_waits_for_command_drain(tmp_path):
     assert path.read_bytes() == b'first'
     assert state['size'] == 5 and state['truncated'] is True
     assert order == [('complete', 125, 5, True), ('closed',)]
+
+
+def test_startup_failure_is_durable_and_same_key_never_starts_another_worker(tmp_path, executable_case):
+    import json
+
+    from benchmarking.service.server import APIError, LocalService
+    from benchmarking.tasks.contract import load_task
+    task = load_task(executable_case)
+    attempts = []
+    def broken_startup(*args, **kwargs):
+        attempts.append(1)
+        raise OSError('resource archive unavailable')
+    body = {'task_id': task.id, 'condition': {'harness_kind': 'agent', 'harness_id': 'startup-test',
+            'harness_version': '1', 'model': 'none', 'prompt_sha256': None, 'configuration_sha256': None}}
+    root = tmp_path / 'service'
+    for _ in range(2):
+        control = SessionControl(runner=broken_startup, session_factory=lambda *args, **kwargs: object())
+        service = LocalService(root, task, {}, {}, 'unused', 'access', seconds=60, session_control=control)
+        try:
+            for _ in range(2):
+                with pytest.raises(APIError):
+                    service.handle('POST', '/sessions', {}, 'access', body, 'same-create')
+            assert len(attempts) == 1
+            metadata = list(root.glob('*/http.json'))
+            assert len(metadata) == 1
+            data = json.loads(metadata[0].read_text())
+            assert data['interrupted'] is True
+            assert data['creation_key'] == 'same-create'
+            assert (metadata[0].parent / 'startup.json').is_file()
+        finally:
+            service.shutdown()
+
+
+def test_slow_resource_provisioning_has_separate_startup_and_solve_budgets(tmp_path, executable_case):
+    from benchmarking.service.server import LocalService
+    from benchmarking.tasks.contract import load_task
+    task = load_task(executable_case)
+    release = threading.Event()
+    observed = []
+    class ProvisioningEvent(threading.Event):
+        def wait(self, timeout=None):
+            observed.append(timeout)
+            # Simulate 90 seconds of durable resource staging without a slow test.
+            # The former 45-second window abandons this otherwise healthy startup.
+            if timeout is not None and timeout < 90:
+                return False
+            release.set()
+            return super().wait(2)
+    events = iter([ProvisioningEvent(), threading.Event()])
+    def provision(task, config, resources, backends, destination, *, session, **kwargs):
+        assert release.wait(2)
+        destination.mkdir()
+        (destination / 'events.jsonl').write_text('')
+        session.ready(SimpleNamespace(remaining=lambda: config.wall_seconds, active=False), None)
+        return {'outcome': 'no_submission'}
+    control = SessionControl(
+        runner=provision,
+        session_factory=lambda image, callback, **kwargs: SimpleNamespace(image_id='fixture-image', ready=callback),
+        threading_provider=lambda: SimpleNamespace(Event=lambda: next(events), Lock=threading.Lock,
+                                                   Thread=threading.Thread))
+    service = LocalService(tmp_path / 'service', task, {}, {}, 'unused', 'access', seconds=60,
+                           recoverable=False, session_control=control)
+    body = {'task_id': task.id, 'condition': {'harness_kind': 'agent', 'harness_id': 'startup-test',
+            'harness_version': '1', 'model': 'none', 'prompt_sha256': None, 'configuration_sha256': None}}
+    try:
+        status, created = service.handle('POST', '/sessions', {}, 'access', body, 'creation')
+        assert status == 201
+        assert created['limits']['wall_seconds'] == service.controller.limits['wall_seconds']
+        assert observed and observed[0] > service.controller.limits['wall_seconds']
+        assert service.handle('POST', '/sessions', {}, 'access', body, 'creation') == (status, created)
+        assert len(service.controller.state.runs) == 1
+    finally:
+        release.set()
+        service.shutdown()

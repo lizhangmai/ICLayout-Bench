@@ -12,8 +12,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from benchmarking.participants.harnesses.contracts import ParticipantSelection
-
 pytest.importorskip("sqlalchemy")
 
 from benchmarking.protocol import digest
@@ -481,29 +479,31 @@ def test_runner_storage_configuration_does_not_change_frozen_conditions(
     tmp_path, monkeypatch
 ):
     """Archive destinations affect delivery only, never whether completed work is rerun."""
+    from helpers.participant import host_probes
+
     from benchmarking.participants import cli
-    from benchmarking.participants.batch import plan as planning
-    from benchmarking.participants.batch import runner as batch
+    from benchmarking.participants.attempt.storage import CaseRecord
     from benchmarking.participants.batch.config import read_configs
+    from benchmarking.participants.batch.runner import BatchBoundaries
 
     config = tmp_path / "experiment.toml"
     base = 'harness="codex"\nmodel="model-a"\nefforts=["medium"]\ntasks=["case"]\nconcurrency=1\nrepetitions=1\n'
     config.write_text(base)
-    monkeypatch.setattr(planning, "resolve", lambda *args: ParticipantSelection({}, {}, {}))
-    monkeypatch.setattr(planning, "harness_version", lambda _: ("1.0", "cli 1.0"))
+    monkeypatch.chdir(tmp_path)
     identities = []
 
-    def capture(args, row, selection, output, identity, blocked):
-        identities.append(identity)
-        return 0
+    def capture(options, row, selection, repetition, name, output, lease):
+        identities.append(CaseRecord(output / name).read()["identity"])
+        return {"state": "finished"}
 
-    monkeypatch.setattr(batch, "execute_condition", capture)
+    seams = {"probes": host_probes(harness_version=lambda _: ("1.0", "cli 1.0")),
+             "boundaries": BatchBoundaries(run_slot=capture)}
     args = ["--config", str(config), "--endpoint", "https://example.invalid"]
-    assert cli.main(args) == 0
+    assert cli.main(args, **seams) == 0
     config.write_text('results_data="results/archive"\n' + base)
     assert read_configs([config])[0]["results_data"] == str((config.parent / "results/archive").resolve())
-    assert cli.main(args) == 0
-    assert identities[0] == identities[1]
+    assert cli.main(args, **seams) == 0
+    assert len(identities) == 2 and identities[0] == identities[1]
     config.write_text("results_data=false\n" + base)
     with pytest.raises(ValueError, match="results_data"):
         read_configs([config])

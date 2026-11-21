@@ -528,3 +528,21 @@ def test_reconnect_turn_semantics_are_specific_to_codex(tmp_path, harness):
     (tmp_path / "harness.jsonl").write_text("\n".join(json.dumps(event) for event in events))
     problem = adapters.harness_failure(harness, tmp_path, exit_code=0)
     assert (problem is None) == (harness == "codex")
+
+
+@pytest.mark.parametrize('mode,category', [('prose', None), ('unknown', 'unknown'), ('recovered', None)])
+def test_mcp_failure_requires_structured_unrecovered_evidence(tmp_path, mode, category):
+    from benchmarking.participants.harnesses.codex import harness_failure
+    message = 'MCP tool call requires approval, but approval policy is never'
+    item = {'type': 'mcp_tool_call', 'server': 'layout', 'tool': 'read', 'status': 'failed',
+            'error': {'message': message}}
+    if mode == 'prose':
+        events = [{'type': 'item.completed', 'item': {'type': 'agent_message', 'text': message}}]
+    elif mode == 'unknown':
+        events = [{'type': 'item.completed', 'item': dict(item, error={'message': 'unrecognized transport failure'})}]
+    else:
+        events = [{'type': 'item.completed', 'item': item},
+                  {'type': 'item.completed', 'item': dict(item, status='completed', error=None)}]
+    (tmp_path / 'harness.jsonl').write_text('\n'.join(json.dumps(event) for event in events))
+    problem = harness_failure(tmp_path, exit_code=0)
+    assert (problem['category'] if problem else None) == category

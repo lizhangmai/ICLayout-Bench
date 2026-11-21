@@ -92,7 +92,7 @@ def test_process_check_does_not_reintroduce_an_automatic_eda_deadline(monkeypatc
         protocol.close()
 
 
-def test_settlement_waits_for_unlimited_command_after_a_retained_deadline(tmp_path, monkeypatch):
+def test_settlement_waits_for_unlimited_command_after_a_retained_deadline(tmp_path):
     import json
 
     from benchmarking.participants.attempt import settlement
@@ -100,9 +100,7 @@ def test_settlement_waits_for_unlimited_command_after_a_retained_deadline(tmp_pa
     (tmp_path/'finalization.json').write_text(json.dumps({
         'executions': {}, 'errors': [], 'drain_deadline_epoch': 1}))
     now = [10000]
-    monkeypatch.setattr(settlement.time, 'time', lambda: now[0])
-    monkeypatch.setattr(settlement.time, 'monotonic', lambda: now[0])
-    monkeypatch.setattr(settlement.time, 'sleep', lambda _: None)
+    clock = SimpleNamespace(time=lambda: now[0], monotonic=lambda: now[0], sleep=lambda _: None)
     state = {'active': True}
     receipt = {'submission_id': '3', 'candidate_sha256': 'a'*64}
     closed = []
@@ -117,20 +115,19 @@ def test_settlement_waits_for_unlimited_command_after_a_retained_deadline(tmp_pa
         'state': 'active', 'active_execution_id': 'check' if state['active'] else None,
         'last_submission': receipt, 'budget': {'command_remaining_seconds': None}},
         poll=poll, close=lambda *args, **kwargs: closed.append(True))
-    assert settlement.settle_session(client, 'session', tmp_path) == receipt
+    assert settlement.settle_session(client, 'session', tmp_path, clock=clock) == receipt
     record = json.loads((tmp_path/'finalization.json').read_text())
     assert record['drain_deadline_epoch'] is None and record['error'] is None
     assert closed and record['closed']
 
 
-def test_participant_expiry_tracks_service_phase_without_ending_active_eda(monkeypatch):
+def test_participant_expiry_tracks_service_phase_without_ending_active_eda():
     from benchmarking.participants.attempt import settlement
 
     now = [0]
-    monkeypatch.setattr(settlement.time, 'monotonic', lambda: now[0])
     status = {'state': 'active', 'phase': 'draining'}
     client = SimpleNamespace(session=lambda _: status)
-    expired = settlement.participant_expiry(client, 'session', 10)
+    expired = settlement.participant_expiry(client, 'session', 10, clock=SimpleNamespace(monotonic=lambda: now[0]))
     assert not expired()
     now[0] = 10000
     assert not expired()
@@ -170,28 +167,27 @@ def test_phase_budgets_reject_invalid_explicit_command_duration(value):
         PhaseBudgets(10, command_seconds=value)
 
 
-def test_collection_restart_does_not_renew_evaluation_budget(tmp_path, monkeypatch):
+def test_collection_restart_does_not_renew_evaluation_budget(tmp_path):
     import json
 
     from benchmarking.participants.attempt import settlement
 
     now = [100]
-    monkeypatch.setattr(settlement.time, 'time', lambda: now[0])
-    monkeypatch.setattr(settlement.time, 'monotonic', lambda: now[0])
-    monkeypatch.setattr(settlement.time, 'sleep', lambda seconds: now.__setitem__(0, now[0]+seconds))
+    clock = SimpleNamespace(time=lambda: now[0], monotonic=lambda: now[0],
+                            sleep=lambda seconds: now.__setitem__(0, now[0]+seconds))
     pending = {'state': 'evaluating', 'budget': {'evaluation_remaining_seconds': 1}}
     client = SimpleNamespace(result=lambda _: pending)
     with pytest.raises(TimeoutError):
-        settlement.wait_result(client, 'session', tmp_path)
+        settlement.wait_result(client, 'session', tmp_path, clock=clock)
     assert json.loads((tmp_path/'collection.json').read_text())['evaluation_deadline_epoch'] == 101
     # Reconnecting to a stale service response cannot grant another second.
     with pytest.raises(TimeoutError):
-        settlement.wait_result(client, 'session', tmp_path)
+        settlement.wait_result(client, 'session', tmp_path, clock=clock)
     assert now[0] == 101
 
 
 @pytest.mark.parametrize('retained_deadline', [False, True])
-def test_collection_waits_for_unlimited_evaluation_after_old_deadline(tmp_path, monkeypatch, retained_deadline):
+def test_collection_waits_for_unlimited_evaluation_after_old_deadline(tmp_path, retained_deadline):
     import json
 
     from benchmarking.participants.attempt import settlement
@@ -200,15 +196,14 @@ def test_collection_waits_for_unlimited_evaluation_after_old_deadline(tmp_path, 
     if retained_deadline:
         journal.write_text(json.dumps({'evaluation_deadline_epoch': 1}))
     now = [10000]
-    monkeypatch.setattr(settlement.time, 'time', lambda: now[0])
-    monkeypatch.setattr(settlement.time, 'monotonic', lambda: now[0])
-    monkeypatch.setattr(settlement.time, 'sleep', lambda _: now.__setitem__(0, now[0] + 10000))
+    clock = SimpleNamespace(time=lambda: now[0], monotonic=lambda: now[0],
+                            sleep=lambda _: now.__setitem__(0, now[0] + 10000))
     pending = {'state': 'evaluating', 'budget': {'evaluation_remaining_seconds': None},
                'limits': {'phase_budgets': {'solve_seconds': 10, 'evaluation_seconds': None}}}
     terminal = {'state': 'complete'}
     responses = iter([pending, pending, terminal])
     client = SimpleNamespace(result=lambda _: next(responses))
-    assert settlement.wait_result(client, 'session', tmp_path) == terminal
+    assert settlement.wait_result(client, 'session', tmp_path, clock=clock) == terminal
     assert json.loads(journal.read_text())['evaluation_deadline_epoch'] is None
 
 

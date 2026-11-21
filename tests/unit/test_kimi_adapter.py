@@ -88,13 +88,12 @@ def test_invalid_native_attempt_limit_is_rejected_before_launch(kimi_config, val
         selection(home, config)
 
 
-def test_changed_native_attempt_limit_cannot_resume_frozen_conditions(tmp_path, kimi_config, monkeypatch):
+def test_changed_native_attempt_limit_cannot_resume_frozen_conditions(tmp_path, kimi_config):
     from helpers.participant import ServiceFixture
 
     from benchmarking.participants.attempt.recovery import policy
     from benchmarking.participants.attempt.state import ParticipantAttempt
 
-    monkeypatch.setattr('benchmarking.participants.harnesses.registry.cli_version', lambda *a: 'kimi 2.3.1')
     home, config = kimi_config
     config['loop_control'] = {'max_attempts_per_step': 3}
     selected = selection(home, config)
@@ -103,14 +102,18 @@ def test_changed_native_attempt_limit_cannot_resume_frozen_conditions(tmp_path, 
     row = {'harness': 'kimi-code', 'task': 'fixture'}
     recovery = policy({'capacity_resumes': 2}, harness='kimi-code')
     service = ServiceFixture()
-    attempt = ParticipantAttempt.open(service, row, output, selected.condition, selected.environment, '', recovery)
+    def version(*args):
+        return 'kimi 2.3.1'
+    attempt = ParticipantAttempt.open(service, row, output, selected.condition, selected.environment, '', recovery,
+                                      cli_version=version)
     assert attempt.conditions['selection']['native_max_attempts_per_step'] == 3
     assert attempt.conditions['recovery']['capacity_resumes'] == 2
     original = (output / 'conditions.json').read_bytes()
     config['loop_control']['max_attempts_per_step'] = 7
     changed = selection(home, config)
     with pytest.raises(ValueError, match='Cannot resume changed participant conditions'):
-        ParticipantAttempt.open(service, row, output, changed.condition, changed.environment, '', recovery)
+        ParticipantAttempt.open(service, row, output, changed.condition, changed.environment, '', recovery,
+                                cli_version=version)
     assert (output / 'conditions.json').read_bytes() == original
 
 
@@ -300,9 +303,8 @@ def test_native_reasoning_and_logs_survive_export_without_credentials(tmp_path):
 def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_wire(tmp_path, kimi_config, monkeypatch, terminal_error, stop, native_tools):
     import shutil
     import zipfile
-    from unittest.mock import patch
 
-    from helpers.participant import ServiceFixture
+    from helpers.participant import FakeClock, ServiceFixture, attempt_boundaries
 
     from benchmarking.participants.attempt.runner import run_participant
 
@@ -316,20 +318,17 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
     selected = selection(home, config)
     service = ServiceFixture()
     service.remaining = 1000
-    monkeypatch.setattr('benchmarking.participants.attempt.runner.Client', lambda *a, **kw: service)
-    monkeypatch.setattr('benchmarking.participants.harnesses.registry.cli_version', lambda *a: 'kimi 2.1.1')
-    monkeypatch.setattr('benchmarking.participants.attempt.recovery.capacity_delay', lambda settings, n: 30 * 2 ** n)
-    launches, delays, timeouts = [], [], []
+    launches, timeouts = [], []
     output = tmp_path / 'result'
     row = {'harness': 'kimi-code', 'task': 'fixture'}
     if stop == 'resume_disabled':
         row['recovery'] = {'resume_session': False}
 
-    def sleep(seconds):
-        delays.append(seconds)
+    def waited(seconds):
         service.remaining -= seconds
 
-    monkeypatch.setattr('benchmarking.participants.attempt.runner.time.sleep', sleep)
+    clock = FakeClock(on_sleep=waited)
+    delays = clock.delays
 
     def execute(argv, *, stdout, stderr, **kwargs):
         launches.append(argv)
@@ -361,44 +360,44 @@ def test_runner_continues_kimi_capacity_failure_in_the_same_session_and_exports_
         stdout.write('{"role":"assistant","content":"fixture completion"}\n')
         return 0, False
 
-    monkeypatch.setattr('benchmarking.participants.attempt.runner.execute', execute)
-    monkeypatch.setattr('benchmarking.participants.attempt.runner.NativeRuntime', FixtureRuntime)
-    with patch.object(service, 'create', wraps=service.create) as create:
-        result, error = run_participant(service, row, output, selected)
-        assert create.call_count == 1
-        frozen = json.loads((output / 'conditions.json').read_text())
-        assert frozen['selection']['native_max_attempts_per_step'] == 3
-        assert frozen['recovery']['capacity_resumes'] == 5
-        native_config = tomllib.loads((Path(selected.environment['KIMI_CODE_HOME']) / 'config.toml').read_text())
-        assert native_config['loop_control']['max_attempts_per_step'] == 3
-        summary = json.loads((output / 'harness-summary.json').read_text())
-        for argv in launches[1:]:
-            assert argv[argv.index('--session') + 1] == 'session_fixture'
-        if stop.startswith('pause_'):
-            assert error == 'cli_exit_' + stop.removeprefix('pause_')
-            assert result['state'] == 'active' and result['session_id'] == 'fixture-session'
-            assert service.closed == [] and len(launches) == 2 and delays == [30]
-            assert summary['capacity_recovery']['resumes'] == 1
-            assert json.loads((output / '.private/recovery.json').read_text())['phase'] == 'suspended'
-            return
-        if stop not in {'success', 'unanswered_tool'}:
-            assert error == ('cli_exit_-15' if stop == 'signal' else 'cli_exit_1')
-            assert len(launches) == (2 if stop == 'quota' else 1)
-            assert service.closed == (['fixture-session'] if stop in {'quota', 'resume_disabled'} else [])
-            if stop in {'quota', 'retry_after'}:
-                assert summary['capacity_recovery']['outcome'] == {
-                    'quota': 'stopped_on_other_error',
-                    'retry_after': 'retry_after_exceeds_cap'}[stop]
-            else:
-                assert 'capacity_recovery' not in summary and not delays
-            return
+    boundaries = attempt_boundaries(service, isolation=FixtureRuntime, cli_version=lambda *a: 'kimi 2.1.1',
+                                    execute=execute, clock=clock)
+    result, error = run_participant(service, row, output, selected, boundaries=boundaries)
+    assert len(service.creations) == 1
+    frozen = json.loads((output / 'conditions.json').read_text())
+    assert frozen['selection']['native_max_attempts_per_step'] == 3
+    assert frozen['recovery']['capacity_resumes'] == 5
+    native_config = tomllib.loads((Path(selected.environment['KIMI_CODE_HOME']) / 'config.toml').read_text())
+    assert native_config['loop_control']['max_attempts_per_step'] == 3
+    summary = json.loads((output / 'harness-summary.json').read_text())
+    for argv in launches[1:]:
+        assert argv[argv.index('--session') + 1] == 'session_fixture'
+    if stop.startswith('pause_'):
+        assert error == 'cli_exit_' + stop.removeprefix('pause_')
+        assert result['state'] == 'active' and result['session_id'] == 'fixture-session'
+        assert service.closed == [] and len(launches) == 2 and len(delays) == 1 and 30 <= delays[0] <= 36
+        assert summary['capacity_recovery']['resumes'] == 1
+        assert json.loads((output / '.private/recovery.json').read_text())['phase'] == 'suspended'
+        return
+    if stop not in {'success', 'unanswered_tool'}:
+        assert error == ('cli_exit_-15' if stop == 'signal' else 'cli_exit_1')
+        assert len(launches) == (2 if stop == 'quota' else 1)
+        assert service.closed == (['fixture-session'] if stop in {'quota', 'resume_disabled'} else [])
+        if stop in {'quota', 'retry_after'}:
+            assert summary['capacity_recovery']['outcome'] == {
+                'quota': 'stopped_on_other_error',
+                'retry_after': 'retry_after_exceeds_cap'}[stop]
+        else:
+            assert 'capacity_recovery' not in summary and not delays
+        return
     assert error is None and result['outcome'] == 'no_submission'
     assert len(launches) == 2 and '--agent-file' in launches[0] and '--agent-file' not in launches[1]
     assert launches[1][launches[1].index('--session') + 1] == 'session_fixture'
     summary = json.loads((output / 'harness-summary.json').read_text())
     assert summary['capacity_recovery']['resumes'] == 1
     assert summary['capacity_recovery']['outcome'] == 'recovered'
-    assert delays == [30] and timeouts == [1000, 970]
+    # Default capacity waits start at 30 seconds with up to 20% positive jitter.
+    assert len(delays) == 1 and 30 <= delays[0] <= 36 and timeouts == [1000, 1000 - delays[0]]
     assert service.closed == ['fixture-session']
     with zipfile.ZipFile(output / 'observation/participant/native-traces.zip') as archive:
         wire = [name for name in archive.namelist() if name.endswith('/wire.jsonl')]
@@ -434,3 +433,74 @@ def test_provider_api_key_environment_is_redacted_regardless_of_variable_name(ki
     home, config = kimi_config
     selected = selection(home, config)
     assert 'fixture-key' in credential_values(selected.settings)
+
+
+@pytest.mark.parametrize("credential", ["api_key_env", "oauth"])
+def test_kimi_isolates_native_configuration_and_delivers_task_via_mcp(tmp_path, monkeypatch, credential):
+    """Kimi's documented print/config contract must retain scoped tools and effort.
+
+    Use the existing service fixture and fake only native execution: this guards
+    credential/rule leakage and dispatch into Codex, not model or EDA quality.
+    """
+    from helpers.participant import ServiceFixture, attempt_boundaries
+
+    from benchmarking.participants.attempt.runner import run_participant
+    from benchmarking.participants.batch.config import resolve
+
+    home = tmp_path / 'host'
+    home.mkdir()
+    original = {'default_model': 'fixture/k3',
+                'providers': {'fixture': {'type': 'kimi', 'api_key_env': 'KIMI_FIXTURE_API_KEY'}},
+                'models': {'fixture/k3': {'provider': 'fixture', 'model': 'k3', 'max_context_size': 8192,
+                                         'support_efforts': ['low', 'high', 'max']}},
+                'hooks': [{'event': 'PreToolUse', 'command': 'must-not-run'}]}
+    if credential == 'oauth':
+        original['providers']['fixture'] = {'type': 'kimi', 'oauth': {'storage': 'file', 'key': 'oauth/fixture'}}
+        (home / 'credentials').mkdir()
+        (home / 'credentials/fixture.json').write_text('{"access_token":"private-oauth-token"}')
+    (home / 'config.toml').write_text(tomli_w.dumps(original))
+    (home / 'mcp.json').write_text('{"mcpServers":{"unrelated":{}}}')
+    monkeypatch.setenv('KIMI_CODE_HOME', str(home))
+    monkeypatch.setenv('KIMI_FIXTURE_API_KEY', 'private-provider-key')
+    monkeypatch.setenv('KIMI_MODEL_THINKING_EFFORT', 'low')
+    selection = resolve('kimi-code', 'fixture/k3', 'high')
+    # The real batch transports this private selection through both coordinator
+    # and worker JSON pipes. Direct runner tests previously skipped that seam.
+    selection = ParticipantSelection(**json.loads(json.dumps(selection.launch_payload())))
+    selected, env, settings = selection.condition, selection.environment, selection.settings
+    with pytest.raises(ValueError, match='explicitly supported'):
+        resolve('kimi-code', 'fixture/k3', 'xhigh')
+    fixture = ServiceFixture()
+
+    def execute(argv, *, cwd, env, prompt, **kwargs):
+        assert argv[0] == 'kimi'
+        assert argv[argv.index('--prompt') + 1] == prompt
+        assert prompt == '# Fixture problem\n'
+        assert 'private-provider-key' not in ' '.join(argv)
+        isolated = Path(env['KIMI_CODE_HOME'])
+        assert isolated != home
+        config = tomllib.loads((isolated / 'config.toml').read_text())
+        assert config['thinking']['effort'] == selected['effort_resolved']
+        assert 'hooks' not in config
+        assert config['tools']['enabled'] == ['mcp__layout__*']
+        assert 'KIMI_MODEL_THINKING_EFFORT' not in env
+        if credential == 'api_key_env':
+            assert env['KIMI_FIXTURE_API_KEY'] == 'private-provider-key'
+        else:
+            assert (isolated / 'credentials/fixture.json').read_bytes() == (home / 'credentials/fixture.json').read_bytes()
+            assert (isolated / 'credentials/fixture.json').stat().st_mode & 0o777 == 0o600
+            assert 'KIMI_FIXTURE_API_KEY' not in env
+        servers = json.loads((isolated / 'mcp.json').read_text())['mcpServers']
+        assert set(servers) == {'layout'}
+        assert servers['layout']['env']['ICLAYOUT_BENCH_TOKEN'] == 'scoped-fixture-token'
+        assert servers['layout']['toolTimeoutMs'] > fixture.remaining * 1000
+        return 0, False
+
+    output = tmp_path / 'result'
+    boundaries = attempt_boundaries(fixture, cli_version=lambda *a: 'kimi 1.2.3', execute=execute)
+    result, error = run_participant(fixture, {'harness': 'kimi-code', 'task': 'fixture'}, output,
+                                    ParticipantSelection(selected, env, settings), boundaries=boundaries)
+    assert error is None
+    assert result['outcome'] == 'no_submission'
+    assert tomllib.loads((home / 'config.toml').read_text()) == original
+    assert 'private-provider-key' not in (output / 'conditions.json').read_text()

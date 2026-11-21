@@ -21,22 +21,23 @@ def error_detail(error):
     return detail
 
 
-def settle_session(client, sid, output):
+def settle_session(client, sid, output, *, clock=time):
     """Drain existing executions and close on the participant's accepted snapshot.
 
     Never submit mutable workspace output. Uses only service state and execution IDs. Waiting
     consumes the original deadline. No execution or participant is launched here.
+    ``clock`` supplies ``monotonic``, ``time`` and ``sleep``.
     """
     journal = output / "finalization.json"
     record = json.loads(journal.read_text()) if journal.exists() else {"executions": {}, "errors": []}
     record.update(phase="draining", error=None, close_error=None, closed=False)
-    start = time.monotonic()
+    start = clock.monotonic()
     session_path = output / "session.json"
     limits = json.loads(session_path.read_text()).get("limits", {}) if session_path.exists() else {}
     budgets = PhaseBudgets.from_limits(limits)
 
     def persist():
-        record["elapsed_seconds"] = round(time.monotonic() - start, 3)
+        record["elapsed_seconds"] = round(clock.monotonic() - start, 3)
         atomic_write(journal, (json.dumps(record, indent=2, allow_nan=False) + "\n").encode())
 
     def idle():
@@ -54,13 +55,13 @@ def settle_session(client, sid, output):
             if remaining is None:
                 record['drain_deadline_epoch'] = None
             elif record.get('drain_deadline_epoch') is None:
-                record['drain_deadline_epoch'] = time.time() + remaining
-            deadline = (time.monotonic() + max(0, record['drain_deadline_epoch']-time.time())
+                record['drain_deadline_epoch'] = clock.time() + remaining
+            deadline = (clock.monotonic() + max(0, record['drain_deadline_epoch']-clock.time())
                         if record['drain_deadline_epoch'] is not None else None)
             execution = record['executions'].setdefault(eid, {'next_offset': 0})
             record['phase'] = 'draining'
             persist()
-            while deadline is None or time.monotonic() < deadline:
+            while deadline is None or clock.monotonic() < deadline:
                 polled = client.poll(sid, eid, offset=execution['next_offset'])
                 raw = base64.b64decode(polled['log_base64'], validate=True)
                 if raw:
@@ -71,7 +72,7 @@ def settle_session(client, sid, output):
                 if polled['state'] != 'running' and not raw:
                     break
                 if not raw:
-                    time.sleep(.5 if deadline is None else min(.5, max(0, deadline-time.monotonic())))
+                    clock.sleep(.5 if deadline is None else min(.5, max(0, deadline-clock.monotonic())))
             else:
                 raise TimeoutError('Session settlement: active command deadline expired; execution evidence retained')
 
@@ -126,12 +127,12 @@ def participant_timeout(created, status):
     return max(0, status['remaining_seconds']) + budgets.command_seconds + budgets.settlement_seconds
 
 
-def participant_expiry(client, sid, remaining):
+def participant_expiry(client, sid, remaining, *, clock=time):
     """Stop model work at service expiry while allowing an active EDA job to drain."""
-    solve_deadline = time.monotonic() + max(0, remaining)
+    solve_deadline = clock.monotonic() + max(0, remaining)
 
     def expired():
-        if time.monotonic() < solve_deadline:
+        if clock.monotonic() < solve_deadline:
             return False
         status = client.session(sid)
         return status['state'] != 'active' or status.get('phase', status.get('budget', {}).get('phase')) == 'expired'
@@ -139,12 +140,12 @@ def participant_expiry(client, sid, remaining):
     return expired
 
 
-def wait_result(client, sid, output=None):
+def wait_result(client, sid, output=None, *, clock=time):
     """Wait for independent evaluation; honor only an explicitly bounded service."""
     journal = output / 'collection.json' if output is not None else None
     record = json.loads(journal.read_text()) if journal is not None and journal.exists() else {}
     retained_deadline = record.get('evaluation_deadline_epoch')
-    deadline = (time.monotonic() + max(0, retained_deadline-time.time())
+    deadline = (clock.monotonic() + max(0, retained_deadline-clock.time())
                 if retained_deadline is not None else None)
     while True:
         result = client.result(sid)
@@ -161,10 +162,10 @@ def wait_result(client, sid, output=None):
                 record['evaluation_deadline_epoch'] = None
                 atomic_write(journal, (json.dumps(record, indent=2) + '\n').encode())
         elif deadline is None:
-            deadline = time.monotonic() + remaining
+            deadline = clock.monotonic() + remaining
             if journal is not None:
-                record['evaluation_deadline_epoch'] = time.time() + remaining
+                record['evaluation_deadline_epoch'] = clock.time() + remaining
                 atomic_write(journal, (json.dumps(record, indent=2) + '\n').encode())
-        if deadline is not None and time.monotonic() >= deadline:
+        if deadline is not None and clock.monotonic() >= deadline:
             raise TimeoutError('Evaluation remains pending; session ID retained in session.json')
-        time.sleep(.5)
+        clock.sleep(.5)

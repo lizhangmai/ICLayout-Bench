@@ -139,7 +139,8 @@ class ParticipantAttempt:
         return recovery
 
     @classmethod
-    def open(cls, access, row, output, selection, env, instructions, recovery):
+    def open(cls, access, row, output, selection, env, instructions, recovery, *,
+             cli_version=adapters.cli_version):
         private = output / ".private"
         private.mkdir(mode=0o700, exist_ok=True)
         state_path = private / "recovery.json"
@@ -148,7 +149,7 @@ class ParticipantAttempt:
                   "prompt": instructions, "scheme": scheme_identity(scheme), "recovery": recovery,
                   "native_store_sha256": digest({"cwd": str(private.resolve()),
                       "home": str(adapters.get(row["harness"]).METADATA.home(env))}),
-                  "cli_version": adapters.cli_version(row["harness"], scheme)}
+                  "cli_version": cli_version(row["harness"], scheme)}
         if "pricing" in row:
             frozen["pricing"] = row["pricing"]
         if state_path.exists():

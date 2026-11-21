@@ -1,6 +1,8 @@
-"""Minimal session responses and durable result files for participant tests."""
+"""Synthetic sessions, result files and explicit seams for participant tests."""
 
 import json
+import time
+from contextlib import nullcontext
 
 from benchmarking.client import ClientError
 from benchmarking.protocol import PROTOCOL, USAGE_FIELDS
@@ -14,8 +16,10 @@ class ServiceFixture:
         self.active = True
         self.closed = []
         self.condition = None
+        self.creations = []
 
     def create(self, task, condition, *, key):
+        self.creations.append(key)
         self.condition = condition
         return {'session_id': 'fixture-session', 'session_token': 'scoped-fixture-token',
                 'limits': {'wall_seconds': self.remaining, 'max_command_seconds': self.remaining},
@@ -82,3 +86,93 @@ class InFlightService(ServiceFixture):
         raise AssertionError("Session settlement must never submit workspace output")
 
 
+
+
+class FakeClock:
+    """Deterministic monotonic and wall clock; ``sleep`` advances both and records the delay."""
+
+    def __init__(self, now=0, *, on_sleep=None):
+        self.now, self.delays, self.on_sleep = now, [], on_sleep
+
+    def monotonic(self):
+        return self.now
+
+    def time(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.delays.append(seconds)
+        self.now += seconds
+        if self.on_sleep is not None:
+            self.on_sleep(seconds)
+
+
+def unavailable_local_service(*args):
+    raise AssertionError('This test supplies no local evaluation service')
+
+
+def attempt_boundaries(service=None, **overrides):
+    """Attempt effects for synthetic sessions, without Docker, vendor CLIs or isolation.
+
+    With ``service``, HTTP clients and local services reach that synthetic service.
+    Native commands still run as real child processes unless ``execute`` is replaced.
+    """
+    from benchmarking.participants.attempt.boundaries import AttemptBoundaries
+    from helpers.harness import FixtureRuntime
+
+    defaults = {'isolation': FixtureRuntime, 'cli_version': lambda *args: 'fixture-cli',
+                'local_service': unavailable_local_service}
+    if service is not None:
+        defaults.update(client=lambda *args, **kwargs: service,
+                        local_service=lambda *args: nullcontext(service))
+    return AttemptBoundaries(**(defaults | overrides))
+
+
+def host_probes(selection=None, **overrides):
+    """Planning probes with a fixed native selection, CLI version and unpinned images."""
+    from benchmarking.participants.batch.plan import HostProbes
+    from benchmarking.participants.harnesses.contracts import ParticipantSelection
+    from benchmarking.version import package_version
+
+    selection = selection or ParticipantSelection({}, {}, {})
+    defaults = {'resolve': lambda *args, **kwargs: selection,
+                'harness_version': lambda harness: ('1.2.3', 'fixture-cli 1.2.3'),
+                'package_version': package_version, 'image_id': lambda image: image}
+    return HostProbes(**(defaults | overrides))
+
+
+def in_process(solve=None, *, attempt=None, clock=time):
+    """Batch boundaries that run each slot's owned worker in this process.
+
+    Production starts one worker process per slot. ``solve(access, row, output,
+    selection)`` optionally replaces the participant attempt inside that worker.
+    """
+    from benchmarking.participants.attempt.worker import execute_owned_slot
+    from benchmarking.participants.batch.runner import BatchBoundaries, slot_request
+
+    attempt = attempt or attempt_boundaries()
+
+    def run_slot(options, row, selection, repetition, name, output, lease):
+        return execute_owned_slot(slot_request(options), row, selection, repetition, name, output, lease,
+                                  boundaries=attempt, solve=solve)
+
+    return BatchBoundaries(run_slot=run_slot, clock=clock, attempt=attempt)
+
+
+def write_dataset(root, names):
+    """Minimal local Dataset with one protocol task and process manifest per case."""
+    from helpers.protocol import write_protocol_task
+
+    for name in names:
+        config = write_protocol_task(root / 'tasks' / name.split('.')[0] / 'fixture/cases' / name)
+        (config.parent / 'case.toml').write_text(config.read_text().replace('protocol-test', name))
+        process = root / 'tasks' / name.split('.')[0]
+        process.mkdir(parents=True, exist_ok=True)
+        (process / 'pdk.toml').write_text('id="fixture"\n')
+    return root
+
+
+def case_run(root, task):
+    """The only timestamped run directory recorded for ``task``."""
+    directory, = (root / task).iterdir()
+    return directory

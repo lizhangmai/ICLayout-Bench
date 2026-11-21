@@ -303,6 +303,7 @@ def prepare_harness_args(condition, env, settings, mcp, directory):
 def test_explicit_dataset_selects_and_freezes_rows_before_resolving_configured_source(
         tmp_path, monkeypatch, matrix, configured_source):
     import tomli_w
+    from helpers.participant import host_probes
 
     from benchmarking.participants.batch.plan import ExperimentRequest, plan_conditions
 
@@ -322,9 +323,8 @@ def test_explicit_dataset_selects_and_freezes_rows_before_resolving_configured_s
         case=None, repetitions=None, concurrency=None, dataset='chosen-dataset', revision='chosen', offline=True,
         image='unused', endpoint=None, token_env='unused', output=None, results_data=None,
         resume=False, replace_unfinished=False)
-    with patch('benchmarking.tasks.dataset.load_dataset', return_value=dataset) as load, \
-            patch('benchmarking.participants.batch.plan.resolve', return_value=ParticipantSelection({}, {}, {})):
-        condition, = plan_conditions(request).conditions
+    with patch('benchmarking.tasks.dataset.load_dataset', return_value=dataset) as load:
+        condition, = plan_conditions(request, probes=host_probes()).conditions
     load.assert_called_once_with(str(source), revision='chosen', local_files_only=True)
     dataset.native_cases.assert_called_once_with('all', 'test')
     assert condition.row['tasks'] == ['chosen.case']

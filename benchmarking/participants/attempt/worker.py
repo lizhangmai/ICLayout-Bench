@@ -5,13 +5,15 @@ import os
 import shutil
 from contextlib import ExitStack, nullcontext
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
-from benchmarking.client import Client, ClientError
+from benchmarking.client import ClientError
 from benchmarking.execution.leases import BatchLease, CaseLease
 from benchmarking.files import write_json as save
 from benchmarking.participants.attempt import runner
 from benchmarking.participants.attempt import service as local_service
+from benchmarking.participants.attempt.boundaries import DEFAULT_BOUNDARIES
 from benchmarking.participants.attempt.evidence import (
     read_attempt_evidence,
     read_participant_evidence,
@@ -140,7 +142,14 @@ class CollectRequest:
     results_data: Path | None = None
 
 
-def execute_owned_slot(request: SlotRequest, row, selection, repetition, name, output, lease):
+def execute_owned_slot(request: SlotRequest, row, selection, repetition, name, output, lease, *,
+                       boundaries=DEFAULT_BOUNDARIES, solve=None):
+    """Run one slot's attempt and commit its outcome; the caller owns the case lease.
+
+    ``solve(access, row, output, selection)`` runs the participant attempt and
+    defaults to :func:`runner.run_one` with ``boundaries``.
+    """
+    solve = solve or partial(runner.run_one, boundaries=boundaries)
     check_scheme(row.get("scheme", {}))
     record = CaseRecord(output / name)
     run_dir = record.runtime
@@ -152,10 +161,10 @@ def execute_owned_slot(request: SlotRequest, row, selection, repetition, name, o
     if not request.endpoint:
         service_dir.mkdir(mode=0o700, exist_ok=True)
         arguments = (request.cases[row["task"]], service_dir, row.get("scheme", {}).get("solver_image", request.image))
-        context = local_service.service(*arguments, settings['resume_session'])
+        context = boundaries.local_service(*arguments, settings['resume_session'])
     else:
-        context = nullcontext(Client(request.endpoint, os.environ.get(request.token_env, ""), timeout=60,
-                                     retry_policy=settings))
+        context = nullcontext(boundaries.client(request.endpoint, os.environ.get(request.token_env, ""),
+                                                timeout=60, retry_policy=settings))
     interrupted = False
     try:
         artifacts = record.root / 'tool-artifacts'
@@ -163,7 +172,7 @@ def execute_owned_slot(request: SlotRequest, row, selection, repetition, name, o
         selection = selection.with_environment(ICLAYOUT_BENCH_LEASE_FD=str(lease.fileno()),
                                                ICLAYOUT_BENCH_TOOL_ARTIFACTS=str(artifacts.resolve()))
         with context as access:
-            summary = runner.run_one(access, row, run_dir / "participant", selection)
+            summary = solve(access, row, run_dir / "participant", selection)
         summary["repetition"] = repetition
         if "result" in summary:
             summary["result"] = str(Path("participant") / summary["result"])
@@ -189,7 +198,7 @@ def execute_owned_slot(request: SlotRequest, row, selection, repetition, name, o
     return summary
 
 
-def collect_batch(request: CollectRequest):
+def collect_batch(request: CollectRequest, *, boundaries=DEFAULT_BOUNDARIES):
     """Recover terminal exports/accepted candidates, keeping their original identity."""
     output = request.output.resolve()
     records = [(record.root, record.read()) for record in CaseRecord.discover(output)]
@@ -233,9 +242,10 @@ def collect_batch(request: CollectRequest):
             row = dict(record["identity"]["plan"][0])
             row["task"] = row["tasks"][0]
             endpoint = record["identity"].get("endpoint")
-            access = (Client(endpoint, created["session_token"], timeout=60) if endpoint else
-                      local_service.local_service_client(stored.service))
-            summary = runner.run_one(access, row, participant, ParticipantSelection(frozen["selection"], {}, {}), collect_only=True)
+            access = (boundaries.client(endpoint, created["session_token"], timeout=60) if endpoint else
+                      local_service.local_service_client(stored.service, client=boundaries.client))
+            summary = runner.run_one(access, row, participant, ParticipantSelection(frozen["selection"], {}, {}),
+                                     collect_only=True, boundaries=boundaries)
             summary.update(repetition=record.get("summary", {}).get("repetition", 1),
                            directory=str(directory.relative_to(output)), task=row["task"])
             if "result" in summary:

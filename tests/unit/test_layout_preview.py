@@ -13,7 +13,6 @@ import pytest
 
 from benchmarking.files import Asset
 from benchmarking.layout_preview import ensure_layout_preview, export_layout
-from benchmarking.participants.harnesses.contracts import ParticipantSelection
 
 pytestmark = pytest.mark.unit
 
@@ -265,7 +264,11 @@ def test_remote_or_unsubmitted_result_does_not_render(tmp_path, monkeypatch):
 
 
 def test_runner_automatically_renders_and_backfills_on_skip(tmp_path, monkeypatch):
-    from benchmarking.run import main
+    from functools import partial
+
+    from helpers.participant import host_probes, in_process
+
+    from benchmarking.participants.cli import main
     config = tmp_path / 'trial.toml'
     config.write_text('harness="codex"\nmodel="fixture"\neffort="high"\n'
                       'tasks=["case"]\nconcurrency=1\nrepetitions=1\n')
@@ -274,26 +277,23 @@ def test_runner_automatically_renders_and_backfills_on_skip(tmp_path, monkeypatc
         native_calls.append(output)
         preview_archive(output.parent)
         return {'outcome': 'pass', 'score': 75, 'result': 'analysis/result.json'}
-    monkeypatch.setattr('benchmarking.participants.batch.plan.resolve', lambda *args: ParticipantSelection({}, {}, {}))
-    monkeypatch.setattr('benchmarking.participants.attempt.runner.run_one', run)
-    from benchmarking.participants.attempt.worker import execute_owned_slot
-    monkeypatch.setattr('benchmarking.participants.batch.worker.supervise_slot', execute_owned_slot)
+    run_cli = partial(main, probes=host_probes(harness_version=lambda _: ('1.2.3', 'codex 1.2.3')),
+                      boundaries=in_process(run))
     monkeypatch.setenv('ICLAYOUT_BENCH_TOKEN', 'fixture')
     calls = renderer_fixture(monkeypatch)
     args = ['--config', str(config), '--endpoint', 'https://fixture']
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr('benchmarking.participants.batch.plan.harness_version', lambda _: ('1.2.3', 'codex 1.2.3'))
-    assert main(args) == 0
+    assert run_cli(args) == 0
     case = native_calls[0].parent.parent
     assert (case / 'layout.png').exists()
     summary_path = case / 'result.json'
     summary = summary_path.read_bytes()
     (case / 'layout.png').unlink()
     with pytest.raises(SystemExit) as stop:
-        main(args + ['--output', str(case.parent), '--resume'])
+        run_cli(args + ['--output', str(case.parent), '--resume'])
     assert stop.value.code == 2
     assert len(native_calls) == 1
-    assert main(args + ['--output', str(case.parent.parent), '--resume']) == 0
+    assert run_cli(args + ['--output', str(case.parent.parent), '--resume']) == 0
     assert (case / 'layout.png').exists()
     assert len(native_calls) == 1 and len(calls) == 2
     assert summary_path.read_bytes() == summary

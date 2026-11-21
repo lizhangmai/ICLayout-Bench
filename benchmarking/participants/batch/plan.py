@@ -1,6 +1,7 @@
 """Resolve experiment conditions and immutable local execution inputs."""
 
 import tomllib
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -24,7 +25,29 @@ from benchmarking.tasks.contract import load_task
 from benchmarking.tasks.dataset import dataset_root, load_dataset, process_manifest
 from benchmarking.version import package_version
 
-__all__ = ["ExperimentPlan", "ExperimentRequest", "default_output", "harness_version", "plan_conditions", "prepare_batch"]
+__all__ = ["ExperimentPlan", "ExperimentRequest", "HostProbes", "default_output", "harness_version", "host_probes",
+           "plan_conditions", "prepare_batch"]
+
+
+@dataclass(frozen=True)
+class HostProbes:
+    """Host facts read while planning, before any session is created.
+
+    ``resolve(harness, model, effort, **home)`` returns the native
+    ``ParticipantSelection``; ``harness_version(harness)`` returns the parsed and raw
+    CLI version; ``package_version()`` returns the installed release identity;
+    ``image_id(image)`` pins a local tool image.
+    """
+
+    resolve: Callable
+    harness_version: Callable
+    package_version: Callable
+    image_id: Callable
+
+
+def host_probes():
+    """Probe native configuration, installed CLIs, the package release and local images."""
+    return HostProbes(resolve, harness_version, package_version, lambda image: DockerSession(image).image_id)
 
 
 @dataclass(frozen=True)
@@ -121,7 +144,8 @@ def case_outputs(output, tasks, timestamp, *, reuse):
     return paths
 
 
-def plan_conditions(request: ExperimentRequest):
+def plan_conditions(request: ExperimentRequest, *, probes=None):
+    probes = probes or host_probes()
     if not request.config and not request.matrix:
         raise ValueError("Supply --config or --matrix")
     if request.replace_unfinished and (not request.output or not request.case or request.resume):
@@ -160,14 +184,15 @@ def plan_conditions(request: ExperimentRequest):
         validate(row)
     # Resolve every condition before creating any sessions; no credentials enter the plan.
     return ExperimentPlan(tuple(
-        PlannedCondition(row, group, resolve(row["harness"], row.get("model"), row.get("effort"),
+        PlannedCondition(row, group, probes.resolve(row["harness"], row.get("model"), row.get("effort"),
             **({"harness_home": row["harness_home"]} if "harness_home" in row else {})))
         for row, group in zip(rows, groups, strict=True)
     ))
 
 
-def prepare_batch(request: ExperimentRequest, experiment: ExperimentPlan, *, case_paths=None):
+def prepare_batch(request: ExperimentRequest, experiment: ExperimentPlan, *, case_paths=None, probes=None):
     """Bind conditions to recorded histories or explicitly allocated case paths."""
+    probes = probes or host_probes()
     image = request.image
     conditions = experiment.conditions
     if (request.dataset or request.revision or request.offline) and request.endpoint:
@@ -177,17 +202,17 @@ def prepare_batch(request: ExperimentRequest, experiment: ExperimentPlan, *, cas
     if request.output and len(conditions) != 1:
         raise ValueError("--output requires exactly one condition")
     versions = [(r["scheme"]["version"], r["scheme"]["version"]) if r["harness"] == "command"
-                else harness_version(r["harness"]) for r in (c.row for c in conditions)]
+                else probes.harness_version(r["harness"]) for r in (c.row for c in conditions)]
     outputs = ([request.output.resolve()] if request.output else
                [default_output(c.group).resolve() for c in conditions])
     if len(set(outputs)) != len(outputs):
         raise ValueError("Duplicate harness/model/effort output directories")
     if not request.endpoint:
         images = {c.row.get("scheme", {}).get("solver_image", image) for c in conditions}
-        pinned = {image: DockerSession(image).image_id for image in sorted(images)}
+        pinned = {image: probes.image_id(image) for image in sorted(images)}
         image = pinned.get(image, image)
     identity = {"endpoint": request.endpoint, "image": image if not request.endpoint else None,
-                "benchmark": package_version()}
+                "benchmark": probes.package_version()}
     dataset_paths = {}
     cases = {}
     manifests = {}
